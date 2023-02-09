@@ -1112,6 +1112,7 @@ model quiz {
     id                     String                      @id @default(uuid()) @db.Uuid
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    isPrivate              Boolean                     @default(false)
     maxAttempts            Int?
     randomizeQuestionOrder Boolean                     @default(false)
     revealCorrectAnswers   Boolean                     @default(true)

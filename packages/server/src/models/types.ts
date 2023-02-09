@@ -110,7 +110,7 @@ export interface SupplementalConverter<
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
         userData: SessionUser | null,
-    }) => Promise<{ [key in SuppFields[number]]: any[] }>;
+    }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;
 }
 
 type StringArrayMap<T extends readonly string[]> = {

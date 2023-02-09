@@ -18,7 +18,7 @@ import { SortMap } from "../utils/sortMap";
 
 const __typename = 'Comment' as const;
 type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canReply', 'you.canReport', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+const suppFields = ['you'] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -92,11 +92,12 @@ export const CommentModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    }
                 }
             },
         },
@@ -330,11 +331,12 @@ export const CommentModel: ModelLogic<{
             },
             Organization: 0,
         },
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             apiVersion: 'Api',
             issue: 'Issue',
             ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
             post: 'Post',
             projectVersion: 'Project',
             pullRequest: 'PullRequest',
@@ -343,7 +345,6 @@ export const CommentModel: ModelLogic<{
             routineVersion: 'Routine',
             smartContractVersion: 'SmartContract',
             standardVersion: 'Standard',
-            ownedByUser: 'User',
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
@@ -355,16 +356,16 @@ export const CommentModel: ModelLogic<{
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
-            ['apiVersion', 'Api'],
+            ['apiVersion', 'ApiVersion'],
             ['issue', 'Issue'],
             ['post', 'Post'],
-            ['projectVersion', 'Project'],
+            ['projectVersion', 'ProjectVersion'],
             ['pullRequest', 'PullRequest'],
             ['question', 'Question'],
             ['questionAnswer', 'QuestionAnswer'],
-            ['routineVersion', 'Routine'],
-            ['smartContractVersion', 'SmartContract'],
-            ['standardVersion', 'Standard'],
+            ['routineVersion', 'RoutineVersion'],
+            ['smartContractVersion', 'SmartContractVersion'],
+            ['standardVersion', 'StandardVersion'],
         ], languages),
         visibility: {
             private: {},

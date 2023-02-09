@@ -19,7 +19,7 @@ import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'PullRequest' as const;
 type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canReport'>;
-const suppFields = ['you.canComment', 'you.canDelete', 'you.canUpdate', 'you.canReport'] as const;
+const suppFields = ['you'] as const;
 export const PullRequestModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -117,9 +117,10 @@ export const PullRequestModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },

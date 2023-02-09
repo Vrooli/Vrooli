@@ -39,7 +39,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // If using handle, find the id of the object with that handle
     else if (input.handle) {
         id = await getIdFromHandle({ handle: input.handle, objectType, prisma });
-    } 
+    }
     // Otherwise, use the id provided
     else {
         id = input.id;
@@ -49,7 +49,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // Check permissions
     permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
     // Get the Prisma object
-const object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
+    const object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError('0022', 'NotFound', userData?.languages ?? req.languages, { objectType });
     // Return formatted for GraphQL

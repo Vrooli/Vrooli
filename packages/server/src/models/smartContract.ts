@@ -14,7 +14,7 @@ import { OrganizationModel } from "./organization";
 
 const __typename = 'SmartContract' as const;
 type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canTransfer', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
+const suppFields = ['you', 'translatedName'] as const;
 export const SmartContractModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -88,12 +88,13 @@ export const SmartContractModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    },
                     'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'smartContract.translatedName')
                 }
             },
@@ -171,10 +172,8 @@ export const SmartContractModel: ModelLogic<{
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
-        permissionsSelect: (...params) => ({
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
             id: true,
             hasCompleteVersion: true,
             isDeleted: true,

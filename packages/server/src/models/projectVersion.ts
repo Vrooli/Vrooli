@@ -26,7 +26,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 
 const __typename = 'ProjectVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
-const suppFields = ['you.canCopy', 'you.canDelete', 'you.canUpdate', 'you.canReport', 'you.canUse', 'you.canRead', 'you.runs'] as const;
+const suppFields = ['you'] as const;
 export const ProjectVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -88,7 +88,6 @@ export const ProjectVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 console.log('in projectversion tographql a');
                 const runs = async () => {
                     console.log('in projectversion tographql b', userData);
@@ -122,8 +121,10 @@ export const ProjectVersionModel: ModelLogic<{
                 };
                 console.log('in projectversion tographql e');
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.runs': await runs(),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        runs: await runs(),
+                    }
                 }
             },
         }
@@ -206,9 +207,7 @@ export const ProjectVersionModel: ModelLogic<{
             isPrivate: true,
             root: ['Project', ['versions']],
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {
                 await versionsCheck({

@@ -72,6 +72,7 @@ export const resolvers: {
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query organizations
+            console.log('feed 1', JSON.stringify(partial.projects), '\n\n');
             const { nodes: organizations } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
@@ -79,6 +80,7 @@ export const resolvers: {
                 input: { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
                 objectType: 'Organization',
             });
+            console.log('feed 2', JSON.stringify(partial.projects), '\n\n');
             // Query projects
             const { nodes: projects } = await readManyAsFeedHelper({
                 ...commonReadParams,
@@ -87,6 +89,7 @@ export const resolvers: {
                 input: { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true },
                 objectType: 'Project',
             });
+            console.log('feed 3', JSON.stringify(partial.projects), '\n\n');
             // Query routines
             const { nodes: routines } = await readManyAsFeedHelper({
                 ...commonReadParams,

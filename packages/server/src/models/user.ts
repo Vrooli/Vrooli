@@ -12,7 +12,7 @@ import { defaultPermissions } from "../utils";
 
 const __typename = 'User' as const;
 type Permissions = Pick<UserYou, 'canDelete' | 'canUpdate' | 'canReport'>
-const suppFields = ['you.isStarred', 'you.isViewed'] as const;
+const suppFields = ['you'] as const;
 export const UserModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -104,13 +104,12 @@ export const UserModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                console.log('user tographql 1');
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                console.log('user tographql 2');
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    }
                 }
             },
         },
@@ -159,9 +158,7 @@ export const UserModel: ModelLogic<{
             isPrivate: true,
             languages: { select: { language: true } },
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({ User: data }),
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,

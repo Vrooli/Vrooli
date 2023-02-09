@@ -22,7 +22,6 @@ export const toPartialGraphQLInfo = <
     languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
 ): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) => {
-    console.log('toPartialGraphqlInfo a', gqlRelMap.__typename, '\n');
     // Return undefined if info not set
     if (!info) {
         if (throwIfNotPartial)
@@ -37,7 +36,6 @@ export const toPartialGraphQLInfo = <
     } else {
         select = info;
     }
-    console.log('toPartialGraphqlInfo b', JSON.stringify(select), '\n\n'); // Tag translations confirmed here
     // If fields are in the shape of a paginated search query, convert to a Prisma select object
     if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
         select = select.edges.node;
@@ -46,9 +44,9 @@ export const toPartialGraphQLInfo = <
     else if (select.hasOwnProperty('endCursor') && select.hasOwnProperty('totalThreads') && select.hasOwnProperty('threads')) {
         select = select.threads.comment
     }
+    console.log('toPartialGraphQLInfo here', gqlRelMap.__typename, JSON.stringify(select), '\n\n');
     // Inject type fields
     select = injectTypenames(select, gqlRelMap);
-    console.log('toPartialGraphqlInfo c', JSON.stringify(select), '\n\n');
     if (!select)
         throw new CustomError('0346', 'InternalError', languages);
     return select;

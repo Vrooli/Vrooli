@@ -7,7 +7,7 @@ import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'RunProject' as const;
 type Permissions = Pick<RunProjectYou, 'canDelete' | 'canUpdate' | 'canRead'>;
-const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canRead'] as const;
+const suppFields = ['you'] as const;
 export const RunProjectModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -52,9 +52,10 @@ export const RunProjectModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },

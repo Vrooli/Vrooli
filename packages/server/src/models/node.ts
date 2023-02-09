@@ -90,9 +90,7 @@ export const NodeModel: ModelLogic<{
             Organization: 0,
         },
         permissionsSelect: () => ({ routineVersion: 'RoutineVersion' }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),
         isDeleted: (data, languages) => RoutineModel.validate!.isDeleted(data.routineVersion as any, languages),
         isPublic: (data, languages) => RoutineModel.validate!.isPublic(data.routineVersion as any, languages),

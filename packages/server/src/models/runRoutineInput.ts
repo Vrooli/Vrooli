@@ -88,13 +88,11 @@ export const RunRoutineInputModel: ModelLogic<{
     validate: {
         isTransferable: false,
         maxObjects: 100000,
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             runRoutine: 'RunRoutine',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         profanityFields: ['data'],
         owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),
         isDeleted: () => false,

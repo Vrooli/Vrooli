@@ -54,9 +54,7 @@ export const PaymentModel: ModelLogic<{
             Organization: data.organization,
             User: data.user,
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             organization: 'Organization',

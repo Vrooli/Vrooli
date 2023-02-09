@@ -8,7 +8,7 @@ import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'QuizQuestion' as const;
 type Permissions = Pick<QuizQuestionYou, 'canDelete' | 'canUpdate'>;
-const suppFields = ['you.canDelete', 'you.canUpdate'] as const;
+const suppFields = ['you'] as const;
 export const QuizQuestionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -49,9 +49,10 @@ export const QuizQuestionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },

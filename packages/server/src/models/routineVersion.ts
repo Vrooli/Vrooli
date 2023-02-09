@@ -33,7 +33,7 @@ const validateNodePositions = async (
 
 const __typename = 'RoutineVersion' as const;
 type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canCopy' | 'canDelete' | 'canUpdate' | 'canStar' | 'canReport' | 'canRun' | 'canRead' | 'canVote'>;
-const suppFields = ['you.canComment', 'you.canCopy', 'you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canReport', 'you.canRun', 'you.canRead', 'you.canVote', 'you.runs'] as const;
+const suppFields = ['you'] as const;
 export const RoutineVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -110,7 +110,6 @@ export const RoutineVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 const runs = async () => {
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add routineVersionId, so we 
@@ -139,8 +138,10 @@ export const RoutineVersionModel: ModelLogic<{
                     return routineRuns;
                 };
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.runs': await runs(),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        runs: await runs(),
+                    }
                 }
             },
         },
@@ -244,15 +245,13 @@ export const RoutineVersionModel: ModelLogic<{
         isTransferable: false,
         maxObjects: 1000000,
         owner: (data) => RoutineModel.validate!.owner(data.root as any),
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             isDeleted: true,
             isPrivate: true,
             root: ['Routine', ['versions']],
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {
                 await versionsCheck({ 

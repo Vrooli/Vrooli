@@ -11,7 +11,7 @@ import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'RunRoutine' as const;
 type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
-const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canRead'] as const;
+const suppFields = ['you'] as const;
 export const RunRoutineModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -92,8 +92,11 @@ export const RunRoutineModel: ModelLogic<{
             dbFields: ['name'],
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>;
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
             },
         },
     },
@@ -307,16 +310,14 @@ export const RunRoutineModel: ModelLogic<{
             User: 5000,
             Organization: 50000,
         },
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             isPrivate: true,
             organization: 'Organization',
             routineVersion: 'Routine',
             user: 'User',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({
             Organization: data.organization,
             User: data.user,

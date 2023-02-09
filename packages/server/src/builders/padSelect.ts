@@ -6,7 +6,6 @@ import { WithSelect } from "./types";
  * Adds "select" to the correct parts of an object to make it a Prisma select
  */
 export const padSelect = <T extends { [x: string]: any }>(fields: T): WithSelect<T> => {
-    console.log('in padSelect', fields)
     // Only pad if fields is an object
     if (!isRelationshipObject(fields)) return fields;
     // If fields is an object with the "select" key already, return it

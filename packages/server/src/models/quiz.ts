@@ -2,15 +2,17 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrependString, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
 
 const __typename = 'Quiz' as const;
 type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+const suppFields = ['you'] as const;
 export const QuizModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -59,16 +61,54 @@ export const QuizModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
+                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    }
                 }
             },
         },
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [
+            ['project', 'Project'],
+            ['routine', 'Routine'],
+        ], languages),
+        isTransferable: false,
+        maxObjects: 2000,
+        owner: (data) => ({
+            User: data.createdBy,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            isPrivate: true,
+            createdBy: 'User',
+            project: 'Project',
+            routine: 'Routine',
+        }),
+        visibility: {
+            private: {
+                OR: [
+                    { isPrivate: true },
+                    { project: ProjectModel.validate!.visibility.private },
+                    { routine: RoutineModel.validate!.visibility.private },
+                ]
+            },
+            public: {
+                AND: [
+                    { isPrivate: false },
+                    { project: ProjectModel.validate!.visibility.public },
+                    { routine: RoutineModel.validate!.visibility.public },
+                ]
+            },
+            owner: (userId) => ({ createdBy: { id: userId } }),
+        }
+    },
 })

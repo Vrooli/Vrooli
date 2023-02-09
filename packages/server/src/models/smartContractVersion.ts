@@ -9,7 +9,7 @@ import { SmartContractModel } from "./smartContract";
 
 const __typename = 'SmartContractVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
-const suppFields = ['you.canCopy', 'you.canDelete', 'you.canUpdate', 'you.canReport', 'you.canUse', 'you.canRead'] as const;
+const suppFields = ['you'] as const;
 export const SmartContractVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -60,8 +60,11 @@ export const SmartContractVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
             },
         },
     },
@@ -81,9 +84,7 @@ export const SmartContractVersionModel: ModelLogic<{
             isPrivate: true,
             root: ['SmartContract', ['versions']],
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {
                 await versionsCheck({

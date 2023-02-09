@@ -22,6 +22,7 @@ export const typeDef = gql`
 
     input QuizCreateInput {
         id: ID!
+        isPrivate: Boolean
         maxAttempts: Int
         randomizeQuestionORder: Boolean
         revealCorrectAnswers: Boolean
@@ -34,6 +35,7 @@ export const typeDef = gql`
     }
     input QuizUpdateInput {
         id: ID!
+        isPrivate: Boolean
         maxAttempts: Int
         randomizeQuestionORder: Boolean
         revealCorrectAnswers: Boolean
@@ -54,7 +56,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        isCompleted: Boolean!
+        isPrivate: Boolean!
         score: Int!
         stars: Int!
         views: Int!
@@ -77,6 +79,7 @@ export const typeDef = gql`
         canUpdate: Boolean!
         canRead: Boolean!
         canVote: Boolean!
+        hasCompleted: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
     }

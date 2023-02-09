@@ -48,9 +48,7 @@ export const UserScheduleFilterModel: ModelLogic<{
             Organization: 0,
         },
         owner: (data) => UserScheduleModel.validate!.owner(data.userSchedule as any),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             userSchedule: 'UserSchedule',

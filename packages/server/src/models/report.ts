@@ -37,7 +37,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
 
 const __typename = 'Report' as const;
 type Permissions = Pick<ReportYou, 'canDelete' | 'canUpdate' | 'canRespond'>;
-const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canRespond'] as const;
+const suppFields = ['you'] as const;
 export const ReportModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -101,8 +101,11 @@ export const ReportModel: ModelLogic<{
             graphqlFields: suppFields,
             dbFields: ['userId'],
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
             },
         },
         countFields: {

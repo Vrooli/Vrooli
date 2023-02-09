@@ -25,7 +25,7 @@ import { defaultPermissions } from "../utils";
 // })
 
 const __typename = 'Tag' as const;
-const suppFields = ['you.isOwn', 'you.isStarred'] as const;
+const suppFields = ['you'] as const;
 export const TagModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -93,8 +93,10 @@ export const TagModel: ModelLogic<{
             graphqlFields: suppFields,
             dbFields: ['createdById', 'id'],
             toGraphQL: async ({ ids, objects, prisma, userData }) => ({
-                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                'you.isOwn': objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+                you: {
+                    isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+                },
             }),
         },
     },
@@ -125,9 +127,7 @@ export const TagModel: ModelLogic<{
             Organization: 0,
         },
         permissionsSelect: () => ({ id: true }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: () => ({}),
         isDeleted: () => false,
         isPublic: () => true,

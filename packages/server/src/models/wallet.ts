@@ -72,9 +72,7 @@ export const WalletModel: ModelLogic<{
             organization: 'Organization',
             user: 'User',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({
             Organization: data.organization,
             User: data.user,

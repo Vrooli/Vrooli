@@ -14,7 +14,7 @@ import { getLabels } from "../getters";
 
 const __typename = 'Organization' as const;
 type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canStar' | 'canRead'>;
-const suppFields = ['you.canAddMembers', 'you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canRead', 'you.isStarred', 'you.isViewed', 'translatedName'] as const;
+const suppFields = ['you', 'translatedName'] as const;
 export const OrganizationModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -118,21 +118,13 @@ export const OrganizationModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                console.log('organization tographql 1');
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                console.log('organization tographql 2', JSON.stringify(permissions), '\n');
-                console.log('organization tographql 3', JSON.stringify((Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>)), '\n');
-                let temp1 = await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename);
-                console.log('organization tographql 4', JSON.stringify(temp1), '\n');
-                let temp2 = await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename);
-                console.log('organization tographql 5', JSON.stringify(temp2), '\n');
-                let temp3 = await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName');
-                console.log('organization tographql 6', JSON.stringify(temp3), '\n');
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    },
+                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'organization.translatedName'),
                 }
             },
         },

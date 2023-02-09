@@ -118,7 +118,7 @@ export const ResourceListModel: ModelLogic<{
     validate: {
         isTransferable: false,
         maxObjects: 50000,
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             apiVersion: 'ApiVersion',
             organization: 'Organization',
@@ -129,9 +129,7 @@ export const ResourceListModel: ModelLogic<{
             standardVersion: 'StandardVersion',
             userSchedule: 'UserSchedule',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({
             Organization: data.organization,
             User: (data.userSchedule as any)?.user,

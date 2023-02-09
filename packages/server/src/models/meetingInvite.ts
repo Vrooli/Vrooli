@@ -5,10 +5,11 @@ import { PrismaType } from "../types";
 import { MeetingModel } from "./meeting";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { defaultPermissions, oneIsPublic } from "../utils";
 
 const __typename = 'MeetingInvite' as const;
 type Permissions = Pick<MeetingInviteYou, 'canDelete' | 'canUpdate'>;
-const suppFields = ['you.canDelete', 'you.canUpdate'] as const;
+const suppFields = ['you'] as const;
 export const MeetingInviteModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -46,14 +47,41 @@ export const MeetingInviteModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: 0,
+            Organization: 5000,
+        },
+        permissionsSelect: () => ({
+            id: true,
+            status: true,
+            meeting: 'Meeting',
+        }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => ({
+            Organization: (data.meeting as any).organization,
+        }),
+        isDeleted: () => false,
+        isPublic: (data, languages) => oneIsPublic<Prisma.meeting_inviteSelect>(data, [
+            ['meeting', 'Meeting'],
+        ], languages),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                meeting: MeetingModel.validate!.visibility.owner(userId),
+            }),
+        }
+    },
 })

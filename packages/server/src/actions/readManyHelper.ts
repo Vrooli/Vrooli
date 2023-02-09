@@ -29,6 +29,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
+    console.log('readmanyhelper after toPartialGraphQLInfo', objectType, JSON.stringify(partialInfo), '\n\n')
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
@@ -48,8 +49,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         customQueries.push(searcher.customQueryData(input, userData));
     }
     // Combine queries
-    // TODO for monrning: compare to popular endpoint in feed.ts. AdditionQueries is missing isPrivate: false. customQueries is missing multiple things
-    console.log('going to combine queries: ', JSON.stringify(additionalQueries), searchQuery, JSON.stringify(customQueries));
     const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
     // Determine sort order
     // Make sure sort field is valid
@@ -59,7 +58,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Find requested search array
     console.log('readmanyhelper before selectHelper', objectType, JSON.stringify(partialInfo), '\n\n');
     const select = selectHelper(partialInfo);
-    console.log('readmanyhelper after selectHelper', objectType, JSON.stringify(select));
+    console.log('readmanyhelper after selectHelper', objectType, JSON.stringify(select), '\n\n');
     let searchResults: any[];
     try {
         searchResults = await (model.delegate(prisma) as any).findMany({
@@ -76,7 +75,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         logger.error('readManyHelper: Failed to find searchResults', { trace: '0383', error, objectType, ...select, where, orderBy });
         throw new CustomError('0383', 'InternalError', req.languages, { objectType });
     }
-    console.log('readmanyhelper after searchResults', JSON.stringify(searchResults))
+    console.log('readmanyhelper after searchResults', JSON.stringify(searchResults), '\n\n')
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {

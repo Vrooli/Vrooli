@@ -66,9 +66,7 @@ export const EmailModel: ModelLogic<{
             id: true,
             user: 'User',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({
             User: data.user,
         }),

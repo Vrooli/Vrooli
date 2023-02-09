@@ -5,10 +5,12 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { UserModel } from "./user";
 import { getSingleTypePermissions } from "../validators";
+import { defaultPermissions, oneIsPublic } from "../utils";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'MemberInvite' as const;
 type Permissions = Pick<MemberInviteYou, 'canDelete' | 'canUpdate'>;
-const suppFields = ['you.canDelete', 'you.canUpdate'] as const;
+const suppFields = ['you'] as const;
 export const MemberInviteModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -46,14 +48,45 @@ export const MemberInviteModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: 0,
+            Organization: 1000,
+        },
+        permissionsSelect: () => ({
+            id: true,
+            isAdmin: true,
+            permissions: true,
+            organization: 'Organization',
+            user: 'User',
+            roles: 'Role',
+        }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        isDeleted: () => false,
+        isPublic: (data, languages) => oneIsPublic<Prisma.member_inviteSelect>(data, [
+            ['organization', 'Organization'],
+        ], languages),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                organization: OrganizationModel.query.hasRoleQuery(userId),
+            }),
+        }
+    },
 })

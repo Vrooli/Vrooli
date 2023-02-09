@@ -4,10 +4,12 @@ import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInpu
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { defaultPermissions, oneIsPublic } from "../utils";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Label' as const;
 type Permissions = Pick<LabelYou, 'canDelete' | 'canUpdate'>;
-const suppFields = ['you.canDelete', 'you.canUpdate'] as const;
+const suppFields = ['you'] as const;
 export const LabelModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -60,8 +62,8 @@ export const LabelModel: ModelLogic<{
             runRoutineSchedules: 'RunRoutineSchedule',
             userSchedules: 'UserSchedule',
         },
-        joinMap: { 
-            apis: 'labelled', 
+        joinMap: {
+            apis: 'labelled',
             issues: 'labelled',
             meetings: 'labelled',
             notes: 'labelled',
@@ -88,9 +90,10 @@ export const LabelModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },
@@ -115,5 +118,54 @@ export const LabelModel: ModelLogic<{
             ]
         })
     },
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: {
+                private: {
+                    noPremium: 20,
+                    premium: 100,
+                },
+                public: {
+                    noPremium: 20,
+                    premium: 100,
+                }
+            },
+            Organization: {
+                private: {
+                    noPremium: 20,
+                    premium: 100,
+                },
+                public: {
+                    noPremium: 20,
+                    premium: 100,
+                },
+            }
+        },
+        permissionsSelect: () => ({
+            id: true,
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+        }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
+        }),
+        isDeleted: () => false,
+        isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
+            ['ownedByOrganization', 'Organization'],
+            ['ownedByUser', 'User'],
+        ], languages),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        }
+    },
 })

@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { StarModel } from "./star";
 import { ModelLogic } from "./types";
@@ -10,7 +10,7 @@ import { VoteModel } from "./vote";
 
 const __typename = 'Issue' as const;
 type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canStar' | 'canReport' | 'canRead' | 'canVote'>;
-const suppFields = ['you.canComment', 'you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canReport', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+const suppFields = ['you'] as const;
 export const IssueModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -78,11 +78,12 @@ export const IssueModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    }
                 }
             },
         },
@@ -113,5 +114,44 @@ export const IssueModel: ModelLogic<{
         },
         searchStringQuery: () => ({ OR: ['transDescriptionWrapped', 'transNameWrapped'] }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => oneIsPublic<Prisma.issueSelect>(data, [
+            ['api', 'Api'],
+            ['organization', 'Organization'],
+            ['note', 'Note'],
+            ['project', 'Project'],
+            ['routine', 'Routine'],
+            ['smartContract', 'SmartContract'],
+            ['standard', 'Standard'],
+        ], languages),
+        isTransferable: false,
+        maxObjects: {
+            User: {
+                private: 0,
+                public: 10000,
+            },
+            Organization: 0,
+        },
+        owner: (data) => ({
+            User: data.createdBy,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            api: 'Api',
+            createdBy: 'User',
+            organization: 'Organization',
+            note: 'Note',
+            project: 'Project',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({ createdBy: { id: userId } }),
+        }
+    },
 })

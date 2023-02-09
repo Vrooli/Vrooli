@@ -2,8 +2,9 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Meeting' as const;
 const suppFields = [] as const;
@@ -80,5 +81,42 @@ export const MeetingModel: ModelLogic<{
             ]
         })
     },
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: 0,
+            Organization: {
+                private: 100,
+                public: 100,
+            },
+        },
+        permissionsSelect: () => ({
+            id: true,
+            showOnOrganizationProfile: true,
+            organization: 'Organization',
+        }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => ({
+            Organization: data.organization,
+        }),
+        isDeleted: () => false,
+        isPublic: (data) => data.showOnOrganizationProfile === true,
+        visibility: {
+            private: {
+                OR: [
+                    { showOnOrganizationProfile: false },
+                    { organization: { isPrivate: true } },
+                ]
+            },
+            public: {
+                AND: [
+                    { showOnOrganizationProfile: true },
+                    { organization: { isPrivate: false } },
+                ]
+            },
+            owner: (userId) => ({
+                organization: OrganizationModel.query.hasRoleQuery(userId),
+            }),
+        }
+    },
 })
