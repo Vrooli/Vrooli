@@ -1,18 +1,19 @@
-import { id, req, opt, rel, YupModel } from '../utils';
-import * as yup from 'yup';
+import { bool, id, req, opt, YupModel, yupObj } from '../utils';
 import { nodeRoutineListItemValidation } from './nodeRoutineListItem';
 
 export const nodeRoutineListValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
-        isOrdered: opt(yup.boolean()),
-        isOptional: opt(yup.boolean()),
-        ...rel('items', ['Create'], 'many', 'opt', nodeRoutineListItemValidation),
-    }),
-    update: () => yup.object().shape({
+        isOrdered: opt(bool),
+        isOptional: opt(bool),
+    }, [
+        ['items', ['Create'], 'many', 'opt', nodeRoutineListItemValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
-        isOrdered: opt(yup.boolean()),
-        isOptional: opt(yup.boolean()),
-        ...rel('items', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeRoutineListItemValidation),
-    })
+        isOrdered: opt(bool),
+        isOptional: opt(bool),
+    }, [
+        ['items', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeRoutineListItemValidation],
+    ], [], o),
 }

@@ -4,7 +4,7 @@ export type YupModel<
     HasCreate extends boolean = true,
     HasUpdate extends boolean = true,
 > = (HasCreate extends true ? {
-    create: (...params: any) => yup.ObjectSchema<any>;
+    create: (params: { o?: string | string[] | undefined, minVersion?: string }) => yup.ObjectSchema<any>;
 } : {}) & (HasUpdate extends true ? {
-    update: (...params: any) => yup.ObjectSchema<any>;
+    update: (params: { o?: string | string[] | undefined, minVersion?: string }) => yup.ObjectSchema<any>;
 } : {});

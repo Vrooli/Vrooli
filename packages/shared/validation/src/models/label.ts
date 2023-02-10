@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { blankToUndefined, description, hexColor, id, maxStrErr, opt, rel, req, transRel, YupModel } from "../utils";
+import { blankToUndefined, description, hexColor, id, maxStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
 
 const label = yup.string().transform(blankToUndefined).max(128, maxStrErr)
 
@@ -13,37 +13,39 @@ export const labelTranslationValidation: YupModel = transRel({
 })
 
 export const labelValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         label: req(label),
         color: opt(hexColor),
-        ...rel('organization', ['Connect'], 'one', 'opt'),
-        ...rel('apis', ['Connect'], 'many', 'opt'),
-        ...rel('issues', ['Connect'], 'many', 'opt'),
-        ...rel('notes', ['Connect'], 'many', 'opt'),
-        ...rel('projects', ['Connect'], 'many', 'opt'),
-        ...rel('routines', ['Connect'], 'many', 'opt'),
-        ...rel('smartContracts', ['Connect'], 'many', 'opt'),
-        ...rel('standards', ['Connect'], 'many', 'opt'),
-        ...rel('meetings', ['Connect'], 'many', 'opt'),
-        ...rel('runProjectSchedules', ['Connect'], 'many', 'opt'),
-        ...rel('runRoutineSchedules', ['Connect'], 'many', 'opt'),
-        ...rel('translations', ['Create'], 'many', 'opt', labelTranslationValidation),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['organization', ['Connect'], 'one', 'opt'],
+        ['apis', ['Connect'], 'many', 'opt'],
+        ['issues', ['Connect'], 'many', 'opt'],
+        ['notes', ['Connect'], 'many', 'opt'],
+        ['projects', ['Connect'], 'many', 'opt'],
+        ['routines', ['Connect'], 'many', 'opt'],
+        ['smartContracts', ['Connect'], 'many', 'opt'],
+        ['standards', ['Connect'], 'many', 'opt'],
+        ['meetings', ['Connect'], 'many', 'opt'],
+        ['runProjectSchedules', ['Connect'], 'many', 'opt'],
+        ['runRoutineSchedules', ['Connect'], 'many', 'opt'],
+        ['translations', ['Create'], 'many', 'opt', labelTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         label: req(label),
         color: opt(hexColor),
-        ...rel('apis', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('issues', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('notes', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('projects', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('routines', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('smartContracts', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('standards', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('meetings', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('runProjectSchedules', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('runRoutineSchedules', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', labelTranslationValidation),
-    }),
+    }, [
+        ['apis', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['issues', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['notes', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['projects', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['routines', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['smartContracts', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['standards', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['meetings', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['runProjectSchedules', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['runRoutineSchedules', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', labelTranslationValidation],
+    ], [], o),
 }

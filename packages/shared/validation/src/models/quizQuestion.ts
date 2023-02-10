@@ -1,5 +1,4 @@
-import { description, id, name, req, opt, YupModel, rel, transRel, intPositiveOrOne, intPositiveOrZero } from '../utils';
-import * as yup from 'yup';
+import { description, id, name, req, opt, YupModel, transRel, intPositiveOrOne, intPositiveOrZero, yupObj } from '../utils';
 import { standardVersionValidation } from './standardVersion';
 
 export const quizQuestionTranslationValidation: YupModel = transRel({
@@ -14,19 +13,21 @@ export const quizQuestionTranslationValidation: YupModel = transRel({
 })
 
 export const quizQuestionValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         order: opt(intPositiveOrZero),
         points: opt(intPositiveOrOne),
-        ...rel('standardVersion', ['Connect', 'Create'], 'one', 'opt', standardVersionValidation),
-        ...rel('quiz', ['Connect'], 'one', 'opt'),
-        ...rel('translations', ['Create'], 'many', 'opt', quizQuestionTranslationValidation),
-    }, [['standardVersionConnect', 'standardVersionCreate']]),
-    update: () => yup.object().shape({
+    }, [
+        ['standardVersion', ['Connect', 'Create'], 'one', 'opt', standardVersionValidation],
+        ['quiz', ['Connect'], 'one', 'opt'],
+        ['translations', ['Create'], 'many', 'opt', quizQuestionTranslationValidation],
+    ], [['standardVersionConnect', 'standardVersionCreate']], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         order: opt(intPositiveOrZero),
         points: opt(intPositiveOrOne),
-        ...rel('standardVersion', ['Connect', 'Create', 'Update'], 'one', 'opt', standardVersionValidation),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', quizQuestionTranslationValidation),
-    }),
+    }, [
+        ['standardVersion', ['Connect', 'Create', 'Update'], 'one', 'opt', standardVersionValidation],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', quizQuestionTranslationValidation],
+    ], [], o),
 }

@@ -40,8 +40,8 @@ export async function cudHelper<
     // Initialize auth data by type
     let createAuthData: { [x: string]: any } = {}, updateAuthData: { [x: string]: any } = {};
     // Validate yup
-    createMany && mutate.yup.create && reqArr(mutate.yup.create()).validateSync(createMany, { abortEarly: false });
-    updateMany && mutate.yup.update && reqArr(mutate.yup.update()).validateSync(updateMany.map(u => u.data), { abortEarly: false });
+    createMany && mutate.yup.create && reqArr(mutate.yup.create({})).validateSync(createMany, { abortEarly: false });
+    updateMany && mutate.yup.update && reqArr(mutate.yup.update({})).validateSync(updateMany.map(u => u.data), { abortEarly: false });
     // Profanity check
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);

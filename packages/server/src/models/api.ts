@@ -9,7 +9,7 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { defaultPermissions, labelShapeHelper, tagShapeHelper } from "../utils";
-import { noNull, padSelect, shapeHelper } from "../builders";
+import { noNull, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
 

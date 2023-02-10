@@ -69,7 +69,7 @@ export const SettingsProfile = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema: userValidation.update(),
+        validationSchema: userValidation.update({}),
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
@@ -105,7 +105,7 @@ export const SettingsProfile = ({
         formik, 
         formikField: 'translationsUpdate', 
         language, 
-        validationSchema: userTranslationValidation.update(),
+        validationSchema: userTranslationValidation.update({}),
     });
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {

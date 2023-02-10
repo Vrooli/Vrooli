@@ -30,7 +30,7 @@ export const SettingsNotifications = ({
     //         }],
     //     },
     //     enableReinitialize: true,
-    //     validationSchema: userValidation.update(),
+    //     validationSchema: userValidation.update({}),
     //     onSubmit: (values) => {
     //         if (!profile) {
     //             PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });

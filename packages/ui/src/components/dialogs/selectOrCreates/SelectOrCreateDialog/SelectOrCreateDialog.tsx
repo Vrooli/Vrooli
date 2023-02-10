@@ -58,7 +58,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const { helpText, titleAria } = useMemo(() => {
         return {
-            helpText: help ?? t('common:SelectOrCreateDialogHelp', { lng, objectType: t(`common:${objectType}`, { lng }) }),
+            helpText: help ?? t('common:SelectOrCreateDialogHelp', { lng, objectType: t(`common:${objectType}`, { lng, count: 1 }) }),
             titleAria: `select-or-create-${objectType}-dialog-title`,
         };
     }, [help, lng, objectType, t]);

@@ -71,7 +71,7 @@ export const SettingsDisplay = ({
     //     initialValues: {
     //         theme: getCurrentUser(session).theme ?? 'light',
     //     },
-    //     validationSchema: userValidation.update(),
+    //     validationSchema: userValidation.update({}),
     //     onSubmit: (values) => {
     //         if (!profile) {
     //             PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });

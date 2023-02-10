@@ -3,7 +3,7 @@ import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
 import { fragmentsNeeded } from "./fragmentsNeeded";
 import { fragmentsToString } from "./fragmentsToString";
 import { partialToStringHelper } from "./partialToStringHelper";
-import { rel } from "./relPartial";
+import { rel } from "./rel";
 
 type PartialToStringProps<
     EndpointType extends 'query' | 'mutation',

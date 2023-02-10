@@ -50,7 +50,7 @@ session,
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: organizationValidation.update(),
+        validationSchema: organizationValidation.update({}),
         onSubmit: (values) => {
             if (!organization) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: SnackSeverity.Error });
@@ -80,7 +80,7 @@ session,
         formik, 
         formikField: 'translationsUpdate', 
         language, 
-        validationSchema: organizationTranslationValidation.update(),
+        validationSchema: organizationTranslationValidation.update({}),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

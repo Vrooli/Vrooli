@@ -1,4 +1,4 @@
-import { id, bio, name, handle, maxStrErr, blankToUndefined, email, req, opt, YupModel, transRel, rel, theme, password } from '../utils';
+import { id, bio, name, handle, maxStrErr, blankToUndefined, email, req, opt, YupModel, transRel, theme, password, yupObj, bool } from '../utils';
 import * as yup from 'yup';
 import { userScheduleValidation } from './userSchedule';
 
@@ -29,32 +29,33 @@ export const userTranslationValidation: YupModel = transRel({
 
 export const userValidation: YupModel<false, true> = {
     // Can't create a user directly - must use sign up form(s)
-    update: () => yup.object().shape({
+    update: ({ o }) => yupObj({
         handle: opt(handle),
         name: opt(name),
         theme: opt(theme),
-        isPrivate: opt(yup.boolean()),
-        isPrivateApis: opt(yup.boolean()),
-        isPrivateApisCreated: opt(yup.boolean()),
-        isPrivateMemberships: opt(yup.boolean()),
-        isPrivateOrganizationsCreated: opt(yup.boolean()),
-        isPrivateProjects: opt(yup.boolean()),
-        isPrivateProjectsCreated: opt(yup.boolean()),
-        isPrivatePullRequests: opt(yup.boolean()),
-        isPrivateQuestionsAnswered: opt(yup.boolean()),
-        isPrivateQuestionsAsked: opt(yup.boolean()),
-        isPrivateQuizzesCreated: opt(yup.boolean()),
-        isPrivateRoles: opt(yup.boolean()),
-        isPrivateRoutines: opt(yup.boolean()),
-        isPrivateRoutinesCreated: opt(yup.boolean()),
-        isPrivateSmartContracts: opt(yup.boolean()),
-        isPrivateStandards: opt(yup.boolean()),
-        isPrivateStandardsCreated: opt(yup.boolean()),
-        isPrivateStars: opt(yup.boolean()),
-        isPrivateVotes: opt(yup.boolean()),
-        ...rel('schedules', ['Create', 'Update', 'Delete'], 'many', 'opt', userScheduleValidation),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', userTranslationValidation),
-    }),
+        isPrivate: opt(bool),
+        isPrivateApis: opt(bool),
+        isPrivateApisCreated: opt(bool),
+        isPrivateMemberships: opt(bool),
+        isPrivateOrganizationsCreated: opt(bool),
+        isPrivateProjects: opt(bool),
+        isPrivateProjectsCreated: opt(bool),
+        isPrivatePullRequests: opt(bool),
+        isPrivateQuestionsAnswered: opt(bool),
+        isPrivateQuestionsAsked: opt(bool),
+        isPrivateQuizzesCreated: opt(bool),
+        isPrivateRoles: opt(bool),
+        isPrivateRoutines: opt(bool),
+        isPrivateRoutinesCreated: opt(bool),
+        isPrivateSmartContracts: opt(bool),
+        isPrivateStandards: opt(bool),
+        isPrivateStandardsCreated: opt(bool),
+        isPrivateStars: opt(bool),
+        isPrivateVotes: opt(bool),
+    }, [
+        ['schedules', ['Create', 'Update', 'Delete'], 'many', 'opt', userScheduleValidation],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', userTranslationValidation],
+    ], [], o),
 }
 
 /**
@@ -62,7 +63,7 @@ export const userValidation: YupModel<false, true> = {
  */
 export const userDeleteOneSchema = yup.object().shape({
     password: req(yup.string().transform(blankToUndefined).max(128, maxStrErr)),
-    deletePublicData: req(yup.boolean()),
+    deletePublicData: req(bool),
 })
 
 /**

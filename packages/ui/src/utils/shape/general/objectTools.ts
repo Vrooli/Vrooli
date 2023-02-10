@@ -6,11 +6,19 @@ import { exists, isObject } from "@shared/utils";
 /**
  * Grabs data from an object using dot notation (ex: 'parent.child.property')
  */
-export const valueFromDot = (object, notation) => {
-    function index(object, i) { return object[i] }
+export const valueFromDot = (object: any, notation: string): any => {
+    // Utility function to index into object using string key
+    function index(obj: any, i: string) {
+        // Return null if obj is falsy
+        return exists(obj) ? obj[i] : null;
+    }
+    // Return null if either object or notation is falsy
     if (!object || !notation) return null;
-    return notation.split('.').reduce(index, object);
-}
+    // Use reduce method to traverse the object using dot notation
+    // If the final result is falsy, return null
+    const value = notation.split('.').reduce(index, object);
+    return exists(value) ? value : null;
+};
 
 export const arrayValueFromDot = (object, notation, index) => {
     const value = valueFromDot(object, notation);

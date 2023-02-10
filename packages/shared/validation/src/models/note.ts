@@ -1,27 +1,28 @@
-import * as yup from 'yup';
-import { id, opt, rel, req, YupModel } from "../utils";
+import { bool, id, opt, req, YupModel, yupObj } from "../utils";
 import { tagValidation } from './tag';
 import { labelValidation } from './label';
 import { noteVersionValidation } from './noteVersion';
 
 export const noteValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
-        isPrivate: opt(yup.boolean()),
-        ...rel('user', ['Connect'], 'one', 'opt'),
-        ...rel('organization', ['Connect'], 'many', 'opt'),
-        ...rel('parent', ['Connect'], 'one', 'opt'),
-        ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
-        ...rel('versions', ['Create'], 'many', 'opt', noteVersionValidation),
-        ...rel('labels', ['Connect', 'Create'], 'many', 'opt', labelValidation),
-    }),
-    update: () => yup.object().shape({
+        isPrivate: opt(bool),
+    }, [
+        ['user', ['Connect'], 'one', 'opt'],
+        ['organization', ['Connect'], 'one', 'opt'],
+        ['parent', ['Connect'], 'one', 'opt'],
+        ['tags', ['Connect', 'Create'], 'many', 'opt', tagValidation],
+        ['versions', ['Create'], 'many', 'opt', noteVersionValidation, ['root']],
+        ['labels', ['Connect', 'Create'], 'many', 'opt', labelValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
-        isPrivate: opt(yup.boolean()),
-        ...rel('user', ['Connect'], 'one', 'opt'),
-        ...rel('organization', ['Connect'], 'many', 'opt'),
-        ...rel('tags', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', tagValidation),
-        ...rel('versions', ['Create', 'Update', 'Delete'], 'many', 'opt', noteVersionValidation),
-        ...rel('labels', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', labelValidation),
-    }),
+        isPrivate: opt(bool),
+    }, [
+       ['user', ['Connect'], 'one', 'opt'],
+       ['organization', ['Connect'], 'one', 'opt'],
+       ['tags', ['Connect', 'Create', 'Disconnect'], 'one', 'opt', tagValidation],
+       ['versions', ['Create', 'Update', 'Delete'], 'many', 'opt', noteVersionValidation, ['root']],
+       ['labels', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', labelValidation],
+    ], [], o),
 }

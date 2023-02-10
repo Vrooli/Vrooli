@@ -1,27 +1,28 @@
-import * as yup from 'yup';
-import { id, opt, rel, req, YupModel } from "../utils";
+import { bool, id, opt, req, YupModel, yupObj } from "../utils";
 import { tagValidation } from './tag';
 import { labelValidation } from './label';
 import { apiVersionValidation } from './apiVersion';
 
 export const apiValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
-        isPrivate: opt(yup.boolean()),
-        ...rel('user', ['Connect'], 'one', 'opt'),
-        ...rel('organization', ['Connect'], 'many', 'opt'),
-        ...rel('parent', ['Connect'], 'one', 'opt'),
-        ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
-        ...rel('versions', ['Create'], 'many', 'opt', apiVersionValidation),
-        ...rel('labels', ['Connect', 'Create'], 'many', 'opt', labelValidation),
-    }),
-    update: () => yup.object().shape({
+        isPrivate: opt(bool),
+    }, [
+        ['user', ['Connect'], 'one', 'opt'],
+        ['organization', ['Connect'], 'one', 'opt'],
+        ['parent', ['Connect'], 'one', 'opt'],
+        ['tags', ['Connect', 'Create'], 'many', 'opt', tagValidation],
+        ['versions', ['Create'], 'many', 'opt', apiVersionValidation, ['root']],
+        ['labels', ['Connect', 'Create'], 'many', 'opt', labelValidation],
+    ], [['organizationConnect', 'userConnect']], o),
+    update: ({ o }) => yupObj({
         id: req(id),
-        isPrivate: opt(yup.boolean()),
-        ...rel('user', ['Connect'], 'one', 'opt'),
-        ...rel('organization', ['Connect'], 'many', 'opt'),
-        ...rel('tags', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', tagValidation),
-        ...rel('versions', ['Create', 'Update', 'Delete'], 'many', 'opt', apiVersionValidation),
-        ...rel('labels', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', labelValidation),
-    }),
+        isPrivate: opt(bool),
+    }, [
+        ['user', ['Connect'], 'one', 'opt'],
+        ['organization', ['Connect'], 'one', 'opt'],
+        ['tags', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', tagValidation],
+        ['versions', ['Create', 'Update', 'Delete'], 'many', 'opt', apiVersionValidation, ['root']],
+        ['labels', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', labelValidation],
+    ], [['organizationConnect', 'userConnect']], o),
 }

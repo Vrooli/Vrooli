@@ -128,7 +128,7 @@ export const CreatePage = ({
                             display: 'contents',
                         }}>
                             <Typography variant='h6' component='div'>
-                                {t(`common:${objectType}`, { lng: getUserLanguages(session)[0] })}
+                                {t(`common:${objectType}`, { lng: getUserLanguages(session)[0], count: 1 })}
                             </Typography>
                             <Typography variant='body2' color={palette.background.textSecondary}>
                                 {t(`common:${description}`, { lng: getUserLanguages(session)[0] })}

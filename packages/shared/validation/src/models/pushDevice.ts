@@ -1,15 +1,14 @@
-import { doublePositiveOrZero, id, name, opt, pushNotificationKeys, req, url, YupModel } from '../utils';
-import * as yup from 'yup';
+import { doublePositiveOrZero, id, name, opt, pushNotificationKeys, req, url, YupModel, yupObj } from '../utils';
 
 export const pushDeviceValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         endpoint: req(url),
         expires: opt(doublePositiveOrZero),
         keys: req(pushNotificationKeys),
         name: opt(name),
-    }),
-    update: () => yup.object().shape({
+    }, [], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         name: opt(name),
-    }),
+    }, [], [], o),
 }

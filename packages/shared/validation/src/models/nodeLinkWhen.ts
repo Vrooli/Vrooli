@@ -1,5 +1,4 @@
-import { description, id, name, req, opt, rel, nodeCondition, YupModel, transRel } from '../utils';
-import * as yup from 'yup';
+import { description, id, name, req, opt, nodeCondition, YupModel, transRel, yupObj } from '../utils';
 
 export const nodeLinkWhenTranslationValidation: YupModel = transRel({
     create: {
@@ -13,16 +12,18 @@ export const nodeLinkWhenTranslationValidation: YupModel = transRel({
 })
 
 export const nodeLinkWhenValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         condition: req(nodeCondition),
-        ...rel('link', ['Connect'], 'one', 'req'),
-        ...rel('translations', ['Create'], 'many', 'opt', nodeLinkWhenTranslationValidation),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['link', ['Connect'], 'one', 'req'],
+        ['translations', ['Create'], 'many', 'opt', nodeLinkWhenTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         condition: opt(nodeCondition),
-        ...rel('link', ['Connect'], 'one', 'opt'),
-        ...rel('translations', ['Delete', 'Create', 'Update'], 'many', 'opt', nodeLinkWhenTranslationValidation),
-    })
+    }, [
+        ['link', ['Connect'], 'one', 'opt'],
+        ['translations', ['Delete', 'Create', 'Update'], 'many', 'opt', nodeLinkWhenTranslationValidation],
+    ], [], o),
 }

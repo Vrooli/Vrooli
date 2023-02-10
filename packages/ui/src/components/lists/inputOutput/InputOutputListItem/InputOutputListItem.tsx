@@ -1,7 +1,6 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
 import { InputType, Session, StandardVersion } from '@shared/consts';
-import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTranslation, RoutineVersionInputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, RoutineVersionOutputTranslationShape, standardVersionToFieldData, updateArray, getUserLanguages, StandardVersionShape } from 'utils';
 import { useFormik } from 'formik';
@@ -12,6 +11,7 @@ import { uuid } from '@shared/uuid';
 import Markdown from 'markdown-to-jsx';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 import { linkColors } from 'styles';
+import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
 
 const defaultStandardVersion = (
     item: InputOutputListItemProps['item'],
@@ -123,7 +123,7 @@ export const InputOutputListItem = ({
             [schemaKey]: jsonToString((generatedSchema?.props as any)?.format),
         },
         enableReinitialize: true,
-        validationSchema: isInput ? inputCreate : outputCreate,
+        validationSchema: isInput ? routineVersionInputValidation.create({}) : routineVersionOutputValidation.create({}),
         onSubmit: (values) => {
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {

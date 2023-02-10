@@ -1,5 +1,5 @@
 import { GqlPartial } from "../types";
-import { rel } from "./relPartial";
+import { rel } from "./rel";
 
 
 

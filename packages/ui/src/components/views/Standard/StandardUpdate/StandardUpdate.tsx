@@ -69,7 +69,7 @@ export const StandardUpdate = ({
             }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: standardVersionValidation.update(),
+        validationSchema: standardVersionValidation.update({}),
         onSubmit: (values) => {
             if (!standardVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadStandard', severity: SnackSeverity.Error });
@@ -111,7 +111,7 @@ export const StandardUpdate = ({
         formik,
         formikField: 'translationsUpdate',
         language,
-        validationSchema: {} as any,//standardVersionTranslationValidation.update(), TODO
+        validationSchema: {} as any,//standardVersionTranslationValidation.update({}), TODO
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

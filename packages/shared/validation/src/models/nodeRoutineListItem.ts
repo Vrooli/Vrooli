@@ -1,8 +1,5 @@
-import { description, id, name, req, opt, rel, YupModel, transRel, index } from '../utils';
-import * as yup from 'yup';
+import { description, id, name, req, opt, YupModel, transRel, index, yupObj, bool } from '../utils';
 import { routineVersionValidation } from './routineVersion';
-
-const isOptional = yup.boolean()
 
 export const nodeRoutineListItemTranslationValidation: YupModel = transRel({
     create: {
@@ -16,19 +13,21 @@ export const nodeRoutineListItemTranslationValidation: YupModel = transRel({
 })
 
 export const nodeRoutineListItemValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         index: req(index),
-        isOptional: opt(isOptional),
-        ...rel('list', ['Connect'], 'one', 'req'),
-        ...rel('routineVersion', ['Connect'], 'one', 'req'), // Creating subroutines must be done in a separate request
-        ...rel('translations', ['Create'], 'many', 'opt', nodeRoutineListItemTranslationValidation),
-    }),
-    update: () => yup.object().shape({
+        isOptional: opt(bool),
+    }, [
+        ['list', ['Connect'], 'one', 'req'],
+        ['routineVersion', ['Connect'], 'one', 'req'], // Creating subroutines must be done in a separate request
+        ['translations', ['Create'], 'many', 'opt', nodeRoutineListItemTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         index: opt(index),
-        isOptional: opt(isOptional),
-        ...rel('routineVersion', ['Update'], 'one', 'opt', routineVersionValidation), // Create/update/delete of subroutines must be done in a separate request
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeRoutineListItemTranslationValidation),
-    }),
+        isOptional: opt(bool),
+    }, [
+        ['routineVersion', ['Update'], 'one', 'opt', routineVersionValidation], // Create/update/delete of subroutines must be done in a separate request
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeRoutineListItemTranslationValidation],
+    ], [], o),
 }

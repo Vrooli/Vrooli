@@ -24,7 +24,7 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         maxAttempts: Int
-        randomizeQuestionORder: Boolean
+        randomizeQuestionOder: Boolean
         revealCorrectAnswers: Boolean
         timeLimit: Int
         pointsToPass: Int
@@ -37,7 +37,7 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         maxAttempts: Int
-        randomizeQuestionORder: Boolean
+        randomizeQuestionOrder: Boolean
         revealCorrectAnswers: Boolean
         timeLimit: Int
         pointsToPass: Int
@@ -57,6 +57,7 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         isPrivate: Boolean!
+        randomizeQuestionOrder: Boolean!
         score: Int!
         stars: Int!
         views: Int!

@@ -81,7 +81,7 @@ export const SettingsAuthentication = ({
             newPasswordConfirmation: '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: userValidation.update(),
+        validationSchema: userValidation.update({}),
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });

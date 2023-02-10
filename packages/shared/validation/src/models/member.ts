@@ -1,11 +1,10 @@
-import { id, opt, permissions, req, YupModel } from '../utils';
-import * as yup from 'yup';
+import { bool, id, opt, permissions, req, YupModel, yupObj } from '../utils';
 
 export const memberValidation: YupModel<false, true> = {
     // Can only be created through an invite
-    update: () => yup.object().shape({
+    update: ({ o }) => yupObj({
         id: req(id),
-        isAdmin: opt(yup.boolean()),
+        isAdmin: opt(bool),
         permissions: opt(permissions),
-    }),
+    }, [], [], o),
 }

@@ -1,23 +1,25 @@
-import { description, id, index, name, opt, rel, req, YupModel } from '../utils';
+import { description, id, index, name, opt, req, YupModel, yupObj } from '../utils';
 import * as yup from 'yup';
 import { reminderItemValidation } from './reminderItem';
 
 export const reminderValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         name: req(name),
         description: req(description),
         dueDate: opt(yup.date()),
         index: opt(index),
-        ...rel('reminderList', ['Connect'], 'one', 'req'),
-        ...rel('reminderItems', ['Create'], 'many', 'opt', reminderItemValidation),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['reminderList', ['Connect'], 'one', 'req'],
+        ['reminderItems', ['Create'], 'many', 'opt', reminderItemValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         name: opt(name),
         description: opt(description),
         dueDate: opt(yup.date()),
         index: opt(index),
-        ...rel('reminderItems', ['Create', 'Update', 'Delete'], 'many', 'opt', reminderItemValidation),
-    }),
+    }, [
+        ['reminderItems', ['Create', 'Update', 'Delete'], 'many', 'opt', reminderItemValidation],
+    ], [], o),
 }

@@ -1,34 +1,33 @@
-import { id, req, opt, YupModel, handle, rel, permissions } from '../utils';
-import * as yup from 'yup';
+import { id, req, opt, YupModel, handle, permissions, yupObj, bool } from '../utils';
 import { tagValidation } from './tag';
 import { projectVersionValidation } from './projectVersion';
 import { labelValidation } from './label';
 
-const isPrivate = yup.boolean()
-
 export const projectValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         handle: opt(handle),
-        isPrivate: opt(isPrivate),
+        isPrivate: opt(bool),
         permissions: opt(permissions),
-        ...rel('user', ['Connect'], 'one', 'opt'),
-        ...rel('organization', ['Connect'], 'one', 'opt'),
-        ...rel('parent', ['Connect'], 'one', 'opt'),
-        ...rel('labels', ['Connect', 'Create'], 'many', 'opt', labelValidation),
-        ...rel('versions', ['Create'], 'many', 'opt', projectVersionValidation),
-        ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
-    }, [['userConnect', 'organizationConnect']]),
-    update: () => yup.object().shape({
+    }, [
+        ['user', ['Connect'], 'one', 'opt'],
+        ['organization', ['Connect'], 'one', 'opt'],
+        ['parent', ['Connect'], 'one', 'opt'],
+        ['labels', ['Connect', 'Create'], 'many', 'opt', labelValidation],
+        ['versions', ['Create'], 'many', 'opt', projectVersionValidation, ['root']],
+        ['tags', ['Connect', 'Create'], 'many', 'opt', tagValidation],
+    ], [['organizationConnect', 'userConnect']], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         handle: opt(handle),
-        isPrivate: opt(isPrivate),
+        isPrivate: opt(bool),
         permissions: opt(permissions),
-        ...rel('user', ['Connect'], 'one', 'opt'),
-        ...rel('organization', ['Connect'], 'one', 'opt'),
-        ...rel('parent', ['Connect'], 'one', 'opt'),
-        ...rel('labels', ['Connect', 'Create'], 'many', 'opt', labelValidation),
-        ...rel('versions', ['Create'], 'many', 'opt', projectVersionValidation),
-        ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
-    }, [['userConnect', 'organizationConnect']])
+    }, [
+        ['user', ['Connect'], 'one', 'opt'],
+        ['organization', ['Connect'], 'one', 'opt'],
+        ['parent', ['Connect'], 'one', 'opt'],
+        ['labels', ['Connect', 'Create'], 'many', 'opt', labelValidation],
+        ['versions', ['Create'], 'many', 'opt', projectVersionValidation, ['root']],
+        ['tags', ['Connect', 'Create'], 'many', 'opt', tagValidation],
+    ], [['organizationConnect', 'userConnect']], o),
 }

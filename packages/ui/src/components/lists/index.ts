@@ -3,6 +3,7 @@ export * from './devices';
 export * from './inputOutput';
 export * from './ObjectActionsRow/ObjectActionsRow';
 export * from './ObjectListItem/ObjectListItem';
+export * from './reminder';
 export * from './resource';
 export * from './SearchList/SearchList';
 export * from './SortMenu/SortMenu';

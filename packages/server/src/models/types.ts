@@ -511,8 +511,8 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<void>,
     }
     yup: {
-        create?: () => (Model['GqlCreate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
-        update?: () => (Model['GqlUpdate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
+        create?: (params: any) => (Model['GqlCreate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
+        update?: (params: any) => (Model['GqlUpdate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
     }
 }
 

@@ -1,10 +1,9 @@
-import { id, name, opt, req, YupModel } from '../utils';
-import * as yup from 'yup';
+import { id, name, opt, req, YupModel, yupObj } from '../utils';
 
 export const walletValidation: YupModel<false, true> = {
     // Cannot create a wallet directly - must go through handshake
-    update: () => yup.object().shape({ 
+    update: ({ o }) => yupObj({
         id: req(id),
         name: opt(name),
-    }),
+    }, [], [], o),
 }

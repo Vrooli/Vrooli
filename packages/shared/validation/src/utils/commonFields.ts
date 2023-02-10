@@ -6,7 +6,9 @@
  */
 import { ReportFor } from '@shared/consts';
 import * as yup from 'yup';
-import { blankToUndefined } from './builders';
+import { enumToYup } from './builders';
+import { blankToUndefined } from './builders/blankToUndefined';
+import { toPosInt } from './builders/toPosInt';
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, passwordErr, reqErr } from './errors';
 import { adaHandleRegex, passwordRegex, urlRegex } from './regex';
 import { minVersionTest } from './versions';
@@ -35,6 +37,8 @@ export const url = yup.string().transform(blankToUndefined).max(1024, maxStrErr)
     }
 )
 
+export const bool = yup.boolean();
+
 // numbers
 const MAX_INT = 2 ** 32 - 1;
 const MAX_DOUBLE = 2 ** 32 - 1;
@@ -53,11 +57,14 @@ export const eventStart = yup.date().min(new Date(), 'Start date must be in the 
 export const eventEnd = yup.date().min(yup.ref('eventStart'), 'End date must be after start date');
 export const recurrStart = yup.date().min(new Date(), 'Start date must be in the future');
 export const recurrEnd = yup.date().min(yup.ref('recurrStart'), 'End date must be after start date');
+export const windowStart = yup.date().min(new Date(), 'Start date must be in the future');
+export const windowEnd = yup.date().min(yup.ref('windowStart'), 'End date must be after start date');
 
 // strings
 export const bio = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
 export const description = yup.string().transform(blankToUndefined).max(2048, maxStrErr)
 export const helpText = yup.string().transform(blankToUndefined).max(2048, maxStrErr)
+export const referencing = yup.string().transform(blankToUndefined).max(2048, maxStrErr)
 export const language = yup.string().transform(blankToUndefined).min(2, minStrErr).max(3, maxStrErr) // Language code
 export const name = yup.string().transform(blankToUndefined).min(3, minStrErr).max(128, maxStrErr)
 export const tag = yup.string().transform(blankToUndefined).min(2, minStrErr).max(64, maxStrErr)
@@ -77,6 +84,7 @@ export const summary = yup.string().transform(blankToUndefined).max(1024, maxStr
 export const reportReason = yup.string().transform(blankToUndefined).min(1, minStrErr).max(128, maxStrErr)
 export const instructions = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
 export const jsonVariable = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
+export const phoneNumber = yup.string().transform(blankToUndefined).transform(toPosInt).max(16, maxStrErr)
 
 // enums
-export const reportCreatedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ReportFor))
+export const reportCreatedFor = enumToYup(ReportFor);

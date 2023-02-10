@@ -1,5 +1,4 @@
-import * as yup from 'yup';
-import { description, eventEnd, eventStart, id, name, opt, recurrEnd, recurrStart, rel, req, timeZone, transRel, url, YupModel } from "../utils";
+import { bool, description, eventEnd, eventStart, id, name, opt, recurrEnd, recurrStart, rel, req, timeZone, transRel, url, YupModel, yupObj } from "../utils";
 import { meetingInviteValidation } from './meetingInvite';
 
 export const meetingTranslationValidation: YupModel = transRel({
@@ -16,36 +15,37 @@ export const meetingTranslationValidation: YupModel = transRel({
 })
 
 export const meetingValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
-        openToAnyoneWithInvite: opt(yup.boolean()),
-        showOnOrganizationProfile: opt(yup.boolean()),
+        openToAnyoneWithInvite: opt(bool),
+        showOnOrganizationProfile: opt(bool),
         timeZone: opt(timeZone),
         eventStart: opt(eventStart),
         eventEnd: opt(eventEnd),
-        recurring: opt(yup.boolean()),
+        recurring: opt(bool),
         recurrStart: opt(recurrStart),
         recurrEnd: opt(recurrEnd),
-        ...rel('organization', ['Connect'], 'one', 'req'),
-        ...rel('restrictedToRoles', ['Connect'], 'many', 'opt'),
-        ...rel('invites', ['Create'], 'many', 'opt', meetingInviteValidation),
-        ...rel('labels', ['Connect'], 'many', 'opt'),
-        ...rel('translations', ['Create'], 'many', 'opt', meetingTranslationValidation),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['organization', ['Connect'], 'one', 'req'],
+        ['restrictedToRoles', ['Connect'], 'many', 'opt'],
+        ['invites', ['Create'], 'many', 'opt', meetingInviteValidation],
+        ['labels', ['Connect'], 'many', 'opt'],
+        ['translations', ['Create'], 'many', 'opt', meetingTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
-        openToAnyoneWithInvite: opt(yup.boolean()),
-        showOnOrganizationProfile: opt(yup.boolean()),
+        openToAnyoneWithInvite: opt(bool),
+        showOnOrganizationProfile: opt(bool),
         timeZone: opt(timeZone),
         eventStart: opt(eventStart),
         eventEnd: opt(eventEnd),
-        recurring: opt(yup.boolean()),
+        recurring: opt(bool),
         recurrStart: opt(recurrStart),
         recurrEnd: opt(recurrEnd),
-        ...rel('restrictedToRoles', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('invites', ['Create', 'Update', 'Delete'], 'many', 'opt'),
-        ...rel('labels', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('translations', ['Create'], 'many', 'opt', meetingTranslationValidation),
-    }),
-
+    }, [
+        ['restrictedToRoles', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['invites', ['Create', 'Update', 'Delete'], 'many', 'opt'],
+        ['labels', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['translations', ['Create'], 'many', 'opt', meetingTranslationValidation],
+    ], [], o),
 }

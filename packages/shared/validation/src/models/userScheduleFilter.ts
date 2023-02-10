@@ -1,19 +1,16 @@
-import { blankToUndefined, id, rel, req, YupModel } from '../utils';
-import * as yup from 'yup';
+import { enumToYup, id, req, YupModel, yupObj } from '../utils';
 import { tagValidation } from './tag';
+import { UserScheduleFilterType } from '@shared/consts';
 
-const userScheduleFilterType = yup.string().transform(blankToUndefined).oneOf([
-    'Blur',
-    'Hide',
-    'ShowMore',
-]);
+const userScheduleFilterType = enumToYup(UserScheduleFilterType);
 
 export const userScheduleFilterValidation: YupModel<true, false> = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         filterType: req(userScheduleFilterType),
-        ...rel('userSchedule', ['Connect'], 'one', 'req'),
-        ...rel('tag', ['Create', 'Connect'], 'one', 'opt', tagValidation),
-    }),
+    }, [
+        ['userSchedule', ['Connect'], 'one', 'req'],
+        ['tag', ['Create', 'Connect'], 'one', 'opt', tagValidation],
+    ], [], o),
     // Can only create and delete
 }

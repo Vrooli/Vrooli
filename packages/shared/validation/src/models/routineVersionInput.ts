@@ -1,5 +1,4 @@
-import * as yup from 'yup';
-import { description, id, index, instructions, name, opt, rel, req, transRel, YupModel } from "../utils";
+import { bool, description, id, index, instructions, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 
 export const routineVersionInputTranslationValidation: YupModel = transRel({
     create: {
@@ -13,21 +12,23 @@ export const routineVersionInputTranslationValidation: YupModel = transRel({
 })
 
 export const routineVersionInputValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         index: opt(index),
-        isRequired: opt(yup.boolean()),
+        isRequired: opt(bool),
         name: opt(name),
-        ...rel('routineVersion', ['Connect'], 'one', 'req'),
-        ...rel('standardVersion', ['Connect', 'Create'], 'one', 'req'),
-        ...rel('translations', ['Create'], 'many', 'opt', routineVersionInputTranslationValidation),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['routineVersion', ['Connect'], 'one', 'req'],
+        ['standardVersion', ['Connect', 'Create'], 'one', 'req'],
+        ['translations', ['Create'], 'many', 'opt', routineVersionInputTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         index: opt(index),
-        isRequired: opt(yup.boolean()),
+        isRequired: opt(bool),
         name: opt(name),
-        ...rel('standardVersion', ['Connect', 'Create', 'Disconnect'], 'one', 'req'),
-        ...rel('translations', ['Create'], 'many', 'opt', routineVersionInputTranslationValidation),
-    }),
+    }, [
+        ['standardVersion', ['Connect', 'Create', 'Disconnect'], 'one', 'req'],
+        ['translations', ['Create'], 'many', 'opt', routineVersionInputTranslationValidation],
+    ], [], o),
 }

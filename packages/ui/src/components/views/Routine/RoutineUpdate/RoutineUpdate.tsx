@@ -91,7 +91,7 @@ export const RoutineUpdate = ({
             }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: routineVersionValidation.update(getMinimumVersion(routineVersion?.root?.versions ?? [])),
+        validationSchema: routineVersionValidation.update({ minVersion: getMinimumVersion(routineVersion?.root?.versions ?? []) }),
         onSubmit: (values) => {
             if (!routineVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
@@ -133,7 +133,7 @@ export const RoutineUpdate = ({
         formik,
         formikField: 'translationsUpdate',
         language,
-        validationSchema: routineVersionTranslationValidation.update(),
+        validationSchema: routineVersionTranslationValidation.update({}),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

@@ -53,7 +53,6 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     console.log('addSupplementalFieldsHelper 3', JSON.stringify(objects), '\n')
     // Get supplemental data by field
     const supplementalData = await supplementer.toGraphQL({ ids, languages, objects, partial, prisma, userData });
-    console.log('addSupplementalFieldsHelper 4', JSON.stringify(supplementalData), '\n');
     // Convert supplemental data shape into dot notation
     const supplementalDotFields = getKeyPaths(supplementalData);
     console.log('addSupplementalFieldsHelper 5', supplementalDotFields, '\n');
@@ -63,13 +62,10 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
         for (const field of supplementalDotFields) {
             // Create a dot notation string to retrieve the value from supplemental data
             const dotField = `${field}.${i}` as const;
-            console.log('addSupplementalFieldsHelper 6', dotField, '\n');
             // Get the value from the supplemental data
             const suppValue = getDotNotationValue(supplementalData, dotField);
-            console.log('addSupplementalFieldsHelper 7', JSON.stringify(suppValue), '\n');
             // Set the value on the object
             setDotNotationValue(objects[i], field as never, suppValue);
-            console.log('addSupplementalFieldsHelper 8', JSON.stringify(objects[i]), '\n');
         }
     }
     console.log('addSupplementalFieldsHelper end', objects.length)

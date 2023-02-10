@@ -1,5 +1,4 @@
-import * as yup from 'yup';
-import { apiCallData, description, id, index, instructions, name, opt, rel, req, smartContractCallData, transRel, versionLabel, versionNotes, YupModel } from "../utils";
+import { apiCallData, bool, description, id, instructions, name, opt, req, smartContractCallData, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { nodeValidation } from './node';
 import { nodeLinkValidation } from './nodeLink';
 import { resourceListValidation } from './resourceList';
@@ -21,49 +20,49 @@ export const routineVersionTranslationValidation: YupModel = transRel({
 })
 
 export const routineVersionValidation: YupModel = {
-    create: (minVersion: string = '0.0.1') => yup.object().shape({
+    create: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
         apiCallData: opt(apiCallData),
         smartContractCallData: opt(smartContractCallData),
-        isComplete: opt(yup.boolean()),
-        isInternal: opt(yup.boolean()),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        versionIndex: req(index),
+        isComplete: opt(bool),
+        isInternal: opt(bool),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
         versionLabel: req(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('root', ['Connect', 'Create'], 'one', 'req', routineValidation),
-        ...rel('apiVersion', ['Connect'], 'one', 'req'),
-        ...rel('smartContractVersion', ['Connect'], 'one', 'req'),
-        ...rel('resourceList', ['Create'], 'one', 'req', resourceListValidation),
-        ...rel('nodes', ['Create'], 'many', 'req', nodeValidation),
-        ...rel('nodeLinks', ['Create'], 'many', 'req', nodeLinkValidation),
-        ...rel('inputs', ['Create'], 'many', 'req', routineVersionInputValidation),
-        ...rel('outputs', ['Create'], 'many', 'req', routineVersionOutputValidation),
-        ...rel('translations', ['Create'], 'many', 'opt', routineVersionTranslationValidation),
-        ...rel('directoryListings', ['Connect'], 'many', 'opt'),
-        ...rel('suggestedNextByProject', ['Connect'], 'many', 'opt'),
-    }, [['rootConnect', 'rootCreate']]),
-    update: (minVersion: string = '0.0.1') => yup.object().shape({
+    }, [
+        ['root', ['Connect', 'Create'], 'one', 'req', routineValidation, ['versions']],
+        ['apiVersion', ['Connect'], 'one', 'req'],
+        ['smartContractVersion', ['Connect'], 'one', 'req'],
+        ['resourceList', ['Create'], 'one', 'req', resourceListValidation],
+        ['nodes', ['Create'], 'many', 'req', nodeValidation],
+        ['nodeLinks', ['Create'], 'many', 'req', nodeLinkValidation],
+        ['inputs', ['Create'], 'many', 'req', routineVersionInputValidation],
+        ['outputs', ['Create'], 'many', 'req', routineVersionOutputValidation],
+        ['translations', ['Create'], 'many', 'opt', routineVersionTranslationValidation],
+        ['directoryListings', ['Connect'], 'many', 'opt'],
+        ['suggestedNextByProject', ['Connect'], 'many', 'opt'],
+    ], [['rootConnect', 'rootCreate']], o),
+    update: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
         apiCallData: opt(apiCallData),
         smartContractCallData: opt(smartContractCallData),
-        isComplete: opt(yup.boolean()),
-        isInternal: opt(yup.boolean()),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        versionIndex: opt(index),
+        isComplete: opt(bool),
+        isInternal: opt(bool),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
         versionLabel: opt(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('apiVersion', ['Connect', 'Disconnect'], 'one', 'req'),
-        ...rel('smartContractVersion', ['Connect', 'Disconnect'], 'one', 'req'),
-        ...rel('resourceList', ['Create', 'Update'], 'one', 'req', resourceListValidation),
-        ...rel('nodes', ['Create', 'Update', 'Delete'], 'many', 'req', nodeValidation),
-        ...rel('nodeLinks', ['Create', 'Update', 'Delete'], 'many', 'req', nodeLinkValidation),
-        ...rel('inputs', ['Create', 'Update', 'Delete'], 'many', 'req', routineVersionInputValidation),
-        ...rel('outputs', ['Create', 'Update', 'Delete'], 'many', 'req', routineVersionOutputValidation),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', routineVersionTranslationValidation),
-        ...rel('directoryListings', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('suggestedNextByProject', ['Connect', 'Disconnect'], 'many', 'opt'),
-    }),
+    }, [
+        ['apiVersion', ['Connect', 'Disconnect'], 'one', 'req'],
+        ['smartContractVersion', ['Connect', 'Disconnect'], 'one', 'req'],
+        ['resourceList', ['Create', 'Update'], 'one', 'req', resourceListValidation],
+        ['nodes', ['Create', 'Update', 'Delete'], 'many', 'req', nodeValidation],
+        ['nodeLinks', ['Create', 'Update', 'Delete'], 'many', 'req', nodeLinkValidation],
+        ['inputs', ['Create', 'Update', 'Delete'], 'many', 'req', routineVersionInputValidation],
+        ['outputs', ['Create', 'Update', 'Delete'], 'many', 'req', routineVersionOutputValidation],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', routineVersionTranslationValidation],
+        ['directoryListings', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['suggestedNextByProject', ['Connect', 'Disconnect'], 'many', 'opt'],
+    ], [], o),
 }

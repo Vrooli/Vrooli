@@ -1,19 +1,19 @@
-import * as yup from 'yup';
-import { id, message, opt, permissions, rel, req, YupModel } from "../utils";
+import { bool, id, message, opt, permissions, req, YupModel, yupObj } from "../utils";
 
 export const memberInviteValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         message: opt(message),
-        willBeAdmin: opt(yup.boolean()),
+        willBeAdmin: opt(bool),
         willHavePermissions: opt(permissions),
-        ...rel('user', ['Connect'], 'one', 'req'),
-        ...rel('organization', ['Connect'], 'one', 'req'),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['user', ['Connect'], 'one', 'req'],
+        ['organization', ['Connect'], 'one', 'req'],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         message: opt(message),
-        willBeAdmin: opt(yup.boolean()),
+        willBeAdmin: opt(bool),
         willHavePermissions: opt(permissions),
-    }),
+    }, [], [], o),
 }

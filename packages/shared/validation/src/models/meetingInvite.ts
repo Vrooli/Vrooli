@@ -1,16 +1,15 @@
-import * as yup from 'yup';
-import { id, message, opt, rel, req, YupModel } from "../utils";
+import { id, message, opt, req, YupModel, yupObj } from "../utils";
 
 export const meetingInviteValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         message: opt(message),
-        ...rel('meeting', ['Connect'], 'one', 'req'),
-        ...rel('user', ['Connect'], 'many', 'opt'),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['meeting', ['Connect'], 'one', 'req'],
+        ['user', ['Connect'], 'many', 'opt'],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
         message: opt(message),
-    }),
-
+    }, [], [], o),
 }

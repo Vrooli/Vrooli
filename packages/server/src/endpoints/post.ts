@@ -27,21 +27,22 @@ export const typeDef = gql`
     input PostCreateInput {
         id: ID!
         isPinned: Boolean
-        isPublic: Boolean
+        isPrivate: Boolean
         organizationConnect: ID
         repostedFromConnect: ID
         resourceListCreate: ResourceListCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
+        userConnect: ID
     }
     input PostUpdateInput {
         id: ID!
         isPinned: Boolean
-        isPublic: Boolean
+        isPrivate: Boolean
         resourceListUpdate: ResourceListUpdateInput
         tagsConnect: [String!]
-        tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
+        tagsDisconnect: [String!]
     }
     type Post {
         id: ID!

@@ -55,7 +55,7 @@ export const ResourceDialog = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema: resourceValidation.update(),
+        validationSchema: resourceValidation.update({}),
         onSubmit: (values) => {
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
@@ -123,7 +123,7 @@ export const ResourceDialog = ({
         formik, 
         formikField: 'translationsUpdate', 
         language, 
-        validationSchema: resourceTranslationValidation.update(),
+        validationSchema: resourceTranslationValidation.update({}),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

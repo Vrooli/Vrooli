@@ -1,39 +1,37 @@
-// import { id, idArray, minNumErr, name, opt, req } from '../utils';
-// import * as yup from 'yup';
+import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
+import { RunStatus } from "@shared/consts";
+import { runRoutineStepValidation } from "./runRoutineStep";
+import { runRoutineScheduleValidation } from "./runRoutineSchedule";
+import { runRoutineInputValidation } from "./runRoutineInput";
 
-// const completedComplexity = yup.number().integer().min(0, minNumErr);
-// const contextSwitches = yup.number().integer().min(0, minNumErr);
-// const timeElapsed = yup.number().integer().min(0, minNumErr);
-// const isPrivate = yup.boolean();
-
-// export const runCreate = yup.object().shape({
-//     id: req(id),
-//     isPrivate: opt(isPrivate),
-//     routineId: req(id),
-//     name: req(name),
-//     // version: req(version()),
-// })
-
-// export const runUpdate = yup.object().shape({
-//     id: req(id),
-//     completedComplexity: opt(completedComplexity),
-//     contextSwitches: opt(contextSwitches),
-//     isPrivate: opt(isPrivate),
-//     timeElapsed: opt(timeElapsed),
-//     // stepsCreate: opt(stepsCreate),
-//     // stepsUpdate: opt(stepsUpdate),
-//     // stepsDelete: opt(idArray),
-//     // inputsCreate: opt(runInputsCreate),
-//     // inputsUpdate: opt(runInputsUpdate),
-//     inputsDelete: opt(idArray),
-// })
-
-import * as yup from 'yup';
-import { YupModel } from "../utils";
+const runStatus = enumToYup(RunStatus);
 
 export const runRoutineValidation: YupModel = {
-    create: () => yup.object().shape({
-    }),
-    update: () => yup.object().shape({
-    }),
+    create: ({ o }) => yupObj({
+        id: req(id),
+        completedComplexity: opt(intPositiveOrZero),
+        contextSwitches: opt(intPositiveOrZero),
+        isPrivate: opt(bool),
+        status: req(runStatus),
+        name: req(name),
+    }, [
+        ['inputs', ['Create'], 'many', 'opt', runRoutineInputValidation],
+        ['organization', ['Connect'], 'one', 'opt'],
+        ['routineVersion', ['Connect'], 'one', 'req'],
+        ['runProject', ['Connect'], 'one', 'opt'],
+        ['runRoutineSchedule', ['Connect', 'Create'], 'many', 'opt', runRoutineScheduleValidation],
+        ['steps', ['Create'], 'many', 'opt', runRoutineStepValidation],
+    ], [['runRoutineScheduleConnect', 'runRoutineScheduleCreate']], o),
+    update: ({ o }) => yupObj({
+        id: req(id),
+        completedComplexity: opt(intPositiveOrZero),
+        contextSwitches: opt(intPositiveOrZero),
+        isPrivate: opt(bool),
+        isStarted: opt(bool),
+        timeElapsed: opt(intPositiveOrZero),
+    }, [
+        ['inputs', ['Create', 'Update', 'Delete'], 'many', 'opt', runRoutineInputValidation],
+        ['runRoutineSchedule', ['Connect', 'Create'], 'many', 'opt', runRoutineScheduleValidation],
+        ['steps', ['Create', 'Update', 'Delete'], 'many', 'opt', runRoutineStepValidation],
+    ], [['runRoutineScheduleConnect', 'runRoutineScheduleCreate']], o),
 }

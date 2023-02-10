@@ -51,7 +51,7 @@ export const OrganizationCreate = ({
                 bio: '',
             }]
         },
-        validationSchema: organizationValidation.create(),
+        validationSchema: organizationValidation.create({}),
         onSubmit: (values) => {
             mutationWrapper<Organization, OrganizationCreateInput>({
                 mutation,
@@ -77,7 +77,7 @@ export const OrganizationCreate = ({
         formik, 
         formikField: 'translationsCreate', 
         language, 
-        validationSchema: organizationTranslationValidation.create(),
+        validationSchema: organizationTranslationValidation.create({}),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

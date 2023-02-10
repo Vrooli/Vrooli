@@ -1,15 +1,8 @@
-import { blankToUndefined, description, id, name, opt, rel, req, transRel, YupModel } from '../utils';
-import * as yup from 'yup';
+import { description, enumToYup, id, name, opt, req, transRel, YupModel, yupObj } from '../utils';
 import { labelValidation } from './label';
+import { IssueFor } from '@shared/consts';
 
-const issueFor = yup.string().transform(blankToUndefined).oneOf([
-    'Api',
-    'Organization',
-    'Project',
-    'Routine',
-    'SmartContract',
-    'Standard',
-]);
+const issueFor = enumToYup(IssueFor);
 
 export const issueTranslationValidation: YupModel = transRel({
     create: {
@@ -23,16 +16,18 @@ export const issueTranslationValidation: YupModel = transRel({
 })
 
 export const issueValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         issueFor: req(issueFor),
-        ...rel('for', ['Connect'], 'one', 'req'),
-        ...rel('labels', ['Connect', 'Create'], 'one', 'opt', labelValidation),
-        ...rel('translations', ['Create'], 'many', 'opt', issueTranslationValidation),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['for', ['Connect'], 'one', 'req'],
+        ['labels', ['Connect', 'Create'], 'one', 'opt', labelValidation],
+        ['translations', ['Create'], 'many', 'opt', issueTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
-        ...rel('labels', ['Connect', 'Create', 'Disconnect'], 'one', 'opt', labelValidation),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', issueTranslationValidation),
-    }),
+    }, [
+        ['labels', ['Connect', 'Create', 'Disconnect'], 'one', 'opt', labelValidation],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', issueTranslationValidation],
+    ], [], o),
 }

@@ -37,7 +37,7 @@ export const typeDef = gql`
         recurring: Boolean
         recurrStart: Date
         recurrEnd: Date
-        runProjectConnect: ID!
+        runProjectConnect: ID
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]

@@ -36,7 +36,7 @@ export const PushList = ({
             },
         },
         enableReinitialize: true,
-        validationSchema: pushDeviceValidation.create(),
+        validationSchema: pushDeviceValidation.create({}),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             mutationWrapper<PushDevice, PushDeviceCreateInput>({

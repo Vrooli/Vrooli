@@ -1,5 +1,4 @@
-import { details, id, index, opt, rel, req, summary, transRel, url, versionLabel, versionNotes, YupModel } from '../utils';
-import * as yup from 'yup';
+import { bool, details, id, opt, req, summary, transRel, url, versionLabel, versionNotes, YupModel, yupObj } from '../utils';
 import { resourceListValidation } from './resourceList';
 import { apiValidation } from './api';
 
@@ -15,31 +14,31 @@ export const apiVersionTranslationValidation: YupModel = transRel({
 })
 
 export const apiVersionValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
         callLink: opt(url),
         documentationLink: opt(url),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        versionIndex: req(index),
-        versionLabel: req(versionLabel('0.0.1')),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
+        versionLabel: req(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('root', ['Connect', 'Create'], 'one', 'req', apiValidation),
-        ...rel('resourceList', ['Create'], 'one', 'opt', resourceListValidation),
-        ...rel('directoryListings', ['Connect'], 'many', 'opt'),
-        ...rel('translations', ['Create'], 'many', 'opt', apiVersionTranslationValidation),
-    }, [['rootConnect', 'rootCreate']]),
-    update: () => yup.object().shape({
+    }, [
+        ['root', ['Connect', 'Create'], 'one', 'req', apiValidation, ['versions']],
+        ['resourceList', ['Create'], 'one', 'opt', resourceListValidation],
+        ['directoryListings', ['Connect'], 'many', 'opt'],
+        ['translations', ['Create'], 'many', 'opt', apiVersionTranslationValidation],
+    ], [['rootConnect', 'rootCreate']], o),
+    update: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
         callLink: opt(url),
         documentationLink: opt(url),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        versionIndex: opt(index),
-        versionLabel: opt(versionLabel('0.0.1')),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
+        versionLabel: opt(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('resourceList', ['Create', 'Update'], 'one', 'opt', resourceListValidation),
-        ...rel('directoryListings', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', apiVersionTranslationValidation),
-    }),
+    }, [
+        ['resourceList', ['Create', 'Update'], 'one', 'opt', resourceListValidation],
+        ['directoryListings', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', apiVersionTranslationValidation],
+    ], [], o),
 }

@@ -1,19 +1,8 @@
-import { blankToUndefined, id, maxStrErr, minStrErr, opt, rel, req, transRel, YupModel } from '../utils';
+import { blankToUndefined, enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from '../utils';
 import * as yup from 'yup';
+import { CommentFor } from '@shared/consts';
 
-const createdFor = yup.string().transform(blankToUndefined).oneOf([
-    'ApiVersion',
-    'Issue',
-    'NoteVersion',
-    'Post',
-    'ProjectVersion',
-    'PullRequest',
-    'Question',
-    'QuestionAnswer',
-    'RoutineVersion',
-    'SmartContractVersion',
-    'StandardVersion'
-]);
+const createdFor = enumToYup(CommentFor);
 const text = yup.string().transform(blankToUndefined).min(1, minStrErr).max(8192, maxStrErr)
 
 export const commentTranslationValidation: YupModel = transRel({
@@ -26,15 +15,17 @@ export const commentTranslationValidation: YupModel = transRel({
 })
 
 export const commentValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o }) => yupObj({
         id: req(id),
         createdFor: req(createdFor),
-        ...rel('for', ['Connect'], 'one', 'req'),
-        ...rel('parent', ['Connect'], 'one', 'opt'),
-        ...rel('translations', ['Create'], 'many', 'opt', commentTranslationValidation),
-    }),
-    update: () => yup.object().shape({
+    }, [
+        ['for', ['Connect'], 'one', 'req'],
+        ['parent', ['Connect'], 'one', 'opt'],
+        ['translations', ['Create'], 'many', 'opt', commentTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
         id: req(id),
-        ...rel('translations', ['Delete', 'Create', 'Update'], 'many', 'opt', commentTranslationValidation),
-    }),
+    }, [
+        ['translations', ['Delete', 'Create', 'Update'], 'many', 'opt', commentTranslationValidation],
+    ], [], o),
 }

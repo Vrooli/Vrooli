@@ -45,7 +45,7 @@ export const CommentUpdateInput = ({
                 text: '',
             }],
         },
-        validationSchema: commentValidation.update(),
+        validationSchema: commentValidation.update({}),
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO
@@ -74,7 +74,7 @@ export const CommentUpdateInput = ({
         formik,
         formikField: 'translationsUpdate',
         language,
-        validationSchema: commentTranslationValidation.update(),
+        validationSchema: commentTranslationValidation.update({}),
     });
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsUpdate', e, language);

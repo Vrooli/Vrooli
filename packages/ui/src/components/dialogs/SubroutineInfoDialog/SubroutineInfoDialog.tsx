@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
-import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
+import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { DUMMY_ID, uuid } from '@shared/uuid';
@@ -107,7 +107,7 @@ export const SubroutineInfoDialog = ({
             }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: validationSchema({ minVersion: getMinimumVersion(subroutine?.routineVersion?.root?.versions ?? []) }),
+        validationSchema: routineVersionValidation.update({ minVersion: getMinimumVersion(subroutine?.routineVersion?.root?.versions ?? []) }),
         onSubmit: (values) => {
             if (!subroutine) return;
             handleUpdate({
@@ -139,7 +139,7 @@ export const SubroutineInfoDialog = ({
         formik,
         formikField: 'translationsUpdate',
         language,
-        validationSchema: routineVersionTranslationValidation.update(),
+        validationSchema: routineVersionTranslationValidation.update({}),
     });
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {

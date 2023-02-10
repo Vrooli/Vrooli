@@ -1,5 +1,4 @@
-import { description, id, name, req, opt, YupModel, versionLabel, versionNotes, rel, transRel, index } from '../utils';
-import * as yup from 'yup';
+import { description, id, name, req, opt, YupModel, versionLabel, versionNotes, rel, transRel, index, yupObj, bool } from '../utils';
 import { projectVersionDirectoryValidation } from './projectVersionDirectory';
 import { projectValidation } from './project';
 
@@ -15,29 +14,29 @@ export const projectVersionTranslationValidation: YupModel = transRel({
 })
 
 export const projectVersionValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        isComplete: opt(yup.boolean()),
-        versionIndex: req(index),
-        versionLabel: req(versionLabel('0.0.1')),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
+        isComplete: opt(bool),
+        versionLabel: req(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('root', ['Connect', 'Create'], 'one', 'req', projectValidation),
-        ...rel('translations', ['Create'], 'many', 'opt', projectVersionTranslationValidation),
-        ...rel('directoryListings', ['Create'], 'many', 'opt', projectVersionDirectoryValidation),
-        ...rel('suggestedNextByProject', ['Connect'], 'many', 'opt'),
-    }, [['rootConnect', 'rootCreate']]),
-    update: () => yup.object().shape({
+    }, [
+        ['root', ['Connect', 'Create'], 'one', 'req', projectValidation, ['versions']],
+        ['translations', ['Create'], 'many', 'opt', projectVersionTranslationValidation],
+        ['directoryListings', ['Create'], 'many', 'opt', projectVersionDirectoryValidation],
+        ['suggestedNextByProject', ['Connect'], 'many', 'opt'],
+    ], [['rootConnect', 'rootCreate']], o),
+    update: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        isComplete: opt(yup.boolean()),
-        versionIndex: opt(index),
-        versionLabel: opt(versionLabel('0.0.1')),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
+        isComplete: opt(bool),
+        versionLabel: opt(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', projectVersionTranslationValidation),
-        ...rel('directoryListings', ['Create', 'Update', 'Delete'], 'many', 'opt', projectVersionDirectoryValidation),
-        ...rel('suggestedNextByProject', ['Connect', 'Disconnect'], 'many', 'opt'),
-    }),
+    }, [
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', projectVersionTranslationValidation],
+        ['directoryListings', ['Create', 'Update', 'Delete'], 'many', 'opt', projectVersionDirectoryValidation],
+        ['suggestedNextByProject', ['Connect', 'Disconnect'], 'many', 'opt'],
+    ], [], o),
 }

@@ -1,8 +1,8 @@
-import * as yup from 'yup';
-import { YupModel } from "../utils";
+import { phoneNumber, req, YupModel, yupObj } from "../utils";
 
 export const phoneValidation: YupModel<true, false> = {
-    create: () => yup.object().shape({
-    }),
+    create: ({ o }) => yupObj({
+        phoneNumber: req(phoneNumber),
+    }, [], [], o),
     // Can't update an phone. Push notifications & other phone-related settings are updated elsewhere
 }

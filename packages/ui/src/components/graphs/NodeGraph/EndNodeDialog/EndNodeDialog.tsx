@@ -36,7 +36,7 @@ export const EndNodeDialog = ({
             wasSuccessful: node.end?.wasSuccessful ?? true,
         },
         enableReinitialize: true,
-        validationSchema: nodeEndValidation.update(),
+        validationSchema: nodeEndValidation.update({}),
         onSubmit: (values) => {
             handleClose({
                 ...node,
@@ -57,7 +57,7 @@ export const EndNodeDialog = ({
         formik,
         formikField: 'translationsUpdate',
         language,
-        validationSchema: nodeTranslationValidation.update(),
+        validationSchema: nodeTranslationValidation.update({}),
     });
 
     const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {

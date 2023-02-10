@@ -56,7 +56,7 @@ export const ProjectCreate = ({
                 versionNotes: '',
             }
         },
-        validationSchema: projectVersionValidation.create(),
+        validationSchema: projectVersionValidation.create({}),
         onSubmit: (values) => {
             mutationWrapper<ProjectVersion, ProjectVersionCreateInput>({
                 mutation,
@@ -86,7 +86,7 @@ export const ProjectCreate = ({
         formik,
         formikField: 'translationsCreate',
         language,
-        validationSchema: projectVersionTranslationValidation.create(),
+        validationSchema: projectVersionTranslationValidation.create({}),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

@@ -1,5 +1,4 @@
-import { details, id, index, opt, rel, req, summary, transRel, versionLabel, versionNotes, YupModel } from '../utils';
-import * as yup from 'yup';
+import { bool, details, id, opt, req, summary, transRel, versionLabel, versionNotes, YupModel, yupObj } from '../utils';
 import { noteValidation } from './note';
 
 export const noteVersionTranslationValidation: YupModel = transRel({
@@ -14,25 +13,25 @@ export const noteVersionTranslationValidation: YupModel = transRel({
 })
 
 export const noteVersionValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        versionIndex: req(index),
-        versionLabel: req(versionLabel('0.0.1')),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
+        versionLabel: req(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('root', ['Connect', 'Create'], 'one', 'req', noteValidation),
-        ...rel('directoryListings', ['Connect'], 'many', 'opt'),
-        ...rel('translations', ['Create'], 'many', 'opt', noteVersionTranslationValidation),
-    }, [['rootConnect', 'rootCreate']]),
-    update: () => yup.object().shape({
+    }, [
+        ['root', ['Connect', 'Create'], 'one', 'req', noteValidation, ['versions']],
+        ['directoryListings', ['Connect'], 'many', 'opt'],
+        ['translations', ['Create'], 'many', 'opt', noteVersionTranslationValidation],
+    ], [['rootConnect', 'rootCreate']], o),
+    update: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(yup.boolean()),
-        isPrivate: opt(yup.boolean()),
-        versionIndex: opt(index),
-        versionLabel: opt(versionLabel('0.0.1')),
+        isLatest: opt(bool),
+        isPrivate: opt(bool),
+        versionLabel: opt(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
-        ...rel('directoryListings', ['Connect', 'Disconnect'], 'many', 'opt'),
-        ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', noteVersionTranslationValidation),
-    }),
+    }, [
+        ['directoryListings', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', noteVersionTranslationValidation],
+    ], [], o),
 }

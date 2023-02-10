@@ -79,7 +79,7 @@ export const RoutineCreate = ({
                 versionNotes: '',
             }
         },
-        validationSchema: routineVersionValidation.create(),
+        validationSchema: routineVersionValidation.create({}),
         onSubmit: (values) => {
             mutationWrapper<RoutineVersion, RoutineVersionCreateInput>({
                 mutation,
@@ -121,7 +121,7 @@ export const RoutineCreate = ({
         formik,
         formikField: 'translationsCreate',
         language,
-        validationSchema: routineVersionTranslationValidation.create(),
+        validationSchema: routineVersionTranslationValidation.create({}),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

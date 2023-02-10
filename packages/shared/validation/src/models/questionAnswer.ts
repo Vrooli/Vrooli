@@ -1,9 +1,23 @@
-import * as yup from 'yup';
-import { YupModel } from "../utils";
+import { description, id, opt, req, transRel, YupModel, yupObj } from "../utils";
+
+export const questionAnswerTranslationValidation: YupModel = transRel({
+    create: {
+        description: req(description),
+    },
+    update: {
+        description: opt(description),
+    }
+})
 
 export const questionAnswerValidation: YupModel = {
-    create: () => yup.object().shape({
-    }),
-    update: () => yup.object().shape({
-    }),
+    create: ({ o }) => yupObj({
+        id: req(id),
+    }, [
+        ['translations', ['Create'], 'many', 'opt', questionAnswerTranslationValidation],
+    ], [], o),
+    update: ({ o }) => yupObj({
+        id: req(id),
+    }, [
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', questionAnswerTranslationValidation],
+    ], [], o),
 }

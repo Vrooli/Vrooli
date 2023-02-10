@@ -61,7 +61,7 @@ export const ProjectUpdate = ({
             }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: projectValidation.update(),
+        validationSchema: projectValidation.update({}),
         onSubmit: (values) => {
             if (!projectVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });
@@ -98,7 +98,7 @@ export const ProjectUpdate = ({
         formik,
         formikField: 'translationsUpdate',
         language,
-        validationSchema: projectVersionTranslationValidation.update(),
+        validationSchema: projectVersionTranslationValidation.update({}),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

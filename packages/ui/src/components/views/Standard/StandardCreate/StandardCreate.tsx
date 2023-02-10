@@ -84,7 +84,7 @@ export const StandardCreate = ({
                 versionNotes: '',
             }
         },
-        validationSchema: standardVersionValidation.create(),
+        validationSchema: standardVersionValidation.create({}),
         onSubmit: (values) => {
             mutationWrapper<StandardVersion, StandardVersionCreateInput>({
                 mutation,
@@ -127,7 +127,7 @@ export const StandardCreate = ({
         formik,
         formikField: 'translationsCreate',
         language,
-        validationSchema: standardVersionTranslationValidation.create(),
+        validationSchema: standardVersionTranslationValidation.create({}),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
