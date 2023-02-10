@@ -92,18 +92,21 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
+        name: String!
         jsonVariable: String
     }
     input SmartContractVersionTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        name: String
         jsonVariable: String
     }
     type SmartContractVersionTranslation {
         id: ID!
         language: String!
         description: String
+        name: String!
         jsonVariable: String
     }
 

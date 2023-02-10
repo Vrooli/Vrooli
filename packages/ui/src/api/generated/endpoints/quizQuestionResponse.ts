@@ -25,7 +25,6 @@ query quizQuestionResponse($input: FindByIdInput!) {
                 name
                 handle
             }
-            isCompleted
             score
             stars
             views
@@ -46,6 +45,7 @@ query quizQuestionResponse($input: FindByIdInput!) {
                 canUpdate
                 canRead
                 canVote
+                hasCompleted
                 isStarred
                 isUpvoted
             }
@@ -100,7 +100,6 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                         name
                         handle
                     }
-                    isCompleted
                     score
                     stars
                     views
@@ -121,6 +120,7 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                         canUpdate
                         canRead
                         canVote
+                        hasCompleted
                         isStarred
                         isUpvoted
                     }
@@ -178,7 +178,6 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
                 name
                 handle
             }
-            isCompleted
             score
             stars
             views
@@ -199,6 +198,7 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
                 canUpdate
                 canRead
                 canVote
+                hasCompleted
                 isStarred
                 isUpvoted
             }
@@ -250,7 +250,6 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
                 name
                 handle
             }
-            isCompleted
             score
             stars
             views
@@ -271,6 +270,7 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
                 canUpdate
                 canRead
                 canVote
+                hasCompleted
                 isStarred
                 isUpvoted
             }

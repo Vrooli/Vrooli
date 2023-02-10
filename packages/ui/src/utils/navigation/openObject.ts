@@ -9,11 +9,16 @@ import { NavigableObject, SetLocation } from "types";
 import { ResourceType } from "utils/consts";
 import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
-export type ObjectType = 'Comment' |
+export type ObjectType = 'Api' | 
+    'Comment' |
+    'Note' |
     'Organization' |
     'Project' |
+    'Question' |
+    'Reminder' |
     'Routine' |
     'Run' |
+    'SmartContract' |
     'Standard' |
     'Star' |
     'Tag' |

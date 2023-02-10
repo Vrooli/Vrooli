@@ -68,6 +68,7 @@ query project($input: FindByIdInput!) {
                     id
                     language
                     details
+                    name
                     summary
                 }
             }
@@ -85,6 +86,7 @@ query project($input: FindByIdInput!) {
                     id
                     language
                     description
+                    name
                     text
                 }
             }
@@ -163,6 +165,7 @@ query project($input: FindByIdInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
             }
             childStandardVersions {
@@ -487,6 +490,7 @@ mutation projectCreate($input: ProjectCreateInput!) {
                     id
                     language
                     details
+                    name
                     summary
                 }
             }
@@ -504,6 +508,7 @@ mutation projectCreate($input: ProjectCreateInput!) {
                     id
                     language
                     description
+                    name
                     text
                 }
             }
@@ -582,6 +587,7 @@ mutation projectCreate($input: ProjectCreateInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
             }
             childStandardVersions {
@@ -823,6 +829,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
                     id
                     language
                     details
+                    name
                     summary
                 }
             }
@@ -840,6 +847,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
                     id
                     language
                     description
+                    name
                     text
                 }
             }
@@ -918,6 +926,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
             }
             childStandardVersions {

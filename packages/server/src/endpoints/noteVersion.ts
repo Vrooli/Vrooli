@@ -70,20 +70,23 @@ export const typeDef = gql`
     input NoteVersionTranslationCreateInput {
         id: ID!
         language: String!
-        text: String!
         description: String
+        name: String!
+        text: String!
     }
     input NoteVersionTranslationUpdateInput {
         id: ID!
         language: String
-        text: String
         description: String
+        name: String
+        text: String
     }
     type NoteVersionTranslation {
         id: ID!
         language: String!
-        text: String!
         description: String
+        name: String!
+        text: String!
     }
 
     input NoteVersionSearchInput {

@@ -9,6 +9,7 @@ export const noteVersionTranslation: GqlPartial<NoteVersionTranslation> = {
         id: true,
         language: true,
         description: true,
+        name: true,
         text: true,
     },
     full: {},

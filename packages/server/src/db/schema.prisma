@@ -95,7 +95,7 @@ model api_version {
 
 model api_version_translation {
     id           String      @id @default(uuid()) @db.Uuid
-    name         String?     @db.VarChar(128)
+    name         String     @db.VarChar(128)
     summary      String?     @db.VarChar(1024)
     details      String?     @db.VarChar(8192)
     language     String      @db.VarChar(3)
@@ -777,7 +777,7 @@ model post {
     repostedFromId String?            @db.Uuid
     resourceListId String?            @unique @db.Uuid
     isPinned       Boolean            @default(false)
-    isPrivate       Boolean            @default(false)
+    isPrivate      Boolean            @default(false)
     isDeleted      Boolean            @default(false)
     score          Int                @default(0)
     stars          Int                @default(0)
@@ -1063,6 +1063,8 @@ model question {
     createdBy         user?                       @relation("question_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     comments          comment[]
     answers           question_answer[]
+    reports           report[]
+    tags              question_tags[]
     starredBy         star[]                      @relation("star_question")
     votedBy           vote[]                      @relation("vote_question")
     viewedBy          view[]                      @relation("view_question")
@@ -1079,6 +1081,16 @@ model question_translation {
     question    question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
     @@unique([questionId, language])
+}
+
+model question_tags {
+    id       String   @id @default(uuid()) @db.Uuid
+    taggedId String   @db.Uuid
+    tagTag   String   @db.VarChar(128)
+    tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
+    tagged   question @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagTag], name: "question_tags_taggedid_tagTag_unique")
 }
 
 model question_answer {
@@ -1260,6 +1272,7 @@ model report {
     organizationId         String?                     @db.Uuid
     postId                 String?                     @db.Uuid
     projectVersionId       String?                     @db.Uuid
+    questionId             String?                     @db.Uuid
     routineVersionId       String?                     @db.Uuid
     smartContractVersionId String?                     @db.Uuid
     standardVersionId      String?                     @db.Uuid
@@ -1273,6 +1286,7 @@ model report {
     organization           organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     post                   post?                       @relation(fields: [postId], references: [id], onDelete: Cascade)
     projectVersion         project_version?            @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
+    question               question?                   @relation(fields: [questionId], references: [id], onDelete: Cascade)
     routineVersion         routine_version?            @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
     smartContractVersion   smart_contract_version?     @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
     standardVersion        standard_version?           @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
@@ -2147,6 +2161,7 @@ model tag {
     organizations   organization_tags[]
     posts           post_tags[]
     projects        project_tags[]
+    questions       question_tags[]
     reports         report[]
     routines        routine_tags[]
     smartContracts  smart_contract_tags[]

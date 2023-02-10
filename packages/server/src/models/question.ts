@@ -1,11 +1,15 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Question, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from '@shared/consts';
+import { Question, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
+import { getSingleTypePermissions } from "../validators";
+import { StarModel } from "./star";
+import { VoteModel } from "./vote";
 
 const __typename = 'Question' as const;
+type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
 const suppFields = [] as const;
 export const QuestionModel: ModelLogic<{
     IsTransferable: false,
@@ -15,7 +19,7 @@ export const QuestionModel: ModelLogic<{
     GqlModel: Question,
     GqlSearch: QuestionSearchInput,
     GqlSort: QuestionSortBy,
-    GqlPermission: {},
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.questionUpsertArgs['create'],
     PrismaUpdate: Prisma.questionUpsertArgs['update'],
     PrismaModel: Prisma.questionGetPayload<SelectWrap<Prisma.questionSelect>>,
@@ -28,7 +32,54 @@ export const QuestionModel: ModelLogic<{
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            createdBy: 'User',
+            answers: 'QuestionAnswer',
+            comments: 'Comment',
+            reports: 'Report',
+            starredBy: 'User',
+            tags: 'Tag',
+        },
+        prismaRelMap: {
+            __typename,
+            createdBy: 'User',
+            api: 'Api',
+            note: 'Note',
+            organization: 'Organization',
+            project: 'Project',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+            comments: 'Comment',
+            answers: 'QuestionAnswer',
+            reports: 'Report',
+            tags: 'Tag',
+            starredBy: 'User',
+            votedBy: 'User',
+            viewedBy: 'User',
+        },
+        joinMap: { starredBy: 'user', tags: 'tag' },
+        countFields: {
+            answersCount: true,
+            commentsCount: true,
+            reportsCount: true,
+            translationsCount: true,
+        },
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    },
+                }
+            },
+        },
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

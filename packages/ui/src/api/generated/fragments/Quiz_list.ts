@@ -13,7 +13,6 @@ createdBy {
     name
     handle
 }
-isCompleted
 score
 stars
 views
@@ -34,6 +33,7 @@ you {
     canUpdate
     canRead
     canVote
+    hasCompleted
     isStarred
     isUpvoted
 }

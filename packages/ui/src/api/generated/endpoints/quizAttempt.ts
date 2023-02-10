@@ -26,7 +26,6 @@ query quizAttempt($input: FindByIdInput!) {
                     name
                     handle
                 }
-                isCompleted
                 score
                 stars
                 views
@@ -47,6 +46,7 @@ query quizAttempt($input: FindByIdInput!) {
                     canUpdate
                     canRead
                     canVote
+                    hasCompleted
                     isStarred
                     isUpvoted
                 }
@@ -88,7 +88,6 @@ query quizAttempt($input: FindByIdInput!) {
             name
             handle
         }
-        isCompleted
         score
         stars
         views
@@ -109,6 +108,7 @@ query quizAttempt($input: FindByIdInput!) {
             canUpdate
             canRead
             canVote
+            hasCompleted
             isStarred
             isUpvoted
         }
@@ -148,7 +148,6 @@ query quizAttempts($input: QuizAttemptSearchInput!) {
                     name
                     handle
                 }
-                isCompleted
                 score
                 stars
                 views
@@ -169,6 +168,7 @@ query quizAttempts($input: QuizAttemptSearchInput!) {
                     canUpdate
                     canRead
                     canVote
+                    hasCompleted
                     isStarred
                     isUpvoted
                 }
@@ -217,7 +217,6 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
                     name
                     handle
                 }
-                isCompleted
                 score
                 stars
                 views
@@ -238,6 +237,7 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
                     canUpdate
                     canRead
                     canVote
+                    hasCompleted
                     isStarred
                     isUpvoted
                 }
@@ -279,7 +279,6 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
             name
             handle
         }
-        isCompleted
         score
         stars
         views
@@ -300,6 +299,7 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
             canUpdate
             canRead
             canVote
+            hasCompleted
             isStarred
             isUpvoted
         }
@@ -342,7 +342,6 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
                     name
                     handle
                 }
-                isCompleted
                 score
                 stars
                 views
@@ -363,6 +362,7 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
                     canUpdate
                     canRead
                     canVote
+                    hasCompleted
                     isStarred
                     isUpvoted
                 }
@@ -404,7 +404,6 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
             name
             handle
         }
-        isCompleted
         score
         stars
         views
@@ -425,6 +424,7 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
             canUpdate
             canRead
             canVote
+            hasCompleted
             isStarred
             isUpvoted
         }

@@ -41,6 +41,7 @@ translations {
     id
     language
     description
+    name
     text
 }
 id

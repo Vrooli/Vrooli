@@ -2,14 +2,20 @@ import { useCallback, useMemo } from "react";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
-import { APP_LINKS, GqlModelType, Organization, ProjectVersion, RoutineVersion, Session, StandardVersion, User } from "@shared/consts";
+import { Api, APP_LINKS, GqlModelType, Note, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, User } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
 import { PageContainer, ReportsView, SnackSeverity } from "components";
+import { useTranslation } from "react-i18next";
 
+const { ApiCreate, ApiUpdate, ApiView } = lazily(() => import('../../components/views/Api'));
+const { NoteCreate, NoteUpdate, NoteView } = lazily(() => import('../../components/views/Note'));
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
 const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('../../components/views/Project'));
+const { QuestionCreate, QuestionUpdate, QuestionView } = lazily(() => import('../../components/views/Question'));
+const { ReminderCreate, ReminderUpdate, ReminderView } = lazily(() => import('../../components/views/Reminder'));
 const { RoutineCreate, RoutineUpdate, RoutineView } = lazily(() => import('../../components/views/Routine'));
+const { SmartContractCreate, SmartContractUpdate, SmartContractView } = lazily(() => import('../../components/views/SmartContract'));
 const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('../../components/views/Standard'));
 
 export interface CreatePageProps {
@@ -31,7 +37,7 @@ export interface ViewPageProps {
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object
      */
-    partialData?: Partial<Organization & ProjectVersion & RoutineVersion & StandardVersion & User>
+    partialData?: Partial<Api & Note & Organization & ProjectVersion & RoutineVersion & SmartContractVersion & StandardVersion & User>
     session: Session;
     zIndex: number;
 }
@@ -49,29 +55,29 @@ enum PageType {
  * Maps links to object types
  */
 const typeMap: { [key in APP_LINKS]?: ObjectType } = {
+    [APP_LINKS.Api]: 'Api',
+    [APP_LINKS.Note]: 'Note',
     [APP_LINKS.Organization]: 'Organization',
     [APP_LINKS.Project]: 'Project',
+    [APP_LINKS.Question]: 'Question',
+    [APP_LINKS.Reminder]: 'Reminder',
     [APP_LINKS.Routine]: 'Routine',
+    [APP_LINKS.SmartContract]: 'SmartContract',
     [APP_LINKS.Standard]: 'Standard',
-}
-
-/**
- * Maps object types to dialog titles
- */
-const titleMap: { [key in ObjectType]?: string } = {
-    'Organization': 'Organization',
-    'Project': 'Project',
-    'Routine': 'Routine',
-    'Standard': 'Standard',
 }
 
 /**
  * Maps object types to create components
  */
 const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element } = {
+    'Api': ApiCreate,
+    'Note': NoteCreate,
     'Organization': OrganizationCreate,
     'Project': ProjectCreate,
+    'Question': QuestionCreate,
+    'Reminder': ReminderCreate,
     'Routine': RoutineCreate,
+    'SmartContract': SmartContractCreate,
     'Standard': StandardCreate,
 }
 
@@ -79,9 +85,14 @@ const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element
  * Maps object types to update components
  */
 const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element } = {
+    'Api': ApiUpdate,
+    'Note': NoteUpdate,
     'Organization': OrganizationUpdate,
     'Project': ProjectUpdate,
+    'Question': QuestionUpdate,
+    'Reminder': ReminderUpdate,
     'Routine': RoutineUpdate,
+    'SmartContract': SmartContractUpdate,
     'Standard': StandardUpdate,
 }
 
@@ -89,15 +100,21 @@ const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element
  * Maps object types to view components
  */
 const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } = {
+    'Api': ApiView,
+    'Note': NoteView,
     'Organization': OrganizationView,
     'Project': ProjectView,
+    'Question': QuestionView,
+    'Reminder': ReminderView,
     'Routine': RoutineView,
+    'SmartContract': SmartContractView,
     'Standard': StandardView,
 }
 
 export const ObjectPage = ({
     session,
 }: ObjectPageProps) => {
+    const { t } = useTranslation();
     const [location, setLocation] = useLocation();
 
     // Determine if page should be displayed as a dialog or full page. 
@@ -153,7 +170,7 @@ export const ObjectPage = ({
         }
         if (pageType === PageType.Create) {
             const Create = createMap[objectType];
-            document.title = `Create ${titleMap[objectType]}`;
+            document.title = t(`common:Create${objectType}`);
             return (Create && <Create
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
                 onCreated={(data) => onAction(ObjectDialogAction.Add, data)}
@@ -163,7 +180,7 @@ export const ObjectPage = ({
         }
         if (pageType === PageType.Update) {
             const Update = updateMap[objectType];
-            document.title = `Update ${titleMap[objectType]}`;
+            document.title = t(`common:Update${objectType}`);
             return (Update && <Update
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
                 onUpdated={(data) => onAction(ObjectDialogAction.Save, data)}
@@ -172,12 +189,12 @@ export const ObjectPage = ({
             />)
         }
         if (pageType === PageType.Reports) {
-            document.title = `Reports | ${titleMap[objectType]}`;
+            document.title = t(`common:Reports`) + t(`common:${objectType}`);
             return <ReportsView session={session} />
         }
         const View = viewMap[objectType];
         return View && <View session={session} zIndex={200} />
-    }, [objectType, onAction, pageType, session]);
+    }, [objectType, onAction, pageType, session, t]);
 
     return (
         <PageContainer sx={{ paddingLeft: 0, paddingRight: 0 }}>

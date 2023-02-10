@@ -41,6 +41,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
 // [title, searchType] for each tab
 const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
 
+//TODO possibly deprecated
 export function DevelopSearchPage({
     session,
 }: DevelopSearchPageProps) {

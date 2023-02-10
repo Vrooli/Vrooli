@@ -10,6 +10,7 @@ export const smartContractVersionTranslation: GqlPartial<SmartContractVersionTra
         language: true,
         description: true,
         jsonVariable: true,
+        name: true,
     },
     full: {},
     list: {},

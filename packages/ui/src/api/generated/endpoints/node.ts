@@ -98,6 +98,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                 }
@@ -151,6 +152,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
             versionNotes
@@ -440,6 +442,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                 }
                 stats {
@@ -493,6 +496,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
             id
             created_at
@@ -809,6 +813,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                 }
@@ -862,6 +867,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
             versionNotes
@@ -1151,6 +1157,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                 }
                 stats {
@@ -1204,6 +1211,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
             id
             created_at

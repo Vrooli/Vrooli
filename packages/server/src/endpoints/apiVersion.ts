@@ -82,20 +82,23 @@ export const typeDef = gql`
     input ApiVersionTranslationCreateInput {
         id: ID!
         language: String!
+        details: String
+        name: String!
         summary: String
-        details: String!
     }
     input ApiVersionTranslationUpdateInput {
         id: ID!
         language: String
-        summary: String
         details: String
+        name: String
+        summary: String
     }
     type ApiVersionTranslation {
         id: ID!
         language: String!
+        details: String
+        name: String!
         summary: String
-        details: String!
     }
 
     input ApiVersionSearchInput {

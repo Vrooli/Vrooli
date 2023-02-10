@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { blankToUndefined, bool, description, id, jsonVariable, maxStrErr, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { blankToUndefined, bool, description, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { resourceListValidation } from './resourceList';
 import { smartContractValidation } from './smartContract';
 
@@ -11,10 +11,12 @@ export const smartContractVersionTranslationValidation: YupModel = transRel({
     create: {
         description: opt(description),
         jsonVariable: opt(jsonVariable),
+        name: req(name),
     },
     update: {
         description: opt(description),
         jsonVariable: opt(jsonVariable),
+        name: opt(name),
     }
 })
 

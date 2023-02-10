@@ -72,6 +72,7 @@ query routine($input: FindByIdInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                 }
@@ -125,6 +126,7 @@ query routine($input: FindByIdInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
             versionNotes
@@ -282,6 +284,7 @@ query routine($input: FindByIdInput!) {
                                 id
                                 language
                                 details
+                                name
                                 summary
                             }
                         }
@@ -335,6 +338,7 @@ query routine($input: FindByIdInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                     versionNotes
@@ -624,6 +628,7 @@ query routine($input: FindByIdInput!) {
                                 language
                                 description
                                 jsonVariable
+                                name
                             }
                         }
                         stats {
@@ -677,6 +682,7 @@ query routine($input: FindByIdInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                     id
                     created_at
@@ -1058,6 +1064,7 @@ query routine($input: FindByIdInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                 }
                 stats {
@@ -1111,6 +1118,7 @@ query routine($input: FindByIdInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
             id
             created_at
@@ -1666,6 +1674,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                 }
@@ -1719,6 +1728,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
             versionNotes
@@ -1876,6 +1886,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                                 id
                                 language
                                 details
+                                name
                                 summary
                             }
                         }
@@ -1929,6 +1940,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                     versionNotes
@@ -2218,6 +2230,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                                 language
                                 description
                                 jsonVariable
+                                name
                             }
                         }
                         stats {
@@ -2271,6 +2284,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                     id
                     created_at
@@ -2652,6 +2666,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                 }
                 stats {
@@ -2705,6 +2720,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
             id
             created_at
@@ -3037,6 +3053,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                 }
@@ -3090,6 +3107,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
             versionNotes
@@ -3247,6 +3265,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                                 id
                                 language
                                 details
+                                name
                                 summary
                             }
                         }
@@ -3300,6 +3319,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         id
                         language
                         details
+                        name
                         summary
                     }
                     versionNotes
@@ -3589,6 +3609,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                                 language
                                 description
                                 jsonVariable
+                                name
                             }
                         }
                         stats {
@@ -3642,6 +3663,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                     id
                     created_at
@@ -4023,6 +4045,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                 }
                 stats {
@@ -4076,6 +4099,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
             id
             created_at

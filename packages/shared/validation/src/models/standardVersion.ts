@@ -1,6 +1,6 @@
 import * as yup from 'yup';
 import { InputType } from "@shared/consts";
-import { blankToUndefined, bool, description, enumToYup, id, jsonVariable, maxStrErr, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { blankToUndefined, bool, description, enumToYup, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { resourceListValidation } from "./resourceList";
 import { standardValidation } from "./standard";
 
@@ -13,10 +13,12 @@ export const standardVersionTranslationValidation: YupModel = transRel({
     create: {
         description: opt(description),
         jsonVariable: opt(jsonVariable),
+        name: req(name),
     },
     update: {
         description: opt(description),
         jsonVariable: opt(jsonVariable),
+        name: opt(name),
     }
 })
 

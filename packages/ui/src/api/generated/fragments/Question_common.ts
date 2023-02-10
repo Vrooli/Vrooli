@@ -12,6 +12,7 @@ score
 stars
 answersCount
 commentsCount
+reportsCount
 forObject {
     ... on Api {
         ...Api_nav
@@ -34,6 +35,9 @@ forObject {
     ... on Standard {
         ...Standard_nav
     }
+}
+tags {
+    ...Tag_list
 }
 you {
     isUpvoted

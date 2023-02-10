@@ -50,6 +50,7 @@ query projectVersion($input: FindByIdInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
         }
@@ -67,6 +68,7 @@ query projectVersion($input: FindByIdInput!) {
                 id
                 language
                 description
+                name
                 text
             }
         }
@@ -145,6 +147,7 @@ query projectVersion($input: FindByIdInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         childStandardVersions {
@@ -469,6 +472,7 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
         }
@@ -486,6 +490,7 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
                 id
                 language
                 description
+                name
                 text
             }
         }
@@ -564,6 +569,7 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         childStandardVersions {
@@ -805,6 +811,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
                 id
                 language
                 details
+                name
                 summary
             }
         }
@@ -822,6 +829,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
                 id
                 language
                 description
+                name
                 text
             }
         }
@@ -900,6 +908,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         childStandardVersions {

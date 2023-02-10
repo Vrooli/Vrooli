@@ -9,6 +9,7 @@ export const apiVersionTranslation: GqlPartial<ApiVersionTranslation> = {
         id: true,
         language: true,
         details: true,
+        name: true,
         summary: true,
     },
     full: {},

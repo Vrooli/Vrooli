@@ -6,6 +6,7 @@ import { Project_nav } from '../fragments/Project_nav';
 import { Routine_nav } from '../fragments/Routine_nav';
 import { SmartContract_nav } from '../fragments/SmartContract_nav';
 import { Standard_nav } from '../fragments/Standard_nav';
+import { Tag_list } from '../fragments/Tag_list';
 import { User_nav } from '../fragments/User_nav';
 
 export const questionFindOne = gql`${Api_nav}
@@ -15,6 +16,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 ${User_nav}
 
 query question($input: FindByIdInput!) {
@@ -88,6 +90,7 @@ query question($input: FindByIdInput!) {
     stars
     answersCount
     commentsCount
+    reportsCount
     forObject {
         ... on Api {
             ...Api_nav
@@ -111,6 +114,9 @@ query question($input: FindByIdInput!) {
             ...Standard_nav
         }
     }
+    tags {
+        ...Tag_list
+    }
     you {
         isUpvoted
     }
@@ -124,6 +130,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 
 query questions($input: QuestionSearchInput!) {
   questions(input: $input) {
@@ -149,6 +156,7 @@ query questions($input: QuestionSearchInput!) {
             stars
             answersCount
             commentsCount
+            reportsCount
             forObject {
                 ... on Api {
                     ...Api_nav
@@ -172,6 +180,9 @@ query questions($input: QuestionSearchInput!) {
                     ...Standard_nav
                 }
             }
+            tags {
+                ...Tag_list
+            }
             you {
                 isUpvoted
             }
@@ -191,6 +202,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 ${User_nav}
 
 mutation questionCreate($input: QuestionCreateInput!) {
@@ -264,6 +276,7 @@ mutation questionCreate($input: QuestionCreateInput!) {
     stars
     answersCount
     commentsCount
+    reportsCount
     forObject {
         ... on Api {
             ...Api_nav
@@ -287,6 +300,9 @@ mutation questionCreate($input: QuestionCreateInput!) {
             ...Standard_nav
         }
     }
+    tags {
+        ...Tag_list
+    }
     you {
         isUpvoted
     }
@@ -300,6 +316,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 ${User_nav}
 
 mutation questionUpdate($input: QuestionUpdateInput!) {
@@ -373,6 +390,7 @@ mutation questionUpdate($input: QuestionUpdateInput!) {
     stars
     answersCount
     commentsCount
+    reportsCount
     forObject {
         ... on Api {
             ...Api_nav
@@ -395,6 +413,9 @@ mutation questionUpdate($input: QuestionUpdateInput!) {
         ... on Standard {
             ...Standard_nav
         }
+    }
+    tags {
+        ...Tag_list
     }
     you {
         isUpvoted

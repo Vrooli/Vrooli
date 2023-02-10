@@ -69,6 +69,7 @@ query smartContractVersion($input: FindByIdInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         stats {
@@ -122,6 +123,7 @@ query smartContractVersion($input: FindByIdInput!) {
         language
         description
         jsonVariable
+        name
     }
     id
     created_at
@@ -162,6 +164,7 @@ query smartContractVersions($input: SmartContractVersionSearchInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
             id
             created_at
@@ -262,6 +265,7 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         stats {
@@ -315,6 +319,7 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
         language
         description
         jsonVariable
+        name
     }
     id
     created_at
@@ -409,6 +414,7 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         stats {
@@ -462,6 +468,7 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         language
         description
         jsonVariable
+        name
     }
     id
     created_at

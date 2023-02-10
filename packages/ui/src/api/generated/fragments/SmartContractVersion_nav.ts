@@ -13,5 +13,6 @@ translations {
     language
     description
     jsonVariable
+    name
 }
 }`;

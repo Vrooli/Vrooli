@@ -45,6 +45,7 @@ query noteVersion($input: FindByIdInput!) {
                 id
                 language
                 description
+                name
                 text
             }
         }
@@ -89,6 +90,7 @@ query noteVersion($input: FindByIdInput!) {
         id
         language
         description
+        name
         text
     }
     versionNotes
@@ -164,6 +166,7 @@ query noteVersions($input: NoteVersionSearchInput!) {
                 id
                 language
                 description
+                name
                 text
             }
             id
@@ -233,6 +236,7 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
                 id
                 language
                 description
+                name
                 text
             }
         }
@@ -277,6 +281,7 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
         id
         language
         description
+        name
         text
     }
     versionNotes
@@ -341,6 +346,7 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
                 id
                 language
                 description
+                name
                 text
             }
         }
@@ -385,6 +391,7 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
         id
         language
         description
+        name
         text
     }
     versionNotes

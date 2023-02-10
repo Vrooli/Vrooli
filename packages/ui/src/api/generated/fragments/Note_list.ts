@@ -4,6 +4,7 @@ versions {
         id
         language
         description
+        name
         text
     }
     id

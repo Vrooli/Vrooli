@@ -25,6 +25,7 @@ query api($input: FindByIdInput!) {
             id
             language
             details
+            name
             summary
         }
     }
@@ -52,6 +53,7 @@ query api($input: FindByIdInput!) {
             id
             language
             details
+            name
             summary
         }
         versionNotes
@@ -140,6 +142,7 @@ query apis($input: ApiSearchInput!) {
                     id
                     language
                     details
+                    name
                     summary
                 }
                 id
@@ -230,6 +233,7 @@ mutation apiCreate($input: ApiCreateInput!) {
             id
             language
             details
+            name
             summary
         }
     }
@@ -257,6 +261,7 @@ mutation apiCreate($input: ApiCreateInput!) {
             id
             language
             details
+            name
             summary
         }
         versionNotes
@@ -351,6 +356,7 @@ mutation apiUpdate($input: ApiUpdateInput!) {
             id
             language
             details
+            name
             summary
         }
     }
@@ -378,6 +384,7 @@ mutation apiUpdate($input: ApiUpdateInput!) {
             id
             language
             details
+            name
             summary
         }
         versionNotes

@@ -275,16 +275,18 @@ export enum ApiVersionSortBy {
 
 export type ApiVersionTranslation = {
   __typename: 'ApiVersionTranslation';
-  details: Scalars['String'];
+  details?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
+  name: Scalars['String'];
   summary?: Maybe<Scalars['String']>;
 };
 
 export type ApiVersionTranslationCreateInput = {
-  details: Scalars['String'];
+  details?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
+  name: Scalars['String'];
   summary?: InputMaybe<Scalars['String']>;
 };
 
@@ -292,6 +294,7 @@ export type ApiVersionTranslationUpdateInput = {
   details?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
   summary?: InputMaybe<Scalars['String']>;
 };
 
@@ -2714,6 +2717,7 @@ export type NoteVersionTranslation = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
+  name: Scalars['String'];
   text: Scalars['String'];
 };
 
@@ -2721,6 +2725,7 @@ export type NoteVersionTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
+  name: Scalars['String'];
   text: Scalars['String'];
 };
 
@@ -2728,6 +2733,7 @@ export type NoteVersionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
   text?: InputMaybe<Scalars['String']>;
 };
 
@@ -3153,12 +3159,13 @@ export type Post = {
 export type PostCreateInput = {
   id: Scalars['ID'];
   isPinned?: InputMaybe<Scalars['Boolean']>;
-  isPublic?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   repostedFromConnect?: InputMaybe<Scalars['ID']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  userConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type PostEdge = {
@@ -3236,7 +3243,7 @@ export type PostTranslationUpdateInput = {
 export type PostUpdateInput = {
   id: Scalars['ID'];
   isPinned?: InputMaybe<Scalars['Boolean']>;
-  isPublic?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
@@ -4616,9 +4623,12 @@ export type Question = {
   forObject: QuestionFor;
   hasAcceptedAnswer: Scalars['Boolean'];
   id: Scalars['ID'];
+  reports: Array<Report>;
+  reportsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
+  tags: Array<Tag>;
   translations: Array<QuestionTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
@@ -4716,6 +4726,8 @@ export type QuestionCreateInput = {
   forType: QuestionForType;
   id: Scalars['ID'];
   referencing?: InputMaybe<Scalars['String']>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<QuestionTranslationCreateInput>>;
 };
 
@@ -4808,6 +4820,9 @@ export type QuestionTranslationUpdateInput = {
 export type QuestionUpdateInput = {
   acceptedAnswerConnect?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
   translationsCreate?: InputMaybe<Array<QuestionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<QuestionTranslationUpdateInput>>;
@@ -4815,7 +4830,13 @@ export type QuestionUpdateInput = {
 
 export type QuestionYou = {
   __typename: 'QuestionYou';
-  isUpvoted: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
 };
 
 export type Quiz = {
@@ -4825,10 +4846,11 @@ export type Quiz = {
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isCompleted: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
   project?: Maybe<Project>;
   quizQuestions: Array<QuizQuestion>;
   quizQuestionsCount: Scalars['Int'];
+  randomizeQuestionOrder: Scalars['Boolean'];
   routine?: Maybe<Routine>;
   score: Scalars['Int'];
   starredBy: Array<User>;
@@ -4928,11 +4950,12 @@ export type QuizAttemptYou = {
 
 export type QuizCreateInput = {
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   maxAttempts?: InputMaybe<Scalars['Int']>;
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
   quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
-  randomizeQuestionORder?: InputMaybe<Scalars['Boolean']>;
+  randomizeQuestionOder?: InputMaybe<Scalars['Boolean']>;
   revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
   timeLimit?: InputMaybe<Scalars['Int']>;
@@ -5194,6 +5217,7 @@ export type QuizTranslationUpdateInput = {
 
 export type QuizUpdateInput = {
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   maxAttempts?: InputMaybe<Scalars['Int']>;
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
@@ -5201,7 +5225,7 @@ export type QuizUpdateInput = {
   quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
   quizQuestionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   quizQuestionsUpdate?: InputMaybe<Array<QuizQuestionUpdateInput>>;
-  randomizeQuestionORder?: InputMaybe<Scalars['Boolean']>;
+  randomizeQuestionOrder?: InputMaybe<Scalars['Boolean']>;
   revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
   routineDisconnect?: InputMaybe<Scalars['ID']>;
@@ -5218,6 +5242,7 @@ export type QuizYou = {
   canStar: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
+  hasCompleted: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
 };
@@ -6591,7 +6616,7 @@ export type RunProjectScheduleUpdateInput = {
   recurrEnd?: InputMaybe<Scalars['Date']>;
   recurrStart?: InputMaybe<Scalars['Date']>;
   recurring?: InputMaybe<Scalars['Boolean']>;
-  runProjectConnect: Scalars['ID'];
+  runProjectConnect?: InputMaybe<Scalars['ID']>;
   timeZone?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<RunProjectScheduleTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -7316,6 +7341,7 @@ export type SmartContractVersionTranslation = {
   id: Scalars['ID'];
   jsonVariable?: Maybe<Scalars['String']>;
   language: Scalars['String'];
+  name: Scalars['String'];
 };
 
 export type SmartContractVersionTranslationCreateInput = {
@@ -7323,6 +7349,7 @@ export type SmartContractVersionTranslationCreateInput = {
   id: Scalars['ID'];
   jsonVariable?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
+  name: Scalars['String'];
 };
 
 export type SmartContractVersionTranslationUpdateInput = {
@@ -7330,6 +7357,7 @@ export type SmartContractVersionTranslationUpdateInput = {
   id: Scalars['ID'];
   jsonVariable?: InputMaybe<Scalars['String']>;
   language?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
 };
 
 export type SmartContractVersionUpdateInput = {
@@ -10284,9 +10312,10 @@ export type ApiVersionSearchResultResolvers<ContextType = any, ParentType extend
 };
 
 export type ApiVersionTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ApiVersionTranslation'] = ResolversParentTypes['ApiVersionTranslation']> = {
-  details?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  details?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   summary?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11013,6 +11042,7 @@ export type NoteVersionTranslationResolvers<ContextType = any, ParentType extend
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11666,9 +11696,12 @@ export type QuestionResolvers<ContextType = any, ParentType extends ResolversPar
   forObject?: Resolver<ResolversTypes['QuestionFor'], ParentType, ContextType>;
   hasAcceptedAnswer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
+  reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuestionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -11736,7 +11769,13 @@ export type QuestionTranslationResolvers<ContextType = any, ParentType extends R
 };
 
 export type QuestionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionYou'] = ResolversParentTypes['QuestionYou']> = {
-  isUpvoted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11746,10 +11785,11 @@ export type QuizResolvers<ContextType = any, ParentType extends ResolversParentT
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isCompleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   project?: Resolver<Maybe<ResolversTypes['Project']>, ParentType, ContextType>;
   quizQuestions?: Resolver<Array<ResolversTypes['QuizQuestion']>, ParentType, ContextType>;
   quizQuestionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  randomizeQuestionOrder?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   routine?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
@@ -11900,6 +11940,7 @@ export type QuizYouResolvers<ContextType = any, ParentType extends ResolversPare
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  hasCompleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12693,6 +12734,7 @@ export type SmartContractVersionTranslationResolvers<ContextType = any, ParentTy
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   jsonVariable?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

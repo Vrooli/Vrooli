@@ -16,6 +16,7 @@ import { SmartContract_nav } from '../fragments/SmartContract_nav';
 import { SmartContractVersion_nav } from '../fragments/SmartContractVersion_nav';
 import { Standard_nav } from '../fragments/Standard_nav';
 import { StandardVersion_nav } from '../fragments/StandardVersion_nav';
+import { Tag_list } from '../fragments/Tag_list';
 import { User_nav } from '../fragments/User_nav';
 
 export const commentFindOne = gql`${Api_nav}
@@ -35,6 +36,7 @@ ${SmartContract_nav}
 ${SmartContractVersion_nav}
 ${Standard_nav}
 ${StandardVersion_nav}
+${Tag_list}
 ${User_nav}
 
 query comment($input: FindByIdInput!) {
@@ -123,6 +125,7 @@ ${SmartContract_nav}
 ${SmartContractVersion_nav}
 ${Standard_nav}
 ${StandardVersion_nav}
+${Tag_list}
 ${User_nav}
 
 query comments($input: CommentSearchInput!) {
@@ -355,6 +358,7 @@ ${SmartContract_nav}
 ${SmartContractVersion_nav}
 ${Standard_nav}
 ${StandardVersion_nav}
+${Tag_list}
 ${User_nav}
 
 mutation commentCreate($input: CommentCreateInput!) {
@@ -443,6 +447,7 @@ ${SmartContract_nav}
 ${SmartContractVersion_nav}
 ${Standard_nav}
 ${StandardVersion_nav}
+${Tag_list}
 ${User_nav}
 
 mutation commentUpdate($input: CommentUpdateInput!) {

@@ -6,6 +6,7 @@ import { Project_nav } from '../fragments/Project_nav';
 import { Routine_nav } from '../fragments/Routine_nav';
 import { SmartContract_nav } from '../fragments/SmartContract_nav';
 import { Standard_nav } from '../fragments/Standard_nav';
+import { Tag_list } from '../fragments/Tag_list';
 import { User_nav } from '../fragments/User_nav';
 
 export const questionAnswerFindOne = gql`${Api_nav}
@@ -15,6 +16,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 ${User_nav}
 
 query questionAnswer($input: FindByIdInput!) {
@@ -64,6 +66,7 @@ query questionAnswer($input: FindByIdInput!) {
         stars
         answersCount
         commentsCount
+        reportsCount
         forObject {
             ... on Api {
                 ...Api_nav
@@ -86,6 +89,9 @@ query questionAnswer($input: FindByIdInput!) {
             ... on Standard {
                 ...Standard_nav
             }
+        }
+        tags {
+            ...Tag_list
         }
         you {
             isUpvoted
@@ -150,6 +156,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 ${User_nav}
 
 mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
@@ -199,6 +206,7 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
         stars
         answersCount
         commentsCount
+        reportsCount
         forObject {
             ... on Api {
                 ...Api_nav
@@ -221,6 +229,9 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
             ... on Standard {
                 ...Standard_nav
             }
+        }
+        tags {
+            ...Tag_list
         }
         you {
             isUpvoted
@@ -253,6 +264,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 ${User_nav}
 
 mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
@@ -302,6 +314,7 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
         stars
         answersCount
         commentsCount
+        reportsCount
         forObject {
             ... on Api {
                 ...Api_nav
@@ -324,6 +337,9 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
             ... on Standard {
                 ...Standard_nav
             }
+        }
+        tags {
+            ...Tag_list
         }
         you {
             isUpvoted
@@ -356,6 +372,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${Tag_list}
 ${User_nav}
 
 mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
@@ -405,6 +422,7 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
         stars
         answersCount
         commentsCount
+        reportsCount
         forObject {
             ... on Api {
                 ...Api_nav
@@ -427,6 +445,9 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
             ... on Standard {
                 ...Standard_nav
             }
+        }
+        tags {
+            ...Tag_list
         }
         you {
             isUpvoted

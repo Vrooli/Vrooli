@@ -3,7 +3,7 @@ import { SnackSeverity } from "components";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
-import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
+import { clearSearchHistory, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
 import { userProfileUpdate } from "api/generated/endpoints/user";
 
@@ -23,6 +23,14 @@ export interface ActionItem {
  */
 export const shortcuts: ShortcutItem[] = [
     {
+        label: 'Create new api',
+        link: `${APP_LINKS.Api}/add`,
+    },
+    {
+        label: 'Create new note',
+        link: `${APP_LINKS.Note}/add`,
+    },
+    {
         label: 'Create new organization',
         link: `${APP_LINKS.Organization}/add`,
     },
@@ -31,24 +39,24 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.Project}/add`,
     },
     {
+        label: 'Create new question',
+        link: `${APP_LINKS.Question}/add`,
+    },
+    {
+        label: 'Create new reminder',
+        link: `${APP_LINKS.Reminder}/add`,
+    },
+    {
         label: 'Create new routine',
         link: `${APP_LINKS.Routine}/add`,
     },
     {
+        label: 'Create new smart contract',
+        link: `${APP_LINKS.SmartContract}/add`,
+    },
+    {
         label: 'Create new standard',
         link: `${APP_LINKS.Standard}/add`,
-    },
-    {
-        label: 'View learn dashboard',
-        link: `${APP_LINKS.Learn}`,
-    },
-    {
-        label: 'View research dashboard',
-        link: `${APP_LINKS.Research}`,
-    },
-    {
-        label: 'View develop dashboard',
-        link: `${APP_LINKS.Develop}`,
     },
     {
         label: 'View history page',
@@ -126,22 +134,22 @@ export const shortcuts: ShortcutItem[] = [
         label: 'Search starred advanced',
         link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}&advanced=true`,
     },
-    {
-        label: 'Search your actively developing projects and routines',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
-    },
-    {
-        label: 'Search your completed projects and routines',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}`,
-    },
-    {
-        label: 'Search your actively developing projects and routines advanced',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}&advanced=true`,
-    },
-    {
-        label: 'Search your completed projects and routines advanced',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
-    },
+    // {
+    //     label: 'Search your actively developing projects and routines',
+    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
+    // },
+    // {
+    //     label: 'Search your completed projects and routines',
+    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}`,
+    // },
+    // {
+    //     label: 'Search your actively developing projects and routines advanced',
+    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}&advanced=true`,
+    // },
+    // {
+    //     label: 'Search your completed projects and routines advanced',
+    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
+    // },
     {
         label: `Beginner's Guide`,
         link: `${APP_LINKS.Welcome}`,

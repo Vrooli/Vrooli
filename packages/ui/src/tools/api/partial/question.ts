@@ -34,6 +34,7 @@ export const question: GqlPartial<Question> = {
             4: async () => rel((await import('./routine')).routine, 'nav'),
             5: async () => rel((await import('./smartContract')).smartContract, 'nav'),
             6: async () => rel((await import('./standard')).standard, 'nav'),
+            7: async () => rel((await import('./tag')).tag, 'list'),
         },
         id: true,
         created_at: true,
@@ -44,6 +45,7 @@ export const question: GqlPartial<Question> = {
         stars: true,
         answersCount: true,
         commentsCount: true,
+        reportsCount: true,
         forObject: {
             __union: {
                 Api: 0,
@@ -55,6 +57,7 @@ export const question: GqlPartial<Question> = {
                 Standard: 6,
             }
         },
+        tags: { __use: 7 },
         you: () => rel(questionYou, 'full'),
     },
     full: {

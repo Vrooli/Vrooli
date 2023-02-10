@@ -26,7 +26,6 @@ query quizQuestion($input: FindByIdInput!) {
                     name
                     handle
                 }
-                isCompleted
                 score
                 stars
                 views
@@ -47,6 +46,7 @@ query quizQuestion($input: FindByIdInput!) {
                     canUpdate
                     canRead
                     canVote
+                    hasCompleted
                     isStarred
                     isUpvoted
                 }

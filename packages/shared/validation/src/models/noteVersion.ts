@@ -1,14 +1,19 @@
-import { bool, details, id, opt, req, summary, transRel, versionLabel, versionNotes, YupModel, yupObj } from '../utils';
+import * as yup from 'yup';
+import { bool, description, id, opt, req, name, transRel, versionLabel, versionNotes, YupModel, yupObj, blankToUndefined, maxStrErr } from '../utils';
 import { noteValidation } from './note';
+
+const text = yup.string().transform(blankToUndefined).max(65536, maxStrErr)
 
 export const noteVersionTranslationValidation: YupModel = transRel({
     create: {
-        details: req(details),
-        summary: opt(summary),
+        description: req(description),
+        name: opt(name),
+        text: req(text),
     },
     update: {
-        details: opt(details),
-        summary: opt(summary),
+        description: opt(description),
+        name: opt(name),
+        text: opt(text),
     },
 })
 

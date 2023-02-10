@@ -38,11 +38,16 @@ export const typeDef = gql`
         referencing: String
         forType: QuestionForType!
         forConnect: ID!
+        tagsConnect: [String!]
+        tagsCreate: [TagCreateInput!]
         translationsCreate: [QuestionTranslationCreateInput!]
     }
     input QuestionUpdateInput {
         id: ID!
         acceptedAnswerConnect: ID
+        tagsConnect: [String!]
+        tagsDisconnect: [String!]
+        tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
         translationsCreate: [QuestionTranslationCreateInput!]
         translationsUpdate: [QuestionTranslationUpdateInput!]
@@ -56,6 +61,8 @@ export const typeDef = gql`
         score: Int!
         stars: Int!
         forObject: QuestionFor!
+        reports: [Report!]!
+        reportsCount: Int!
         translations: [QuestionTranslation!]!
         translationsCount: Int!
         answers: [QuestionAnswer!]!
@@ -63,11 +70,18 @@ export const typeDef = gql`
         comments: [Comment!]!
         commentsCount: Int!
         starredBy: [User!]!
+        tags: [Tag!]!
         you: QuestionYou!
     }
 
     type QuestionYou {
-        isUpvoted: Boolean!
+        canDelete: Boolean!
+        canStar: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
+        canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
     }
 
     input QuestionTranslationCreateInput {

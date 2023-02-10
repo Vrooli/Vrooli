@@ -25,7 +25,6 @@ const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
 const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
 const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
-const { DevelopSearchPage } = lazily(() => import('./pages/DevelopSearchPage/DevelopSearchPage'));
 const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
@@ -120,19 +119,28 @@ export const Routes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
+                {/* ========= #region Views Routes ========= */}
+                {/* Views for main Vrooli components (e.g. organizations, projects, routines, standards, users) */}
                 <Route
-                    path={`${LINKS.DevelopSearch}/:params*`}
-                    sitemapIndex={false}
+                    path={`${LINKS.Api}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <DevelopSearchPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-
-                {/* ========= #region Views Routes ========= */}
-                {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}
+                <Route
+                    path={`${LINKS.Note}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ObjectPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
                 <Route
                     path={`${LINKS.Organization}/:params*`}
                     sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
@@ -154,8 +162,38 @@ export const Routes = (props: CommonProps) => {
                     </Suspense>
                 </Route>
                 <Route
+                    path={`${LINKS.Question}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each project
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ObjectPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={`${LINKS.Reminder}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ObjectPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
                     path={`${LINKS.Routine}/:params*`}
                     sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each routine
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ObjectPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={`${LINKS.SmartContract}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
