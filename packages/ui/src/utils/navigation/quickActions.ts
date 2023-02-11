@@ -3,9 +3,9 @@ import { SnackSeverity } from "components";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
-import { clearSearchHistory, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
 import { userProfileUpdate } from "api/generated/endpoints/user";
+import { clearSearchHistory, HistorySearchPageTabOption, SearchPageTabOption } from "utils/search";
 
 export interface ShortcutItem {
     label: string;
@@ -134,7 +134,7 @@ export const shortcuts: ShortcutItem[] = [
         label: 'Search starred advanced',
         link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}&advanced=true`,
     },
-    // {
+    // { //TODO should be possible to replicate with normal advanced search
     //     label: 'Search your actively developing projects and routines',
     //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
     // },

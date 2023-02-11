@@ -7,10 +7,12 @@ import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { addSearchParams, getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
+import { addSearchParams, getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, searchTypeToParams } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 import { SearchParams } from "utils/search/schemas/base";
+import { routineFindMany } from "api/generated/endpoints/routine";
+import { useTranslation } from "react-i18next";
 
 type TimeFrame = {
     after?: Date;
@@ -69,16 +71,17 @@ export function SearchList<
 }: SearchListProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
 
     const [{ advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[searchType];
             if (!params) return;
-            setSearchParams(await params());
+            setSearchParams(await params(getUserLanguages(session)[0]));
         };
         fetchParams();
-    }, [searchType]);
+    }, [searchType, session]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -125,7 +128,7 @@ export function SearchList<
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query as any, endpoint as any, {
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query ?? routineFindMany, (endpoint ?? 'routines') as any, { // We have to set something as the defaults, so I picked routines
         variables: ({
             after: after.current,
             take,
@@ -264,15 +267,12 @@ export function SearchList<
     /**
      * Wrap sortByOptions with labels
      */
-    const sortOptionsLabelled = useMemo(() => labelledSortOptions(sortByOptions), [sortByOptions]);
+    const sortOptionsLabelled = useMemo(() => labelledSortOptions(sortByOptions, getUserLanguages(session)[0]), [session, sortByOptions]);
 
     /**
      * Find sort by label when sortBy changes
      */
-    const sortByLabel = useMemo(() => {
-        if (sortBy && sortBy in SortValueToLabelMap) return SortValueToLabelMap[sortBy];
-        return '';
-    }, [sortBy]);
+    const sortByLabel = useMemo(() => t(`common:${sortBy}`, { lng: getUserLanguages(session)[0] }) ?? sortBy, [session, sortBy, t]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -332,6 +332,7 @@ export function SearchList<
             <SortMenu
                 sortOptions={sortOptionsLabelled}
                 anchorEl={sortAnchorEl}
+                lng={getUserLanguages(session)[0]}
                 onClose={handleSortClose}
             />
             {/* Menu for selecting time created */}

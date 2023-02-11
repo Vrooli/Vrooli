@@ -35,10 +35,10 @@ export const AdvancedSearchDialog = ({
     const [schema, setSchema] = useState<FormSchema | null>(null);
     useEffect(() => {
         async function getSchema() {
-            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType]()).advancedSearchSchema : null)
+            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType](getUserLanguages(session)[0])).advancedSearchSchema : null)
         }
         getSchema();
-    }, [searchType]);
+    }, [searchType, session]);
 
     // Parse default values to use in formik
     const initialValues = useMemo(() => {

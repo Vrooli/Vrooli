@@ -5,7 +5,7 @@ import { Box, Button, Palette, Stack, Tooltip, Typography, useTheme } from '@mui
 import { CommentContainerProps } from '../types';
 import { useLazyQuery } from 'api/hooks';
 import { CommentCreateInput } from 'components/inputs';
-import { addSearchParams, labelledSortOptions, parseSearchParams, removeSearchParams, SearchType, searchTypeToParams, SortValueToLabelMap, useWindowSize } from 'utils';
+import { addSearchParams, getUserLanguages, labelledSortOptions, parseSearchParams, removeSearchParams, SearchType, searchTypeToParams, useWindowSize } from 'utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from '@shared/route';
 import { Wrap } from 'types';
@@ -17,9 +17,8 @@ import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@share
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 import { CommentThread as ThreadType, CommentSearchInput, CommentSearchResult, CommentSortBy, TimeFrame, Comment } from '@shared/consts';
 import { commentFindMany } from 'api/generated/endpoints/comment';
-
-const { advancedSearchSchema, defaultSortBy, sortByOptions } = await searchTypeToParams.Comment();
-const sortOptionsLabelled = labelledSortOptions(sortByOptions);
+import { SearchParams } from 'utils/search/schemas/base';
+import { useTranslation } from 'react-i18next';
 
 const searchButtonStyle = (palette: Palette) => ({
     minHeight: '34px',
@@ -52,6 +51,16 @@ export function CommentContainer({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
+
+    const [{ advancedSearchSchema, defaultSortBy, sortByOptions }, setSearchParams] = useState<Partial<SearchParams>>({});
+    useEffect(() => {
+        async function getSearchParams() {
+            setSearchParams(await searchTypeToParams.Comment(getUserLanguages(session)[0]));
+        }
+        getSearchParams();
+    }, [session]);
+    const sortOptionsLabelled = labelledSortOptions(sortByOptions, getUserLanguages(session)[0]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -159,10 +168,7 @@ export function CommentContainer({
     /**
      * Find sort by label when sortBy changes
      */
-    const sortByLabel = useMemo(() => {
-        if (sortBy && sortBy in SortValueToLabelMap) return SortValueToLabelMap[sortBy];
-        return '';
-    }, [sortBy]);
+    const sortByLabel = useMemo(() => t(`common:${sortBy}`, { lng: getUserLanguages(session)[0] }) ?? sortBy, [session, sortBy, t]);
 
     // Handle advanced search
     useEffect(() => {
@@ -192,7 +198,7 @@ export function CommentContainer({
         // Add set fields to search params
         addSearchParams(setLocation, valuesWithoutBlanks);
         setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [setLocation]);
+    }, [advancedSearchSchema?.fields, setLocation]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
@@ -260,6 +266,7 @@ export function CommentContainer({
             <SortMenu
                 sortOptions={sortOptionsLabelled}
                 anchorEl={sortAnchorEl}
+                lng={getUserLanguages(session)[0]}
                 onClose={handleSortClose}
             />
             {/* Menu for selecting time created */}

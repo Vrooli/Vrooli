@@ -1,9 +1,5 @@
 import { Session } from "@shared/consts";
 
-export interface DevelopSearchPageProps {
-    session: Session;
-}
-
 export interface HistorySearchPageProps {
     session: Session;
 }

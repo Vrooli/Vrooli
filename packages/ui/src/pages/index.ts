@@ -1,5 +1,4 @@
 export * from './main';
-export * from './DevelopSearchPage/DevelopSearchPage';
 export * from './HistorySearchPage/HistorySearchPage';
 export * from './view';
 export * from './wrapper';

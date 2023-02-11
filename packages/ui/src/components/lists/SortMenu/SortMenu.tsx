@@ -2,20 +2,22 @@
 
 import { Menu, MenuItem } from "@mui/material";
 import { useMemo } from "react";
-import { SortValueToLabelMap } from "utils";
+import { useTranslation } from "react-i18next";
 import { SortMenuProps } from "../types";
 
 export function SortMenu({
     sortOptions,
     anchorEl,
+    lng,
     onClose,
 }: SortMenuProps) {
+    const { t } = useTranslation();
     const open = Boolean(anchorEl);
 
     const menuItems = useMemo(() => {
         let menuItems: JSX.Element[] = [];
         sortOptions.forEach(option => {
-            const optionLabel = SortValueToLabelMap[option.value];
+            const optionLabel = t(`common:${option.value}`, { lng })
             if (optionLabel) {
                 menuItems.push(
                     <MenuItem
@@ -29,7 +31,7 @@ export function SortMenu({
             }
         });
         return menuItems;
-    }, [sortOptions, onClose])
+    }, [sortOptions, t, lng, onClose])
 
     return (
         <Menu

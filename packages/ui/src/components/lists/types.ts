@@ -47,6 +47,7 @@ export interface ObjectListItemProps<T extends ListObjectType> {
 export interface SortMenuProps {
     sortOptions: any[];
     anchorEl: HTMLElement | null;
+    lng: string;
     onClose: (label?: string, value?: string) => void;
 }
 

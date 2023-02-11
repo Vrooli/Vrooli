@@ -72,10 +72,10 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         const fetchParams = async () => {
             const params = searchTypeToParams[objectType];
             if (!params) return;
-            setSearchParams(await params());
+            setSearchParams(await params(getUserLanguages(session)[0]));
         };
         fetchParams();
-    }, [objectType]);
+    }, [objectType, session]);
 
     /**
      * Before closing, remove all URL search params for advanced search
