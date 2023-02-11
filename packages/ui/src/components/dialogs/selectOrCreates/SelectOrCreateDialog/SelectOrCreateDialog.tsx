@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 import { SearchList } from 'components/lists';
 import { useLazyQuery } from 'api/hooks';
-import { SearchType, removeSearchParams, getUserLanguages, searchTypeToParams, SearchParams } from 'utils';
+import { SearchType, removeSearchParams, getUserLanguages, searchTypeToParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
@@ -19,8 +19,9 @@ import { useTranslation } from 'react-i18next';
 import { FindByIdInput } from '@shared/consts';
 import { CreatePageProps } from 'pages';
 import { CreateProps } from 'components/views/types';
-import { isOfType } from '@shared/utils';
- 
+import { exists, isOfType } from '@shared/utils';
+import { SearchParams } from 'utils/search/schemas/base';
+
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
     never :
@@ -62,9 +63,19 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             titleAria: `select-or-create-${objectType}-dialog-title`,
         };
     }, [help, lng, objectType, t]);
-    const { advancedSearchSchema, endpoint, query } = useMemo(() => (objectType in searchTypeToParams ? searchTypeToParams[objectType] : {}) as SearchParams, [objectType])
+    // const { advancedSearchSchema, endpoint, query } = useMemo(() => (objectType in searchTypeToParams ? searchTypeToParams[objectType] : {}) as SearchParams, [objectType])
     const CreateView = useMemo<((props: CreatePageProps) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : createMap[objectType], [objectType]);
+
+    const [{ advancedSearchSchema, endpoint, query }, setSearchParams] = useState<Partial<SearchParams> & { endpoint: string }>({ endpoint: '' });
+    useEffect(() => {
+        const fetchParams = async () => {
+            const params = searchTypeToParams[objectType];
+            if (!params) return;
+            setSearchParams(await params());
+        };
+        fetchParams();
+    }, [objectType]);
 
     /**
      * Before closing, remove all URL search params for advanced search
@@ -108,7 +119,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
 
 
     // If item selected from search, query for full data
-    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, typeof endpoint>(query, endpoint);
+    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, typeof endpoint>(query as any, endpoint);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: T) => {
         // Query for full item data, if not already known (would be known if the same item was selected last time)

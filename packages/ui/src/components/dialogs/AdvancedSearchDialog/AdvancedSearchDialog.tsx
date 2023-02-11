@@ -32,8 +32,13 @@ export const AdvancedSearchDialog = ({
     const { t } = useTranslation();
     const lng = getUserLanguages(session)[0];
     // Search schema to use
-    const [schema, setSchema] = useState<FormSchema | null>(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null);
-    useEffect(() => { setSchema(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null) }, [searchType]);
+    const [schema, setSchema] = useState<FormSchema | null>(null);
+    useEffect(() => {
+        async function getSchema() {
+            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType]()).advancedSearchSchema : null)
+        }
+        getSchema();
+    }, [searchType]);
 
     // Parse default values to use in formik
     const initialValues = useMemo(() => {

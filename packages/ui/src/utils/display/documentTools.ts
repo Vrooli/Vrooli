@@ -50,6 +50,24 @@ export const normalizeText = (text: string) => {
 }
 
 /**
+ * Removes emojis from the given text.
+ * @param text The text to remove emojis from.
+ * @returns The text without emojis.
+ */
+export const removeEmojis = (text: string) => {
+    return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
+}
+
+/**
+ * Removes punctuation from the given text.
+ * @param text The text to remove punctuation from.
+ * @returns The text without punctuation.
+ */
+export const removePunctuation = (text: string) => {
+    return text.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '');
+}
+
+/**
  * Wraps matches in the given text node with a span element.
  * @param textNode The text node to highlight matches in.
  * @param searchRegex The regex used to search for matches.

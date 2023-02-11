@@ -7,4 +7,5 @@ export * from './localStorage';
 export * from './navigation';
 export * from './pubsub';
 export * from './runUtils';
+export * from './search';
 export * from './shape';

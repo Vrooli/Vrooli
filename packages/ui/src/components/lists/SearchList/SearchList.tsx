@@ -7,9 +7,10 @@ import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { addSearchParams, getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
+import { addSearchParams, getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
+import { SearchParams } from "utils/search/schemas/base";
 
 type TimeFrame = {
     after?: Date;
@@ -69,7 +70,15 @@ export function SearchList<
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
+    const [{ advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
+    useEffect(() => {
+        const fetchParams = async () => {
+            const params = searchTypeToParams[searchType];
+            if (!params) return;
+            setSearchParams(await params());
+        };
+        fetchParams();
+    }, [searchType]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -116,7 +125,7 @@ export function SearchList<
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query, endpoint as any, {
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query as any, endpoint as any, {
         variables: ({
             after: after.current,
             take,

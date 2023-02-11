@@ -18,7 +18,7 @@ import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 import { CommentThread as ThreadType, CommentSearchInput, CommentSearchResult, CommentSortBy, TimeFrame, Comment } from '@shared/consts';
 import { commentFindMany } from 'api/generated/endpoints/comment';
 
-const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
+const { advancedSearchSchema, defaultSortBy, sortByOptions } = await searchTypeToParams.Comment();
 const sortOptionsLabelled = labelledSortOptions(sortByOptions);
 
 const searchButtonStyle = (palette: Palette) => ({

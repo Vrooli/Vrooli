@@ -117,8 +117,8 @@ export function SettingsPage({
 
     return (
         <PageContainer>
-            {/* Search bar to find settings TODO */}
-            {/* <Box sx={{
+            {/* Search bar to find setting */}
+            <Box sx={{
                 width: 'min(100%, 700px)',
                 margin: 'auto',
                 marginTop: 2,
@@ -127,7 +127,7 @@ export function SettingsPage({
                 paddingRight: 2,
             }}>
                 <SearchBar onChange={() => { }} value={''} />
-            </Box> */}
+            </Box>
             {/* Forms list and currnet form */}
             <Grid container spacing={0}>
                 {/* List of settings forms, which is collapsible only on mobile */}

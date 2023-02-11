@@ -4,7 +4,7 @@ import { ApiShape, shapeApi } from "./api";
 import { shapeResourceList } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, 'id' | 'language' | 'details' | 'summary'>
+export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, 'id' | 'language' | 'details' | 'name' | 'summary'>
 
 export type ApiVersionShape = Pick<ApiVersion, 'id' | 'callLink' | 'documentationLink' | 'isLatest' | 'isPrivate' | 'versionIndex' | 'versionLabel' | 'versionNotes'> & {
     directoryListings?: { id: string }[] | null;
@@ -14,7 +14,7 @@ export type ApiVersionShape = Pick<ApiVersion, 'id' | 'callLink' | 'documentatio
 }
 
 export const shapeApiVersionTranslation: ShapeModel<ApiVersionTranslationShape, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput> = {
-    create: (d) => createPrims(d, 'id', 'language', 'details', 'summary'),
+    create: (d) => createPrims(d, 'id', 'language', 'details', 'name', 'summary'),
     update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'details', 'summary'), a)
 }
 
