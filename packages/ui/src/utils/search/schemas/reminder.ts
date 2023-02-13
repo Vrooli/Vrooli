@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const reminderSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchReminders', lng),
+    formLayout: searchFormLayout('SearchReminder', lng),
     containers: [], //TODO
     fields: [], //TODO
 })

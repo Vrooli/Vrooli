@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const notificationSubscriptionSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchSubscriptions', lng),
+    formLayout: searchFormLayout('SearchNotificationSubscription', lng),
     containers: [], //TODO
     fields: [], //TODO
 })

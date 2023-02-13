@@ -6,5 +6,6 @@ export * from './usePress';
 export * from './usePromptBeforeUnload';
 export * from './useReactHash';
 export * from './useReactSearch';
+export * from './useSpeech';
 export * from './useTranslatedFields';
 export * from './useWindowSize';

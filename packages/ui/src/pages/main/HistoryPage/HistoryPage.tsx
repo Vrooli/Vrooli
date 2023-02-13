@@ -1,7 +1,7 @@
 import { Box, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
-import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'components';
+import { SiteSearchBar, ListTitleContainer, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
 import { HistoryPageProps } from '../types';
@@ -9,6 +9,7 @@ import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listT
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
 import { historyHistory } from 'api/generated/endpoints/history';
+import { useTranslation } from 'react-i18next';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
@@ -36,6 +37,8 @@ export const HistoryPage = ({
     session
 }: HistoryPageProps) => {
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
@@ -177,7 +180,7 @@ export const HistoryPage = ({
                 {/* Prompt stack */}
                 <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
                     <Typography component="h1" variant="h3" textAlign="center">History</Typography>
-                    <AutocompleteSearchBar
+                    <SiteSearchBar
                         id="history-search"
                         placeholder='Search active/completed runs, stars, and views...'
                         options={autocompleteOptions}
@@ -192,7 +195,7 @@ export const HistoryPage = ({
                 </Stack>
                 {/* Search results */}
                 <ListTitleContainer
-                    title={"Active Routines"}
+                    title={t(`common:RunsActive`, { lng })}
                     helpText={activeRoutinesText}
                     isEmpty={activeRuns.length === 0}
                     onClick={toSeeAllActiveRuns}
@@ -202,7 +205,7 @@ export const HistoryPage = ({
                     {activeRuns}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={"Completed Routines"}
+                    title={t(`common:RunsCompleted`, { lng })}
                     helpText={completedRoutinesText}
                     isEmpty={completedRuns.length === 0}
                     onClick={toSeeAllCompletedRuns}

@@ -1,24 +1,10 @@
-import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
+import { BoxProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
 import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, StandardVersion, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent, FocusEventHandler } from 'react';
-import { AutocompleteOption, VersionInfo } from 'types';
+import { VersionInfo } from 'types';
 import { ObjectType, TagShape } from 'utils';
 import { StringSchema } from 'yup';
-
-export type AutocompleteSearchBarProps = Omit<SearchBarProps, 'sx' | 'onChange' | 'onInputChange'> & {
-    debounce?: number;
-    id?: string;
-    loading?: boolean;
-    onChange: (updatedText: string) => any;
-    onInputChange: (newValue: AutocompleteOption) => any;
-    options?: AutocompleteOption[];
-    placeholder?: string;
-    session: Session;
-    showSecondaryLabel?: boolean;
-    value: string;
-    sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
-}
 
 export interface CommentCreateInputProps {
     handleClose: () => void;
@@ -306,14 +292,6 @@ export interface RelationshipButtonsProps {
     relationships: RelationshipsObject;
     session: Session;
     zIndex: number;
-}
-
-export type SearchBarProps = InputProps & {
-    debounce?: number;
-    id?: string;
-    placeholder?: string;
-    value: string;
-    onChange: (updatedText: string) => any;
 }
 
 export type SelectorProps<T extends string | number | { [x: string]: any }> = SelectProps & {

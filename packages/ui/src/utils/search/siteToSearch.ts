@@ -2,6 +2,7 @@ import i18next from 'i18next';
 import { CommonKey } from "types";
 import { Session } from "@shared/consts";
 import { getUserLanguages, normalizeText, removeEmojis, removePunctuation } from 'utils/display';
+import { FilterOptionsState } from '@mui/material';
 
 /**
  * A search item before it is translated into the user's language.
@@ -18,7 +19,7 @@ export interface PreSearchItem {
     /**
      * Keys (and possibly arguments) for the keywords
      */
-    keywords?: (CommonKey | { key: CommonKey; args?: { [key: string]: string | number } })[];
+    keywords?: readonly (CommonKey | ({ key: CommonKey; } & { [key: string]: string | number }))[];
     /**
      * The link/value that will be used when the user selects the item.
      */
@@ -39,6 +40,10 @@ export interface SearchItem {
      * shaped to help with searching (lowercase, no accents, etc.)
      */
     keywords?: string[];
+    /**
+     * Keywords that are not shaped. Useful if you want to display this next to the label.
+     */
+    unshapedKeywords?: string[];
     /**
      * The link/value that will be used when the user selects the item.
      */
@@ -78,16 +83,22 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session): 
     return items.map(item => {
         const label = i18next.t(`common:${item.label}`, { ...(item.labelArgs ?? {}), lng });
         let keywords = [shapeSearchText(label)];
-        keywords.push(...item.keywords?.map(keyword => {
+        let unshapedKeywords = [label];
+        for (const keyword of item.keywords ?? []) {
             if (typeof keyword === 'string') {
-                return shapeSearchText(i18next.t(`common:${keyword}`, { lng }));
+                const keywordText = i18next.t(`common:${keyword}`, { lng });
+                keywords.push(shapeSearchText(keywordText));
+                unshapedKeywords.push(keywordText);
             } else {
-                return shapeSearchText(i18next.t(`common:${keyword.key}`, { ...keyword.args, lng }));
+                const keywordText = i18next.t(`common:${keyword.key}`, { ...keyword, lng });
+                keywords.push(shapeSearchText(keywordText));
+                unshapedKeywords.push(keywordText);
             }
-        }) ?? []);
+        }
         return {
             label,
             keywords,
+            unshapedKeywords,
             value: item.value,
         };
     });
@@ -96,12 +107,13 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session): 
 /**
  * Finds matches for the given search term in the given list of search items
  * @param items The list of translated search items to search.
- * @param term The search term.
+ * @param state The state of the autocomplete search bar
  * @returns A list of matches.
  */
-export const findSearchResults = (items: SearchItem[], term: string): SearchItem[] => {
+export const findSearchResults = (items: SearchItem[], { inputValue }: FilterOptionsState<SearchItem>): SearchItem[] => {
+    console.log('findSearchResults start', { ...items }, inputValue)
     // Shape the search term
-    const shapedTerm = shapeSearchText(term);
+    const shapedTerm = shapeSearchText(inputValue);
     // Filter out items which don't contain the shaped search term in their keywords
     const matches = items.filter(item => item.keywords?.some(keyword => keyword.includes(shapedTerm)));
     // Sort. Exact matches first, then by number of keywords that match, then alphabetically

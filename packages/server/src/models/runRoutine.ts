@@ -7,7 +7,7 @@ import { OrganizationModel } from "./organization";
 import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
-import { getSingleTypePermissions } from "../validators";
+import { getSingleTypePermissions, profanityCheck } from "../validators";
 
 const __typename = 'RunRoutine' as const;
 type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
@@ -327,6 +327,13 @@ export const RunRoutineModel: ModelLogic<{
             ['organization', 'Organization'],
             ['user', 'User'],
         ], languages),
+        profanityFields: ['name'],
+        validations: {
+            async update({ languages, updateMany }) {
+                // TODO if status passed in for update, make sure it's not the same 
+                // as the current status, or an invalid transition (e.g. failed -> in progress)
+            },
+        },
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
@@ -337,11 +344,5 @@ export const RunRoutineModel: ModelLogic<{
                 ]
             }),
         },
-        // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
-        //     validateProfanity(data.map((d: any) => d.name));
-        // },
-
-        // TODO if status passed in for update, make sure it's not the same 
-        // as the current status, or an invalid transition (e.g. failed -> in progress)
     },
 })

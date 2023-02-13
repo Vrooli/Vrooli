@@ -3,6 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'PushDevice' as const;
 const suppFields = [] as const;
@@ -35,5 +36,25 @@ export const PushDeviceModel: ModelLogic<{
     format: {} as any,
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: 5,
+        owner: (data) => ({
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            user: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                user: { id: userId }
+            }),
+        },
+    },
 })

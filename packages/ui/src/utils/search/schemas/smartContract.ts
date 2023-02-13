@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const smartContractSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchSmartContracts', lng),
+    formLayout: searchFormLayout('SearchSmartContract', lng),
     containers: [], //TODO
     fields: [], //TODO
 })

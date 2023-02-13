@@ -2,7 +2,7 @@ import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv, linkColors } from 'styles';
 import { useQuery } from '@apollo/client';
-import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
+import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { HomePageProps } from '../types';
@@ -345,7 +345,7 @@ export const HomePage = ({
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
                 <Typography component="h1" variant="h3" textAlign="center">What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
-                <AutocompleteSearchBar
+                <SiteSearchBar
                     id="main-search"
                     placeholder='Search routines, projects, and more...'
                     options={autocompleteOptions}

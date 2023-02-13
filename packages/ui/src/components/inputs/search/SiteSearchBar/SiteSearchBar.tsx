@@ -1,12 +1,13 @@
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Tooltip, useTheme } from '@mui/material';
-import { AutocompleteSearchBarProps } from '../types';
+import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, Tooltip, useTheme } from '@mui/material';
+import { SiteSearchBarProps } from '../types';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { ActionIcon, DeleteIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
-import { getLocalStorageKeys, performAction, useDebounce } from 'utils';
+import { ActionIcon, ApiIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
+import { getLocalStorageKeys, getUserLanguages, performAction, useDebounce } from 'utils';
 import { StarFor } from '@shared/consts';
-import { StarButton } from 'components/buttons';
+import { MicrophoneButton, StarButton } from 'components/buttons';
 import { getCurrentUser } from 'utils/authentication';
+import { useTranslation } from 'react-i18next';
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
 
@@ -85,48 +86,43 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
     });
 }
 
+const IconMap = {
+    Action: ActionIcon,
+    Api: ApiIcon,
+    Note: NoteIcon,
+    Organization: OrganizationIcon,
+    Project: ProjectIcon,
+    Question: HelpIcon,
+    Routine: RoutineIcon,
+    Run: PlayIcon,
+    Shortcut: ShortcutIcon,
+    SmartContract: SmartContractIcon,
+    Standard: StandardIcon,
+    Star: StarFilledIcon,
+    User: UserIcon,
+    View: VisibleIcon,
+}
+
 /**
  * Maps object types to icons
  */
 const typeToIcon = (type: string, fill: string): JSX.Element | null => {
-    let Icon: null | SvgComponent = null;
-    switch (type) {
-        case 'Action':
-            Icon = ActionIcon;
-            break;
-        case 'Organization':
-            Icon = OrganizationIcon;
-            break;
-        case 'Project':
-            Icon = ProjectIcon;
-            break;
-        case 'Routine':
-            Icon = RoutineIcon;
-            break;
-        case 'Run':
-            Icon = PlayIcon;
-            break;
-        case 'Shortcut':
-            Icon = ShortcutIcon;
-            break;
-        case 'Standard':
-            Icon = StandardIcon;
-            break;
-        case 'Star':
-            Icon = StarFilledIcon;
-            break;
-        case 'User':
-            Icon = UserIcon;
-            break;
-        case 'View':
-            Icon = VisibleIcon;
-            break;
-    }
+    let Icon: SvgComponent | undefined = IconMap[type];
     return Icon ? <Icon fill={fill} /> : null;
 }
 
+const FullWidthPopper = function (props) {
+    return <Popper {...props} style={{
+        width: 'fit-content',
+        maxWidth: '100%',
+    }} placement="bottom-start" />;
+};
 
-export function AutocompleteSearchBar({
+/**
+ * A customized search bar for searching user-generated content, quick actions, and shortcuts. 
+ * Supports search history and starring items.
+ */
+export function SiteSearchBar({
     id = 'search-bar',
     placeholder = 'Search...',
     options = [],
@@ -139,9 +135,11 @@ export function AutocompleteSearchBar({
     showSecondaryLabel = false,
     sxs,
     ...props
-}: AutocompleteSearchBarProps) {
+}: SiteSearchBarProps) {
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Input internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
@@ -210,12 +208,12 @@ export function AutocompleteSearchBar({
                             marginRight: 1,
                         }}
                     />
-                    Loading...
+                    {t(`common:Loading`, { lng })}
                 </>
             )
         }
-        return 'No options';
-    }, [loading, value, internalValue]);
+        return t(`error:NoResults`, { lng });
+    }, [loading, internalValue, value, t, lng]);
 
     const onHighlightChange = useCallback((event: React.SyntheticEvent<Element, Event>, option: AutocompleteOption | null, reason: AutocompleteHighlightChangeReason) => {
         if (option && option.label && reason === 'keyboard') {
@@ -303,6 +301,7 @@ export function AutocompleteSearchBar({
             }}
             // The real onSubmit, since onSubmit is only triggered after 2 presses of the enter key (don't know why)
             onChange={onSubmit}
+            PopperComponent={FullWidthPopper}
             renderOption={(props, option) => {
                 return (
                     <MenuItem
@@ -365,19 +364,19 @@ export function AutocompleteSearchBar({
             renderInput={(params) => (
                 <Paper
                     component="form"
-                    sx={{ 
-                        ...(sxs?.paper ?? {}), 
-                        p: '2px 4px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        borderRadius: '10px' 
+                    sx={{
+                        ...(sxs?.paper ?? {}),
+                        p: '2px 4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        borderRadius: '10px'
                     }}
                 >
                     <Input
                         id={params.id}
                         disabled={params.disabled}
                         disableUnderline={true}
-                        fullWidth={params.fullWidth}
+                        fullWidth={true}
                         value={internalValue}
                         onChange={handleChange}
                         placeholder={placeholder}
@@ -387,20 +386,35 @@ export function AutocompleteSearchBar({
                         ref={params.InputProps.ref}
                         size={params.size}
                         sx={{
+                            width: '100vw',
                             ml: 1,
                             flex: 1,
-                            // Drop down/up icon
-                            '& .MuiAutocomplete-endAdornment': {
-                                width: '48px',
-                                height: '48px',
-                                top: '0',
-                                position: 'relative',
-                                '& .MuiButtonBase-root': {
-                                    width: '48px',
-                                    height: '48px',
+                            // Drop down should be as large as the full width of the screen
+                            '& .MuiAutocomplete-popper': {
+                                width: '100vw!important',
+                                left: '0',
+                                right: '0',
+                                // The drop down should be below the search bar
+                                '& .MuiPaper-root': {
+                                    marginTop: '0',
                                 }
-                            }
+                            },
+                            // // Drop down/up icon
+                            // '& .MuiAutocomplete-endAdornment': {
+                            //     width: '48px',
+                            //     height: '48px',
+                            //     top: '0',
+                            //     position: 'relative',
+                            //     '& .MuiButtonBase-root': {
+                            //         width: '48px',
+                            //         height: '48px',
+                            //     }
+                            // }
                         }}
+                    />
+                    <MicrophoneButton
+                        onTranscriptChange={() => { }}
+                        session={session}
                     />
                     <IconButton sx={{
                         width: '48px',

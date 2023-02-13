@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const noteVersionSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchNoteVersions', lng),
+    formLayout: searchFormLayout('SearchNoteVersion', lng),
     containers: [], //TODO
     fields: [], //TODO
 })

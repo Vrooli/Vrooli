@@ -8,9 +8,9 @@ import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfil
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
-import { getUserLanguages, useReactSearch, useWindowSize } from 'utils';
+import { getUserLanguages, PreSearchItem, translateSearchItems, useReactSearch, useWindowSize } from 'utils';
 import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
-import { PageContainer, SearchBar } from 'components';
+import { PageContainer, SettingsSearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
 import { CommonKey } from 'types';
@@ -38,6 +38,32 @@ export interface SettingsFormData {
  */
 type SettingsForm = 'profile' | 'display' | 'notifications' | 'authentication';
 
+/**
+ * Search bar options
+ */
+const searchItems: PreSearchItem[] = [
+    {
+        label: 'Profile',
+        keywords: ['Bio', 'Handle', 'Name'],
+        value: 'profile',
+    },
+    {
+        label: 'Display',
+        keywords: ['Theme', 'Light', 'Dark', 'Interests', 'Hidden', { key: 'Tag', count: 1 }, { key: 'Tag', count: 2 }, 'History'],
+        value: 'display',
+    },
+    {
+        label: 'Notifications',
+        keywords: [{ key: 'Alert', count: 1 }, { key: 'Alert', count: 2 }, { key: 'PushNotification', count: 1 }, { key: 'PushNotification', count: 2 }],
+        value: 'profile',
+    },
+    {
+        label: 'Authentication',
+        keywords: [{ key: 'Wallet', count: 1 }, { key: 'Wallet', count: 2 }, { key: 'Email', count: 1 }, { key: 'Email', count: 2 }, 'LogOut', 'Security'],
+        value: 'authentication',
+    },
+]
+
 const pageDisplayData: { [key in SettingsForm]: [CommonKey, SvgComponent] } = {
     'profile': ['Profile', ProfileIcon],
     'display': ['Display', LightModeIcon],
@@ -53,10 +79,23 @@ export function SettingsPage({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const [, setLocation] = useLocation();
+    const [searchString, setSearchString] = useState<string>('');
+    const [selectedPage, setSelectedPage] = useState<SettingsForm>('profile');
     const searchParams = useReactSearch();
-    const { selectedPage } = useMemo(() => ({
-        selectedPage: searchParams.page as unknown as SettingsForm ?? 'profile',
-    }), [searchParams]);
+
+    useEffect(() => {
+        if (searchParams.page) setSelectedPage(searchParams.page as unknown as SettingsForm ?? 'profile');
+        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
+    }, [searchParams]);
+
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
+    const onInputSelect = useCallback((newValue: any) => {
+        if (!newValue) return;
+        setSearchString(newValue.label);
+        setSelectedPage(newValue.value as unknown as SettingsForm);
+    }, []);
+
+    const searchOptions = useMemo(() => translateSearchItems(searchItems, session), [session]);
 
     // Fetch profile data
     const [getData, { data, loading }] = useLazyQuery<User, null, 'profile'>(userProfile, 'profile', { errorPolicy: 'all' });
@@ -126,7 +165,13 @@ export function SettingsPage({
                 paddingLeft: 2,
                 paddingRight: 2,
             }}>
-                <SearchBar onChange={() => { }} value={''} />
+                <SettingsSearchBar
+                    value={searchString}
+                    onChange={updateSearch}
+                    onInputChange={onInputSelect}
+                    options={searchOptions}
+                    session={session}
+                />
             </Box>
             {/* Forms list and currnet form */}
             <Grid container spacing={0}>
@@ -141,7 +186,7 @@ export function SettingsPage({
                         ...noSelect,
                     }}>
                         {isListOpen ? <ExpandLessIcon fill={palette.background.textPrimary} /> : <ExpandMoreIcon fill={palette.background.textPrimary} />}
-                        <Typography variant="h6" sx={{ marginLeft: 1 }}>Settings</Typography>
+                        <Typography variant="h6" sx={{ marginLeft: 1 }}>{t(`common:Settings`, { lng })}</Typography>
                     </Box>}
                     <Collapse in={!isMobile || isListOpen}>
                         <List>

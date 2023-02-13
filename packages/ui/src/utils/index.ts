@@ -5,6 +5,7 @@ export * from './display';
 export * from './hooks';
 export * from './localStorage';
 export * from './navigation';
+export * from './permissions';
 export * from './pubsub';
 export * from './runUtils';
 export * from './search';

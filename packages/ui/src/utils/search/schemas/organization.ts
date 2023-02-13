@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout, starsContainer, starsFields, tagsContainer, tagsFields } from "./common";
 
 export const organizationSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchOrganizations', lng),
+    formLayout: searchFormLayout('SearchOrganization', lng),
     containers: [
         { totalItems: 1 },
         starsContainer,

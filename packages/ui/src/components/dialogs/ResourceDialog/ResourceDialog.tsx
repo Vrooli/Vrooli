@@ -5,7 +5,7 @@ import { useFormik } from 'formik';
 import { ResourceDialogProps } from '../types';
 import { addEmptyTranslation, getObjectUrl, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
+import { SiteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
@@ -221,7 +221,7 @@ export const ResourceDialog = ({
                     overflowY: 'visible',
                 }}>
                     {/* Search bar to find object */}
-                    <AutocompleteSearchBar
+                    <SiteSearchBar
                         id="vrooli-object-search"
                         autoFocus={true}
                         placeholder='Search Vrooli for objects to link'

@@ -21,6 +21,7 @@ import { CreatePageProps } from 'pages';
 import { CreateProps } from 'components/views/types';
 import { exists, isOfType } from '@shared/utils';
 import { SearchParams } from 'utils/search/schemas/base';
+import { routineFindOne } from 'api/generated/endpoints/routine';
 
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
@@ -51,6 +52,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     where,
     zIndex,
 }: SelectOrCreateDialogProps<T>) => {
+    console.log('selectorcreate 1');
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -63,11 +65,10 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             titleAria: `select-or-create-${objectType}-dialog-title`,
         };
     }, [help, lng, objectType, t]);
-    // const { advancedSearchSchema, endpoint, query } = useMemo(() => (objectType in searchTypeToParams ? searchTypeToParams[objectType] : {}) as SearchParams, [objectType])
     const CreateView = useMemo<((props: CreatePageProps) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : createMap[objectType], [objectType]);
 
-    const [{ advancedSearchSchema, endpoint, query }, setSearchParams] = useState<Partial<SearchParams> & { endpoint: string }>({ endpoint: '' });
+    const [{ advancedSearchSchema, endpoint, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[objectType];
@@ -99,6 +100,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         // If the object type is a root of a versioned object, we must change the shape before calling handleAdd
         if (isOfType(objectType, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard')) {
             const { root, ...rest } = item as any;
+            console.log('before handleadd 1')
             handleAdd({ ...root, versions: [rest] } as T);
         }
         // Otherwise, just call handleAdd
@@ -119,11 +121,13 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
 
 
     // If item selected from search, query for full data
-    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, typeof endpoint>(query as any, endpoint);
+    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, string>(query ?? routineFindOne, endpoint ?? 'routine');  // We have to set something as the defaults, so I picked routine
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: T) => {
+        if (!endpoint || !query) return;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData[endpoint].id === item.id) {
+            console.log('before handleadd 2')
             handleAdd(itemData[endpoint]);
             onClose();
         } else {
@@ -132,9 +136,11 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         }
         // Return false so the list item does not navigate
         return false;
-    }, [itemData, endpoint, handleAdd, onClose, getItem]);
+    }, [endpoint, query, itemData, handleAdd, onClose, getItem]);
     useEffect(() => {
+        if (!endpoint) return;
         if (itemData && itemData[endpoint] && queryingRef.current) {
+            console.log('before handleadd 3')
             handleAdd(itemData[endpoint]);
             onClose();
         }

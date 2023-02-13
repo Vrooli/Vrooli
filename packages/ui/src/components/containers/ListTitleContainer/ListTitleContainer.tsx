@@ -25,7 +25,7 @@ export function ListTitleContainer({
                     <Typography variant="h6" sx={{
                         textAlign: 'center',
                         paddingTop: '8px',
-                    }}>{emptyText ?? t(`common:NoResult`, { lng, count: 2 })}</Typography> :
+                    }}>{emptyText ?? t(`error:NoResults`, { lng })}</Typography> :
                     <List sx={{ overflow: 'hidden' }}>
                         {children}
                     </List>

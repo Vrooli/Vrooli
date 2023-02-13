@@ -199,6 +199,13 @@ export interface StandardDialogProps {
     zIndex: number;
 };
 
+export interface TranscriptDialogProps {
+    handleClose: () => void;
+    isListening: boolean;
+    lng: string;
+    transcript: string;
+}
+
 export interface UserDialogProps {
     partialData?: Partial<User>;
     session: Session;

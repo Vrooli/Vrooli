@@ -5,7 +5,7 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const runRoutineInputSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchRunRoutineInputs', lng),
+    formLayout: searchFormLayout('SearchRunRoutineInput', lng),
     containers: [], //TODO
     fields: [], //TODO
 })

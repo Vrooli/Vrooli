@@ -16,74 +16,67 @@ export const SettingsNotifications = ({
     onUpdated,
     session,
 }: SettingsNotificationsProps) => {
-    return {} as any;
-
-    // // Handle update
+    // Handle update
     // const [mutation] = useMutation<NotificationSettings, NotificationSettingsUpdateInput, 'notificationSettingsUpdate'>(...notificationSettingsEndpoint.update);
-    // const formik = useFormik({
-    //     initialValues: {
-    //         name: profile?.name ?? '',
-    //         translationsUpdate: profile?.translations ?? [{
-    //             id: DUMMY_ID,
-    //             language: getUserLanguages(session)[0],
-    //             bio: '',
-    //         }],
-    //     },
-    //     enableReinitialize: true,
-    //     validationSchema: userValidation.update({}),
-    //     onSubmit: (values) => {
-    //         if (!profile) {
-    //             PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
-    //             return;
-    //         }
-    //         if (!formik.isValid) {
-    //             PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
-    //             return;
-    //         }
-    //         const input = shapeProfile.update(profile, {
-    //             id: profile.id,
-    //             name: values.name,
-    //             handle: selectedHandle,
-    //             translations: values.translationsUpdate,
-    //         })
-    //         if (!input || Object.keys(input).length === 0) {
-    //             PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
-    //             return;
-    //         }
-    //         mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
-    //             mutation,
-    //             input,
-    //             onError: () => { formik.setSubmitting(false) },
-    //         })
-    //     },
-    // });
-    // usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+    const formik = useFormik({
+        initialValues: {
+            name: profile?.name ?? '',
+            translationsUpdate: profile?.translations ?? [{
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                bio: '',
+            }],
+        },
+        enableReinitialize: true,
+        validationSchema: userValidation.update({}),
+        onSubmit: (values) => {
+            // if (!profile) {
+            //     PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
+            //     return;
+            // }
+            // if (!formik.isValid) {
+            //     PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
+            //     return;
+            // }
+            // const input = shapeProfile.update(profile, {
+            //     id: profile.id,
+            //     name: values.name,
+            //     handle: selectedHandle,
+            //     translations: values.translationsUpdate,
+            // })
+            // if (!input || Object.keys(input).length === 0) {
+            //     PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
+            //     return;
+            // }
+            // mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
+            //     mutation,
+            //     input,
+            //     onError: () => { formik.setSubmitting(false) },
+            // })
+        },
+    });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // return (
-    //     <form style={{ overflow: 'hidden' }}>
-    //         <PageTitle titleKey='Notifications' session={session} />
-    //         <Grid container spacing={2}>
-    //             <Grid item xs={12}>
-    //                 {/* Toggle all notifications */}
-    //                 <Stack direction="row" marginRight="auto" alignItems="center">
-    //                     <Typography component="h2" variant="h5" textAlign="center">Toggle all</Typography>
-    //                     <Switch
-    //                         checked={formik.values.strictlyNecessary}
-    //                         onChange={formik.handleChange}
-    //                         name="toggleAll"
-    //                         sx={{
-    //                             position: 'absolute',
-    //                             right: '16px',
-    //                         }}
-    //                     />
-    //                 </Stack>
-    //             </Grid>
-    //         </Grid>
-    //     </form>
-    // )
-}
-
-export const settingsNotificationsFormData: SettingsFormData = {
-    labels: ['Notifications', 'Notification Preferences', 'Alerts', 'Alert Preferences', 'Push Notifications'],
-    items: [],
+    return (
+        <form style={{ overflow: 'hidden' }}>
+            <PageTitle titleKey='Notifications' session={session} />
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    {/* Toggle all notifications */}
+                    <Stack direction="row" marginRight="auto" alignItems="center">
+                        <Typography component="h2" variant="h5" textAlign="center">Toggle all</Typography>
+                        {/* <Switch
+                            checked={formik.values.strictlyNecessary}
+                            onChange={formik.handleChange}
+                            name="toggleAll"
+                            sx={{
+                                position: 'absolute',
+                                right: '16px',
+                            }}
+                        /> */}
+                    </Stack>
+                </Grid>
+            </Grid>
+        </form>
+    )
 }

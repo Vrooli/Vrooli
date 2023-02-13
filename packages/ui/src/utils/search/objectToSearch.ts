@@ -72,9 +72,13 @@ export enum HistorySearchPageTabOption {
 }
 
 export enum SearchPageTabOption {
+    Apis = 'Apis',
+    Notes = 'Notes',
     Organizations = 'Organizations',
     Projects = 'Projects',
+    Questions = 'Questions',
     Routines = 'Routines',
+    SmartContracts = 'SmartContracts',
     Standards = 'Standards',
     Users = 'Users',
 }

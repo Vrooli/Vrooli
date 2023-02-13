@@ -7,73 +7,88 @@ import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
+import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, SearchType, SearchPageTabOption as TabOption, addSearchParams, getUserLanguages } from "utils";
 import { APP_LINKS, GqlModelType } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
+import { CommonKey } from "types";
+import { useTranslation } from "react-i18next";
 
 // Tab data type
 type BaseParams = {
-    itemKeyPrefix: string;
+    popupTitleKey: CommonKey;
+    popupTooltipKey: CommonKey;
     searchType: SearchType;
-    popupTitle: string;
-    popupTooltip: string;
-    title: string;
     where: { [x: string]: any };
 }
 
 // Data for each tab
 const tabParams: { [key in TabOption]: BaseParams } = {
+    [TabOption.Apis]: {
+        popupTitleKey: 'Add',
+        popupTooltipKey: 'AddTooltip',
+        searchType: SearchType.Api,
+        where: {},
+    },
+    [TabOption.Notes]: {
+        popupTitleKey: 'Add',
+        popupTooltipKey: 'AddTooltip',
+        searchType: SearchType.Note,
+        where: {},
+    },
     [TabOption.Organizations]: {
-        itemKeyPrefix: 'organization-list-item',
-        popupTitle: 'Invite',
-        popupTooltip: `Can't find who you're looking for? Invite them!😊`,
+        popupTitleKey: 'Invite',
+        popupTooltipKey: 'InviteTooltip',
         searchType: SearchType.Organization,
-        title: 'Organizations',
         where: {},
     },
     [TabOption.Projects]: {
-        itemKeyPrefix: 'project-list-item',
-        popupTitle: 'Add',
-        popupTooltip: `Can't find what you're looking for? Create it!😎`,
+        popupTitleKey: 'Add',
+        popupTooltipKey: 'AddTooltip',
         searchType: SearchType.Project,
-        title: 'Projects',
+        where: {},
+    },
+    [TabOption.Questions]: {
+        popupTitleKey: 'Invite',
+        popupTooltipKey: 'InviteTooltip',
+        searchType: SearchType.Question,
         where: {},
     },
     [TabOption.Routines]: {
-        itemKeyPrefix: 'routine-list-item',
-        popupTitle: 'Add',
-        popupTooltip: `Can't find what you're looking for? Create it!😎`,
+        popupTitleKey: 'Add',
+        popupTooltipKey: 'AddTooltip',
         searchType: SearchType.Routine,
-        title: 'Routines',
         where: { isInternal: false },
     },
+    [TabOption.SmartContracts]: {
+        popupTitleKey: 'Invite',
+        popupTooltipKey: 'InviteTooltip',
+        searchType: SearchType.SmartContract,
+        where: {},
+    },
     [TabOption.Standards]: {
-        itemKeyPrefix: 'standard-list-item',
-        popupTitle: 'Add',
-        popupTooltip: `Can't find what you're looking for? Create it!😎`,
+        popupTitleKey: 'Add',
+        popupTooltipKey: 'AddTooltip',
         searchType: SearchType.Standard,
-        title: 'Standards',
         where: {},
     },
     [TabOption.Users]: {
-        itemKeyPrefix: 'user-list-item',
-        popupTitle: 'Invite',
-        popupTooltip: `Can't find who you're looking for? Invite them!😊`,
+        popupTitleKey: 'Invite',
+        popupTooltipKey: 'InviteTooltip',
         searchType: SearchType.User,
-        title: 'Users',
         where: {},
     },
 }
 
-// [title, searchType] for each tab
-const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
+const tabOptions: [SearchType, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.searchType, key as TabOption]);
 
 export function SearchPage({
     session,
 }: SearchPageProps) {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Popup button, which opens either an add or invite dialog
     const [popupButton, setPopupButton] = useState<boolean>(false);
@@ -100,14 +115,14 @@ export function SearchPage({
     };
 
     // On tab change, update BaseParams, document title, where, and URL
-    const { itemKeyPrefix, popupTitle, popupTooltip, searchType, title, where } = useMemo<BaseParams>(() => {
+    const { popupTitleKey, popupTooltipKey, searchType, where } = useMemo<BaseParams>(() => {
         // Update tab title
-        document.title = `Search ${tabOptions[tabIndex][0]}`;
+        document.title = t(`common:Search${tabOptions[tabIndex][0]}`, { lng });
         // Get object type
         const searchType: TabOption = tabOptions[tabIndex][1];
         // Return base params
         return tabParams[searchType]
-    }, [tabIndex]);
+    }, [lng, t, tabIndex]);
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
@@ -145,7 +160,7 @@ export function SearchPage({
     const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
-            <Tooltip title={popupTooltip}>
+            <Tooltip title={t(`common:${popupTooltipKey}`, { lng })}>
                 <Button
                     onClick={onPopupButtonClick}
                     size="large"
@@ -160,11 +175,11 @@ export function SearchPage({
                         transition: 'transform 1s ease-in-out',
                     }}
                 >
-                    {popupTitle}
+                    {t(`common:${popupTitleKey}`, { lng })}
                 </Button>
             </Tooltip>
         </Box>
-    ), [onPopupButtonClick, popupButton, popupTitle, popupTooltip]);
+    ), [lng, onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
     return (
         <PageContainer>
@@ -187,6 +202,8 @@ export function SearchPage({
                     aria-label="search-type-tabs"
                     sx={{
                         marginBottom: 1,
+                        paddingLeft: '1em',
+                        paddingRight: '1em',
                     }}
                 >
                     {tabOptions.map((option, index) => (
@@ -194,7 +211,7 @@ export function SearchPage({
                             key={index}
                             id={`search-tab-${index}`}
                             {...{ 'aria-controls': `search-tabpanel-${index}` }}
-                            label={option[0]}
+                            label={t(`common:${option[0]}`, { lng })}
                             color={index === 0 ? '#ce6c12' : 'default'}
                             component="a"
                             href={option[1]}
@@ -203,7 +220,7 @@ export function SearchPage({
                 </Tabs>
             </Box>
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                <Typography component="h2" variant="h4">{title}</Typography>
+                <Typography component="h2" variant="h4">{t(`common:${searchType}`, { lng })}</Typography>
                 <Tooltip title="Add new" placement="top">
                     <IconButton
                         size="medium"
@@ -218,7 +235,7 @@ export function SearchPage({
             </Stack>
             {searchType && <SearchList
                 id="main-search-page-list"
-                itemKeyPrefix={itemKeyPrefix}
+                itemKeyPrefix={`${searchType}-list-item`}
                 searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}

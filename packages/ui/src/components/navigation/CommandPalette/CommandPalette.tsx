@@ -5,7 +5,7 @@ import {
     useTheme,
 } from '@mui/material';
 import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
-import { AutocompleteSearchBar } from 'components/inputs';
+import { SiteSearchBar } from 'components/inputs';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { AutocompleteOption } from 'types';
 import { useLazyQuery } from 'api/hooks';
@@ -140,7 +140,7 @@ export const CommandPalette = ({
                 justifyContent: 'center',
                 overflowY: 'visible',
             }}>
-                <AutocompleteSearchBar
+                <SiteSearchBar
                     id="command-palette-search"
                     autoFocus={true}
                     placeholder={t(`common:CommandPalettePlaceholder`, { lng: languages[0] })}

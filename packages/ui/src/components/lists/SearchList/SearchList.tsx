@@ -3,7 +3,7 @@
  */
 import { useLazyQuery } from "api/hooks";
 import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/material";
-import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
+import { AdvancedSearchDialog, SiteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
@@ -13,6 +13,7 @@ import { AutocompleteOption } from "types";
 import { SearchParams } from "utils/search/schemas/base";
 import { routineFindMany } from "api/generated/endpoints/routine";
 import { useTranslation } from "react-i18next";
+import { exists } from "@shared/utils";
 
 type TimeFrame = {
     after?: Date;
@@ -91,7 +92,7 @@ export function SearchList<
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
         if (typeof searchParams.sort === 'string') {
             // Check if sortBy is valid
-            if (searchParams.sort in sortByOptions) {
+            if (exists(sortByOptions) && searchParams.sort in sortByOptions) {
                 setSortBy(searchParams.sort);
             } else {
                 setSortBy(defaultSortBy);
@@ -249,7 +250,7 @@ export function SearchList<
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: string) => { setSearchString(newString) }, [setSearchString]);
+    const handleSearch = useCallback((newString: any) => { setSearchString(newString) }, [setSearchString]);
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
@@ -341,7 +342,7 @@ export function SearchList<
                 onClose={handleTimeClose}
             />
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
-                <AutocompleteSearchBar
+                <SiteSearchBar
                     id={`search-bar-${id}`}
                     placeholder={searchPlaceholder}
                     options={autocompleteOptions}

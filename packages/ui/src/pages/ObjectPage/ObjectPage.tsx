@@ -189,7 +189,7 @@ export const ObjectPage = ({
             />)
         }
         if (pageType === PageType.Reports) {
-            document.title = t(`common:Reports`) + t(`common:${objectType}`);
+            document.title = t(`common:Reports`) + '|' + t(`common:${objectType}`, { count: 1 });
             return <ReportsView session={session} />
         }
         const View = viewMap[objectType];

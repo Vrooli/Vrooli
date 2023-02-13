@@ -16,6 +16,12 @@ export interface BuildEditButtonsProps {
     loading: boolean;
 }
 
+export type CameraButtonProps = {
+    disabled?: boolean;
+    onTranscriptChange: (result: string) => void;
+    session: Session;
+}
+
 export interface ColorIconButtonProps extends IconButtonProps {
     background: string;
     children: JSX.Element | null;
@@ -60,6 +66,12 @@ export interface HelpButtonProps extends ButtonProps {
      * Style applied to the question mark icon
      */
     sx?: SvgProps;
+}
+
+export type MicrophoneButtonProps = {
+    disabled?: boolean;
+    onTranscriptChange: (result: string) => void;
+    session: Session;
 }
 
 export interface PopupMenuProps extends ButtonProps {

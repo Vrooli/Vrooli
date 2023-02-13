@@ -1,4 +1,4 @@
-export * from './AutocompleteSearchBar/AutocompleteSearchBar';
+export * from './search/SiteSearchBar/SiteSearchBar';
 export * from './CommentCreateInput/CommentCreateInput';
 export * from './CommentUpdateInput/CommentUpdateInput';
 export * from './Dropzone/Dropzone';
@@ -10,7 +10,7 @@ export * from './PasswordTextField/PasswordTextField';
 export * from './PreviewSwitch/PreviewSwitch';
 export * from './QuantityBox/QuantityBox';
 export * from './RelationshipButtons/RelationshipButtons';
-export * from './SearchBar/SearchBar';
+export * from './search/SettingsSearchBar/SettingsSearchBar';
 export * from './Selector/Selector';
 export * from './standards';
 export * from './StandardVersionSelectSwitch/StandardVersionSelectSwitch';

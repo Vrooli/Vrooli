@@ -109,7 +109,7 @@ export const ApiVersionModel: ModelLogic<{
         isTransferable: false,
         maxObjects: 1000000,
         owner: (data) => ApiModel.validate!.owner(data.root as any),
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             isDeleted: true,
             isPrivate: true,

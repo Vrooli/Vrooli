@@ -1,16 +1,18 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
+import { RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { OrganizationModel } from "./organization";
+import { defaultPermissions, oneIsPublic } from "../utils";
 
 const __typename = 'RunProject' as const;
 type Permissions = Pick<RunProjectYou, 'canDelete' | 'canUpdate' | 'canRead'>;
 const suppFields = ['you'] as const;
 export const RunProjectModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
+    IsTransferable: false,
+    IsVersioned: false,
     GqlCreate: RunProjectCreateInput,
     GqlUpdate: RunProjectUpdateInput,
     GqlModel: RunProject,
@@ -62,5 +64,45 @@ export const RunProjectModel: ModelLogic<{
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: 5000,
+            Organization: 50000,
+        },
+        permissionsSelect: () => ({
+            id: true,
+            isPrivate: true,
+            organization: 'Organization',
+            projectVersion: 'Routine',
+            user: 'User',
+        }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        isDeleted: () => false,
+        isPublic: (data, languages,) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
+            ['organization', 'Organization'],
+            ['user', 'User'],
+        ], languages),
+        profanityFields: ['name'],
+        validations: {
+            async update({ languages, updateMany }) {
+                // TODO if status passed in for update, make sure it's not the same 
+                // as the current status, or an invalid transition (e.g. failed -> in progress)
+            },
+        },
+        visibility: {
+            private: { isPrivate: true },
+            public: { isPrivate: false },
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })
