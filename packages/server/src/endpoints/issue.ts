@@ -82,7 +82,7 @@ export const typeDef = gql`
         score: Int!
         bookmarks: Int!
         views: Int!
-        bookmarkedBy: [Star!]
+        bookmarkedBy: [Bookmark!]
         you: IssueYou!
     }
 

@@ -74,7 +74,7 @@ export const getYouDot = (
     // If no object, return null
     if (!object) return null;
     // If the object is a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getYouDot(object.to as ListObjectType, property);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYouDot(object.to as ListObjectType, property);
     // If the object is a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getYouDot(object.routineVersion as ListObjectType, property);
     // If the object is a run project, use the project version
@@ -111,7 +111,7 @@ export const getYou = (
     };
     if (!object) return defaultPermissions;
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getYou(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYou(object.to as ListObjectType);
     // If a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getYou(object.routineVersion as ListObjectType);
     // If a run project, use the project version
@@ -156,7 +156,7 @@ export const getCounts = (
     };
     if (!object) return defaultCounts;
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
     // If a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getCounts(object.routineVersion as ListObjectType);
     // If a run project, use the project version
@@ -261,7 +261,7 @@ export const getDisplay = (
 ): { title: string, subtitle: string } => {
     if (!object) return { title: '', subtitle: '' };
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
     // If a run routine, use the routine version's display and the startedAt/completedAt date
     if (isOfType(object, 'RunRoutine')) {
@@ -306,10 +306,10 @@ export const getDisplay = (
  */
 export const getStarFor = (
     object: ListObjectType | null | undefined,
-): { starFor: BookmarkFor, starForId: string } | { starFor: null, starForId: null } => {
-    if (!object) return { starFor: null, starForId: null };
+): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
+    if (!object) return { bookmarkFor: null, starForId: null };
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
     // If a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getStarFor(object.routineVersion as ListObjectType);
     // If a run project, use the project version
@@ -319,7 +319,7 @@ export const getStarFor = (
     // If the object contains a root object, use that
     if ((object as any).root) return getStarFor((object as any).root);
     // Use current object
-    return { starFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
+    return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
 }
 
 /**
@@ -348,7 +348,7 @@ export function listToAutocomplete(
                 o.routineVersion :
                 undefined,
         bookmarks: getCounts(o).bookmarks,
-        to: isOfType(o, 'Star', 'View', 'Vote') ? o.to : undefined,
+        to: isOfType(o, 'Bookmark', 'View', 'Vote') ? o.to : undefined,
         versions: isOfType(o, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard') ? o.versions : undefined,
         root: isOfType(o, 'ApiVersion', 'NoteVersion', 'ProjectVersion', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion') ? o.root : undefined,
     }));
@@ -421,7 +421,7 @@ export function listToListItems({
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
         // If "Star", "View", or "Vote", use the "to" object
-        if (isOfType(curr, 'Star', 'View', 'Vote')) curr = curr.to as ListObjectType;
+        if (isOfType(curr, 'Bookmark', 'View', 'Vote')) curr = curr.to as ListObjectType;
         listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
             beforeNavigation={beforeNavigation}

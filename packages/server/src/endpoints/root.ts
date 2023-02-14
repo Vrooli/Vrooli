@@ -15,6 +15,7 @@ export const typeDef = gql`
         Api
         ApiKey
         ApiVersion
+        Bookmark
         Comment
         Copy
         DevelopResult
@@ -88,7 +89,6 @@ export const typeDef = gql`
         SmartContractVersion
         Standard
         StandardVersion
-        Star
         StatsApi
         StatsOrganization
         StatsProject

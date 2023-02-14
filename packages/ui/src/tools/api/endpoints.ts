@@ -46,6 +46,16 @@ export const endpoints = {
             walletComplete: toMutation('walletComplete', 'WalletCompleteInput', walletCompletePartial, 'full'),
         }
     },
+    bookmark: async () => {
+        const { bookmark: bookmarkPartial } = await import('./partial/bookmark');
+        return {
+            findOne: toQuery('bookmark', 'FindByIdInput', bookmarkPartial, 'full'),
+            findMany: toQuery('bookmarks', 'BookmarkSearchInput', ...(await toSearch(bookmarkPartial))),
+            create: toMutation('bookmarkCreate', 'BookmarkCreateInput', bookmarkPartial, 'full'),
+            update: toMutation('bookmarkUpdate', 'BookmarkUpdateInput', bookmarkPartial, 'full'),
+            close: toMutation('bookmarkClose', 'BookmarkCloseInput', bookmarkPartial, 'full'),
+        }
+    },
     comment: async () => {
         const { comment: commentPartial, commentThread: commentThreadPartial } = await import('./partial/comment');
         return {
@@ -502,14 +512,6 @@ export const endpoints = {
             findMany: toQuery('standardVersions', 'StandardVersionSearchInput', ...(await toSearch(standardVersionPartial))),
             create: toMutation('standardVersionCreate', 'StandardVersionCreateInput', standardVersionPartial, 'full'),
             update: toMutation('standardVersionUpdate', 'StandardVersionUpdateInput', standardVersionPartial, 'full'),
-        }
-    },
-    star: async () => {
-        const { star: starPartial } = await import('./partial/star');
-        const { success: successPartial } = await import('./partial/success');
-        return {
-            findMany: toQuery('bookmarks', 'StarSearchInput', ...(await toSearch(starPartial))),
-            star: toMutation('star', 'StarInput', successPartial, 'full'),
         }
     },
     statsApi: async () => {

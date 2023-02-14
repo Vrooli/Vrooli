@@ -9,7 +9,7 @@ export const typeDef = gql`
         CommentCreate
         IssueCreate
         NoteCreate
-        ObjectStar
+        ObjectBookmark
         ObjectVote
         OrganizationCreate
         OrganizationJoin

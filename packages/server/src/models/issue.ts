@@ -4,7 +4,7 @@ import { Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInpu
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
-import { StarModel } from "./bookmark";
+import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { VoteModel } from "./vote";
 
@@ -81,7 +81,7 @@ export const IssueModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     }
                 }

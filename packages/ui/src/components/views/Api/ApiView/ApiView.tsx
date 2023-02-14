@@ -3,7 +3,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, ApiVersion, ResourceList, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { ApiViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
@@ -211,15 +211,14 @@ export const ApiView = ({
                     </Tooltip>
                     <ShareButton object={apiVersion} zIndex={zIndex} />
                     <ReportsLink object={apiVersion} />
-                    <StarButton
+                    <BookmarkButton
                         disabled={!canBookmark}
                         session={session}
                         objectId={apiVersion?.id ?? ''}
-                        starFor={BookmarkFor.Api}
-                        isStar={apiVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarkFor={BookmarkFor.Api}
+                        isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={apiVersion?.root?.bookmarks ?? 0}
-                        onChange={(isStar: boolean) => { }}
-                        tooltipPlacement="bottom"
+                        onChange={(isBookmarked: boolean) => { }}
                     />
                 </Stack>
             </Stack>

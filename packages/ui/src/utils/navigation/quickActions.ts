@@ -191,7 +191,7 @@ export const newShortcuts: PreSearchItem[] = [
         value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
     },
     {
-        label: 'SearchStar',
+        label: 'SearchBookmark',
         keywords: [...searchKeywords, 'SearchBookmarked'],
         value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`,
     },
@@ -206,7 +206,7 @@ export const newShortcuts: PreSearchItem[] = [
         value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}&advanced=true`,
     },
     {
-        label: 'SearchStarAdvanced',
+        label: 'SearchBookmarkAdvanced',
         keywords: [...searchAdvancedKeywords, 'SearchBookmarkedAdvanced'],
         value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}&advanced=true`,
     },

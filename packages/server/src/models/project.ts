@@ -1,5 +1,5 @@
 import { projectValidation } from "@shared/validation";
-import { StarModel } from "./bookmark";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, ProjectYou, PrependString } from '@shared/consts';
@@ -112,7 +112,7 @@ export const ProjectModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },

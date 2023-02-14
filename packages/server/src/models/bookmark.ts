@@ -5,15 +5,13 @@ import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
-import { CustomError, Trigger } from "../events";
-import { Bookmark, BookmarkSearchInput, BookmarkInput, SessionUser } from '@shared/consts';
+import { Bookmark, BookmarkSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ApiModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
-import { getLogic } from "../getters";
 import { NoteModel } from "./note";
 import { exists } from "@shared/utils";
 

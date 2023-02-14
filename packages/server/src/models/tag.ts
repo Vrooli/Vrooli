@@ -1,6 +1,6 @@
 import { tagValidation } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
-import { StarModel } from "./bookmark";
+import { BookmarkModel } from "./bookmark";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -94,7 +94,7 @@ export const TagModel: ModelLogic<{
             dbFields: ['createdById', 'id'],
             toGraphQL: async ({ ids, objects, prisma, userData }) => ({
                 you: {
-                    isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                    isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                     isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
                 },
             }),

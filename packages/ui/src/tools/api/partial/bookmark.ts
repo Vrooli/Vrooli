@@ -2,8 +2,8 @@ import { Bookmark } from "@shared/consts";
 import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const star: GqlPartial<Bookmark> = {
-    __typename: 'Star',
+export const bookmark: GqlPartial<Bookmark> = {
+    __typename: 'Bookmark',
     list: {
         __define: {
             0: async () => rel((await import('./api')).api, 'list'),

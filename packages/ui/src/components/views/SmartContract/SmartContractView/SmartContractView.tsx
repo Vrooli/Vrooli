@@ -3,7 +3,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, SmartContractVersion, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { SmartContractViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
 import { uuidValidate } from '@shared/uuid';
@@ -190,15 +190,14 @@ export const SmartContractView = ({
                     </Tooltip>
                     <ShareButton object={smartContractVersion} zIndex={zIndex} />
                     <ReportsLink object={smartContractVersion} />
-                    <StarButton
+                    <BookmarkButton
                         disabled={!canBookmark}
                         session={session}
                         objectId={smartContractVersion?.id ?? ''}
-                        starFor={BookmarkFor.SmartContract}
-                        isStar={smartContractVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarkFor={BookmarkFor.SmartContract}
+                        isBookmarked={smartContractVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={smartContractVersion?.root?.bookmarks ?? 0}
-                        onChange={(isStar: boolean) => { }}
-                        tooltipPlacement="bottom"
+                        onChange={(isBookmarked: boolean) => { }}
                     />
                 </Stack>
             </Stack>

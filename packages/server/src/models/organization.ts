@@ -2,7 +2,7 @@ import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationYou, PrependString } from '@shared/consts';
 import { organizationValidation } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
-import { StarModel } from "./bookmark";
+import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
 import { uuid } from "@shared/uuid";
@@ -121,7 +121,7 @@ export const OrganizationModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     },
                     translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'organization.translatedName'),

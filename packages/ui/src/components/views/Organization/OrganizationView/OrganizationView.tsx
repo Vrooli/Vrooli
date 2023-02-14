@@ -3,7 +3,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, BookmarkFor, VisibilityType } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, SearchType, uuidToBase36 } from "utils";
@@ -292,15 +292,14 @@ export const OrganizationView = ({
                     </Tooltip>
                     <ShareButton object={organization} zIndex={zIndex} />
                     <ReportsLink object={organization} />
-                    <StarButton
+                    <BookmarkButton
                         disabled={!canBookmark}
                         session={session}
                         objectId={organization?.id ?? ''}
-                        starFor={BookmarkFor.Organization}
-                        isStar={organization?.you?.isBookmarked ?? false}
+                        bookmarkFor={BookmarkFor.Organization}
+                        isBookmarked={organization?.you?.isBookmarked ?? false}
                         bookmarks={organization?.bookmarks ?? 0}
-                        onChange={(isStar: boolean) => { }}
-                        tooltipPlacement="bottom"
+                        onChange={(isBookmarked: boolean) => { }}
                     />
                 </Stack>
             </Stack>

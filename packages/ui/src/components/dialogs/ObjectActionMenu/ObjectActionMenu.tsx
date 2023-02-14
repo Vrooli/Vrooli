@@ -1,13 +1,12 @@
 import { useMutation } from "api/hooks";
 import { useCallback, useMemo, useState } from "react";
-import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, BookmarkFor, StarInput, Success, VoteFor, VoteInput } from "@shared/consts";
+import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, BookmarkFor, Success, VoteFor, VoteInput } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "api/utils";
 import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 import { copyCopy } from "api/generated/endpoints/copy";
-import { starStar } from "api/generated/endpoints/star";
 import { voteVote } from "api/generated/endpoints/vote";
 
 export const ObjectActionMenu = ({
@@ -48,7 +47,7 @@ export const ObjectActionMenu = ({
 
     // Mutations
     const [fork] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
-    const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
+    // const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
     const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
 
     const handleFork = useCallback(() => {
@@ -66,14 +65,14 @@ export const ObjectActionMenu = ({
         })
     }, [fork, id, name, objectType, onActionComplete]);
 
-    const handleStar = useCallback((isStar: boolean, starFor: BookmarkFor) => {
-        if (!id) return;
-        mutationWrapper<Success, StarInput>({
-            mutation: star,
-            input: { isStar, starFor, forConnect: id },
-            onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
-        })
-    }, [id, onActionComplete, star]);
+    const handleBookmark = useCallback((isBookmarked: boolean, bookmarkFor: BookmarkFor) => {
+        // if (!id) return;
+        // mutationWrapper<Success, StarInput>({
+        //     mutation: star,
+        //     input: { isBookmarked, bookmarkFor, forConnect: id },
+        //     onSuccess: (data) => { onActionComplete(isBookmarked ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
+        // })
+    }, [id, onActionComplete]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         if (!id) return;
@@ -107,9 +106,9 @@ export const ObjectActionMenu = ({
             case ObjectAction.Share:
                 openShare();
                 break;
-            case ObjectAction.Star:
-            case ObjectAction.StarUndo:
-                handleStar(action === ObjectAction.Star, objectType as string as BookmarkFor);
+            case ObjectAction.Bookmark:
+            case ObjectAction.BookmarkUndo:
+                handleBookmark(action === ObjectAction.Bookmark, objectType as string as BookmarkFor);
                 break;
             case ObjectAction.Stats:
                 onActionStart(ObjectAction.Stats);
@@ -119,7 +118,7 @@ export const ObjectActionMenu = ({
                 handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
         }
         onClose();
-    }, [handleFork, handleStar, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleFork, handleBookmark, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
 
     const data = useMemo(() => getActionsDisplayData(availableActions), [availableActions]);
 

@@ -115,14 +115,21 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
+        isCompleteWithRoot: Boolean
+        isLatest: Boolean
         languages: [String!]
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
+        minViewsRoot: Int
         reportId: ID
         rootId: ID
         searchString: String
         sortBy: SmartContractVersionSortBy
         contractType: String
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID

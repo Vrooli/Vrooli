@@ -9,7 +9,7 @@ import { mutationWrapper } from 'api/utils';
 import { CommentFor, DeleteOneInput, DeleteType, ReportFor, BookmarkFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { ReportButton, StarButton } from 'components/buttons';
+import { ReportButton, BookmarkButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
@@ -154,13 +154,12 @@ export function CommentThreadItem({
                             score={data?.score}
                             onChange={() => { }}
                         />
-                        {canBookmark && <StarButton
+                        {canBookmark && <BookmarkButton
                             session={session}
                             objectId={data?.id ?? ''}
-                            starFor={BookmarkFor.Comment}
-                            isStar={isBookmarked ?? false}
+                            bookmarkFor={BookmarkFor.Comment}
+                            isBookmarked={isBookmarked ?? false}
                             showBookmarks={false}
-                            tooltipPlacement="top"
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton

@@ -67,9 +67,9 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
+        hasCompleteVersion: Boolean
+        hasCompleteVersionExceptions: [SearchException!]
+        translationLanguagesLatestVersion: [String!]
         maxBookmarks: Int
         maxScore: Int
         minBookmarks: Int
@@ -116,7 +116,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        languages: [String!]
+        translationLanguagesLatestVersion: [String!]
         maxBookmarks: Int
         maxViews: Int
         minBookmarks: Int
@@ -353,9 +353,9 @@ export const resolvers: {
                         isCompleteExceptions: input.projectIsCompleteExceptions,
                         languages: input.languages,
                         maxBookmarks: input.maxBookmarks,
-                        maxScore: input.maxScore,
-                        minBookmarks: input.minBookmarks,
                         maxScore: input.projectMaxScore,
+                        maxViews: input.maxViews,
+                        minBookmarks: input.minBookmarks,
                         minScore: input.projectMinScore,
                         minViews: input.minViews,
                         organizationId: input.projectOrganizationId,

@@ -26,18 +26,21 @@ export const languagesContainer: GridContainer = {
     description: languagesDescription,
     totalItems: 1
 }
+export const languagesVersionContainer: GridContainer = languagesContainer;
 
 export const bookmarksContainer: GridContainer = {
     title: "Bookmarks",
     totalItems: 1,
     spacing: 2,
 }
+export const bookmarksRootContainer: GridContainer = bookmarksContainer;
 
 export const tagsContainer: GridContainer = {
     title: "Tags",
     description: tagsDescription,
     totalItems: 1
 }
+export const tagsRootContainer: GridContainer = tagsContainer;
 
 export const votesContainer: GridContainer = {
     title: "Votes",
@@ -45,6 +48,7 @@ export const votesContainer: GridContainer = {
     totalItems: 1,
     spacing: 2,
 }
+export const votesRootContainer: GridContainer = votesContainer;
 
 export const simplicityContainer: GridContainer = {
     title: "Simplicity",
@@ -52,6 +56,7 @@ export const simplicityContainer: GridContainer = {
     totalItems: 2,
     spacing: 2,
 }
+export const simplicityRootContainer: GridContainer = simplicityContainer;
 
 export const complexityContainer: GridContainer = {
     title: "Complexity",
@@ -59,16 +64,27 @@ export const complexityContainer: GridContainer = {
     totalItems: 2,
     spacing: 2,
 }
+export const complexityRootContainer: GridContainer = complexityContainer;
 
-export const isCompleteContainer: GridContainer = { totalItems: 1 }
+export const hasCompleteVersionContainer: GridContainer = { totalItems: 1 }
+
+export const isCompleteWithRootContainer: GridContainer = hasCompleteVersionContainer;
+
+export const isLatestContainer: GridContainer = hasCompleteVersionContainer;
 
 export const languagesFields: FieldData[] = [
     {
-        fieldName: "languages",
+        fieldName: "translationLanguages",
         label: "Languages",
         type: InputType.LanguageInput,
         props: {},
     },
+]
+export const languagesVersionFields: FieldData[] = [
+    {
+        ...languagesFields[0],
+        fieldName: "translationLanguagesLatestVersion",
+    }
 ]
 
 export const bookmarksFields: FieldData[] = [
@@ -91,6 +107,16 @@ export const bookmarksFields: FieldData[] = [
         }
     },
 ]
+export const bookmarksRootFields: FieldData[] = [
+    {
+        ...bookmarksFields[0],
+        fieldName: "minBookmarksRoot",
+    },
+    {
+        ...bookmarksFields[1],
+        fieldName: "maxBookmarksRoot",
+    },
+]
 
 export const tagsFields: FieldData[] = [
     {
@@ -98,6 +124,12 @@ export const tagsFields: FieldData[] = [
         label: "Tags",
         type: InputType.TagSelector,
         props: {}
+    },
+]
+export const tagsRootFields: FieldData[] = [
+    {
+        ...tagsFields[0],
+        fieldName: "tagsRoot",
     },
 ]
 
@@ -121,6 +153,16 @@ export const votesFields: FieldData[] = [
         }
     },
 ]
+export const votesRootFields: FieldData[] = [
+    {
+        ...votesFields[0],
+        fieldName: "minVotesRoot",
+    },
+    {
+        ...votesFields[1],
+        fieldName: "maxVotesRoot",
+    },
+]
 
 export const simplicityFields: FieldData[] = [
     {
@@ -140,6 +182,16 @@ export const simplicityFields: FieldData[] = [
             min: 0,
             defaultValue: 0,
         }
+    },
+]
+export const simplicityRootFields: FieldData[] = [
+    {
+        ...simplicityFields[0],
+        fieldName: "minSimplicityRoot",
+    },
+    {
+        ...simplicityFields[1],
+        fieldName: "maxSimplicityRoot",
     },
 ]
 
@@ -163,11 +215,21 @@ export const complexityFields: FieldData[] = [
         }
     },
 ]
-
-export const isCompleteFields: FieldData[] = [
+export const complexityRootFields: FieldData[] = [
     {
-        fieldName: "isComplete",
-        label: "Is Complete?",
+        ...complexityFields[0],
+        fieldName: "minComplexityRoot",
+    },
+    {
+        ...complexityFields[1],
+        fieldName: "maxComplexityRoot",
+    },
+]
+
+export const hasCompleteVersionFields: FieldData[] = [
+    {
+        fieldName: "hasCompleteVersion",
+        label: "Has complete version?",
         type: InputType.Radio,
         props: {
             defaultValue: 'undefined',
@@ -178,5 +240,19 @@ export const isCompleteFields: FieldData[] = [
                 { label: "Don't Care", value: 'undefined' },
             ]
         }
+    },
+]
+
+export const isCompleteWithRootFields: FieldData[] = [
+    {
+        ...hasCompleteVersionFields[0],
+        fieldName: "isCompleteWithRoot",
+    },
+]
+
+export const isLatestFields: FieldData[] = [
+    {
+        ...hasCompleteVersionFields[0],
+        fieldName: "isLatest",
     },
 ]

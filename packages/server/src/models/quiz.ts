@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
-import { StarModel } from "./bookmark";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -65,7 +65,7 @@ export const QuizModel: ModelLogic<{
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
-                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     }
                 }

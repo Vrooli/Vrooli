@@ -181,14 +181,18 @@ export const typeDef = gql`
         isInternalWithRoot: Boolean
         isInternalWithRootExcludeOwnedByOrganizationId: ID
         isInternalWithRootExcludeOwnedByUserId: ID
+        isLatest: Boolean
         minComplexity: Int
         maxComplexity: Int
         minSimplicity: Int
         maxSimplicity: Int
         maxTimesCompleted: Int
-        minScoreRoot: Int
-        minBookmarksRoot: Int
         minTimesCompleted: Int
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
         minViewsRoot: Int
         ownedByOrganizationId: ID
         ownedByUserId: ID
@@ -196,7 +200,7 @@ export const typeDef = gql`
         rootId: ID
         searchString: String
         sortBy: RoutineVersionSortBy
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         translationLanguages: [String!]
         updatedTimeFrame: TimeFrame

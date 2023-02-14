@@ -28,7 +28,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         where: {},
     },
     [TabOption.Bookmarked]: {
-        searchType: SearchType.Star,
+        searchType: SearchType.Bookmark,
         title: 'Bookmarks',
         where: {},
     },

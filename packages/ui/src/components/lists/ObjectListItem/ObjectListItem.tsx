@@ -8,7 +8,7 @@ import { TagList, TextLoading, UpvoteDownvote } from '..';
 import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, getYouDot, ListObjectType } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
-import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
+import { CommentsButton, ReportsButton, BookmarkButton } from 'components/buttons';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
 import { isOfType, setDotNotationValue } from '@shared/utils';
@@ -155,7 +155,7 @@ export function ObjectListItem<T extends ListObjectType>({
     const actionButtons = useMemo(() => {
         const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
         const reportsCount: number = getCounts(object).reports;
-        const { starFor, starForId } = getStarFor(object);
+        const { bookmarkFor, starForId } = getStarFor(object);
         return (
             <Stack
                 direction={isMobile ? "row" : "column"}
@@ -213,12 +213,12 @@ export function ObjectListItem<T extends ListObjectType>({
                             onChange={(isUpvoted: boolean | null, score: number) => { }}
                         />
                     )}
-                {starFor && <StarButton
+                {bookmarkFor && <BookmarkButton
                     disabled={!canBookmark}
                     session={session}
                     objectId={starForId}
-                    starFor={starFor}
-                    isStar={isBookmarked}
+                    bookmarkFor={bookmarkFor}
+                    isBookmarked={isBookmarked}
                     bookmarks={getCounts(object).bookmarks}
                 />}
                 {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton

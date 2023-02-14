@@ -6,6 +6,7 @@ export * from './BaseObjectDialog/BaseObjectDialog';
 export * from './CommentDialog/CommentDialog';
 export * from './CookieSettingsDialog/CookieSettingsDialog';
 export * from './DeleteAccountDialog/DeleteAccountDialog';
+export * from './DeleteBookmarkDialog/DeleteBookmarkDialog';
 export * from './DeleteDialog/DeleteDialog';
 export * from './DialogTitle/DialogTitle';
 export * from './LinkDialog/LinkDialog';

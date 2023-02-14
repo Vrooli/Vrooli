@@ -1,36 +1,23 @@
-import { InputType, ProjectSortBy } from "@shared/consts";
+import { ProjectSortBy } from "@shared/consts";
 import { projectFindMany } from "api/generated/endpoints/project";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields } from "./common";
 
 export const projectSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchProject', lng),
     containers: [
-        { totalItems: 1 },
+        hasCompleteVersionContainer,
         votesContainer,
         bookmarksContainer,
-        languagesContainer,
+        languagesVersionContainer,
         tagsContainer,
     ],
     fields: [
-        {
-            fieldName: "isComplete",
-            label: "Is Complete?",
-            type: InputType.Radio,
-            props: {
-                defaultValue: 'undefined',
-                row: true,
-                options: [
-                    { label: "Yes", value: 'true' },
-                    { label: "No", value: 'false' },
-                    { label: "Don't Care", value: 'undefined' },
-                ]
-            }
-        },
+        ...hasCompleteVersionFields,
         ...votesFields,
         ...bookmarksFields,
-        ...languagesFields,
+        ...languagesVersionFields,
         ...tagsFields,
     ]
 })

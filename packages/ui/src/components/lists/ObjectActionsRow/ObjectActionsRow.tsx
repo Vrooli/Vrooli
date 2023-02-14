@@ -1,6 +1,6 @@
 import { useMutation } from "api/hooks";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { DeleteType, CopyType, ReportFor, BookmarkFor, VoteFor, CopyResult, CopyInput, Success, StarInput, VoteInput } from "@shared/consts";
+import { DeleteType, CopyType, ReportFor, BookmarkFor, VoteFor, CopyResult, CopyInput, Success, VoteInput } from "@shared/consts";
 import { EllipsisIcon } from "@shared/icons";
 import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
 import { mutationWrapper } from "api/utils";
@@ -8,7 +8,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
 import { copyCopy } from "api/generated/endpoints/copy";
-import { starStar } from "api/generated/endpoints/star";
 import { voteVote } from "api/generated/endpoints/vote";
 
 const commonButtonSx = (palette: Palette) => ({
@@ -80,7 +79,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
 
     // Mutations
     const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
-    const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
+    // const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
     const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
 
     const handleCopy = useCallback(() => {
@@ -99,14 +98,14 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
         })
     }, [copy, id, name, objectType, onActionComplete]);
 
-    const handleStar = useCallback((isStar: boolean, starFor: BookmarkFor) => {
+    const handleBookmark = useCallback((isBookmarked: boolean, bookmarkFor: BookmarkFor) => {
         if (!id) return;
-        mutationWrapper<Success, StarInput>({
-            mutation: star,
-            input: { isStar, starFor, forConnect: id },
-            onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
-        })
-    }, [id, onActionComplete, star]);
+        // mutationWrapper<Success, StarInput>({
+        //     mutation: star,
+        //     input: { isBookmarked, bookmarkFor, forConnect: id },
+        //     onSuccess: (data) => { onActionComplete(isBookmarked ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
+        // })
+    }, [id, onActionComplete]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         if (!id) return;
@@ -143,9 +142,9 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             case ObjectAction.Share:
                 openShare();
                 break;
-            case ObjectAction.Star:
-            case ObjectAction.StarUndo:
-                handleStar(action === ObjectAction.Star, objectType as string as BookmarkFor);
+            case ObjectAction.Bookmark:
+            case ObjectAction.BookmarkUndo:
+                handleBookmark(action === ObjectAction.Bookmark, objectType as string as BookmarkFor);
                 break;
             case ObjectAction.Stats:
                 onActionStart(ObjectAction.Stats);
@@ -155,7 +154,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
                 break;
         }
-    }, [handleCopy, handleStar, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleBookmark, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const openOverflowMenu = useCallback((event: React.MouseEvent) => {

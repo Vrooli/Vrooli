@@ -3,7 +3,7 @@ import { useQuery } from '@apollo/client';
 import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
-import { SnackSeverity, StarButton } from 'components';
+import { SnackSeverity, BookmarkButton } from 'components';
 import { PubSub, TagShape } from 'utils';
 import { Wrap } from 'types';
 import { tagFindMany } from 'api/generated/endpoints/tag';
@@ -171,13 +171,13 @@ export const TagSelector = ({
                     onClick={() => onInputSelect(option as Tag)} //TODO
                 >
                     <ListItemText>{option.tag}</ListItemText>
-                    <StarButton
+                    <BookmarkButton
                         session={session}
                         objectId={(option as Tag).id ?? ''}
-                        starFor={BookmarkFor.Tag}
-                        isStar={(option as Tag).you.isBookmarked}
+                        bookmarkFor={BookmarkFor.Tag}
+                        isBookmarked={(option as Tag).you.isBookmarked}
                         bookmarks={(option as Tag).bookmarks}
-                        onChange={(isStar) => { handleIsBookmarked(option.tag, isStar); }}
+                        onChange={(isBookmarked) => { handleIsBookmarked(option.tag, isBookmarked); }}
                     />
                 </MenuItem>
             )}

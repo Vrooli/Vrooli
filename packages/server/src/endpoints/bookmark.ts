@@ -1,9 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { BookmarkSortBy, FindByIdInput } from '@shared/consts';
-import { Bookmark, BookmarkFor, BookmarkInput, BookmarkSearchInput, Success } from '@shared/consts';
-import { FindManyResult, FindOneResult, GQLEndpoint, UnionResolver } from '../types';
+import { BookmarkCreateInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput } from '@shared/consts';
+import { Bookmark, BookmarkFor, BookmarkSearchInput } from '@shared/consts';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
 import { rateLimit } from '../middleware';
-import { BookmarkModel } from '../models';
 import { resolveUnion } from './resolvers';
 import { assertRequestFrom } from '../auth/request';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';

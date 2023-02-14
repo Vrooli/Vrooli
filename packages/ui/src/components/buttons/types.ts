@@ -111,17 +111,16 @@ export interface ShareButtonProps {
     zIndex: number;
 }
 
-export interface StarButtonProps {
+export interface BookmarkButtonProps {
     disabled?: boolean;
-    isStar?: boolean | null; // Defaults to false
+    isBookmarked?: boolean | null; // Defaults to false
     objectId: string;
-    onChange?: (isStar: boolean, event?: any) => void;
+    onChange?: (isBookmarked: boolean, event?: any) => void;
     session: Session;
     showBookmarks?: boolean; // Defaults to true. If false, the number of bookmarks is not shown
-    starFor: BookmarkFor;
+    bookmarkFor: BookmarkFor;
     bookmarks?: number | null; // Defaults to 0
     sxs?: { root?: { [key: string]: any } };
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export interface StatusMessageArray {

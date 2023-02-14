@@ -1,6 +1,6 @@
-import { StarModel } from "./bookmark";
+import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
-import { PrependString, UserSortBy, UserYou } from "@shared/consts";
+import { UserSortBy, UserYou } from "@shared/consts";
 import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -107,7 +107,7 @@ export const UserModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     }
                 }
@@ -137,6 +137,8 @@ export const UserModel: ModelLogic<{
         sortBy: UserSortBy,
         searchFields: {
             createdTimeFrame: true,
+            maxBookmarks: true,
+            maxViews: true,
             minBookmarks: true,
             minViews: true,
             translationLanguages: true,

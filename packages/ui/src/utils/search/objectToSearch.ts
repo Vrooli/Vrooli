@@ -3,6 +3,7 @@ import { SearchParams } from './schemas/base';
 export enum SearchType {
     Api = 'Api',
     ApiVersion = 'ApiVersion',
+    Bookmark = 'Bookmark',
     Comment = 'Comment',
     Issue = 'Issue',
     Label = 'Label',
@@ -47,7 +48,6 @@ export enum SearchType {
     SmartContractVersion = 'SmartContractVersion',
     Standard = 'Standard',
     StandardVersion = 'StandardVersion',
-    Star = 'Star',
     StatsApi = 'StatsApi',
     StatsOrganization = 'StatsOrganization',
     StatsProject = 'StatsProject',
@@ -90,6 +90,7 @@ export enum SearchPageTabOption {
 export const searchTypeToParams: { [key in SearchType]: (lng: string) => Promise<SearchParams> } = {
     Api: async (lng) => (await import('./schemas/api')).apiSearchParams(lng),
     ApiVersion: async (lng) => (await import('./schemas/apiVersion')).apiVersionSearchParams(lng),
+    Bookmark: async (lng) => (await import('./schemas/bookmark')).bookmarkSearchParams(lng),
     Comment: async (lng) => (await import('./schemas/comment')).commentSearchParams(lng),
     Issue: async (lng) => (await import('./schemas/issue')).issueSearchParams(lng),
     Label: async (lng) => (await import('./schemas/label')).labelSearchParams(lng),
@@ -134,7 +135,6 @@ export const searchTypeToParams: { [key in SearchType]: (lng: string) => Promise
     SmartContractVersion: async (lng) => (await import('./schemas/smartContractVersion')).smartContractVersionSearchParams(lng),
     Standard: async (lng) => (await import('./schemas/standard')).standardSearchParams(lng),
     StandardVersion: async (lng) => (await import('./schemas/standardVersion')).standardVersionSearchParams(lng),
-    Star: async (lng) => (await import('./schemas/star')).starSearchParams(lng),
     StatsApi: async (lng) => (await import('./schemas/statsApi')).statsApiSearchParams(lng),
     StatsOrganization: async (lng) => (await import('./schemas/statsOrganization')).statsOrganizationSearchParams(lng),
     StatsProject: async (lng) => (await import('./schemas/statsProject')).statsProjectSearchParams(lng),

@@ -3,7 +3,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, SearchType, uuidToBase36 } from "utils";
@@ -240,15 +240,14 @@ export const ProjectView = ({
                         </IconButton>
                     </Tooltip>
                     <ShareButton object={projectVersion} zIndex={zIndex} />
-                    <StarButton
+                    <BookmarkButton
                         disabled={!canBookmark}
                         session={session}
                         objectId={projectVersion?.id ?? ''}
-                        starFor={BookmarkFor.Project}
-                        isStar={projectVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarkFor={BookmarkFor.Project}
+                        isBookmarked={projectVersion?.root?.you?.isBookmarked ?? false}
                         bookmarks={projectVersion?.root?.bookmarks ?? 0}
-                        onChange={(isStar: boolean) => { }}
-                        tooltipPlacement="bottom"
+                        onChange={(isBookmarked: boolean) => { }}
                     />
                 </Stack>
             </Stack>

@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
-import { StarModel } from "./bookmark";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 
 const __typename = 'Question' as const;
@@ -73,7 +73,7 @@ export const QuestionModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },
                 }

@@ -19,7 +19,7 @@ export const typeDef = gql`
         activeRuns: [AnyRun!]!
         completedRuns: [AnyRun!]!
         recentlyViewed: [View!]!
-        recentlyBookmarked: [Star!]!
+        recentlyBookmarked: [Bookmark!]!
     }
 
     type Query {
@@ -47,7 +47,7 @@ export const resolvers: {
                     RunRoutine: 'RunRoutine',
                 },
                 recentlyViewed: 'View',
-                recentlyBookmarked: 'Star',
+                recentlyBookmarked: 'Bookmark',
             }, req.languages, true);
             const userId = userData.id;
             const take = 5;
@@ -96,7 +96,7 @@ export const resolvers: {
                 additionalQueries: { userId },
                 info: partial.recentlyBookmarked as PartialGraphQLInfo,
                 input: { take, ...input, sortBy: UserSortBy.DateCreatedDesc, excludeTags: true },
-                objectType: 'Star',
+                objectType: 'Bookmark',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(

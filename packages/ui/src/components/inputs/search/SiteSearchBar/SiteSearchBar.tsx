@@ -89,7 +89,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
 const IconMap = {
     Action: ActionIcon,
     Api: ApiIcon,
-    Bookmark: StarFilledIcon,
+    Bookmark: BookmarkFilledIcon,
     Note: NoteIcon,
     Organization: OrganizationIcon,
     Project: ProjectIcon,
@@ -339,7 +339,7 @@ export function SiteSearchBar({
                         </ListItemText>
                         {/* Bookmark button */}
                         {option.__typename !== 'Shortcut' && option.__typename !== 'Action' && option.bookmarks !== undefined && <BookmarkButton
-                            isBookmark={option.isBookmarked}
+                            isBookmarked={option.isBookmarked}
                             objectId={option.id}
                             onChange={(isBookmarked, event) => handleBookmark(option, isBookmarked, event)}
                             session={session}
@@ -347,7 +347,6 @@ export function SiteSearchBar({
                             bookmarkFor={option.__typename as unknown as BookmarkFor}
                             bookmarks={option.bookmarks}
                             sxs={{ root: { marginRight: 1 } }}
-                            tooltipPlacement="right"
                         />}
                         {/* Object icon */}
                         <ListItemIcon>

@@ -4,7 +4,7 @@ import { APP_LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, Visi
 import { adaHandleRegex } from '@shared/validation';
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { UserViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, SearchType } from "utils";
 import { SearchListGenerator } from "components/lists/types";
@@ -297,15 +297,14 @@ export const UserView = ({
                         </IconButton>
                     </Tooltip>
                     <ShareButton object={user} zIndex={zIndex} />
-                    <StarButton
+                    <BookmarkButton
                         disabled={isOwn}
                         session={session}
                         objectId={user?.id ?? ''}
-                        starFor={BookmarkFor.User}
-                        isStar={user?.you?.isBookmarked ?? false}
+                        bookmarkFor={BookmarkFor.User}
+                        isBookmarked={user?.you?.isBookmarked ?? false}
                         bookmarks={user?.bookmarks ?? 0}
-                        onChange={(isStar: boolean) => { }}
-                        tooltipPlacement="bottom"
+                        onChange={(isBookmarked: boolean) => { }}
                     />
                     <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                 </Stack>
