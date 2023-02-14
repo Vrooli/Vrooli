@@ -7,7 +7,6 @@ import {
     Footer,
     Navbar,
     PullToRefresh,
-    SnackSeverity,
     SnackStack,
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
@@ -168,11 +167,11 @@ export function App() {
     // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
         window.addEventListener('online', () => {
-            PubSub.get().publishSnack({ id: 'online-status', messageKey: 'NowOnline', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ id: 'online-status', messageKey: 'NowOnline', severity: 'Success' });
         });
         window.addEventListener('offline', () => {
             // ID is the same so there is ever only one online/offline snack displayed at a time
-            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', messageKey: 'NoInternet', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', messageKey: 'NoInternet', severity: 'Error' });
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
@@ -226,7 +225,7 @@ export function App() {
                 if (!isInvalidSession) {
                     PubSub.get().publishSnack({
                         messageKey: 'CannotConnectToServer',
-                        severity: SnackSeverity.Error,
+                        severity: 'Error',
                         buttonKey: 'Reload',
                         buttonClicked: () => window.location.reload(),
                     });

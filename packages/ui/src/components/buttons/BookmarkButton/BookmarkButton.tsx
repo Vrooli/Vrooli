@@ -6,7 +6,6 @@ import { uuidValidate } from '@shared/uuid';
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { PubSub } from 'utils';
-import { SnackSeverity } from 'components/dialogs';
 import { documentNodeWrapper } from 'api/utils';
 
 export const BookmarkButton = ({
@@ -60,7 +59,7 @@ export const BookmarkButton = ({
         //     input: { isBookmarked, bookmarkFor, forConnect: objectId },
         //     onSuccess: () => { 
         //         if (onChange) onChange(isBookmarked, event) 
-        //         PubSub.get().publishSnack({ messageKey: isBookmarked ? 'FavoritesAdded' : 'FavoritesRemoved', severity: SnackSeverity.Success });
+        //         PubSub.get().publishSnack({ messageKey: isBookmarked ? 'FavoritesAdded' : 'FavoritesRemoved', severity: 'Success' });
         //     },
         // })
     }, [userId, internalIsBookmarked, bookmarkFor, objectId, onChange]);

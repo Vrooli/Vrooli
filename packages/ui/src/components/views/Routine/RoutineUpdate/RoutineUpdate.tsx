@@ -6,7 +6,7 @@ import { mutationWrapper } from 'api/utils';
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, VersionInput } from "components";
+import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, VersionInput } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
@@ -27,7 +27,7 @@ export const RoutineUpdate = ({
     const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(routineVersionFindOne, 'routineVersion', { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
-        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
+        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
     }, [getData, urlData])
     const routineVersion = useMemo(() => data?.routineVersion, [data]);
 
@@ -94,7 +94,7 @@ export const RoutineUpdate = ({
         validationSchema: routineVersionValidation.update({ minVersion: getMinimumVersion(routineVersion?.root?.versions ?? []) }),
         onSubmit: (values) => {
             if (!routineVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: 'Error' });
                 return;
             }
             mutationWrapper<RoutineVersion, RoutineVersionUpdateInput>({

@@ -12,7 +12,7 @@ import { ColorIconButton, GridSubmitButtons } from "components/buttons";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { PageTitle, SnackSeverity } from "components";
+import { PageTitle } from "components";
 import { SettingsFormData } from "pages";
 import { userTranslationValidation, userValidation } from "@shared/validation";
 import { walletFindHandles } from "api/generated/endpoints/wallet";
@@ -35,7 +35,7 @@ export const SettingsProfile = ({
         if (verifiedWallets.length > 0) {
             findHandles({ variables: { } }); // Intentionally empty
         } else {
-            PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: 'Error' })
         }
     }, [profile, findHandles]);
     useEffect(() => {
@@ -72,11 +72,11 @@ export const SettingsProfile = ({
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
                 return;
             }
             if (!formik.isValid) {
-                PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: 'Error' });
                 return;
             }
             const input = shapeProfile.update(profile, {
@@ -86,7 +86,7 @@ export const SettingsProfile = ({
                 translations: values.translationsUpdate,
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
+                PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: 'Info' });
                 return;
             }
             mutationWrapper<User, ProfileUpdateInput>({

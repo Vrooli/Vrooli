@@ -4,25 +4,25 @@ import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, SvgComponent, WarningIcon 
 import { BasicSnackProps } from '../types';
 
 export enum SnackSeverity {
-    Error = 'error',
-    Info = 'info',
-    Success = 'success',
-    Warning = 'warning',
+    Error = 'Error',
+    Info = 'Info',
+    Success = 'Success',
+    Warning = 'Warning',
 }
 
 const severityStyle = (severity: SnackSeverity | undefined, palette: Palette) => {
     let backgroundColor: string = palette.primary.light;
     let color: string = palette.primary.contrastText;
     switch (severity) {
-        case SnackSeverity.Error:
+        case 'Error':
             backgroundColor = palette.error.dark;
             color = palette.error.contrastText;
             break;
-        case SnackSeverity.Info:
+        case 'Info':
             backgroundColor = palette.info.main;
             color = palette.info.contrastText;
             break;
-        case SnackSeverity.Success:
+        case 'Success':
             backgroundColor = palette.success.main;
             color = palette.success.contrastText;
             break;
@@ -75,18 +75,18 @@ export const BasicSnack = ({
     useEffect(() => {
         // Log snack errors if in development
         if (process.env.NODE_ENV === 'development' && data) {
-            if (severity === SnackSeverity.Error) console.error('Snack data', data);
+            if (severity === 'Error') console.error('Snack data', data);
             else console.info('Snack data', data);
         }
     }, [data, severity])
 
     const Icon = useMemo<SvgComponent>(() => {
         switch (severity) {
-            case SnackSeverity.Error:
+            case 'Error':
                 return ErrorIcon;
-            case SnackSeverity.Info:
+            case 'Info':
                 return InfoIcon;
-            case SnackSeverity.Success:
+            case 'Success':
                 return SuccessIcon;
             default:
                 return WarningIcon;

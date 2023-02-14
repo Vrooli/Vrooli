@@ -6,7 +6,7 @@ import { mutationWrapper } from 'api/utils';
 import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, NoteVersion, NoteVersionUpdateInput, ResourceList } from "@shared/consts";
@@ -49,7 +49,7 @@ session,
         validationSchema: noteVersionValidation.update({}),
         onSubmit: (values) => {
             if (!noteVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadNote', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadNote', severity: 'Error' });
                 return;
             }
             // mutationWrapper<NoteVersion, NoteVersionUpdateInput>({

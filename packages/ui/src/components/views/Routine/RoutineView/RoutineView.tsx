@@ -3,7 +3,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useMutation, useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
+import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36, parseSingleItemUrl, defaultRelationships, defaultResourceList } from "utils";
 import { mutationWrapper } from "api/utils";
@@ -50,7 +50,7 @@ export const RoutineView = ({
         // If IDs are not invalid, throw error if we are not creating a new routine
         else {
             const { build } = parseSearchParams();
-            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
+            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
         }
     }, [getData, urlData])
 
@@ -199,9 +199,9 @@ export const RoutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
         } else {
-            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: 'Error' });
         }
     }, [formik]);
 

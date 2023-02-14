@@ -3,7 +3,7 @@ import { useQuery } from '@apollo/client';
 import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
-import { SnackSeverity, BookmarkButton } from 'components';
+import { BookmarkButton } from 'components';
 import { PubSub, TagShape } from 'utils';
 import { Wrap } from 'types';
 import { tagFindMany } from 'api/generated/endpoints/tag';
@@ -45,17 +45,17 @@ export const TagSelector = ({
         tagLabel = tagLabel.replace(/[,;]/g, '');
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.get().publishSnack({ messageKey: 'TagTooShort', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'TagTooShort', severity: 'Error' });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.get().publishSnack({ messageKey: 'TagTooLong', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'TagTooLong', severity: 'Error' });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.get().publishSnack({ messageKey: 'TagAlreadySelected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'TagAlreadySelected', severity: 'Error' });
             return;
         }
         // Add tag

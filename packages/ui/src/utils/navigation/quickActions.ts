@@ -1,5 +1,4 @@
 import { APP_LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
-import { SnackSeverity } from "components";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
@@ -444,7 +443,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: userProfileUpdate,
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
-                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
             })
             break;
         case 'activate-light-mode':
@@ -452,7 +451,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: userProfileUpdate,
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },
-                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
             })
             break;
     }

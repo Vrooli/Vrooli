@@ -6,7 +6,7 @@ import { mutationWrapper } from 'api/utils';
 import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
@@ -53,7 +53,7 @@ session,
         validationSchema: organizationValidation.update({}),
         onSubmit: (values) => {
             if (!organization) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: 'Error' });
                 return;
             }
             mutationWrapper<Organization, OrganizationUpdateInput>({

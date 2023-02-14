@@ -2,7 +2,7 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
-import { PageContainer, SearchList, ShareSiteDialog, SnackSeverity } from "components";
+import { PageContainer, SearchList, ShareSiteDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
@@ -128,7 +128,7 @@ export function SearchPage({
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
-            PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: 'Error' });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: addUrl
             })}`);

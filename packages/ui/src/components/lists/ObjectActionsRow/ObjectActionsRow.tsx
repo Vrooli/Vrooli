@@ -1,14 +1,11 @@
-import { useMutation } from "api/hooks";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { DeleteType, CopyType, ReportFor, BookmarkFor, VoteFor, CopyResult, CopyInput, Success, VoteInput } from "@shared/consts";
+import { DeleteType, CopyType, ReportFor, BookmarkFor, VoteFor } from "@shared/consts";
 import { EllipsisIcon } from "@shared/icons";
-import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
-import { mutationWrapper } from "api/utils";
+import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog } from "components/dialogs";
 import React, { useCallback, useMemo, useState } from "react";
-import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
+import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, PubSub, useVoter } from "utils";
 import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
-import { copyCopy } from "api/generated/endpoints/copy";
-import { voteVote } from "api/generated/endpoints/vote";
+import { useCopier } from "utils/hooks/useCopier";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',
@@ -77,26 +74,18 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     const openReport = useCallback(() => setReportOpen(true), [setReportOpen]);
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
-    // Mutations
-    const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
-    // const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
-    const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
+    const { handleCopy } = useCopier({
+        objectId: id,
+        objectName: name,
+        objectType: objectType as CopyType,
+        onActionComplete
+    });
 
-    const handleCopy = useCallback(() => {
-        if (!id) return;
-        // Check if objectType can be converted to CopyType
-        const copyType = objectType ? CopyType[objectType] : undefined;
-        if (!copyType) {
-            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
-            return;
-        }
-        mutationWrapper<CopyResult, CopyInput>({
-            mutation: copy,
-            input: { id, intendToPullRequest: true, objectType: copyType },
-            successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
-        })
-    }, [copy, id, name, objectType, onActionComplete]);
+    const { handleVote } = useVoter({
+        objectId: id,
+        objectType: objectType as VoteFor,
+        onActionComplete
+    });
 
     const handleBookmark = useCallback((isBookmarked: boolean, bookmarkFor: BookmarkFor) => {
         if (!id) return;
@@ -106,15 +95,6 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
         //     onSuccess: (data) => { onActionComplete(isBookmarked ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         // })
     }, [id, onActionComplete]);
-
-    const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
-        if (!id) return;
-        mutationWrapper<Success, VoteInput>({
-            mutation: vote,
-            input: { isUpvote, voteFor, forConnect: id },
-            onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
-        })
-    }, [id, onActionComplete, vote]);
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
@@ -151,7 +131,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 break;
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
-                handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
+                handleVote(action === ObjectAction.VoteUp);
                 break;
         }
     }, [handleCopy, handleBookmark, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);

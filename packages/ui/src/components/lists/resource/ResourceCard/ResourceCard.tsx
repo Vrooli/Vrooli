@@ -11,7 +11,6 @@ import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
 import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
-import { SnackSeverity } from 'components/dialogs';
 import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
 import { ResourceUsedFor } from '@shared/consts';
@@ -58,7 +57,7 @@ export const ResourceCard = ({
             // If no resource type or link, show error
             const resourceType = getResourceType(data.link);
             if (!resourceType || !href) {
-                PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: 'Error' });
                 return;
             }
             // Open link

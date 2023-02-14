@@ -5,7 +5,7 @@ import { useLocation } from '@shared/route';
 import { Api, APP_LINKS, GqlModelType, Note, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, User } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
-import { PageContainer, ReportsView, SnackSeverity } from "components";
+import { PageContainer, ReportsView } from "components";
 import { useTranslation } from "react-i18next";
 
 const { ApiCreate, ApiUpdate, ApiView } = lazily(() => import('../../components/views/Api'));
@@ -139,7 +139,7 @@ export const ObjectPage = ({
                 setLocation(`${uuidToBase36(item?.id ?? '')}`, { replace: !hasPreviousPage });
                 PubSub.get().publishSnack({
                     message: `${item?.__typename ?? ''} created!`,
-                    severity: SnackSeverity.Success,
+                    severity: 'Success',
                     buttonText: 'Create another',
                     buttonClicked: () => { setLocation(`add`); },
                 } as any) //TODO

@@ -1,5 +1,5 @@
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, SnackSeverity, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
+import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLinkShape, PubSub, usePromptBeforeUnload, getRoutineVersionStatus, keepSearchParams, NodeRoutineListShape, NodeRoutineListItemShape } from 'utils';
 import { useLocation } from '@shared/route';
@@ -456,7 +456,7 @@ export const BuildView = ({
         }
         // If one or the other is null, then there must be an error
         if (columnIndex === null || rowIndex === null) {
-            PubSub.get().publishSnack({ messageKey: 'InvalidDropLocation', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'InvalidDropLocation', severity: 'Error' });
             return;
         }
         // Otherwise, is a drop
@@ -580,7 +580,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its row and column
         const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
-            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: 'Error' });
             return;
         }
         const { columnIndex, rowIndex } = toNode;
@@ -615,7 +615,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its column
         const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
-            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: 'Error' });
             return;
         }
         // Find the largest row index in the column. New node will be placed in the next row
@@ -827,7 +827,7 @@ export const BuildView = ({
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routineVersion, changedRoutineVersion)) {
-            PubSub.get().publishSnack({ messageKey: 'SaveChangesBeforeLeaving', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'SaveChangesBeforeLeaving', severity: 'Error' });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines

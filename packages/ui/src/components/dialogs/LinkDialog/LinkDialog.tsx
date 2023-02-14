@@ -12,7 +12,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { DialogTitle, GridSubmitButtons, SnackSeverity } from 'components';
+import { DialogTitle, GridSubmitButtons } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { getTranslation, NodeShape, PubSub } from 'utils';
@@ -65,7 +65,7 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ messageKey: 'SelectFromAndToNodes', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'SelectFromAndToNodes', severity: 'Error' });
             return;
         }
         handleClose({

@@ -8,7 +8,6 @@ import { useMutation } from "api/hooks";
 import { useFormik } from "formik";
 import { NotificationSettings, NotificationSettingsUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from "@shared/uuid";
-import { SnackSeverity } from "components";
 import { userValidation } from "@shared/validation";
 
 export const SettingsNotifications = ({
@@ -31,11 +30,11 @@ export const SettingsNotifications = ({
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
             // if (!profile) {
-            //     PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
+            //     PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
             //     return;
             // }
             // if (!formik.isValid) {
-            //     PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
+            //     PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: 'Error' });
             //     return;
             // }
             // const input = shapeProfile.update(profile, {
@@ -45,7 +44,7 @@ export const SettingsNotifications = ({
             //     translations: values.translationsUpdate,
             // })
             // if (!input || Object.keys(input).length === 0) {
-            //     PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
+            //     PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: 'Info' });
             //     return;
             // }
             // mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({

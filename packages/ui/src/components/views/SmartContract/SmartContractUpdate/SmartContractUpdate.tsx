@@ -6,7 +6,7 @@ import { mutationWrapper } from 'api/utils';
 import { smartContractVersionValidation, smartContractVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeSmartContractVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, SmartContractVersion, SmartContractVersionUpdateInput, ResourceList } from "@shared/consts";
@@ -53,7 +53,7 @@ session,
         validationSchema: smartContractVersionValidation.update({}),
         onSubmit: (values) => {
             if (!smartContractVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadSmartContract', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadSmartContract', severity: 'Error' });
                 return;
             }
             // mutationWrapper<SmartContractVersion, SmartContractVersionUpdateInput>({

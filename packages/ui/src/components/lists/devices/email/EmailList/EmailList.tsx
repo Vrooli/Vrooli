@@ -10,7 +10,6 @@ import { PubSub } from 'utils';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
 import { AddIcon } from '@shared/icons';
-import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success } from '@shared/consts';
 import { emailValidation } from '@shared/validation';
@@ -40,7 +39,7 @@ export const EmailList = ({
                     emailAddress: values.emailAddress,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });
+                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: 'Info' });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },
@@ -55,7 +54,7 @@ export const EmailList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: 'Error' });
             return;
         }
         // Confirmation dialog
@@ -87,7 +86,7 @@ export const EmailList = ({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
             onSuccess: () => {
-                PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });
+                PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: 'Info' });
             },
         })
     }, [loadingVerifyEmail, verifyMutation]);

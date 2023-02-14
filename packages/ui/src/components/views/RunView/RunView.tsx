@@ -430,7 +430,7 @@ export const RunView = ({
     //         // Check if this is because the subroutine data hasn't been fetched yet
     //         //TODO
     //         // Otherwise, this is an error
-    //         // PubSub.get().publishSnack({ messageKey: 'StepNotFound', severity: SnackSeverity.Error });
+    //         // PubSub.get().publishSnack({ messageKey: 'StepNotFound', severity: 'Error' });
     //         return;
     //     }
     //     // If current step is a list, then redirect to first step in list

@@ -14,7 +14,7 @@ import { Forms, PubSub, useReactSearch } from 'utils';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
-import { PasswordTextField, SnackSeverity } from 'components';
+import { PasswordTextField } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
 import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
@@ -48,7 +48,7 @@ export const LogInForm = ({
                 input: { ...values, verificationCode },
                 successCondition: (data) => data !== null,
                 onSuccess: (data) => { 
-                    if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: SnackSeverity.Success });
+                    if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
                     PubSub.get().publishSession(data); setLocation(redirect ?? APP_LINKS.Home) 
                 },
                 showDefaultErrorSnack: false,
@@ -66,12 +66,12 @@ export const LogInForm = ({
                     else if (hasErrorCode(response, 'EmailNotFound')) {
                         PubSub.get().publishSnack({ 
                             messageKey: 'EmailNotFound', 
-                            severity: SnackSeverity.Error, 
+                            severity: 'Error', 
                             buttonKey: 'SignUp',
                             buttonClicked: () => { toSignUp() }
                         });
                     } else {
-                        PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: SnackSeverity.Error, data: response });
+                        PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: 'Error', data: response });
                     }
                     formik.setSubmitting(false);
                 }

@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
+import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceTranslation, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { mutationWrapper } from 'api/utils';
@@ -88,7 +88,7 @@ export const ResourceDialog = ({
                 // Otherwise, update
                 else {
                     if (!partialData || !partialData.id) {
-                        PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: SnackSeverity.Error });
+                        PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: 'Error' });
                         return;
                     }
                     mutationWrapper<Resource, ResourceUpdateInput>({

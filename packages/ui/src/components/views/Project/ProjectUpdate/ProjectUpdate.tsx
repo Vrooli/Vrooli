@@ -5,7 +5,7 @@ import { mutationWrapper } from 'api/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
@@ -64,7 +64,7 @@ export const ProjectUpdate = ({
         validationSchema: projectValidation.update({}),
         onSubmit: (values) => {
             if (!projectVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: 'Error' });
                 return;
             }
             mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({

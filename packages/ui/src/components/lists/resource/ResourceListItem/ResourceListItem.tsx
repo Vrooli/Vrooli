@@ -8,7 +8,7 @@ import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation
 import { useLocation } from '@shared/route';
 import { firstString, getDisplay, getResourceUrl, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
 import { getResourceIcon } from '..';
-import { SnackSeverity, TextLoading } from 'components';
+import { TextLoading } from 'components';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 
 /**
@@ -46,7 +46,7 @@ export function ResourceListItem({
         // If no resource type or link, show error
         const resourceType = getResourceType(data.link);
         if (!resourceType || !href) {
-            PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: 'Error' });
             return;
         }
         // Open link

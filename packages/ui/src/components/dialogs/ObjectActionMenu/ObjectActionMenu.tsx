@@ -1,13 +1,10 @@
-import { useMutation } from "api/hooks";
 import { useCallback, useMemo, useState } from "react";
-import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, BookmarkFor, Success, VoteFor, VoteInput } from "@shared/consts";
-import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
+import { CopyType, DeleteType, ReportFor, BookmarkFor, VoteFor } from "@shared/consts";
+import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { ObjectActionMenuProps } from "../types";
-import { mutationWrapper } from "api/utils";
-import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
+import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, PubSub, useVoter } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-import { copyCopy } from "api/generated/endpoints/copy";
-import { voteVote } from "api/generated/endpoints/vote";
+import { useCopier } from "utils/hooks/useCopier";
 
 export const ObjectActionMenu = ({
     anchorEl,
@@ -45,25 +42,21 @@ export const ObjectActionMenu = ({
     const openReport = useCallback(() => setReportOpen(true), [setReportOpen]);
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
-    // Mutations
-    const [fork] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
-    // const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
-    const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
+    const { handleCopy } = useCopier({
+        objectId: id,
+        objectName: name,
+        objectType: objectType as CopyType,
+        onActionComplete
+    });
 
-    const handleFork = useCallback(() => {
-        if (!id) return;
-        // Check if objectType can be converted to CopyType
-        if(!Object.values(CopyType).includes(objectType as unknown as CopyType)) {
-            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
-            return;
-        }
-        mutationWrapper<CopyResult, CopyInput>({
-            mutation: fork,
-            input: { id, intendToPullRequest: true, objectType: objectType as unknown as CopyType },
-            successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
-        })
-    }, [fork, id, name, objectType, onActionComplete]);
+    const { handleVote } = useVoter({
+        objectId: id,
+        objectType: objectType as VoteFor,
+        onActionComplete
+    });
+
+    // Mutations
+    // const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
 
     const handleBookmark = useCallback((isBookmarked: boolean, bookmarkFor: BookmarkFor) => {
         // if (!id) return;
@@ -73,15 +66,6 @@ export const ObjectActionMenu = ({
         //     onSuccess: (data) => { onActionComplete(isBookmarked ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         // })
     }, [id, onActionComplete]);
-
-    const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
-        if (!id) return;
-        mutationWrapper<Success, VoteInput>({
-            mutation: vote,
-            input: { isUpvote, voteFor, forConnect: id },
-            onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
-        })
-    }, [id, onActionComplete, vote]);
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
@@ -98,7 +82,7 @@ export const ObjectActionMenu = ({
                 PubSub.get().publishFindInPage();
                 break;
             case ObjectAction.Fork:
-                handleFork();
+                handleCopy();
                 break;
             case ObjectAction.Report:
                 openReport();
@@ -115,10 +99,10 @@ export const ObjectActionMenu = ({
                 break;
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
-                handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
+                handleVote(action === ObjectAction.VoteUp);
         }
         onClose();
-    }, [handleFork, handleBookmark, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleBookmark, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
 
     const data = useMemo(() => getActionsDisplayData(availableActions), [availableActions]);
 

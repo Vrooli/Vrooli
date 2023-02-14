@@ -3,7 +3,7 @@ import { useLocation } from '@shared/route';
 import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
+import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
 import { defaultRelationships, defaultResourceList, getLanguageSubtag, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, PubSub, standardVersionToFieldData, TagShape } from "utils";
 import { uuid } from '@shared/uuid';
@@ -39,7 +39,7 @@ export const StandardView = ({
     const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(standardVersionFindOne, 'standardVersion', { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
-        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
+        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
     }, [getData, urlData])
 
     const [standardVersion, setStandardVersion] = useState<StandardVersion | null>(null);

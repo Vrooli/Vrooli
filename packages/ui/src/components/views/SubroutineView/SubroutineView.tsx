@@ -1,5 +1,5 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
+import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
@@ -135,9 +135,9 @@ export const SubroutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
         } else {
-            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: 'Error' });
         }
     }, [formik.values]);
 

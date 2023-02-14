@@ -5,7 +5,7 @@ import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
@@ -23,7 +23,7 @@ export const StandardUpdate = ({
     const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(standardVersionFindOne, 'standardVersion', { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
-        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
+        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
     }, [getData, urlData])
     const standardVersion = useMemo(() => data?.standardVersion, [data]);
 
@@ -72,7 +72,7 @@ export const StandardUpdate = ({
         validationSchema: standardVersionValidation.update({}),
         onSubmit: (values) => {
             if (!standardVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadStandard', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadStandard', severity: 'Error' });
                 return;
             }
             // Update

@@ -8,7 +8,6 @@ import Markdown from 'markdown-to-jsx';
 import { linkColors, noSelect } from 'styles';
 import { PubSub, useDebounce } from 'utils';
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from '@shared/icons';
-import { SnackSeverity } from 'components';
 
 enum Headers {
     H1 = 'h1',
@@ -214,7 +213,7 @@ export const MarkdownInput = ({
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
         // If no selection, return
         if (selectionStart === selectionEnd) {
-            PubSub.get().publishSnack({ messageKey: 'NoTextSelected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'NoTextSelected', severity: 'Error' });
             return;
         }
         // Insert ~~ before the selection, and ~~ after the selection
