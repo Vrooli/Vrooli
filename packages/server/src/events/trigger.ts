@@ -1,5 +1,5 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { DeleteType, CopyType, StarFor, VoteFor, GqlModelType } from "@shared/consts";
+import { DeleteType, CopyType, BookmarkFor, VoteFor, GqlModelType } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
 import { getLogic } from "../getters";
 import { Notify } from "../notify";
@@ -184,7 +184,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // fdfdafdsaf
         // notification.toOwner(owner, forkedByUserId);
     },
-    objectStar: async (isStar: boolean, objectType: StarFor, objectId: string, userId: string) => {
+    objectStar: async (isStar: boolean, objectType: BookmarkFor, objectId: string, userId: string) => {
         // const notification = Notify(prisma, languages).pushObjectStar();
         // // Send notification to owner(s), depending on how many stars the object already has
         // fasdf

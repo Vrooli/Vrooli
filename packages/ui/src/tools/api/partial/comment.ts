@@ -22,7 +22,7 @@ export const commentYou: GqlPartial<CommentYou> = {
         canReport: true,
         canUpdate: true,
         canVote: true,
-        isStarred: true,
+        isBookmarked: true,
         isUpvoted: true,
     },
     full: {},
@@ -72,7 +72,7 @@ export const comment: GqlPartial<Comment> = {
             }
         },
         score: true,
-        stars: true,
+        bookmarks: true,
         reportsCount: true,
         you: () => rel(commentYou, 'full'),
     },

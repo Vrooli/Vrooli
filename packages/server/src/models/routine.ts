@@ -1,5 +1,5 @@
 import { routineValidation } from "@shared/validation";
-import { StarModel } from "./star";
+import { StarModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Trigger } from "../events";
@@ -267,7 +267,7 @@ export const RoutineModel: ModelLogic<{
             issues: 'Issue',
             labels: 'Label',
             parent: 'Routine',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             versions: 'RoutineVersion',
         },
@@ -282,14 +282,14 @@ export const RoutineModel: ModelLogic<{
             issues: 'Issue',
             labels: 'Label',
             pullRequests: 'PullRequest',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             stats: 'StatsRoutine',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'RoutineVersion',
             viewedBy: 'View',
         },
-        joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
+        joinMap: { labels: 'label', tags: 'tag', bookmarkedBy: 'user' },
         countFields: {
             forksCount: true,
             issuesCount: true,
@@ -305,7 +305,7 @@ export const RoutineModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },
@@ -438,10 +438,10 @@ export const RoutineModel: ModelLogic<{
             issuesId: true,
             labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,

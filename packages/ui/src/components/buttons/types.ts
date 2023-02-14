@@ -1,5 +1,5 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, StarFor } from '@shared/consts';
+import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import React from 'react';
 import { NavigableObject} from 'types';
@@ -118,7 +118,7 @@ export interface StarButtonProps {
     onChange?: (isStar: boolean, event?: any) => void;
     session: Session;
     showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
-    starFor: StarFor;
+    starFor: BookmarkFor;
     stars?: number | null; // Defaults to 0
     sxs?: { root?: { [key: string]: any } };
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';

@@ -95,7 +95,7 @@ export const typeDef = gql`
         ids: [ID!]
         languages: [String!]
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         createdById: ID
         ownedByUserId: ID

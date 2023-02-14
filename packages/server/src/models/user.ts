@@ -1,4 +1,4 @@
-import { StarModel } from "./star";
+import { StarModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { PrependString, UserSortBy, UserYou } from "@shared/consts";
 import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
@@ -42,7 +42,7 @@ export const UserModel: ModelLogic<{
             // phones: 'Phone',
             projects: 'Project',
             pushDevices: 'PushDevice',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             reportsCreated: 'Report',
             reportsReceived: 'Report',
             routines: 'Routine',
@@ -85,7 +85,7 @@ export const UserModel: ModelLogic<{
             smartContracts: 'SmartContract',
             standardsCreated: 'Standard',
             standards: 'Standard',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfersIncoming: 'Transfer',
             transfersOutgoing: 'Transfer',
@@ -96,7 +96,7 @@ export const UserModel: ModelLogic<{
         },
         joinMap: {
             meetingsAttending: 'user',
-            starredBy: 'user',
+            bookmarkedBy: 'user',
         },
         countFields: {
             reportsReceivedCount: true,
@@ -107,7 +107,7 @@ export const UserModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     }
                 }
@@ -133,11 +133,11 @@ export const UserModel: ModelLogic<{
         yup: userValidation,
     },
     search: {
-        defaultSort: UserSortBy.StarsDesc,
+        defaultSort: UserSortBy.BookmarksDesc,
         sortBy: UserSortBy,
         searchFields: {
             createdTimeFrame: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             translationLanguages: true,
             updatedTimeFrame: true,

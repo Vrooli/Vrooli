@@ -10,8 +10,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     input TagCreateInput {
@@ -32,8 +32,8 @@ export const typeDef = gql`
         tag: String!
         created_at: Date!
         updated_at: Date!
-        stars: Int!
-        starredBy: [User!]!
+        bookmarks: Int!
+        bookmarkedBy: [User!]!
         translations: [TagTranslation!]!
         apis: [Api!]!
         notes: [Note!]!
@@ -49,7 +49,7 @@ export const typeDef = gql`
 
     type TagYou {
         isOwn: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
     }
 
     input TagTranslationCreateInput {
@@ -74,8 +74,8 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        maxStars: Int
-        minStars: Int
+        maxBookmarks: Int
+        minBookmarks: Int
         searchString: String
         sortBy: TagSortBy
         take: Int

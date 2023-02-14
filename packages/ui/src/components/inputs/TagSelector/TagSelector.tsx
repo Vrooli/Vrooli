@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@apollo/client';
-import { StarFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
+import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { SnackSeverity, StarButton } from 'components';
@@ -97,7 +97,7 @@ export const TagSelector = ({
                         .map(t => (t as Tag).id) as string[] :
                     [],
                 searchString: inputValue,
-                sortBy: TagSortBy.StarsDesc,
+                sortBy: TagSortBy.BookmarksDesc,
                 take: 25,
             }
         }
@@ -129,7 +129,7 @@ export const TagSelector = ({
         return [...queried, ...known];
     }, [autocompleteData, inputValue, tagsRef]);
 
-    const handleIsStarred = useCallback((tag: string, isStarred: boolean) => {
+    const handleIsStarred = useCallback((tag: string, isBookmarked: boolean) => {
         // Update tag ref
         if (!tagsRef.current) tagsRef.current = {};
         ((tagsRef.current as TagsRef)[tag] as any) = { ...(tagsRef.current as TagsRef)[tag], isStarred };
@@ -174,7 +174,7 @@ export const TagSelector = ({
                     <StarButton
                         session={session}
                         objectId={(option as Tag).id ?? ''}
-                        starFor={StarFor.Tag}
+                        starFor={BookmarkFor.Tag}
                         isStar={(option as Tag).you.isStarred}
                         stars={(option as Tag).stars}
                         onChange={(isStar) => { handleIsStarred(option.tag, isStar); }}

@@ -41,4 +41,4 @@ export const projectOrRoutineSearchSchema = (lng: string): FormSchema => ({
     ]
 })
 
-export const projectOrRoutineSearchParams = (lng: string) => toParams(projectOrRoutineSearchSchema(lng), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.StarsDesc)
+export const projectOrRoutineSearchParams = (lng: string) => toParams(projectOrRoutineSearchSchema(lng), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc)

@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Star, View, Vote } from "@shared/consts";
+import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Bookmark, View, Vote } from "@shared/consts";
 import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
 import { NavigableObject, SetLocation } from "types";
@@ -32,7 +32,7 @@ export type ObjectType = 'Api' |
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
     // If object is a star/vote/some other type that links to a main object, use the "to" property
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectUrlBase((object as Star | View | Vote).to as any);
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectUrlBase((object as Bookmark | View | Vote).to as any);
     // If the object is a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getObjectUrlBase((object as RunRoutine).routineVersion as any);
     // If the object is a run project, use the project version
@@ -50,7 +50,7 @@ export const getObjectSlug = (object: { __typename: `${GqlModelType}` | 'Action'
     // If object is an action/shortcut, return blank
     if (isOfType(object, 'Action', 'Shortcut')) return '';
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectSlug((object as Star | View | Vote).to as any);
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectSlug((object as Bookmark | View | Vote).to as any);
     // If the object is a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getObjectSlug((object as RunRoutine).routineVersion as any);
     // If the object is a run project, use the project version

@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
-import { StarModel } from "./star";
+import { StarModel } from "./bookmark";
 import { VoteModel } from "./vote";
 
 const __typename = 'Question' as const;
@@ -39,7 +39,7 @@ export const QuestionModel: ModelLogic<{
             answers: 'QuestionAnswer',
             comments: 'Comment',
             reports: 'Report',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
         },
         prismaRelMap: {
@@ -56,11 +56,11 @@ export const QuestionModel: ModelLogic<{
             answers: 'QuestionAnswer',
             reports: 'Report',
             tags: 'Tag',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             votedBy: 'User',
             viewedBy: 'User',
         },
-        joinMap: { starredBy: 'user', tags: 'tag' },
+        joinMap: { bookmarkedBy: 'user', tags: 'tag' },
         countFields: {
             answersCount: true,
             commentsCount: true,
@@ -73,7 +73,7 @@ export const QuestionModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },
                 }

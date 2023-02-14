@@ -2,6 +2,7 @@ import { GqlModelType } from '@shared/consts';
 import { ApiModel } from './api';
 import { ApiKeyModel } from './apiKey';
 import { ApiVersionModel } from './apiVersion';
+import { BookmarkModel } from './bookmark';
 import { CommentModel } from './comment';
 import { EmailModel } from './email';
 import { IssueModel } from './issue';
@@ -59,7 +60,6 @@ import { SmartContractModel } from './smartContract';
 import { SmartContractVersionModel } from './smartContractVersion';
 import { StandardModel } from './standard';
 import { StandardVersionModel } from './standardVersion';
-import { StarModel } from './star';
 import { StatsApiModel } from './statsApi';
 import { StatsOrganizationModel } from './statsOrganization';
 import { StatsProjectModel } from './statsProject';
@@ -86,6 +86,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     Api: ApiModel,
     ApiKey: ApiKeyModel,
     ApiVersion: ApiVersionModel,
+    Bookmark: BookmarkModel,
     Comment: CommentModel,
     Email: EmailModel,
     Issue: IssueModel,
@@ -143,7 +144,6 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     SmartContractVersion: SmartContractVersionModel,
     Standard: StandardModel,
     StandardVersion: StandardVersionModel,
-    Star: StarModel,
     StatsApi: StatsApiModel,
     StatsOrganization: StatsOrganizationModel,
     StatsProject: StatsProjectModel,
@@ -166,6 +166,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
 export * from './api';
 export * from './apiKey';
 export * from './apiVersion';
+export * from './bookmark';
 export * from './comment';
 export * from './email';
 export * from './routineVersionInput';
@@ -225,7 +226,6 @@ export * from './smartContract';
 export * from './smartContractVersion';
 export * from './standard';
 export * from './standardVersion';
-export * from './star';
 export * from './statsApi';
 export * from './statsOrganization';
 export * from './statsProject';

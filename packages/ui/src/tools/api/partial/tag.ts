@@ -17,7 +17,7 @@ export const tagYou: GqlPartial<TagYou> = {
     __typename: 'TagYou',
     common: {
         isOwn: true,
-        isStarred: true,
+        isBookmarked: true,
     },
     full: {},
     list: {},
@@ -29,7 +29,7 @@ export const tag: GqlPartial<Tag> = {
         id: true,
         created_at: true,
         tag: true,
-        stars: true,
+        bookmarks: true,
         translations: () => rel(tagTranslation, 'full'),
         you: () => rel(tagYou, 'full'),
     },

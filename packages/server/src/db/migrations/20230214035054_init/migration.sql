@@ -69,7 +69,7 @@ CREATE TABLE "api" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -117,7 +117,7 @@ CREATE TABLE "api_version" (
 -- CreateTable
 CREATE TABLE "api_version_translation" (
     "id" UUID NOT NULL,
-    "name" VARCHAR(128),
+    "name" VARCHAR(128) NOT NULL,
     "summary" VARCHAR(1024),
     "details" VARCHAR(8192),
     "language" VARCHAR(3) NOT NULL,
@@ -144,7 +144,8 @@ CREATE TABLE "api_key" (
     "creditsUsedBeforeLimit" INTEGER NOT NULL DEFAULT 20000,
     "stopAtLimit" BOOLEAN NOT NULL DEFAULT true,
     "absoluteMax" INTEGER DEFAULT 1000000,
-    "userId" UUID NOT NULL,
+    "organizationId" UUID,
+    "userId" UUID,
 
     CONSTRAINT "api_key_pkey" PRIMARY KEY ("id")
 );
@@ -169,7 +170,7 @@ CREATE TABLE "comment" (
     "smartContractVersionId" UUID,
     "standardVersionId" UUID,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "comment_pkey" PRIMARY KEY ("id")
 );
@@ -216,7 +217,7 @@ CREATE TABLE "issue" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
     "closedAt" TIMESTAMPTZ(6),
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "apiId" UUID,
     "organizationId" UUID,
@@ -419,7 +420,7 @@ CREATE TABLE "note" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "parentId" UUID,
@@ -539,7 +540,7 @@ CREATE TABLE "organization" (
     "isOpenToNewMembers" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "permissions" VARCHAR(4096) NOT NULL,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "parentId" UUID,
     "premiumId" UUID,
@@ -685,10 +686,10 @@ CREATE TABLE "post" (
     "repostedFromId" UUID,
     "resourceListId" UUID,
     "isPinned" BOOLEAN NOT NULL DEFAULT false,
-    "isPublic" BOOLEAN NOT NULL DEFAULT false,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "organizationId" UUID,
     "userId" UUID,
@@ -724,6 +725,7 @@ CREATE TABLE "phone" (
     "lastVerifiedTime" TIMESTAMPTZ(6),
     "verificationCode" VARCHAR(6),
     "lastVerificationCodeRequestAttempt" TIMESTAMPTZ(6),
+    "organizationId" UUID,
     "userId" UUID,
 
     CONSTRAINT "phone_pkey" PRIMARY KEY ("id")
@@ -769,7 +771,7 @@ CREATE TABLE "project" (
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "createdById" UUID,
@@ -894,7 +896,7 @@ CREATE TABLE "question" (
     "referencing" VARCHAR(2048),
     "hasAcceptedAnswer" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "apiId" UUID,
     "noteId" UUID,
@@ -920,12 +922,21 @@ CREATE TABLE "question_translation" (
 );
 
 -- CreateTable
+CREATE TABLE "question_tags" (
+    "id" UUID NOT NULL,
+    "taggedId" UUID NOT NULL,
+    "tagTag" VARCHAR(128) NOT NULL,
+
+    CONSTRAINT "question_tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "question_answer" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "isAccepted" BOOLEAN NOT NULL DEFAULT false,
     "questionId" UUID NOT NULL,
     "createdById" UUID,
@@ -948,6 +959,7 @@ CREATE TABLE "quiz" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "maxAttempts" INTEGER,
     "randomizeQuestionOrder" BOOLEAN NOT NULL DEFAULT false,
     "revealCorrectAnswers" BOOLEAN NOT NULL DEFAULT true,
@@ -955,7 +967,7 @@ CREATE TABLE "quiz" (
     "wasAutoGenerated" BOOLEAN NOT NULL DEFAULT false,
     "pointsToPass" INTEGER,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "routineId" UUID,
     "projectId" UUID,
     "createdById" UUID,
@@ -1089,6 +1101,7 @@ CREATE TABLE "report" (
     "organizationId" UUID,
     "postId" UUID,
     "projectVersionId" UUID,
+    "questionId" UUID,
     "routineVersionId" UUID,
     "smartContractVersionId" UUID,
     "standardVersionId" UUID,
@@ -1203,7 +1216,7 @@ CREATE TABLE "routine" (
     "isInternal" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "createdById" UUID,
@@ -1497,7 +1510,7 @@ CREATE TABLE "smart_contract" (
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "createdById" UUID,
@@ -1514,8 +1527,8 @@ CREATE TABLE "smart_contract_version" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
-    "default" VARCHAR(1024),
-    "contractType" TEXT NOT NULL,
+    "default" VARCHAR(2048),
+    "contractType" VARCHAR(256) NOT NULL,
     "content" VARCHAR(8192) NOT NULL,
     "isLatest" BOOLEAN NOT NULL DEFAULT false,
     "resourceListId" UUID,
@@ -1570,7 +1583,7 @@ CREATE TABLE "standard" (
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -1590,7 +1603,7 @@ CREATE TABLE "standard_version" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
-    "default" VARCHAR(1024),
+    "default" VARCHAR(2048),
     "standardType" TEXT NOT NULL,
     "props" VARCHAR(8192) NOT NULL,
     "isLatest" BOOLEAN NOT NULL DEFAULT false,
@@ -1641,10 +1654,11 @@ CREATE TABLE "standard_labels" (
 );
 
 -- CreateTable
-CREATE TABLE "star" (
+CREATE TABLE "bookmark" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "label" VARCHAR(128) DEFAULT 'Favorites',
     "byId" UUID NOT NULL,
     "apiId" UUID,
     "commentId" UUID,
@@ -1662,7 +1676,7 @@ CREATE TABLE "star" (
     "tagId" UUID,
     "userId" UUID,
 
-    CONSTRAINT "star_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "bookmark_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1862,7 +1876,7 @@ CREATE TABLE "tag" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "tag" VARCHAR(128) NOT NULL,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "createdById" UUID,
 
     CONSTRAINT "tag_pkey" PRIMARY KEY ("id")
@@ -1945,7 +1959,7 @@ CREATE TABLE "user" (
     "longestStreak" INTEGER NOT NULL DEFAULT 0,
     "accountTabsOrder" VARCHAR(255),
     "notificationSettings" VARCHAR(2048),
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "premiumId" UUID,
     "status" "AccountStatus" NOT NULL DEFAULT 'Unlocked',
@@ -2300,6 +2314,9 @@ CREATE UNIQUE INDEX "project_labels_labelledId_labelId_key" ON "project_labels"(
 CREATE UNIQUE INDEX "question_translation_questionId_language_key" ON "question_translation"("questionId", "language");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "question_tags_taggedId_tagTag_key" ON "question_tags"("taggedId", "tagTag");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "question_answer_translation_answerId_language_key" ON "question_answer_translation"("answerId", "language");
 
 -- CreateIndex
@@ -2534,7 +2551,10 @@ ALTER TABLE "api_tags" ADD CONSTRAINT "api_tags_tagTag_fkey" FOREIGN KEY ("tagTa
 ALTER TABLE "api_tags" ADD CONSTRAINT "api_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "api_key" ADD CONSTRAINT "api_key_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "api_key" ADD CONSTRAINT "api_key_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "api_key" ADD CONSTRAINT "api_key_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "comment" ADD CONSTRAINT "comment_apiVersionId_fkey" FOREIGN KEY ("apiVersionId") REFERENCES "api_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2855,6 +2875,9 @@ ALTER TABLE "post_tags" ADD CONSTRAINT "post_tags_taggedId_fkey" FOREIGN KEY ("t
 ALTER TABLE "post_translation" ADD CONSTRAINT "post_translation_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "phone" ADD CONSTRAINT "phone_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "phone" ADD CONSTRAINT "phone_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2963,6 +2986,12 @@ ALTER TABLE "question" ADD CONSTRAINT "question_createdById_fkey" FOREIGN KEY ("
 ALTER TABLE "question_translation" ADD CONSTRAINT "question_translation_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "question_tags" ADD CONSTRAINT "question_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "question_tags" ADD CONSTRAINT "question_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "question_answer" ADD CONSTRAINT "question_answer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3033,6 +3062,9 @@ ALTER TABLE "report" ADD CONSTRAINT "report_postId_fkey" FOREIGN KEY ("postId") 
 
 -- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "report" ADD CONSTRAINT "report_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_routineVersionId_fkey" FOREIGN KEY ("routineVersionId") REFERENCES "routine_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3281,52 +3313,52 @@ ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelledId_fkey" F
 ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "star" ADD CONSTRAINT "star_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "stats_api" ADD CONSTRAINT "stats_api_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;

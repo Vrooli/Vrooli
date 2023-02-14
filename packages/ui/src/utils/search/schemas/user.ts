@@ -16,4 +16,4 @@ export const userSearchSchema = (lng: string): FormSchema => ({
     ]
 })
 
-export const userSearchParams = (lng: string) => toParams(userSearchSchema(lng), userFindMany, UserSortBy, UserSortBy.StarsDesc)
+export const userSearchParams = (lng: string) => toParams(userSearchSchema(lng), userFindMany, UserSortBy, UserSortBy.BookmarksDesc)

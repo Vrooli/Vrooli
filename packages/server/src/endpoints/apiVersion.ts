@@ -106,7 +106,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         minScore: Int
-        minStars: Int
+        maxBookmarks: Int
         minViews: Int
         createdById: ID
         ownedByUserId: ID

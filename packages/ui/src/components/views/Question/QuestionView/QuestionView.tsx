@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, Question, StarFor } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, Question, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, StarButton } from "components";
@@ -194,7 +194,7 @@ export const QuestionView = ({
                         disabled={!canStar}
                         session={session}
                         objectId={question?.id ?? ''}
-                        starFor={StarFor.Question}
+                        starFor={BookmarkFor.Question}
                         isStar={question?.you?.isStarred ?? false}
                         stars={question?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}

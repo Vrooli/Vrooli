@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, SmartContractVersion, StarFor } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, SmartContractVersion, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, StarButton } from "components";
@@ -194,7 +194,7 @@ export const SmartContractView = ({
                         disabled={!canStar}
                         session={session}
                         objectId={smartContractVersion?.id ?? ''}
-                        starFor={StarFor.SmartContract}
+                        starFor={BookmarkFor.SmartContract}
                         isStar={smartContractVersion?.root?.you?.isStarred ?? false}
                         stars={smartContractVersion?.root?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}

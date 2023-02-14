@@ -10,8 +10,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     input OrganizationCreateInput {
@@ -55,7 +55,7 @@ export const typeDef = gql`
         handle: String
         isOpenToNewMembers: Boolean!
         isPrivate: Boolean!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         translatedName: String!
         apis: [Api!]!
@@ -95,7 +95,7 @@ export const typeDef = gql`
         smartContractsCount: Int!
         standards: [Standard!]!
         standardsCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         stats: [StatsOrganization!]!
         tags: [Tag!]!
         transfersIncoming: [Transfer!]!
@@ -113,7 +113,7 @@ export const typeDef = gql`
         canReport: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isViewed: Boolean!
         yourMembership: Member
     }
@@ -147,10 +147,10 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isOpenToNewMembers: Boolean
-        maxStars: Int
+        maxBookmarks: Int
         maxViews: Int
         memberUserIds: [ID!]
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         projectId: ID
         reportId: ID

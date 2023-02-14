@@ -20,8 +20,8 @@ export const typeDef = gql`
         DateUpdatedDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     enum IssueStatus {
@@ -80,9 +80,9 @@ export const typeDef = gql`
         translations: [IssueTranslation!]!
         translationsCount: Int!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
-        starredBy: [Star!]
+        bookmarkedBy: [Star!]
         you: IssueYou!
     }
 
@@ -94,7 +94,7 @@ export const typeDef = gql`
         canReport: Boolean!
         canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
     }
 
@@ -123,7 +123,7 @@ export const typeDef = gql`
         ids: [ID!]
         status: IssueStatus
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         apiId: ID
         organizationId: ID

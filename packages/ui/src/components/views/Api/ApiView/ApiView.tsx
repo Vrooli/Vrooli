@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, ApiVersion, ResourceList, StarFor } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, ApiVersion, ResourceList, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, StarButton } from "components";
@@ -215,7 +215,7 @@ export const ApiView = ({
                         disabled={!canStar}
                         session={session}
                         objectId={apiVersion?.id ?? ''}
-                        starFor={StarFor.Api}
+                        starFor={BookmarkFor.Api}
                         isStar={apiVersion?.root?.you?.isStarred ?? false}
                         stars={apiVersion?.root?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}

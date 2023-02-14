@@ -11,7 +11,7 @@ import { documentNodeWrapper } from 'api/utils';
 import { StarInput, Success } from '@shared/consts';
 import { starStar } from 'api/generated/endpoints/star';
 
-export const StarButton = ({
+export const BookmarkButton = ({
     disabled = false,
     isStar = false,
     objectId,

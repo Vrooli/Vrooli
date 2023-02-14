@@ -4,7 +4,7 @@ import { Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInpu
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
-import { StarModel } from "./star";
+import { StarModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { VoteModel } from "./vote";
 
@@ -40,7 +40,7 @@ export const IssueModel: ModelLogic<{
             createdBy: 'User',
             labels: 'Label',
             reports: 'Report',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             to: {
                 api: 'Api',
                 organization: 'Organization',
@@ -65,10 +65,10 @@ export const IssueModel: ModelLogic<{
             labels: 'Label',
             reports: 'Report',
             votedBy: 'Vote',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             viewedBy: 'View',
         },
-        joinMap: { labels: 'label', starredBy: 'user' },
+        joinMap: { labels: 'label', bookmarkedBy: 'user' },
         countFields: {
             commentsCount: true,
             labelsCount: true,
@@ -81,7 +81,7 @@ export const IssueModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await StarModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     }
                 }
@@ -98,7 +98,7 @@ export const IssueModel: ModelLogic<{
             createdById: true,
             createdTimeFrame: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             noteId: true,
             organizationId: true,

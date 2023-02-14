@@ -1,8 +1,8 @@
-import { Star } from "@shared/consts";
+import { Bookmark } from "@shared/consts";
 import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const star: GqlPartial<Star> = {
+export const star: GqlPartial<Bookmark> = {
     __typename: 'Star',
     list: {
         __define: {

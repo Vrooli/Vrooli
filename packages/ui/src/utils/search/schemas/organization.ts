@@ -33,4 +33,4 @@ export const organizationSearchSchema = (lng: string): FormSchema => ({
     ]
 })
 
-export const organizationSearchParams = (lng: string) => toParams(organizationSearchSchema(lng), organizationFindMany, OrganizationSortBy, OrganizationSortBy.StarsDesc);
+export const organizationSearchParams = (lng: string) => toParams(organizationSearchSchema(lng), organizationFindMany, OrganizationSortBy, OrganizationSortBy.BookmarksDesc);

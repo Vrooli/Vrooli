@@ -463,14 +463,14 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewIssueOnObjectTitle',
     }),
-    pushObjectReceivedStar: (objectType: `${GqlModelType}`, objectId: string, totalStars: number): NotifyResultType => NotifyResult({
-        bodyKey: 'ObjectReceivedStarBody',
-        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalStars },
+    pushObjectReceivedBookmark: (objectType: `${GqlModelType}`, objectId: string, totalBookmarks: number): NotifyResultType => NotifyResult({
+        bodyKey: 'ObjectReceivedBookmarkBody',
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalBookmarks },
         category: 'ObjectActivity',
         languages,
         link: `/${objectType}/${objectId}`,
         prisma,
-        titleKey: 'ObjectReceivedStarTitle',
+        titleKey: 'ObjectReceivedBodyTitle',
     }),
     pushObjectReceivedUpvote: (objectType: `${GqlModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedUpvoteBody',

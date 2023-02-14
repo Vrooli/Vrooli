@@ -4,7 +4,7 @@ import i18next from "i18next";
 import { CommonKey } from "types";
 
 //TODO move to common.json
-const starsDescription = `Stars are a way to bookmark an object. They don't affect the ranking of an object in default searches, but are still useful to get a feel for how popular an object is.`;
+const BookmarksDescription = `Stars are a way to bookmark an object. They don't affect the ranking of an object in default searches, but are still useful to get a feel for how popular an object is.`;
 const votesDescription = `Votes are a way to show support for an object, which affect the ranking of an object in default searches.`;
 const languagesDescription = `Filter results by the language(s) they are written in.`;
 const tagsDescription = `Filter results by the tags they are associated with.`;
@@ -30,7 +30,7 @@ export const languagesContainer: GridContainer = {
 
 export const starsContainer: GridContainer = {
     title: "Stars",
-    description: starsDescription,
+    description: BookmarksDescription,
     totalItems: 1,
     spacing: 2,
 }

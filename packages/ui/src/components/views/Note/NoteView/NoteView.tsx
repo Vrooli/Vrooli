@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, NoteVersion, StarFor } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, NoteVersion, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, StarButton } from "components";
@@ -194,7 +194,7 @@ export const NoteView = ({
                         disabled={!canStar}
                         session={session}
                         objectId={noteVersion?.id ?? ''}
-                        starFor={StarFor.Note}
+                        starFor={BookmarkFor.Note}
                         isStar={noteVersion?.root?.you?.isStarred ?? false}
                         stars={noteVersion?.root?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}

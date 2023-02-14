@@ -1,6 +1,6 @@
 import { useMutation } from "api/hooks";
 import { useCallback, useMemo, useState } from "react";
-import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, StarFor, StarInput, Success, VoteFor, VoteInput } from "@shared/consts";
+import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, BookmarkFor, StarInput, Success, VoteFor, VoteInput } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "api/utils";
@@ -66,7 +66,7 @@ export const ObjectActionMenu = ({
         })
     }, [fork, id, name, objectType, onActionComplete]);
 
-    const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
+    const handleStar = useCallback((isStar: boolean, starFor: BookmarkFor) => {
         if (!id) return;
         mutationWrapper<Success, StarInput>({
             mutation: star,
@@ -109,7 +109,7 @@ export const ObjectActionMenu = ({
                 break;
             case ObjectAction.Star:
             case ObjectAction.StarUndo:
-                handleStar(action === ObjectAction.Star, objectType as string as StarFor);
+                handleStar(action === ObjectAction.Star, objectType as string as BookmarkFor);
                 break;
             case ObjectAction.Stats:
                 onActionStart(ObjectAction.Stats);

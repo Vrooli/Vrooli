@@ -2,7 +2,7 @@ import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
-import { DotNotation, GqlModelType, Session, StarFor } from "@shared/consts";
+import { DotNotation, GqlModelType, Session, BookmarkFor } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
 import { exists, isOfType } from "@shared/utils";
 
@@ -38,7 +38,7 @@ export type YouInflated = {
     canStar: boolean;
     canUpdate: boolean;
     canVote: boolean;
-    isStarred: boolean;
+    isBookmarked: boolean;
     isUpvoted: boolean | null;
     isViewed: boolean;
 }
@@ -55,7 +55,7 @@ export type CountsInflated = {
     questions: number;
     reports: number;
     score: number;
-    stars: number;
+    bookmarks: number;
     transfers: number;
     translations: number;
     versions: number;
@@ -105,7 +105,7 @@ export const getYou = (
         canStar: false,
         canUpdate: false,
         canVote: false,
-        isStarred: false,
+        isBookmarked: false,
         isUpvoted: null,
         isViewed: false,
     };
@@ -148,7 +148,7 @@ export const getCounts = (
         questions: 0,
         reports: 0,
         score: 0,
-        stars: 0,
+        bookmarks: 0,
         transfers: 0,
         translations: 0,
         versions: 0,
@@ -306,7 +306,7 @@ export const getDisplay = (
  */
 export const getStarFor = (
     object: ListObjectType | null | undefined,
-): { starFor: StarFor, starForId: string } | { starFor: null, starForId: null } => {
+): { starFor: BookmarkFor, starForId: string } | { starFor: null, starForId: null } => {
     if (!object) return { starFor: null, starForId: null };
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Star', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
@@ -319,7 +319,7 @@ export const getStarFor = (
     // If the object contains a root object, use that
     if ((object as any).root) return getStarFor((object as any).root);
     // Use current object
-    return { starFor: object.__typename as unknown as StarFor, starForId: object.id };
+    return { starFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
 }
 
 /**
@@ -330,7 +330,7 @@ export const getStarFor = (
  * {
  *  id: The ID of the object.
  *  label: The label of the object.
- *  stars: The number of stars the object has.
+ *  bookmarks: The number of bookmarks the object has.
  * }
  */
 export function listToAutocomplete(
@@ -340,14 +340,14 @@ export function listToAutocomplete(
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,
-        isStarred: getYou(o).isStarred,
+        isBookmarked: getYou(o).isStarred,
         label: getDisplay(o, languages).title,
         runnableObject: o.__typename === 'RunProject' ?
             o.projectVersion :
             o.__typename === 'RunRoutine' ?
                 o.routineVersion :
                 undefined,
-        stars: getCounts(o).stars,
+        bookmarks: getCounts(o).bookmarks,
         to: isOfType(o, 'Star', 'View', 'Vote') ? o.to : undefined,
         versions: isOfType(o, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard') ? o.versions : undefined,
         root: isOfType(o, 'ApiVersion', 'NoteVersion', 'ProjectVersion', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion') ? o.root : undefined,

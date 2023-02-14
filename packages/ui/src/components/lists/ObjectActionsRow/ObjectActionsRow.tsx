@@ -1,6 +1,6 @@
 import { useMutation } from "api/hooks";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { DeleteType, CopyType, ReportFor, StarFor, VoteFor, CopyResult, CopyInput, Success, StarInput, VoteInput } from "@shared/consts";
+import { DeleteType, CopyType, ReportFor, BookmarkFor, VoteFor, CopyResult, CopyInput, Success, StarInput, VoteInput } from "@shared/consts";
 import { EllipsisIcon } from "@shared/icons";
 import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
 import { mutationWrapper } from "api/utils";
@@ -99,7 +99,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
         })
     }, [copy, id, name, objectType, onActionComplete]);
 
-    const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
+    const handleStar = useCallback((isStar: boolean, starFor: BookmarkFor) => {
         if (!id) return;
         mutationWrapper<Success, StarInput>({
             mutation: star,
@@ -145,7 +145,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 break;
             case ObjectAction.Star:
             case ObjectAction.StarUndo:
-                handleStar(action === ObjectAction.Star, objectType as string as StarFor);
+                handleStar(action === ObjectAction.Star, objectType as string as BookmarkFor);
                 break;
             case ObjectAction.Stats:
                 onActionStart(ObjectAction.Stats);

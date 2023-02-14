@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, ResourceList, StarFor, User, VisibilityType } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, VisibilityType } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -301,7 +301,7 @@ export const UserView = ({
                         disabled={isOwn}
                         session={session}
                         objectId={user?.id ?? ''}
-                        starFor={StarFor.User}
+                        starFor={BookmarkFor.User}
                         isStar={user?.you?.isStarred ?? false}
                         stars={user?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}

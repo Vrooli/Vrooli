@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, StarFor, VisibilityType } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, BookmarkFor, VisibilityType } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton } from "components";
@@ -296,7 +296,7 @@ export const OrganizationView = ({
                         disabled={!canStar}
                         session={session}
                         objectId={organization?.id ?? ''}
-                        starFor={StarFor.Organization}
+                        starFor={BookmarkFor.Organization}
                         isStar={organization?.you?.isStarred ?? false}
                         stars={organization?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}

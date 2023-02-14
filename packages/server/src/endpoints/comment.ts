@@ -28,8 +28,8 @@ export const typeDef = gql`
         DateUpdatedDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     input CommentCreateInput {
@@ -57,8 +57,8 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         score: Int!
-        stars: Int!
-        starredBy: [User!]
+        bookmarks: Int!
+        bookmarkedBy: [User!]
         translations: [CommentTranslation!]!
         translationsCount: Int!
         you: CommentYou!
@@ -71,7 +71,7 @@ export const typeDef = gql`
         canReply: Boolean!
         canReport: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
     }
 
@@ -95,7 +95,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         searchString: String

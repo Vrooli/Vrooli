@@ -18,8 +18,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -68,14 +68,14 @@ export const typeDef = gql`
         versionsCount: Int!
         labels: [Label!]!
         labelsCount: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         score: Int!
         issues: [Issue!]!
         issuesCount: Int!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         questions: [Question!]!
         questionsCount: Int!
         transfers: [Transfer!]!
@@ -90,7 +90,7 @@ export const typeDef = gql`
         canUpdate: Boolean!
         canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
@@ -100,9 +100,9 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         createdById: ID
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID

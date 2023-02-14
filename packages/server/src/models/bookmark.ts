@@ -1,4 +1,4 @@
-import { StarFor, StarSortBy } from "@shared/consts";
+import { BookmarkFor, BookmarkSortBy } from "@shared/consts";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -6,7 +6,7 @@ import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
 import { CustomError, Trigger } from "../events";
-import { Star, StarSearchInput, StarInput, SessionUser } from '@shared/consts';
+import { Bookmark, BookmarkSearchInput, BookmarkInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -17,7 +17,7 @@ import { getLogic } from "../getters";
 import { NoteModel } from "./note";
 import { exists } from "@shared/utils";
 
-const forMapper: { [key in StarFor]: keyof Prisma.starUpsertArgs['create'] } = {
+const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs['create'] } = {
     Api: 'api',
     Comment: 'comment',
     Issue: 'issue',
@@ -35,25 +35,25 @@ const forMapper: { [key in StarFor]: keyof Prisma.starUpsertArgs['create'] } = {
     User: 'user',
 }
 
-const __typename = 'Star' as const;
+const __typename = 'Bookmark' as const;
 const suppFields = [] as const;
-export const StarModel: ModelLogic<{
+export const BookmarkModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
     GqlUpdate: undefined,
-    GqlModel: Star,
-    GqlSearch: StarSearchInput,
-    GqlSort: StarSortBy,
+    GqlModel: Bookmark,
+    GqlSearch: BookmarkSearchInput,
+    GqlSort: BookmarkSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.starUpsertArgs['create'],
-    PrismaUpdate: Prisma.starUpsertArgs['update'],
-    PrismaModel: Prisma.starGetPayload<SelectWrap<Prisma.starSelect>>,
-    PrismaSelect: Prisma.starSelect,
-    PrismaWhere: Prisma.starWhereInput,
+    PrismaCreate: Prisma.bookmarkUpsertArgs['create'],
+    PrismaUpdate: Prisma.bookmarkUpsertArgs['update'],
+    PrismaModel: Prisma.bookmarkGetPayload<SelectWrap<Prisma.bookmarkSelect>>,
+    PrismaSelect: Prisma.bookmarkSelect,
+    PrismaWhere: Prisma.bookmarkWhereInput,
 }, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.star,
+    delegate: (prisma: PrismaType) => prisma.bookmark,
     display: {
         select: () => ({
             id: true,
@@ -136,11 +136,11 @@ export const StarModel: ModelLogic<{
         countFields: {},
     },
     query: {
-        async getIsStarreds(
+        async getIsBookmarkeds(
             prisma: PrismaType,
             userId: string | null | undefined,
             ids: string[],
-            starFor: keyof typeof StarFor
+            bookmarkFor: keyof typeof BookmarkFor
         ): Promise<boolean[]> {
             // Create result array that is the same length as ids
             const result = new Array(ids.length).fill(false);
@@ -148,12 +148,12 @@ export const StarModel: ModelLogic<{
             if (!userId) return result;
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
-            const fieldName = `${starFor.toLowerCase()}Id`;
-            const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+            const fieldName = `${bookmarkFor.toLowerCase()}Id`;
+            const isBookmarkredArray = await prisma.bookmark.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
-                // check if this id is in isStarredArray
-                if (exists(ids[i]) && isStarredArray.find((star: any) => star[fieldName] === ids[i])) {
+                // check if this id is in isBookmarkredArray
+                if (exists(ids[i]) && isBookmarkredArray.find((bookmark: any) => bookmark[fieldName] === ids[i])) {
                     result[i] = true;
                 }
             }
@@ -161,10 +161,11 @@ export const StarModel: ModelLogic<{
         },
     },
     search: {
-        defaultSort: StarSortBy.DateUpdatedDesc,
-        sortBy: StarSortBy,
+        defaultSort: BookmarkSortBy.DateUpdatedDesc,
+        sortBy: BookmarkSortBy,
         searchFields: {
             excludeLinkedToTag: true,
+            label: true,
         },
         searchStringQuery: () => ({
             OR: [
@@ -186,57 +187,58 @@ export const StarModel: ModelLogic<{
             ]
         }),
     },
-    star: async (prisma: PrismaType, userData: SessionUser, input: StarInput): Promise<boolean> => {
-        prisma.star.findMany({
-            where: {
-                tagId: null
-            }
-        })
-        // Get prisma delegate for type of object being starred
-        const { delegate } = getLogic(['delegate'], input.starFor, userData.languages, 'star');
-        // Check if object being starred exists
-        const starringFor: null | { id: string, stars: number } = await delegate(prisma).findUnique({ where: { id: input.forConnect }, select: { id: true, stars: true } }) as any;
-        if (!starringFor)
-            throw new CustomError('0110', 'ErrorUnknown', userData.languages, { starFor: input.starFor, forId: input.forConnect });
-        // Check if star already exists on object by this user TODO fix for tags
-        const star = await prisma.star.findFirst({
-            where: {
-                byId: userData.id,
-                [`${forMapper[input.starFor]}Id`]: input.forConnect
-            }
-        })
-        // If star already existed and we want to star, 
-        // or if star did not exist and we don't want to star, skip
-        if ((star && input.isStar) || (!star && !input.isStar)) return true;
-        // If star did not exist and we want to star, create
-        if (!star && input.isStar) {
-            // Create
-            await prisma.star.create({
-                data: {
-                    byId: userData.id,
-                    [`${forMapper[input.starFor]}Id`]: input.forConnect
-                }
-            })
-            // Increment star count on object
-            await delegate(prisma).update({
-                where: { id: input.forConnect },
-                data: { stars: starringFor.stars + 1 }
-            })
-            // Handle trigger
-            await Trigger(prisma, userData.languages).objectStar(true, input.starFor, input.forConnect, userData.id);
-        }
-        // If star did exist and we don't want to star, delete
-        else if (star && !input.isStar) {
-            // Delete star
-            await prisma.star.delete({ where: { id: star.id } })
-            // Decrement star count on object
-            await delegate(prisma).update({
-                where: { id: input.forConnect },
-                data: { stars: starringFor.stars - 1 }
-            })
-            // Handle trigger
-            await Trigger(prisma, userData.languages).objectStar(false, input.starFor, input.forConnect, userData.id);
-        }
-        return true;
-    }
+    // TODO replace with mutate and validate. Trigger should update "bookmarks" count of object being bookmarkred
+    // bookmark: async (prisma: PrismaType, userData: SessionUser, input: BookmarkInput): Promise<boolean> => {
+    //     prisma.bookmark.findMany({
+    //         where: {
+    //             tagId: null
+    //         }
+    //     })
+    //     // Get prisma delegate for type of object being bookmarkred
+    //     const { delegate } = getLogic(['delegate'], input.bookmarkFor, userData.languages, 'bookmark');
+    //     // Check if object being bookmarkred exists
+    //     const bookmarkringFor: null | { id: string, bookmarks: number } = await delegate(prisma).findUnique({ where: { id: input.forConnect }, select: { id: true, bookmarks: true } }) as any;
+    //     if (!bookmarkringFor)
+    //         throw new CustomError('0110', 'ErrorUnknown', userData.languages, { bookmarkFor: input.bookmarkFor, forId: input.forConnect });
+    //     // Check if bookmark already exists on object by this user TODO fix for tags
+    //     const bookmark = await prisma.bookmark.findFirst({
+    //         where: {
+    //             byId: userData.id,
+    //             [`${forMapper[input.bookmarkFor]}Id`]: input.forConnect
+    //         }
+    //     })
+    //     // If bookmark already existed and we want to bookmark, 
+    //     // or if bookmark did not exist and we don't want to bookmark, skip
+    //     if ((bookmark && input.isBookmark) || (!bookmark && !input.isBookmark)) return true;
+    //     // If bookmark did not exist and we want to bookmark, create
+    //     if (!bookmark && input.isBookmark) {
+    //         // Create
+    //         await prisma.bookmark.create({
+    //             data: {
+    //                 byId: userData.id,
+    //                 [`${forMapper[input.bookmarkFor]}Id`]: input.forConnect
+    //             }
+    //         })
+    //         // Increment bookmark count on object
+    //         await delegate(prisma).update({
+    //             where: { id: input.forConnect },
+    //             data: { bookmarks: bookmarkringFor.bookmarks + 1 }
+    //         })
+    //         // Handle trigger
+    //         await Trigger(prisma, userData.languages).objectBookmark(true, input.bookmarkFor, input.forConnect, userData.id);
+    //     }
+    //     // If bookmark did exist and we don't want to bookmark, delete
+    //     else if (bookmark && !input.isBookmark) {
+    //         // Delete bookmark
+    //         await prisma.bookmark.delete({ where: { id: bookmark.id } })
+    //         // Decrement bookmark count on object
+    //         await delegate(prisma).update({
+    //             where: { id: input.forConnect },
+    //             data: { bookmarks: bookmarkringFor.bookmarks - 1 }
+    //         })
+    //         // Handle trigger
+    //         await Trigger(prisma, userData.languages).objectBookmark(false, input.bookmarkFor, input.forConnect, userData.id);
+    //     }
+    //     return true;
+    // }
 })

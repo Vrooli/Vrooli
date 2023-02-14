@@ -27,8 +27,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -40,8 +40,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     enum RunProjectOrRunRoutineSortBy {
@@ -70,8 +70,10 @@ export const typeDef = gql`
         isComplete: Boolean
         isCompleteExceptions: [SearchException!]
         languages: [String!]
+        maxBookmarks: Int
+        maxScore: Int
+        minBookmarks: Int
         minScore: Int
-        minStars: Int
         minViews: Int
         objectType: String
         organizationId: ID
@@ -115,7 +117,9 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         languages: [String!]
-        minStars: Int
+        maxBookmarks: Int
+        maxViews: Int
+        minBookmarks: Int
         minViews: Int
         objectType: String
         organizationAfter: String
@@ -125,6 +129,7 @@ export const typeDef = gql`
         projectAfter: String
         projectIsComplete: Boolean
         projectIsCompleteExceptions: [SearchException!]
+        projectMaxScore: Int
         projectMinScore: Int
         projectOrganizationId: ID
         projectParentId: ID
@@ -232,8 +237,10 @@ export const resolvers: {
                         isComplete: input.isComplete,
                         isCompleteExceptions: input.isCompleteExceptions,
                         languages: input.languages,
+                        maxBookmarks: input.maxBookmarks,
+                        maxScore: input.maxScore,
+                        minBookmarks: input.minBookmarks,
                         minScore: input.minScore,
-                        minStars: input.minStars,
                         minViews: input.minViews,
                         organizationId: input.organizationId,
                         parentId: input.parentId,
@@ -267,10 +274,11 @@ export const resolvers: {
                         languages: input.languages,
                         minComplexity: input.routineMinComplexity,
                         maxComplexity: input.routineMaxComplexity,
+                        maxBookmarks: input.maxBookmarks,
+                        maxScore: input.maxScore,
+                        minBookmarks: input.minBookmarks,
                         minScore: input.minScore,
                         minSimplicity: input.routineMinSimplicity,
-                        maxSimplicity: input.routineMaxSimplicity,
-                        minStars: input.minStars,
                         minTimesCompleted: input.routineMinTimesCompleted,
                         maxTimesCompleted: input.routineMaxTimesCompleted,
                         minViews: input.minViews,
@@ -344,8 +352,11 @@ export const resolvers: {
                         isComplete: input.projectIsComplete,
                         isCompleteExceptions: input.projectIsCompleteExceptions,
                         languages: input.languages,
+                        maxBookmarks: input.maxBookmarks,
+                        maxScore: input.maxScore,
+                        minBookmarks: input.minBookmarks,
+                        maxScore: input.projectMaxScore,
                         minScore: input.projectMinScore,
-                        minStars: input.minStars,
                         minViews: input.minViews,
                         organizationId: input.projectOrganizationId,
                         parentId: input.projectParentId,
@@ -374,7 +385,9 @@ export const resolvers: {
                         excludeIds: input.excludeIds,
                         ids: input.ids,
                         languages: input.languages,
-                        minStars: input.minStars,
+                        maxBookmarks: input.maxBookmarks,   
+                        minBookmarks: input.minStars,
+                        maxViews: input.maxViews,
                         minViews: input.minViews,
                         isOpenToNewMembers: input.organizationIsOpenToNewMembers,
                         projectId: input.organizationProjectId,

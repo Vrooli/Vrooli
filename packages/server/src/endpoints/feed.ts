@@ -67,51 +67,51 @@ export const resolvers: {
                 standards: 'Standard',
                 users: 'User',
             }, req.languages, true);
-            const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
+            const MinimumBookmarks = 0; // Minimum bookmarks required to show up in results. Will increase in the future.
+            const bookmarksQuery = { bookmarks: { gte: MinimumBookmarks } };
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query organizations
             console.log('feed 1', JSON.stringify(partial.projects), '\n\n');
             const { nodes: organizations } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.organizations as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
+                input: { ...input, take, sortBy: OrganizationSortBy.BookmarksDesc },
                 objectType: 'Organization',
             });
             console.log('feed 2', JSON.stringify(partial.projects), '\n\n');
             // Query projects
             const { nodes: projects } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.projects as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true },
+                input: { ...input, take, sortBy: ProjectSortBy.BookmarksDesc, isComplete: true },
                 objectType: 'Project',
             });
             console.log('feed 3', JSON.stringify(partial.projects), '\n\n');
             // Query routines
             const { nodes: routines } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.routines as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
+                input: { ...input, take, sortBy: RoutineSortBy.BookmarksDesc, isComplete: true, isInternal: false },
                 objectType: 'Routine',
             });
             // Query standards
             const { nodes: standards } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.standards as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
+                input: { ...input, take, sortBy: StandardSortBy.BookmarksDesc, type: 'JSON' },
                 objectType: 'Standard',
             });
             // Query users
             const { nodes: users } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery },
+                additionalQueries: { ...bookmarksQuery },
                 info: partial.users as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: UserSortBy.StarsDesc },
+                input: { ...input, take, sortBy: UserSortBy.BookmarksDesc },
                 objectType: 'User',
             });
             // Add supplemental fields to every result
@@ -140,14 +140,14 @@ export const resolvers: {
                 courses: 'Project',
                 tutorials: 'Routine',
             }, req.languages, true);
-            const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
+            const MinimumBookmarks = 0; // Minimum bookmarks required to show up in autocomplete results. Will increase in the future.
+            const bookmarksQuery = { bookmarks: { gte: MinimumBookmarks } };
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query courses
             const { nodes: courses } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.courses as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.ScoreDesc, tags: ['Learn'], isComplete: true, },
                 objectType: 'Project',
@@ -155,7 +155,7 @@ export const resolvers: {
             // Query tutorials
             const { nodes: tutorials } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.tutorials as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.ScoreDesc, tags: ['Learn'], isComplete: true, },
                 objectType: 'Routine',
@@ -188,14 +188,14 @@ export const resolvers: {
                 needInvestments: 'Project',
                 needMembers: 'Organization',
             }, req.languages, true);
-            const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
+            const MinimumBookmarks = 0; // Minimum bookmarks required to show up in autocomplete results. Will increase in the future.
+            const bookmarksQuery = { bookmarks: { gte: MinimumBookmarks } };
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query processes
             const { nodes: processes } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.processes as PartialGraphQLInfo,
                 input: { take, sortBy: RoutineSortBy.ScoreDesc, tags: ['Research'], isComplete: true, isInternal: false },
                 objectType: 'Routine',
@@ -203,14 +203,14 @@ export const resolvers: {
             // Query newlyCompleted
             const { nodes: newlyCompletedProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
                 objectType: 'Project',
             });
             const { nodes: newlyCompletedRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
                 objectType: 'Routine',
@@ -218,7 +218,7 @@ export const resolvers: {
             // Query needVotes
             const { nodes: needVotes } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.needVotes as PartialGraphQLInfo,
                 input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Proposal] },
                 objectType: 'Project',
@@ -226,7 +226,7 @@ export const resolvers: {
             // Query needInvestments
             const { nodes: needInvestments } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.needInvestments as PartialGraphQLInfo,
                 input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Donation] },
                 objectType: 'Project',
@@ -235,7 +235,7 @@ export const resolvers: {
             const { nodes: needMembers } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: partial.needMembers as PartialGraphQLInfo,
-                input: { take, isOpenToNewMembers: true, sortBy: OrganizationSortBy.StarsDesc },
+                input: { take, isOpenToNewMembers: true, sortBy: OrganizationSortBy.BookmarksDesc },
                 objectType: 'Organization',
             });
             // Add supplemental fields to every result
@@ -257,10 +257,10 @@ export const resolvers: {
                     return 0;
                 }),
                 needVotes: withSupplemental['nv'],
-                // needInvestments combines projects and organizations, and sorts by stars
+                // needInvestments combines projects and organizations, and sorts by bookmarks
                 needInvestments: withSupplemental['ni'].sort((a, b) => {
-                    if (a.stars < b.stars) return 1;
-                    if (a.stars > b.stars) return -1;
+                    if (a.bookmarks < b.bookmarks) return 1;
+                    if (a.bookmarks > b.bookmarks) return -1;
                     return 0;
                 }),
                 needMembers: withSupplemental['nm'],

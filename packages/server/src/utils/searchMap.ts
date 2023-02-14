@@ -41,7 +41,7 @@ const oneToManyIds = <RelField extends string>(
  * Example: SearchMap['languages'] = ({ translations: { some: { language: { in: input.languages } } } })
  * 
  * NOTE: This relies on duplicate keys always having the same query, regardless of the object. 
- * This ensures that the database implementation of various relations (stars, views, etc.) is 
+ * This ensures that the database implementation of various relations (bookmarks, views, etc.) is 
  * consistent across all objects.
  */
 export const SearchMap = {
@@ -127,24 +127,24 @@ export const SearchMap = {
     labelsIds: (ids: Maybe<string[]>) => ({ labels: { some: { label: { id: { in: ids } } } } }),
     languageIn: (languages: Maybe<string[]>) => ({ language: { in: languages } }),
     lastViewedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('lastViewedAt', time),
+    maxBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { lte: bookmarks } }),
+    maxBookmarksRoot: (bookmarks: Maybe<number>) => ({ root: { bookmarks: { lte: bookmarks } } }),
     maxComplexity: (complexity: Maybe<number>) => ({ complexity: { lte: complexity } }),
     maxScore: (score: Maybe<number>) => ({ score: { lte: score } }),
     maxScoreRoot: (score: Maybe<number>) => ({ root: { score: { lte: score } } }),
     maxSimplicity: (simplicity: Maybe<number>) => ({ simplicity: { lte: simplicity } }),
-    maxStars: (stars: Maybe<number>) => ({ stars: { lte: stars } }),
-    maxStarsRoot: (stars: Maybe<number>) => ({ root: { stars: { lte: stars } } }),
     maxTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { lte: timesCompleted } }),
     maxViews: (views: Maybe<number>) => ({ views: { lte: views } }),
     maxViewsRoot: (views: Maybe<number>) => ({ root: { views: { lte: views } } }),
     memberUserIds: (ids: Maybe<string[]>) => ({ members: { some: { user: { id: { in: ids } } } } }),
     meetingId: (id: Maybe<string>) => oneToOneId(id, 'meeting'),
     meetingsId: (id: Maybe<string>) => oneToManyId(id, 'meetings'),
+    minBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { gte: bookmarks } }),
+    minBookmarksRoot: (bookmarks: Maybe<number>) => ({ root: { bookmarks: { gte: bookmarks } } }),
     minComplexity: (complexity: Maybe<number>) => ({ complexity: { gte: complexity } }),
     minScore: (score: Maybe<number>) => ({ score: { gte: score } }),
     minScoreRoot: (score: Maybe<number>) => ({ root: { score: { gte: score } } }),
     minSimplicity: (simplicity: Maybe<number>) => ({ simplicity: { gte: simplicity } }),
-    minStars: (stars: Maybe<number>) => ({ stars: { gte: stars } }),
-    minStarsRoot: (stars: Maybe<number>) => ({ root: { stars: { gte: stars } } }),
     minTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { gte: timesCompleted } }),
     minViews: (views: Maybe<number>) => ({ views: { gte: views } }),
     minViewsRoot: (views: Maybe<number>) => ({ root: { views: { gte: views } } }),

@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindVersionInput, ProjectVersion, StarFor, VisibilityType } from "@shared/consts";
+import { APP_LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, StarButton } from "components";
@@ -244,7 +244,7 @@ export const ProjectView = ({
                         disabled={!canStar}
                         session={session}
                         objectId={projectVersion?.id ?? ''}
-                        starFor={StarFor.Project}
+                        starFor={BookmarkFor.Project}
                         isStar={projectVersion?.root?.you?.isStarred ?? false}
                         stars={projectVersion?.root?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}

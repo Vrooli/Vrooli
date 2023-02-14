@@ -83,7 +83,7 @@ export const ApiVersionModel: ModelLogic<{
             createdById: true,
             createdTimeFrame: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
