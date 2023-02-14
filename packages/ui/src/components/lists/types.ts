@@ -1,5 +1,5 @@
 import { ApiVersion, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
-import { NavigableObject } from 'types';
+import { CommonKey, NavigableObject } from 'types';
 import { ListObjectType, ObjectAction, ObjectActionComplete, SearchType } from 'utils';
 
 export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
@@ -66,10 +66,8 @@ export interface DateRangeMenuProps {
  * Return type for a SearchList generator function
  */
 export interface SearchListGenerator {
-    itemKeyPrefix: string;
     searchType: SearchType;
-    placeholder: string;
-    noResultsText: string;
+    placeholder: CommonKey;
     where: any;
 }
 
@@ -86,13 +84,11 @@ export interface SearchListProps {
      */
     hideRoles?: boolean;
     id: string;
-    itemKeyPrefix: string;
-    searchPlaceholder?: string;
+    searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
     searchType: SearchType;
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
-    noResultsText?: string; // Text to display when no results are found
     session: Session;
     zIndex: number;
 }

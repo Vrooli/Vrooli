@@ -179,6 +179,77 @@ export const getCounts = (
 }
 
 /**
+ * Attempts to find the most relevant title for an object. Does not check root object or versions
+ * @param obj An object with (hopefully) a title
+ * @param langs The user's preferred languages
+ * @returns The title, or null if none found
+ */
+const tryTitle = (obj: Record<string, any>, langs: readonly string[]) => {
+    const translations: Record<string, any> = getTranslation(obj, langs, true);
+    // The order of these is important to display the most relevant title
+    return firstString(
+        obj.title,
+        obj.name,
+        translations.title,
+        translations.name,
+        obj.handle ? `$${obj.handle}` : null,
+    );
+}
+
+/**
+ * Attempts to find the most relevant subtitle for an object. Does not check root object or versions
+ * @param obj An object with (hopefully) a subtitle
+ * @param langs The user's preferred languages
+ * @returns The subtitle, or null if none found
+ */
+const trySubtitle = (obj: Record<string, any>, langs: readonly string[]) => {
+    const translations: Record<string, any> = getTranslation(obj, langs, true);
+    return firstString(
+        obj.bio,
+        obj.description,
+        obj.summary,
+        obj.details,
+        obj.text,
+        translations.bio,
+        translations.description,
+        translations.summary,
+        translations.details,
+        translations.text,
+    );
+}
+
+/**
+ * For an object which does not have a direct title (i.e. it's likely in the root object or a version), 
+ * tries to find the most relevant title and subtitle
+ * @param obj An object
+ * @param langs The user's preferred languages
+ * @returns The title and subtitle, or blank strings if none found
+ */
+const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
+    // Initialize the title and subtitle
+    let title: string | null = null;
+    let subtitle: string | null = null;
+    // Create a list of objects to check. Order is important
+    const objectsToCheck = [
+        obj, // The object itself
+        obj.root, // The root object (only found if obj is a version)
+        obj.versions?.find(v => v.isLatest), // The latest version (only found if obj is a root object)
+        ...(obj.versions?.sort((a, b) => b.versionIndex - a.versionIndex) ?? []), // All versions, sorted by versionIndex (i.e. newest first)
+    ]
+    // Loop through the objects
+    for (const curr of objectsToCheck) {
+        // If the object is null or undefined, skip it
+        if (!exists(curr)) continue;
+        // Call tryTitle and trySubtitle
+        title = tryTitle(curr, langs);
+        subtitle = trySubtitle(curr, langs);
+        // If both are found, break
+        if (title && subtitle) break;
+    }
+    return { title: title ?? '', subtitle: subtitle ?? '' };
+}
+
+/**
  * Gets the name and subtitle of a list object
  * @param object A list object
  * @param languages User languages
@@ -215,36 +286,7 @@ export const getDisplay = (
         }
     }
     // For all other objects, fields may differ. 
-    // Priority for title is: title, name, translations[number].title, translations[number].name, handle
-    // Priority for subtitle is: bio, description, summary, details, text, translations[number].bio, translations[number].description, translations[number].summary, translations[number].details, translations[number].text
-    // If all else fails, attempt to find in "root" object
-    const tryTitle = (obj: Record<string, any>) => {
-        const translations: Record<string, any> = getTranslation(obj, langs, true);
-        return firstString(
-            obj.title,
-            obj.name,
-            translations.title,
-            translations.name,
-            obj.handle ? `$${obj.handle}` : null,
-        );
-    }
-    const trySubtitle = (obj: Record<string, any>) => {
-        const translations: Record<string, any> = getTranslation(obj, langs, true);
-        return firstString(
-            obj.bio,
-            obj.description,
-            obj.summary,
-            obj.details,
-            obj.text,
-            translations.bio,
-            translations.description,
-            translations.summary,
-            translations.details,
-            translations.text,
-        );
-    }
-    const title = tryTitle(object) ?? tryTitle((object as any).root) ?? '';
-    const subtitle = trySubtitle(object) ?? trySubtitle((object as any).root) ?? '';
+    const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
     if (isOfType(object, 'NodeRoutineListItem') && title.length === 0 && subtitle.length === 0) {
         const routineVersionDisplay = getDisplay(object.routineVersion as ListObjectType, languages);

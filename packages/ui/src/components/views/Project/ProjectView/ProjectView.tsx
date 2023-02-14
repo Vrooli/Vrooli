@@ -122,34 +122,26 @@ export const ProjectView = ({
     }, [projectVersion, setLocation]);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
+    const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         // The first tab doesn't have search results, as it is the project's set resources
         switch (currTabType) {
             case TabOptions.Routines:
                 return {
                     searchType: SearchType.Routine,
-                    itemKeyPrefix: 'routine-list-item',
-                    placeholder: "Search project's routines...",
-                    noResultsText: "No routines found",
+                    placeholder: 'SearchRoutine',
                     where: { projectId: projectVersion?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                 };
             case TabOptions.Standards:
                 return {
                     searchType: SearchType.Standard,
-                    itemKeyPrefix: 'standard-list-item',
-                    placeholder: "Search project's standards...",
-                    noResultsText: "No standards found",
+                    placeholder: 'SearchStandard',
                     where: { projectId: projectVersion?.id, visibility: VisibilityType.All },
                 }
             default:
                 return {
                     searchType: SearchType.Routine,
-                    itemKeyPrefix: '',
-                    placeholder: '',
-                    noResultsText: '',
-                    searchQuery: null,
+                    placeholder: 'SearchRoutine',
                     where: {},
-                    searchItemFactory: (a: any, b: any) => null
                 }
         }
     }, [canUpdate, currTabType, projectVersion?.id]);
@@ -344,8 +336,6 @@ export const ProjectView = ({
                         handleAdd={canUpdate ? toAddNew : undefined}
                         hideRoles={true}
                         id="project-view-list"
-                        itemKeyPrefix={itemKeyPrefix}
-                        noResultsText={noResultsText}
                         searchType={searchType}
                         searchPlaceholder={placeholder}
                         session={session}

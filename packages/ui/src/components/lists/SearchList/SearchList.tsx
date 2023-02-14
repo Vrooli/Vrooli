@@ -60,9 +60,7 @@ export function SearchList<
     handleAdd,
     hideRoles,
     id,
-    itemKeyPrefix,
-    noResultsText = 'No results',
-    searchPlaceholder = 'Search...',
+    searchPlaceholder,
     take = 20,
     searchType,
     onScrolledFar,
@@ -225,11 +223,11 @@ export function SearchList<
         dummyItems: new Array(5).fill(searchType),
         hideRoles,
         items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
-        keyPrefix: itemKeyPrefix,
+        keyPrefix: `${searchType}-list-item`,
         loading,
         session: session,
         zIndex,
-    }), [beforeNavigation, searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, zIndex])
+    }), [beforeNavigation, searchType, hideRoles, allData, pageData, loading, session, zIndex])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -307,11 +305,11 @@ export function SearchList<
                         <List sx={{ padding: 0 }}>
                             {listItems}
                         </List>
-                    ) : (<Typography variant="h6" textAlign="center">{noResultsText}</Typography>)
+                    ) : (<Typography variant="h6" textAlign="center">{t(`error:NoResults`, { lng: getUserLanguages(session)[0] })}</Typography>)
                 }
             </Box>
         )
-    }, [listItems, noResultsText, palette.background.paper]);
+    }, [listItems, palette.background.paper, session, t]);
 
     // Update query params
     useEffect(() => {
@@ -392,7 +390,7 @@ export function SearchList<
                 margin: 'auto',
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>Add New</Button>
+                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t(`common:AddNew`, { lng: getUserLanguages(session)[0] })}</Button>
             </Box>}
         </>
     )

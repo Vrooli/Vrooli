@@ -235,8 +235,6 @@ export function SearchPage({
             </Stack>
             {searchType && <SearchList
                 id="main-search-page-list"
-                itemKeyPrefix={`${searchType}-list-item`}
-                searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}

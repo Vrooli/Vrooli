@@ -224,7 +224,7 @@ export const ResourceDialog = ({
                     <SiteSearchBar
                         id="vrooli-object-search"
                         autoFocus={true}
-                        placeholder='Search Vrooli for objects to link'
+                        placeholder='SearchObjectLink'
                         options={autocompleteOptions}
                         loading={searchLoading}
                         value={searchString}

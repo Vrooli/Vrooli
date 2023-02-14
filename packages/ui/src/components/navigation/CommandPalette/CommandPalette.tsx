@@ -143,7 +143,7 @@ export const CommandPalette = ({
                 <SiteSearchBar
                     id="command-palette-search"
                     autoFocus={true}
-                    placeholder={t(`common:CommandPalettePlaceholder`, { lng: languages[0] })}
+                    placeholder='CommandPalettePlaceholder'
                     options={autocompleteOptions}
                     loading={loading}
                     value={searchString}

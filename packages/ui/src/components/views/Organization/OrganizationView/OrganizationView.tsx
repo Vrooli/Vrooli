@@ -111,46 +111,36 @@ export const OrganizationView = ({
     }, [organization?.id, setLocation]);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
+    const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         switch (currTabType) {
             case TabOptions.Members:
                 return {
                     searchType: SearchType.User,
-                    itemKeyPrefix: 'member-list-item',
-                    placeholder: "Search orgnization's members...",
-                    noResultsText: "No members found",
+                    placeholder: 'SearchMember',
                     where: { organizationId: organization?.id },
                 };
             case TabOptions.Projects:
                 return {
                     searchType: SearchType.Project,
-                    itemKeyPrefix: 'project-list-item',
-                    placeholder: "Search organization's projects...",
-                    noResultsText: "No projects found",
+                    placeholder: 'SearchProject',
                     where: { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, visibility: VisibilityType.All },
                 };
             case TabOptions.Routines:
                 return {
                     searchType: SearchType.Routine,
-                    itemKeyPrefix: 'routine-list-item',
-                    placeholder: "Search organization's routines...",
-                    noResultsText: "No routines found",
+                    placeholder: 'SearchRoutine',
                     where: { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                 };
             case TabOptions.Standards:
                 return {
                     searchType: SearchType.Standard,
-                    itemKeyPrefix: 'standard-list-item',
-                    placeholder: "Search organization's standards...",
-                    noResultsText: "No standards found",
+                    placeholder: 'SearchStandard',
                     where: { organizationId: organization?.id, visibility: VisibilityType.All },
                 }
             default:
                 return {
                     searchType: SearchType.User,
-                    itemKeyPrefix: '',
-                    placeholder: '',
-                    noResultsText: '',
+                    placeholder: 'SearchMember',
                     where: {},
                 }
         }
@@ -406,8 +396,6 @@ export const OrganizationView = ({
                                 handleAdd={canUpdate ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="organization-view-list"
-                                itemKeyPrefix={itemKeyPrefix}
-                                noResultsText={noResultsText}
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}
                                 session={session}

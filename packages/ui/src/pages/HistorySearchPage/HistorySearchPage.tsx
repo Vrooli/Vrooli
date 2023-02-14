@@ -10,7 +10,6 @@ import { parseSearchParams, SearchType, HistorySearchPageTabOption as TabOption,
 
 // Tab data type
 type BaseParams = {
-    itemKeyPrefix: string;
     searchType: SearchType;
     title: string;
     where: { [x: string]: any };
@@ -19,19 +18,16 @@ type BaseParams = {
 // Data for each tab
 const tabParams: { [key in TabOption]: BaseParams } = {
     [TabOption.Runs]: {
-        itemKeyPrefix: 'runs-list-item',
         searchType: SearchType.RunProjectOrRunRoutine,
         title: 'Runs',
         where: {},
     },
     [TabOption.Viewed]: {
-        itemKeyPrefix: 'viewed-list-item',
         searchType: SearchType.View,
         title: 'Views',
         where: {},
     },
     [TabOption.Starred]: {
-        itemKeyPrefix: 'starred-list-item',
         searchType: SearchType.Star,
         title: 'Stars',
         where: {},
@@ -64,7 +60,7 @@ export function HistorySearchPage({
     };
 
     // On tab change, update BaseParams, document title, where, and URL
-    const { itemKeyPrefix, searchType, title, where } = useMemo<BaseParams>(() => {
+    const { searchType, title, where } = useMemo<BaseParams>(() => {
         // Update tab title
         document.title = `Search ${tabOptions[tabIndex][0]}`;
         // Get object type
@@ -108,8 +104,6 @@ export function HistorySearchPage({
             </Stack>
             {searchType && <SearchList
                 id="history-search-page-list"
-                itemKeyPrefix={itemKeyPrefix}
-                searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}
                 session={session}

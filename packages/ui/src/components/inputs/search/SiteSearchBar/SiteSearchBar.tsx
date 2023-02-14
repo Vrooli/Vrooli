@@ -124,7 +124,7 @@ const FullWidthPopper = function (props) {
  */
 export function SiteSearchBar({
     id = 'search-bar',
-    placeholder = 'Search...',
+    placeholder,
     options = [],
     value,
     onChange,
@@ -148,9 +148,7 @@ export function SiteSearchBar({
 
     const onChangeDebounced = useDebounce(onChange, debounce);
     useEffect(() => setInternalValue(value), [value]);
-    const handleChange = useCallback((event: ChangeEvent<any>) => {
-        // Get the new input string
-        const { value } = event.target;
+    const handleChange = useCallback((value: string) => {
         // Update state
         setInternalValue(value);
         // Remove the highlight
@@ -158,6 +156,12 @@ export function SiteSearchBar({
         // Debounce onChange
         onChangeDebounced(value);
     }, [onChangeDebounced]);
+    const handleChangeEvent = useCallback((event: ChangeEvent<any>) => {
+        // Get the new input string
+        const { value } = event.target;
+        // Call handleChange
+        handleChange(value);
+    }, [handleChange]);
 
     const [optionsWithHistory, setOptionsWithHistory] = useState<AutocompleteOption[]>(options);
     useEffect(() => {
@@ -378,8 +382,8 @@ export function SiteSearchBar({
                         disableUnderline={true}
                         fullWidth={true}
                         value={internalValue}
-                        onChange={handleChange}
-                        placeholder={placeholder}
+                        onChange={handleChangeEvent}
+                        placeholder={t(`common:${placeholder ?? 'Search'}`, { lng }) + '...'}
                         autoFocus={props.autoFocus ?? false}
                         // {...params.InputLabelProps}
                         inputProps={params.inputProps}
@@ -413,7 +417,7 @@ export function SiteSearchBar({
                         }}
                     />
                     <MicrophoneButton
-                        onTranscriptChange={() => { }}
+                        onTranscriptChange={handleChange}
                         session={session}
                     />
                     <IconButton sx={{

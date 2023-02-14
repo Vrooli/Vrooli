@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { FindByIdInput } from '@shared/consts';
 import { CreatePageProps } from 'pages';
 import { CreateProps } from 'components/views/types';
-import { exists, isOfType } from '@shared/utils';
+import { isOfType } from '@shared/utils';
 import { SearchParams } from 'utils/search/schemas/base';
 import { routineFindOne } from 'api/generated/endpoints/routine';
 
@@ -213,8 +213,6 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                 </Stack>
                 <SearchList
                     id={`${objectType}-select-or-create-list`}
-                    itemKeyPrefix={`${objectType}-list-item`}
-                    noResultsText={"None found. Maybe you should create one?"}
                     beforeNavigation={fetchFullData}
                     searchType={objectType as unknown as SearchType}
                     searchPlaceholder={t(`common:SelectExisting${objectType}`, { lng })}

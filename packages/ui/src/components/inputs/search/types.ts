@@ -1,6 +1,6 @@
 import { InputProps } from '@mui/material';
 import { Session } from '@shared/consts';
-import { AutocompleteOption } from 'types';
+import { AutocompleteOption, CommonKey } from 'types';
 import { SearchItem } from 'utils';
 
 export type SiteSearchBarProps = InputProps & {
@@ -10,7 +10,7 @@ export type SiteSearchBarProps = InputProps & {
     onChange: (updatedText: string) => any;
     onInputChange: (newValue: AutocompleteOption) => any;
     options?: AutocompleteOption[];
-    placeholder?: string;
+    placeholder?: CommonKey;
     session: Session;
     showSecondaryLabel?: boolean;
     value: string;

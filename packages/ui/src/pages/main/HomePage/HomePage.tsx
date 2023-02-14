@@ -347,7 +347,7 @@ export const HomePage = ({
                 {/* ========= #region Custom SearchBar ========= */}
                 <SiteSearchBar
                     id="main-search"
-                    placeholder='Search routines, projects, and more...'
+                    placeholder='SearchHome'
                     options={autocompleteOptions}
                     loading={loading}
                     value={searchString}

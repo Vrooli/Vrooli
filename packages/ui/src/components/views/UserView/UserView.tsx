@@ -115,47 +115,37 @@ export const UserView = ({
     }, [setLocation]);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
+    const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
                 return {
                     searchType: SearchType.Organization,
-                    itemKeyPrefix: 'organization-list-item',
-                    placeholder: "Search user's organizations...",
-                    noResultsText: "No organizations found",
+                    placeholder: 'SearchOrganization',
                     where: { userId: id, visibility: VisibilityType.All },
                 }
             case TabOptions.Projects:
                 return {
                     searchType: SearchType.Project,
-                    itemKeyPrefix: 'project-list-item',
-                    placeholder: "Search user's projects...",
-                    noResultsText: "No projects found",
+                    placeholder: 'SearchProject',
                     where: { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All },
                 }
             case TabOptions.Routines:
                 return {
                     searchType: SearchType.Routine,
-                    itemKeyPrefix: 'routine-list-item',
-                    placeholder: "Search user's routines...",
-                    noResultsText: "No routines found",
+                    placeholder: 'SearchRoutine',
                     where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                 }
             case TabOptions.Standards:
                 return {
                     searchType: SearchType.Standard,
-                    itemKeyPrefix: 'standard-list-item',
-                    placeholder: "Search user's standards...",
-                    noResultsText: "No standards found",
+                    placeholder: 'SearchStandard',
                     where: { userId: id, visibilityType: VisibilityType.All },
                 }
             default:
                 return {
                     searchType: SearchType.Organization,
-                    itemKeyPrefix: '',
-                    placeholder: '',
-                    noResultsText: '',
+                    placeholder: 'SearchOrganization',
                     where: {},
                 }
         }
@@ -412,8 +402,6 @@ export const UserView = ({
                                 handleAdd={isOwn ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="user-view-list"
-                                itemKeyPrefix={itemKeyPrefix}
-                                noResultsText={noResultsText}
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}
                                 session={session}

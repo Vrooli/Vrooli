@@ -182,7 +182,7 @@ export const HistoryPage = ({
                     <Typography component="h1" variant="h3" textAlign="center">History</Typography>
                     <SiteSearchBar
                         id="history-search"
-                        placeholder='Search active/completed runs, stars, and views...'
+                        placeholder='SearchHistory'
                         options={autocompleteOptions}
                         loading={loading}
                         value={searchString}

@@ -17,6 +17,7 @@ import { RoutineModel } from "./routine";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
 
 export const subscriberMapper: { [x: string]: string } = {
     Api: 'api',
@@ -132,5 +133,25 @@ export const NotificationSubscriptionModel: ModelLogic<{
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: 500,
+        owner: (data) => ({
+            User: data.subscriber,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            subscriber: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                subscriber: { id: userId }
+            }),
+        },
+    },
 })

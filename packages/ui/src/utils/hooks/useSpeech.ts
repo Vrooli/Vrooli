@@ -43,13 +43,11 @@ export const useSpeech = () => {
             sr.addEventListener('result', (event) => {
                 // Get the transcript from the event
                 const currentTranscript = event.results[0][0].transcript;
-                console.log('updating transcript: ', currentTranscript)
                 // Set the transcript state
                 setTranscript(currentTranscript);
             });
             // Add event listener for when speech recognition ends
             sr.addEventListener('end', () => {
-                console.log('stopping speech recognition. Final transcript: ', transcript)
                 setIsListening(false);
             });
             setIsListening(true);
