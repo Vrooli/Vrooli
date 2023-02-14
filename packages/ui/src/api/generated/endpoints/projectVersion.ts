@@ -9,7 +9,7 @@ ${Organization_nav}
 ${Tag_list}
 ${User_nav}
 
-query projectVersion($input: FindByIdInput!) {
+query projectVersion($input: FindVersionInput!) {
   projectVersion(input: $input) {
     directories {
         children {

@@ -138,6 +138,7 @@
     "MarkedInternal": "Marked as internal. Only the owner can use this.",
     "MatchCase": "Match case",
     "MatchWholeWord": "Match whole word",
+    "MicrophonePermissionDenied": "Permission denied. Please allow access to your microphone.",
     "MustCompleteRoutinesInOrder": "Must complete routines in order",
     "Name": "Name",
     "Navigate": "Navigate",

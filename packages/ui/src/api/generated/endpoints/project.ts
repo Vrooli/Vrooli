@@ -9,7 +9,7 @@ ${Organization_nav}
 ${Tag_list}
 ${User_nav}
 
-query project($input: FindByIdInput!) {
+query project($input: FindByIdOrHandleInput!) {
   project(input: $input) {
     parent {
         id

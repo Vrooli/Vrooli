@@ -179,7 +179,7 @@ query profile {
 }`;
 
 export const userFindOne = gql`
-query user($input: FindByIdInput!) {
+query user($input: FindByIdOrHandleInput!) {
   user(input: $input) {
     stats {
         id

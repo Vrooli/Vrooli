@@ -40,6 +40,7 @@ export const StarButton = ({
     }, [internalIsStar, isStar, stars]);
 
     const handleClick = useCallback((event: any) => {
+        console.log('starbutton handleclick', userId, event, internalIsStar, starFor, objectId, onChange)
         if (!userId) return;
         const isStar = !internalIsStar;
         setInternalIsStar(isStar);

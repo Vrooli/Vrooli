@@ -11,7 +11,7 @@ ${Organization_nav}
 ${Tag_list}
 ${User_nav}
 
-query routineVersion($input: FindByIdInput!) {
+query routineVersion($input: FindVersionInput!) {
   routineVersion(input: $input) {
     versionNotes
     apiVersion {

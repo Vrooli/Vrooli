@@ -20,7 +20,6 @@ export const MicrophoneButton = ({
     const { t } = useTranslation();
 
     const { transcript, isListening, isSpeechSupported, startListening, stopListening, resetTranscript } = useSpeech();
-    console.log('microphonebutton transcript', transcript);
 
     const status = useMemo<MicrophoneStatus>(() => {
         if (disabled || !isSpeechSupported) return 'Disabled';
@@ -41,11 +40,9 @@ export const MicrophoneButton = ({
     const handleClick = useCallback(() => {
         if (status === 'On') {
             stopListening();
-            console.log('transcript before onTranscriptChange', transcript);
             onTranscriptChange(transcript);
         } else if (status === 'Off') {
             startListening();
-            console.log('transcript before resetTranscript', transcript);
             transcript && resetTranscript();
         }
         return true

@@ -120,11 +120,9 @@ export const SelectLanguageMenu = ({
     }, []);
 
     const languageOptions = useMemo<Array<[string, string]>>(() => {
-        console.log('languageoptions 1')
         // Find user languages
         const userLanguages = getUserLanguages(session);
         const selected = translations.map((translation) => getLanguageSubtag(translation.language));
-        console.log('languageoptions 2', selected)
         // Sort selected languages. Selected languages which are also user languages are first.
         const sortedSelectedLanguages = selected.sort((a, b) => {
             const aIndex = userLanguages.indexOf(a);
@@ -139,7 +137,6 @@ export const SelectLanguageMenu = ({
                 return aIndex - bIndex;
             }
         }) ?? [];
-        console.log('languageoptions 3', sortedSelectedLanguages)
         // Filter selected languages from user languages
         const userLanguagesFiltered = userLanguages.filter(l => selected.indexOf(l) === -1);
         // Filter selected and user languages from auto-translateLanguages TODO put back when this is implemented
@@ -154,7 +151,6 @@ export const SelectLanguageMenu = ({
         if (searchString.length > 0) {
             options = options.filter((o: [string, string]) => o[1].toLowerCase().includes(searchString.toLowerCase()));
         }
-        console.log('languageoptions 4', options)
         return options;
     }, [isEditing, searchString, session, translations]);
 

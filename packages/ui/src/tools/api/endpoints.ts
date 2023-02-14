@@ -23,7 +23,7 @@ export const endpoints = {
     apiVersion: async () => {
         const { apiVersion: apiVersionPartial } = await import('./partial/apiVersion');
         return {
-            findOne: toQuery('apiVersion', 'FindByIdInput', apiVersionPartial, 'full'),
+            findOne: toQuery('apiVersion', 'FindVersionInput', apiVersionPartial, 'full'),
             findMany: toQuery('apiVersions', 'ApiVersionSearchInput', ...(await toSearch(apiVersionPartial))),
             create: toMutation('apiVersionCreate', 'ApiVersionCreateInput', apiVersionPartial, 'full'),
             update: toMutation('apiVersionUpdate', 'ApiVersionUpdateInput', apiVersionPartial, 'full'),
@@ -169,7 +169,7 @@ export const endpoints = {
     noteVersion: async () => {
         const { noteVersion: noteVersionPartial } = await import('./partial/noteVersion');
         return {
-            findOne: toQuery('noteVersion', 'FindByIdInput', noteVersionPartial, 'full'),
+            findOne: toQuery('noteVersion', 'FindVersionInput', noteVersionPartial, 'full'),
             findMany: toQuery('noteVersions', 'NoteVersionSearchInput', ...(await toSearch(noteVersionPartial))),
             create: toMutation('noteVersionCreate', 'NoteVersionCreateInput', noteVersionPartial, 'full'),
             update: toMutation('noteVersionUpdate', 'NoteVersionUpdateInput', noteVersionPartial, 'full'),
@@ -199,7 +199,7 @@ export const endpoints = {
     organization: async () => {
         const { organization: organizationPartial } = await import('./partial/organization');
         return {
-            findOne: toQuery('organization', 'FindByIdInput', organizationPartial, 'full'),
+            findOne: toQuery('organization', 'FindByIdOrHandleInput', organizationPartial, 'full'),
             findMany: toQuery('organizations', 'OrganizationSearchInput', ...(await toSearch(organizationPartial))),
             create: toMutation('organizationCreate', 'OrganizationCreateInput', organizationPartial, 'full'),
             update: toMutation('organizationUpdate', 'OrganizationUpdateInput', organizationPartial, 'full'),
@@ -225,7 +225,7 @@ export const endpoints = {
     project: async () => {
         const { project: projectPartial } = await import('./partial/project');
         return {
-            findOne: toQuery('project', 'FindByIdInput', projectPartial, 'full'),
+            findOne: toQuery('project', 'FindByIdOrHandleInput', projectPartial, 'full'),
             findMany: toQuery('projects', 'ProjectSearchInput', ...(await toSearch(projectPartial))),
             create: toMutation('projectCreate', 'ProjectCreateInput', projectPartial, 'full'),
             update: toMutation('projectUpdate', 'ProjectUpdateInput', projectPartial, 'full'),
@@ -246,7 +246,7 @@ export const endpoints = {
     projectVersion: async () => {
         const { projectVersion: projectVersionPartial } = await import('./partial/projectVersion');
         return {
-            findOne: toQuery('projectVersion', 'FindByIdInput', projectVersionPartial, 'full'),
+            findOne: toQuery('projectVersion', 'FindVersionInput', projectVersionPartial, 'full'),
             findMany: toQuery('projectVersions', 'ProjectVersionSearchInput', ...(await toSearch(projectVersionPartial))),
             create: toMutation('projectVersionCreate', 'ProjectVersionCreateInput', projectVersionPartial, 'full'),
             update: toMutation('projectVersionUpdate', 'ProjectVersionUpdateInput', projectVersionPartial, 'full'),
@@ -406,7 +406,7 @@ export const endpoints = {
     routineVersion: async () => {
         const { routineVersion: routineVersionPartial } = await import('./partial/routineVersion');
         return {
-            findOne: toQuery('routineVersion', 'FindByIdInput', routineVersionPartial, 'full'),
+            findOne: toQuery('routineVersion', 'FindVersionInput', routineVersionPartial, 'full'),
             findMany: toQuery('routineVersions', 'RoutineVersionSearchInput', ...(await toSearch(routineVersionPartial))),
             create: toMutation('routineVersionCreate', 'RoutineVersionCreateInput', routineVersionPartial, 'full'),
             update: toMutation('routineVersionUpdate', 'RoutineVersionUpdateInput', routineVersionPartial, 'full'),
@@ -480,7 +480,7 @@ export const endpoints = {
     smartContractVersion: async () => {
         const { smartContractVersion: smartContractVersionPartial } = await import('./partial/smartContractVersion');
         return {
-            findOne: toQuery('smartContractVersion', 'FindByIdInput', smartContractVersionPartial, 'full'),
+            findOne: toQuery('smartContractVersion', 'FindVersionInput', smartContractVersionPartial, 'full'),
             findMany: toQuery('smartContractVersions', 'SmartContractVersionSearchInput', ...(await toSearch(smartContractVersionPartial))),
             create: toMutation('smartContractVersionCreate', 'SmartContractVersionCreateInput', smartContractVersionPartial, 'full'),
             update: toMutation('smartContractVersionUpdate', 'SmartContractVersionUpdateInput', smartContractVersionPartial, 'full'),
@@ -498,7 +498,7 @@ export const endpoints = {
     standardVersion: async () => {
         const { standardVersion: standardVersionPartial } = await import('./partial/standardVersion');
         return {
-            findOne: toQuery('standardVersion', 'FindByIdInput', standardVersionPartial, 'full'),
+            findOne: toQuery('standardVersion', 'FindVersionInput', standardVersionPartial, 'full'),
             findMany: toQuery('standardVersions', 'StandardVersionSearchInput', ...(await toSearch(standardVersionPartial))),
             create: toMutation('standardVersionCreate', 'StandardVersionCreateInput', standardVersionPartial, 'full'),
             update: toMutation('standardVersionUpdate', 'StandardVersionUpdateInput', standardVersionPartial, 'full'),
@@ -599,7 +599,7 @@ export const endpoints = {
         const { success: successPartial } = await import('./partial/success');
         return {
             profile: toQuery('profile', null, profilePartial, 'full'),
-            findOne: toQuery('user', 'FindByIdInput', userPartial, 'full'),
+            findOne: toQuery('user', 'FindByIdOrHandleInput', userPartial, 'full'),
             findMany: toQuery('users', 'UserSearchInput', ...(await toSearch(userPartial))),
             profileUpdate: toMutation('profileUpdate', 'ProfileUpdateInput', profilePartial, 'full'),
             profileEmailUpdate: toMutation('profileEmailUpdate', 'ProfileEmailUpdateInput', profilePartial, 'full'),

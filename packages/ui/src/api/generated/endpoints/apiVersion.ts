@@ -9,7 +9,7 @@ ${Organization_nav}
 ${Tag_list}
 ${User_nav}
 
-query apiVersion($input: FindByIdInput!) {
+query apiVersion($input: FindVersionInput!) {
   apiVersion(input: $input) {
     pullRequest {
         id

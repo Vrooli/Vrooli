@@ -9,7 +9,7 @@ ${Organization_nav}
 ${Tag_list}
 ${User_nav}
 
-query noteVersion($input: FindByIdInput!) {
+query noteVersion($input: FindVersionInput!) {
   noteVersion(input: $input) {
     pullRequest {
         id

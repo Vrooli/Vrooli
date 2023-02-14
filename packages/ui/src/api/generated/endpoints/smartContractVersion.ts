@@ -9,7 +9,7 @@ ${Organization_nav}
 ${Tag_list}
 ${User_nav}
 
-query smartContractVersion($input: FindByIdInput!) {
+query smartContractVersion($input: FindVersionInput!) {
   smartContractVersion(input: $input) {
     versionNotes
     pullRequest {

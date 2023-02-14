@@ -3,7 +3,7 @@ import { Tag_list } from '../fragments/Tag_list';
 
 export const organizationFindOne = gql`${Tag_list}
 
-query organization($input: FindByIdInput!) {
+query organization($input: FindByIdOrHandleInput!) {
   organization(input: $input) {
     roles {
         members {

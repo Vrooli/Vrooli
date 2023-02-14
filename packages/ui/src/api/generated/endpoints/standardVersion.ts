@@ -9,7 +9,7 @@ ${Organization_nav}
 ${Tag_list}
 ${User_nav}
 
-query standardVersion($input: FindByIdInput!) {
+query standardVersion($input: FindVersionInput!) {
   standardVersion(input: $input) {
     versionNotes
     pullRequest {
