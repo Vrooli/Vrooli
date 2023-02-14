@@ -156,7 +156,7 @@ you {
     canComment
     canCopy
     canDelete
-    canStar
+    canBookmark
     canReport
     canRun
     canUpdate

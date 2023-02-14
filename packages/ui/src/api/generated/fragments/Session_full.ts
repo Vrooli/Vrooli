@@ -15,7 +15,7 @@ users {
                 id
                 created_at
                 tag
-                stars
+                bookmarks
                 translations {
                     id
                     language
@@ -23,7 +23,7 @@ users {
                 }
                 you {
                     isOwn
-                    isStarred
+                    isBookmarked
                 }
             }
             userSchedule {

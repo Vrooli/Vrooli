@@ -48,7 +48,7 @@ export enum ObjectActionComplete {
 export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
     const isLoggedIn = session?.isLoggedIn === true;
-    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canStar, canVote, isStarred, isUpvoted } = getYou(object)
+    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canVote, isBookmarked, isUpvoted } = getYou(object)
     let options: ObjectAction[] = [];
     // Check edit
     if (isLoggedIn && canUpdate) {
@@ -59,8 +59,8 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
         options.push(isUpvoted ? ObjectAction.VoteDown : ObjectAction.VoteUp);
     }
     // Check Star/StarUndo
-    if (isLoggedIn && canStar) {
-        options.push(isStarred ? ObjectAction.StarUndo : ObjectAction.Star);
+    if (isLoggedIn && canBookmark) {
+        options.push(isBookmarked ? ObjectAction.StarUndo : ObjectAction.Star);
     }
     // Check Comment
     if (isLoggedIn && canComment) {

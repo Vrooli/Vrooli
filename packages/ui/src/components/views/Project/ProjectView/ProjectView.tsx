@@ -44,11 +44,11 @@ export const ProjectView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { canStar, name, description, handle } = useMemo(() => {
-        const { canStar } = projectVersion?.root?.you ?? {};
+    const { canBookmark, name, description, handle } = useMemo(() => {
+        const { canBookmark } = projectVersion?.root?.you ?? {};
         const { description, name } = getTranslation(projectVersion ?? partialData, [language]);
         return {
-            canStar,
+            canBookmark,
             name,
             description,
             handle: projectVersion?.root?.handle ?? partialData?.root?.handle,
@@ -111,7 +111,7 @@ export const ProjectView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && projectVersion) {
-                    setProjectVersion(setDotNotationValue(projectVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setProjectVersion(setDotNotationValue(projectVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -241,19 +241,19 @@ export const ProjectView = ({
                     </Tooltip>
                     <ShareButton object={projectVersion} zIndex={zIndex} />
                     <StarButton
-                        disabled={!canStar}
+                        disabled={!canBookmark}
                         session={session}
                         objectId={projectVersion?.id ?? ''}
                         starFor={BookmarkFor.Project}
-                        isStar={projectVersion?.root?.you?.isStarred ?? false}
-                        stars={projectVersion?.root?.stars ?? 0}
+                        isStar={projectVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarks={projectVersion?.root?.bookmarks ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canUpdate, name, onEdit, handle, projectVersion, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canUpdate, name, onEdit, handle, projectVersion, description, zIndex, canBookmark, session]);
 
     /**
     * Opens add new page

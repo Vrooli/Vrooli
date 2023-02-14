@@ -6,7 +6,7 @@ export const noteYou: GqlPartial<NoteYou> = {
     __typename: 'NoteYou',
     common: {
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canTransfer: true,
         canUpdate: true,
         canRead: true,

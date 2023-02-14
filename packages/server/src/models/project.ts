@@ -28,7 +28,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 }
 
 const __typename = 'Project' as const;
-type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const ProjectModel: ModelLogic<{
     IsTransferable: true,

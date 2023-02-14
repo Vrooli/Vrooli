@@ -19,7 +19,7 @@ export const issueYou: GqlPartial<IssueYou> = {
     common: {
         canComment: true,
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canReport: true,
         canUpdate: true,
         canRead: true,

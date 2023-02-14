@@ -31,7 +31,7 @@
 // comments, votes, views, reports, and reposts. Up to posts can be pinned to the top of a feed. While maybe not necessary, should be set up 
 // so users and organizations can have multiple feeds ✅
 // 26. A question object. Can be attached to routines, projects, standards, smart contracts, apis, organizations, or be standalone (standalone ones show up in site search). Can be marked as answered,
-// and can be viewed, voted, starred, reported, tagged, isPrivate. Also has isSpecificToObject field to specify if question should 
+// and can be viewed, voted, bookmarked, reported, tagged, isPrivate. Also has isSpecificToObject field to specify if question should 
 // come up when one searches for existing questions to attach to an object ✅
 // 28. Quiz object. Stores status, questions with weights, scoreToPass. Can be personal (created by you or auto-generated to 
 // test your understanding of previously-run learning routines), or attached to a post or routine. These quizzes have their own question/answer tables

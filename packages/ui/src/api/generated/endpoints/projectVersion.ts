@@ -78,11 +78,11 @@ query projectVersion($input: FindVersionInput!) {
             you {
                 canAddMembers
                 canDelete
-                canStar
+                canBookmark
                 canReport
                 canUpdate
                 canRead
-                isStarred
+                isBookmarked
                 isViewed
                 yourMembership {
                     id
@@ -295,7 +295,7 @@ query projectVersion($input: FindVersionInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -303,12 +303,12 @@ query projectVersion($input: FindVersionInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -373,7 +373,7 @@ query projectVersions($input: ProjectVersionSearchInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -381,12 +381,12 @@ query projectVersions($input: ProjectVersionSearchInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -500,11 +500,11 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canStar
+                canBookmark
                 canReport
                 canUpdate
                 canRead
-                isStarred
+                isBookmarked
                 isViewed
                 yourMembership {
                     id
@@ -717,7 +717,7 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -725,12 +725,12 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -839,11 +839,11 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canStar
+                canBookmark
                 canReport
                 canUpdate
                 canRead
-                isStarred
+                isBookmarked
                 isViewed
                 yourMembership {
                     id
@@ -1056,7 +1056,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -1064,12 +1064,12 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }

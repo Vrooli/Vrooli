@@ -7,7 +7,7 @@ export const routineYou: GqlPartial<RoutineYou> = {
     common: {
         canComment: true,
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canUpdate: true,
         canRead: true,
         canVote: true,

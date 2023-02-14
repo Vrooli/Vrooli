@@ -17,7 +17,7 @@ export const commentYou: GqlPartial<CommentYou> = {
     __typename: 'CommentYou',
     common: {
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canReply: true,
         canReport: true,
         canUpdate: true,

@@ -39,12 +39,12 @@ export const NoteView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, canStar, name } = useMemo(() => {
-        const { canStar } = noteVersion?.root?.you ?? {};
+    const { description, canBookmark, name } = useMemo(() => {
+        const { canBookmark } = noteVersion?.root?.you ?? {};
         const { description, name } = getTranslation(noteVersion ?? partialData, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
-            canStar,
+            canBookmark,
             name,
         };
     }, [language, noteVersion, partialData]);
@@ -81,7 +81,7 @@ export const NoteView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && noteVersion) {
-                    setNoteVersion(setDotNotationValue(noteVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setNoteVersion(setDotNotationValue(noteVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -191,19 +191,19 @@ export const NoteView = ({
                     <ShareButton object={noteVersion} zIndex={zIndex} />
                     <ReportsLink object={noteVersion} />
                     <StarButton
-                        disabled={!canStar}
+                        disabled={!canBookmark}
                         session={session}
                         objectId={noteVersion?.id ?? ''}
                         starFor={BookmarkFor.Note}
-                        isStar={noteVersion?.root?.you?.isStarred ?? false}
-                        stars={noteVersion?.root?.stars ?? 0}
+                        isStar={noteVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarks={noteVersion?.root?.bookmarks ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, noteVersion, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, noteVersion, description, zIndex, canBookmark, session]);
 
     return (
         <>

@@ -13,7 +13,7 @@ import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 
 const __typename = 'Organization' as const;
-type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canStar' | 'canRead'>;
+type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const OrganizationModel: ModelLogic<{
     IsTransferable: false,

@@ -68,7 +68,7 @@ query history($input: HistoryInput!) {
     recentlyViewed {
         ...View_list
     }
-    recentlyStarred {
+    recentlyBookmarked {
         ...Star_list
     }
   }

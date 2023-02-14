@@ -11,7 +11,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 
 const __typename = 'Quiz' as const;
-type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
+type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const QuizModel: ModelLogic<{
     IsTransferable: false,

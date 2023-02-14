@@ -160,10 +160,10 @@ export const ResourceDialog = ({
     useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
-        // Group all query results and sort by number of stars. Ignore any value that isn't an array
+        // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
         const flattened = (Object.values(searchData?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
-            return b.stars - a.stars;
+            return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems];
     }, [languages, searchData]);

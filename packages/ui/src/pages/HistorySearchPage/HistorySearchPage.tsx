@@ -1,5 +1,5 @@
 /**
- * Search page for personal objects (active runs, completed runs, views, stars)
+ * Search page for personal objects (active runs, completed runs, views, bookmarks)
  */
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { PageContainer, SearchList } from "components";
@@ -27,9 +27,9 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         title: 'Views',
         where: {},
     },
-    [TabOption.Starred]: {
+    [TabOption.Bookmarked]: {
         searchType: SearchType.Star,
-        title: 'Stars',
+        title: 'Bookmarks',
         where: {},
     },
 }

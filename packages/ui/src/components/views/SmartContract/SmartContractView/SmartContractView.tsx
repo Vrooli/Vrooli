@@ -39,12 +39,12 @@ export const SmartContractView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, canStar, name } = useMemo(() => {
-        const { canStar } = smartContractVersion?.root?.you ?? {};
+    const { description, canBookmark, name } = useMemo(() => {
+        const { canBookmark } = smartContractVersion?.root?.you ?? {};
         const { description, name } = getTranslation(smartContractVersion ?? partialData, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
-            canStar,
+            canBookmark,
             name,
         };
     }, [language, smartContractVersion, partialData]);
@@ -81,7 +81,7 @@ export const SmartContractView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && smartContractVersion) {
-                    setSmartContractVersion(setDotNotationValue(smartContractVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setSmartContractVersion(setDotNotationValue(smartContractVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -191,19 +191,19 @@ export const SmartContractView = ({
                     <ShareButton object={smartContractVersion} zIndex={zIndex} />
                     <ReportsLink object={smartContractVersion} />
                     <StarButton
-                        disabled={!canStar}
+                        disabled={!canBookmark}
                         session={session}
                         objectId={smartContractVersion?.id ?? ''}
                         starFor={BookmarkFor.SmartContract}
-                        isStar={smartContractVersion?.root?.you?.isStarred ?? false}
-                        stars={smartContractVersion?.root?.stars ?? 0}
+                        isStar={smartContractVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarks={smartContractVersion?.root?.bookmarks ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, smartContractVersion, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, smartContractVersion, description, zIndex, canBookmark, session]);
 
     return (
         <>

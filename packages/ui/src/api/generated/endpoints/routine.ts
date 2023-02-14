@@ -104,7 +104,7 @@ query routine($input: FindByIdInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -112,12 +112,12 @@ query routine($input: FindByIdInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -316,7 +316,7 @@ query routine($input: FindByIdInput!) {
                         permissions
                         questionsCount
                         score
-                        stars
+                        bookmarks
                         tags {
                             ...Tag_list
                         }
@@ -324,12 +324,12 @@ query routine($input: FindByIdInput!) {
                         views
                         you {
                             canDelete
-                            canStar
+                            canBookmark
                             canTransfer
                             canUpdate
                             canRead
                             canVote
-                            isStarred
+                            isBookmarked
                             isUpvoted
                             isViewed
                         }
@@ -551,7 +551,7 @@ query routine($input: FindByIdInput!) {
                     permissions
                     questionsCount
                     score
-                    stars
+                    bookmarks
                     tags {
                         ...Tag_list
                     }
@@ -560,11 +560,11 @@ query routine($input: FindByIdInput!) {
                     you {
                         canComment
                         canDelete
-                        canStar
+                        canBookmark
                         canUpdate
                         canRead
                         canVote
-                        isStarred
+                        isBookmarked
                         isUpvoted
                         isViewed
                     }
@@ -659,7 +659,7 @@ query routine($input: FindByIdInput!) {
                         permissions
                         questionsCount
                         score
-                        stars
+                        bookmarks
                         tags {
                             ...Tag_list
                         }
@@ -667,12 +667,12 @@ query routine($input: FindByIdInput!) {
                         views
                         you {
                             canDelete
-                            canStar
+                            canBookmark
                             canTransfer
                             canUpdate
                             canRead
                             canVote
-                            isStarred
+                            isBookmarked
                             isUpvoted
                             isViewed
                         }
@@ -889,7 +889,7 @@ query routine($input: FindByIdInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canRun
                     canUpdate
@@ -1095,7 +1095,7 @@ query routine($input: FindByIdInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -1103,12 +1103,12 @@ query routine($input: FindByIdInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -1325,7 +1325,7 @@ query routine($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canStar
+            canBookmark
             canReport
             canRun
             canUpdate
@@ -1364,7 +1364,7 @@ query routine($input: FindByIdInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -1373,11 +1373,11 @@ query routine($input: FindByIdInput!) {
     you {
         canComment
         canDelete
-        canStar
+        canBookmark
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -1553,7 +1553,7 @@ query routines($input: RoutineSearchInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canRun
                     canUpdate
@@ -1581,7 +1581,7 @@ query routines($input: RoutineSearchInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -1590,11 +1590,11 @@ query routines($input: RoutineSearchInput!) {
             you {
                 canComment
                 canDelete
-                canStar
+                canBookmark
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -1706,7 +1706,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -1714,12 +1714,12 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -1918,7 +1918,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         permissions
                         questionsCount
                         score
-                        stars
+                        bookmarks
                         tags {
                             ...Tag_list
                         }
@@ -1926,12 +1926,12 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         views
                         you {
                             canDelete
-                            canStar
+                            canBookmark
                             canTransfer
                             canUpdate
                             canRead
                             canVote
-                            isStarred
+                            isBookmarked
                             isUpvoted
                             isViewed
                         }
@@ -2153,7 +2153,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     permissions
                     questionsCount
                     score
-                    stars
+                    bookmarks
                     tags {
                         ...Tag_list
                     }
@@ -2162,11 +2162,11 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     you {
                         canComment
                         canDelete
-                        canStar
+                        canBookmark
                         canUpdate
                         canRead
                         canVote
-                        isStarred
+                        isBookmarked
                         isUpvoted
                         isViewed
                     }
@@ -2261,7 +2261,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         permissions
                         questionsCount
                         score
-                        stars
+                        bookmarks
                         tags {
                             ...Tag_list
                         }
@@ -2269,12 +2269,12 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         views
                         you {
                             canDelete
-                            canStar
+                            canBookmark
                             canTransfer
                             canUpdate
                             canRead
                             canVote
-                            isStarred
+                            isBookmarked
                             isUpvoted
                             isViewed
                         }
@@ -2491,7 +2491,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canRun
                     canUpdate
@@ -2697,7 +2697,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -2705,12 +2705,12 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -2927,7 +2927,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
             canComment
             canCopy
             canDelete
-            canStar
+            canBookmark
             canReport
             canRun
             canUpdate
@@ -2966,7 +2966,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -2975,11 +2975,11 @@ mutation routineCreate($input: RoutineCreateInput!) {
     you {
         canComment
         canDelete
-        canStar
+        canBookmark
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -3085,7 +3085,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -3093,12 +3093,12 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -3297,7 +3297,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         permissions
                         questionsCount
                         score
-                        stars
+                        bookmarks
                         tags {
                             ...Tag_list
                         }
@@ -3305,12 +3305,12 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         views
                         you {
                             canDelete
-                            canStar
+                            canBookmark
                             canTransfer
                             canUpdate
                             canRead
                             canVote
-                            isStarred
+                            isBookmarked
                             isUpvoted
                             isViewed
                         }
@@ -3532,7 +3532,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     permissions
                     questionsCount
                     score
-                    stars
+                    bookmarks
                     tags {
                         ...Tag_list
                     }
@@ -3541,11 +3541,11 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     you {
                         canComment
                         canDelete
-                        canStar
+                        canBookmark
                         canUpdate
                         canRead
                         canVote
-                        isStarred
+                        isBookmarked
                         isUpvoted
                         isViewed
                     }
@@ -3640,7 +3640,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         permissions
                         questionsCount
                         score
-                        stars
+                        bookmarks
                         tags {
                             ...Tag_list
                         }
@@ -3648,12 +3648,12 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         views
                         you {
                             canDelete
-                            canStar
+                            canBookmark
                             canTransfer
                             canUpdate
                             canRead
                             canVote
-                            isStarred
+                            isBookmarked
                             isUpvoted
                             isViewed
                         }
@@ -3870,7 +3870,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canRun
                     canUpdate
@@ -4076,7 +4076,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -4084,12 +4084,12 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -4306,7 +4306,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canStar
+            canBookmark
             canReport
             canRun
             canUpdate
@@ -4345,7 +4345,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -4354,11 +4354,11 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
     you {
         canComment
         canDelete
-        canStar
+        canBookmark
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }

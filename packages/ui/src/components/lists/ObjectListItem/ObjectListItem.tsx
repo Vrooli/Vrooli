@@ -48,7 +48,7 @@ export function ObjectListItem<T extends ListObjectType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const { canComment, canUpdate, canVote, canStar, isStarred, isUpvoted } = useMemo(() => getYou(data), [data]);
+    const { canComment, canUpdate, canVote, canBookmark, isBookmarked, isUpvoted } = useMemo(() => getYou(data), [data]);
     const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
 
@@ -214,12 +214,12 @@ export function ObjectListItem<T extends ListObjectType>({
                         />
                     )}
                 {starFor && <StarButton
-                    disabled={!canStar}
+                    disabled={!canBookmark}
                     session={session}
                     objectId={starForId}
                     starFor={starFor}
-                    isStar={isStarred}
-                    stars={getCounts(object).stars}
+                    isStar={isBookmarked}
+                    bookmarks={getCounts(object).bookmarks}
                 />}
                 {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton
                     commentsCount={getCounts(object).comments}
@@ -232,7 +232,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideRole, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canStar, isStarred, canComment]);
+    }, [object, isMobile, hideRole, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canBookmark, isBookmarked, canComment]);
 
     /**
      * Run list items may get a progress bar
@@ -281,8 +281,8 @@ export function ObjectListItem<T extends ListObjectType>({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                const isStarredLocation = getYouDot(object, 'isStarred');
-                if (data.success && isStarredLocation && object) setDotNotationValue(object, isStarredLocation as any, action === ObjectActionComplete.Star);
+                const isBookmarkedLocation = getYouDot(object, 'isBookmarked');
+                if (data.success && isBookmarkedLocation && object) setDotNotationValue(object, isBookmarkedLocation as any, action === ObjectActionComplete.Star);
                 break;
             case ObjectActionComplete.Fork:
                 // Data is in first key with a value

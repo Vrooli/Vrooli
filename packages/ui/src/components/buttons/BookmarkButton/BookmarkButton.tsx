@@ -17,9 +17,9 @@ export const BookmarkButton = ({
     objectId,
     onChange,
     session,
-    showStars = true,
+    showBookmarks = true,
     starFor,
-    stars,
+    bookmarks,
     sxs,
     tooltipPlacement = "left"
 }: StarButtonProps) => {
@@ -31,13 +31,13 @@ export const BookmarkButton = ({
     const [internalIsStar, setInternalIsStar] = useState<boolean | null>(isStar ?? null);
     useEffect(() => setInternalIsStar(isStar ?? false), [isStar]);
 
-    const internalStars: number | null = useMemo(() => {
-        if (stars === null || stars === undefined) return null;
-        const starNum = stars;
+    const internalBookmarks: number | null = useMemo(() => {
+        if (bookmarks === null || bookmarks === undefined) return null;
+        const starNum = bookmarks;
         if (internalIsStar === true && isStar === false) return starNum + 1;
         if (internalIsStar === false && isStar === true) return starNum - 1;
         return starNum;
-    }, [internalIsStar, isStar, stars]);
+    }, [internalIsStar, isStar, bookmarks]);
 
     const handleClick = useCallback((event: any) => {
         console.log('starbutton handleclick', userId, event, internalIsStar, starFor, objectId, onChange)
@@ -85,8 +85,8 @@ export const BookmarkButton = ({
             }}>
                 <Icon fill={fill} />
             </Box>
-            {showStars && internalStars !== null && <ListItemText
-                primary={internalStars}
+            {showBookmarks && internalBookmarks !== null && <ListItemText
+                primary={internalBookmarks}
                 sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
             />}
         </Stack>

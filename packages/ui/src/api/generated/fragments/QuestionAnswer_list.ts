@@ -13,7 +13,7 @@ createdBy {
     handle
 }
 score
-stars
+bookmarks
 isAccepted
 commentsCount
 }`;

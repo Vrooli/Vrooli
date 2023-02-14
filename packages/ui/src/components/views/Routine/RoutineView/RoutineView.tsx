@@ -131,7 +131,7 @@ export const RoutineView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && routineVersion) {
-                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:

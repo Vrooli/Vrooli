@@ -27,7 +27,7 @@ query quizQuestion($input: FindByIdInput!) {
                     handle
                 }
                 score
-                stars
+                bookmarks
                 views
                 attemptsCount
                 quizQuestionsCount
@@ -42,12 +42,12 @@ query quizQuestion($input: FindByIdInput!) {
                 }
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canUpdate
                     canRead
                     canVote
                     hasCompleted
-                    isStarred
+                    isBookmarked
                     isUpvoted
                 }
             }

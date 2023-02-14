@@ -134,7 +134,7 @@ export const typeDef = gql`
         maxSimplicity: Int
         maxTimesCompleted: Int
         minScoreRoot: Int
-        minStarsRoot: Int
+        minBookmarksRoot: Int
         minTimesCompleted: Int
         minViewsRoot: Int
         createdById: ID

@@ -117,9 +117,9 @@ export interface StarButtonProps {
     objectId: string;
     onChange?: (isStar: boolean, event?: any) => void;
     session: Session;
-    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
+    showBookmarks?: boolean; // Defaults to true. If false, the number of bookmarks is not shown
     starFor: BookmarkFor;
-    stars?: number | null; // Defaults to 0
+    bookmarks?: number | null; // Defaults to 0
     sxs?: { root?: { [key: string]: any } };
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }

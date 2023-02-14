@@ -129,10 +129,10 @@ export const TagSelector = ({
         return [...queried, ...known];
     }, [autocompleteData, inputValue, tagsRef]);
 
-    const handleIsStarred = useCallback((tag: string, isBookmarked: boolean) => {
+    const handleIsBookmarked = useCallback((tag: string, isBookmarked: boolean) => {
         // Update tag ref
         if (!tagsRef.current) tagsRef.current = {};
-        ((tagsRef.current as TagsRef)[tag] as any) = { ...(tagsRef.current as TagsRef)[tag], isStarred };
+        ((tagsRef.current as TagsRef)[tag] as any) = { ...(tagsRef.current as TagsRef)[tag], isBookmarked };
     }, [tagsRef]);
 
     return (
@@ -175,9 +175,9 @@ export const TagSelector = ({
                         session={session}
                         objectId={(option as Tag).id ?? ''}
                         starFor={BookmarkFor.Tag}
-                        isStar={(option as Tag).you.isStarred}
-                        stars={(option as Tag).stars}
-                        onChange={(isStar) => { handleIsStarred(option.tag, isStar); }}
+                        isStar={(option as Tag).you.isBookmarked}
+                        bookmarks={(option as Tag).bookmarks}
+                        onChange={(isStar) => { handleIsBookmarked(option.tag, isStar); }}
                     />
                 </MenuItem>
             )}

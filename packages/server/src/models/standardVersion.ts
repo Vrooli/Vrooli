@@ -74,7 +74,7 @@ import { StandardModel } from "./standard";
 //         canDelete: () => isAdmin && !isDeleted,
 //         canUpdate: () => isAdmin && !isDeleted,
 //         canReport: () => !isAdmin && !isDeleted && isPublic,
-//         canStar: () => !isDeleted && (isAdmin || isPublic),
+//         canBookmark: () => !isDeleted && (isAdmin || isPublic),
 //         canView: () => !isDeleted && (isAdmin || isPublic),
 //         canVote: () => !isDeleted && (isAdmin || isPublic),
 //     }),

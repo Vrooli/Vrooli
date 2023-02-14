@@ -118,7 +118,7 @@ export const StandardView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && standardVersion) {
-                    setStandardVersion(setDotNotationValue(standardVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setStandardVersion(setDotNotationValue(standardVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:

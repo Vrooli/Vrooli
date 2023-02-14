@@ -69,7 +69,7 @@ query issue($input: FindByIdInput!) {
     commentsCount
     reportsCount
     score
-    stars
+    bookmarks
     views
     labels {
         ...Label_common
@@ -77,12 +77,12 @@ query issue($input: FindByIdInput!) {
     you {
         canComment
         canDelete
-        canStar
+        canBookmark
         canReport
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
     }
   }
@@ -141,7 +141,7 @@ query issues($input: IssueSearchInput!) {
             commentsCount
             reportsCount
             score
-            stars
+            bookmarks
             views
             labels {
                 ...Label_common
@@ -149,12 +149,12 @@ query issues($input: IssueSearchInput!) {
             you {
                 canComment
                 canDelete
-                canStar
+                canBookmark
                 canReport
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }
@@ -226,7 +226,7 @@ mutation issueCreate($input: IssueCreateInput!) {
     commentsCount
     reportsCount
     score
-    stars
+    bookmarks
     views
     labels {
         ...Label_common
@@ -234,12 +234,12 @@ mutation issueCreate($input: IssueCreateInput!) {
     you {
         canComment
         canDelete
-        canStar
+        canBookmark
         canReport
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
     }
   }
@@ -305,7 +305,7 @@ mutation issueUpdate($input: IssueUpdateInput!) {
     commentsCount
     reportsCount
     score
-    stars
+    bookmarks
     views
     labels {
         ...Label_common
@@ -313,12 +313,12 @@ mutation issueUpdate($input: IssueUpdateInput!) {
     you {
         canComment
         canDelete
-        canStar
+        canBookmark
         canReport
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
     }
   }
@@ -384,7 +384,7 @@ mutation issueClose($input: IssueCloseInput!) {
     commentsCount
     reportsCount
     score
-    stars
+    bookmarks
     views
     labels {
         ...Label_common
@@ -392,12 +392,12 @@ mutation issueClose($input: IssueCloseInput!) {
     you {
         canComment
         canDelete
-        canStar
+        canBookmark
         canReport
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
     }
   }

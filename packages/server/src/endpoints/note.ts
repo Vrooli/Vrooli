@@ -85,7 +85,7 @@ export const typeDef = gql`
 
     type NoteYou {
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!

@@ -18,11 +18,11 @@ query organization($input: FindByIdOrHandleInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canUpdate
                     canRead
-                    isStarred
+                    isBookmarked
                     isViewed
                     yourMembership {
                         id
@@ -60,7 +60,7 @@ query organization($input: FindByIdOrHandleInput!) {
     commentsCount
     membersCount
     reportsCount
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -73,11 +73,11 @@ query organization($input: FindByIdOrHandleInput!) {
     you {
         canAddMembers
         canDelete
-        canStar
+        canBookmark
         canReport
         canUpdate
         canRead
-        isStarred
+        isBookmarked
         isViewed
         yourMembership {
             id
@@ -106,7 +106,7 @@ query organizations($input: OrganizationSearchInput!) {
             commentsCount
             membersCount
             reportsCount
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -119,11 +119,11 @@ query organizations($input: OrganizationSearchInput!) {
             you {
                 canAddMembers
                 canDelete
-                canStar
+                canBookmark
                 canReport
                 canUpdate
                 canRead
-                isStarred
+                isBookmarked
                 isViewed
                 yourMembership {
                     id
@@ -159,11 +159,11 @@ mutation organizationCreate($input: OrganizationCreateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canUpdate
                     canRead
-                    isStarred
+                    isBookmarked
                     isViewed
                     yourMembership {
                         id
@@ -201,7 +201,7 @@ mutation organizationCreate($input: OrganizationCreateInput!) {
     commentsCount
     membersCount
     reportsCount
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -214,11 +214,11 @@ mutation organizationCreate($input: OrganizationCreateInput!) {
     you {
         canAddMembers
         canDelete
-        canStar
+        canBookmark
         canReport
         canUpdate
         canRead
-        isStarred
+        isBookmarked
         isViewed
         yourMembership {
             id
@@ -248,11 +248,11 @@ mutation organizationUpdate($input: OrganizationUpdateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canUpdate
                     canRead
-                    isStarred
+                    isBookmarked
                     isViewed
                     yourMembership {
                         id
@@ -290,7 +290,7 @@ mutation organizationUpdate($input: OrganizationUpdateInput!) {
     commentsCount
     membersCount
     reportsCount
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -303,11 +303,11 @@ mutation organizationUpdate($input: OrganizationUpdateInput!) {
     you {
         canAddMembers
         canDelete
-        canStar
+        canBookmark
         canReport
         canUpdate
         canRead
-        isStarred
+        isBookmarked
         isViewed
         yourMembership {
             id

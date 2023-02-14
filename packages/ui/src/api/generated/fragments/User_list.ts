@@ -8,13 +8,13 @@ id
 created_at
 handle
 name
-stars
+bookmarks
 reportsReceivedCount
 you {
     canDelete
     canReport
     canUpdate
-    isStarred
+    isBookmarked
     isViewed
 }
 }`;

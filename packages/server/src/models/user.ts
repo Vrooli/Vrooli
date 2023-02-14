@@ -122,9 +122,9 @@ export const UserModel: ModelLogic<{
                     // name: data.name ?? undefined,
                     // theme: data.theme ?? undefined,
                     // // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
-                    // // starred: {
-                    // //     create: starredCreate,
-                    // //     delete: starredDelete,
+                    // // bookmarked: {
+                    // //     create: bookmarkedCreate,
+                    // //     delete: bookmarkedDelete,
                     // // }, TODO
                     // translations: await translationRelationshipBuilder(prisma, userData, data, false),
                 } as any

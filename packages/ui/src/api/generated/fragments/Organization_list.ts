@@ -8,7 +8,7 @@ isPrivate
 commentsCount
 membersCount
 reportsCount
-stars
+bookmarks
 tags {
     ...Tag_list
 }
@@ -21,11 +21,11 @@ translations {
 you {
     canAddMembers
     canDelete
-    canStar
+    canBookmark
     canReport
     canUpdate
     canRead
-    isStarred
+    isBookmarked
     isViewed
     yourMembership {
         id

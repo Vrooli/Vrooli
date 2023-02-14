@@ -90,7 +90,7 @@ export const typeDef = gql`
         canComment: Boolean!
         canDelete: Boolean!
         canUpdate: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canReport: Boolean!
         canRead: Boolean!
         canVote: Boolean!

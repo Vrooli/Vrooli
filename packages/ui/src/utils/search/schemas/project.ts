@@ -2,14 +2,14 @@ import { InputType, ProjectSortBy } from "@shared/consts";
 import { projectFindMany } from "api/generated/endpoints/project";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { languagesContainer, languagesFields, searchFormLayout, starsContainer, starsFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const projectSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchProject', lng),
     containers: [
         { totalItems: 1 },
         votesContainer,
-        starsContainer,
+        bookmarksContainer,
         languagesContainer,
         tagsContainer,
     ],
@@ -29,7 +29,7 @@ export const projectSearchSchema = (lng: string): FormSchema => ({
             }
         },
         ...votesFields,
-        ...starsFields,
+        ...bookmarksFields,
         ...languagesFields,
         ...tagsFields,
     ]

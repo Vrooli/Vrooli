@@ -40,13 +40,13 @@ export const ApiView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { canStar, details, name, resourceList, summary } = useMemo(() => {
-        const { canStar } = apiVersion?.root?.you ?? {};
+    const { canBookmark, details, name, resourceList, summary } = useMemo(() => {
+        const { canBookmark } = apiVersion?.root?.you ?? {};
         const resourceList: ResourceList | null | undefined = apiVersion?.resourceList;
         const { details, name, summary } = getTranslation(apiVersion ?? partialData, [language]);
         return {
             details,
-            canStar,
+            canBookmark,
             name,
             resourceList,
             summary,
@@ -102,7 +102,7 @@ export const ApiView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && apiVersion) {
-                    setApiVersion(setDotNotationValue(apiVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setApiVersion(setDotNotationValue(apiVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -212,19 +212,19 @@ export const ApiView = ({
                     <ShareButton object={apiVersion} zIndex={zIndex} />
                     <ReportsLink object={apiVersion} />
                     <StarButton
-                        disabled={!canStar}
+                        disabled={!canBookmark}
                         session={session}
                         objectId={apiVersion?.id ?? ''}
                         starFor={BookmarkFor.Api}
-                        isStar={apiVersion?.root?.you?.isStarred ?? false}
-                        stars={apiVersion?.root?.stars ?? 0}
+                        isStar={apiVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarks={apiVersion?.root?.bookmarks ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, apiVersion, summary, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, apiVersion, summary, zIndex, canBookmark, session]);
 
     return (
         <>

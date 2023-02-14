@@ -19,7 +19,7 @@ export const organizationYou: GqlPartial<OrganizationYou> = {
     common: {
         canAddMembers: true,
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canReport: true,
         canUpdate: true,
         canRead: true,

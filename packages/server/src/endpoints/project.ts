@@ -96,7 +96,7 @@ export const typeDef = gql`
 
     type ProjectYou {
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!

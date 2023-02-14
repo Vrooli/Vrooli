@@ -94,7 +94,7 @@ export const typeDef = gql`
         standardsCreated: [Standard!]
         standards: [Standard!]
         bookmarkedBy: [User!]!
-        starred: [Star!]
+        bookmarked: [Star!]
         stats: StatsUser
         tags: [Tag!]
         transfersIncoming: [Transfer!]

@@ -17,7 +17,7 @@ import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
 
 const __typename = 'Comment' as const;
-type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
+type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReply' | 'canReport' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,

@@ -19,7 +19,7 @@ root {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -28,11 +28,11 @@ root {
     you {
         canDelete
         canEdit
-        canStar
+        canBookmark
         canTransfer
         canView
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }

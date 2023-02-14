@@ -24,6 +24,6 @@ export const historyResult: GqlPartial<HistoryResult> = {
             },
         },
         recentlyViewed: { __use: 2 },
-        recentlyStarred: { __use: 3 },
+        recentlyBookmarked: { __use: 3 },
     }
 }

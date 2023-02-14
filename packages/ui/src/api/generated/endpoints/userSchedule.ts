@@ -18,7 +18,7 @@ query userSchedule($input: FindByIdInput!) {
             id
             created_at
             tag
-            stars
+            bookmarks
             translations {
                 id
                 language
@@ -26,7 +26,7 @@ query userSchedule($input: FindByIdInput!) {
             }
             you {
                 isOwn
-                isStarred
+                isBookmarked
             }
         }
         userSchedule {
@@ -128,7 +128,7 @@ mutation userScheduleCreate($input: UserScheduleCreateInput!) {
             id
             created_at
             tag
-            stars
+            bookmarks
             translations {
                 id
                 language
@@ -136,7 +136,7 @@ mutation userScheduleCreate($input: UserScheduleCreateInput!) {
             }
             you {
                 isOwn
-                isStarred
+                isBookmarked
             }
         }
         userSchedule {
@@ -208,7 +208,7 @@ mutation userScheduleUpdate($input: UserScheduleUpdateInput!) {
             id
             created_at
             tag
-            stars
+            bookmarks
             translations {
                 id
                 language
@@ -216,7 +216,7 @@ mutation userScheduleUpdate($input: UserScheduleUpdateInput!) {
             }
             you {
                 isOwn
-                isStarred
+                isBookmarked
             }
         }
         userSchedule {

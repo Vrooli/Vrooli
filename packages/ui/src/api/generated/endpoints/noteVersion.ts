@@ -68,7 +68,7 @@ query noteVersion($input: FindVersionInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -76,12 +76,12 @@ query noteVersion($input: FindVersionInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -144,7 +144,7 @@ query noteVersions($input: NoteVersionSearchInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -152,12 +152,12 @@ query noteVersions($input: NoteVersionSearchInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -259,7 +259,7 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -267,12 +267,12 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -369,7 +369,7 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -377,12 +377,12 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }

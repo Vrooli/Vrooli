@@ -15,7 +15,7 @@ createdBy {
 }
 hasAcceptedAnswer
 score
-stars
+bookmarks
 answersCount
 commentsCount
 reportsCount

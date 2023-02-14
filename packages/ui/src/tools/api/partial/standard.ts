@@ -6,7 +6,7 @@ export const standardYou: GqlPartial<StandardYou> = {
     __typename: 'StandardYou',
     common: {
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canTransfer: true,
         canUpdate: true,
         canRead: true,

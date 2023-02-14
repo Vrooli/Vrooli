@@ -90,7 +90,7 @@ export const SettingsDisplay = ({
             // const input = shapeProfile.update(profile, {
             //     id: profile.id,
             //     theme: values.theme as 'light' | 'dark',
-            //     starredTags,
+            //     bookmarkedTags,
             //     filters: filteredHiddenTags,
             // })
             // if (!input || Object.keys(input).length === 0) {
@@ -137,9 +137,9 @@ export const SettingsDisplay = ({
             </Stack>
             <Box id="favorite-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
                 {/* <TagSelector
-                    handleTagsUpdate={handleStarredTagsUpdate}
+                    handleTagsUpdate={handleBookmarkedTagsUpdate}
                     session={session}
-                    tags={starredTags}
+                    tags={bookmarkedTags}
                     placeholder={"Enter interests, followed by commas..."}
                 /> */}
             </Box>

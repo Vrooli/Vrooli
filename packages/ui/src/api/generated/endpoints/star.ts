@@ -73,8 +73,8 @@ ${Tag_list}
 ${User_list}
 ${User_nav}
 
-query stars($input: StarSearchInput!) {
-  stars(input: $input) {
+query bookmarks($input: StarSearchInput!) {
+  bookmarks(input: $input) {
     edges {
         cursor
         node {

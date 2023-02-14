@@ -92,7 +92,7 @@ export const typeDef = gql`
 
     type SmartContractYou {
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!

@@ -33,13 +33,13 @@ export function CommentThreadItem({
         objectId: object?.id,
         objectType: object?.__typename as CommentFor,
     }), [object]);
-    const { isStarred, isUpvoted } = useMemo(() => getYou(object as any), [object]);
+    const { isBookmarked, isUpvoted } = useMemo(() => getYou(object as any), [object]);
 
-    const { canDelete, canUpdate, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
-        const { canDelete, canUpdate, canReply, canReport, canStar, canVote } = data?.you ?? {};
+    const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText } = useMemo(() => {
+        const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote } = data?.you ?? {};
         const languages = getUserLanguages(session);
         const { text } = getTranslation(data, languages, true);
-        return { canDelete, canUpdate, canReply, canReport, canStar, canVote, displayText: text };
+        return { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText: text };
     }, [data, session]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
@@ -154,12 +154,12 @@ export function CommentThreadItem({
                             score={data?.score}
                             onChange={() => { }}
                         />
-                        {canStar && <StarButton
+                        {canBookmark && <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={BookmarkFor.Comment}
-                            isStar={isStarred ?? false}
-                            showStars={false}
+                            isStar={isBookmarked ?? false}
+                            showBookmarks={false}
                             tooltipPlacement="top"
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>

@@ -6,7 +6,7 @@ query tag($input: FindByIdInput!) {
     id
     created_at
     tag
-    stars
+    bookmarks
     translations {
         id
         language
@@ -14,7 +14,7 @@ query tag($input: FindByIdInput!) {
     }
     you {
         isOwn
-        isStarred
+        isBookmarked
     }
   }
 }`;
@@ -28,7 +28,7 @@ query tags($input: TagSearchInput!) {
             id
             created_at
             tag
-            stars
+            bookmarks
             translations {
                 id
                 language
@@ -36,7 +36,7 @@ query tags($input: TagSearchInput!) {
             }
             you {
                 isOwn
-                isStarred
+                isBookmarked
             }
         }
     }
@@ -53,7 +53,7 @@ mutation tagCreate($input: TagCreateInput!) {
     id
     created_at
     tag
-    stars
+    bookmarks
     translations {
         id
         language
@@ -61,7 +61,7 @@ mutation tagCreate($input: TagCreateInput!) {
     }
     you {
         isOwn
-        isStarred
+        isBookmarked
     }
   }
 }`;
@@ -72,7 +72,7 @@ mutation tagUpdate($input: TagUpdateInput!) {
     id
     created_at
     tag
-    stars
+    bookmarks
     translations {
         id
         language
@@ -80,7 +80,7 @@ mutation tagUpdate($input: TagUpdateInput!) {
     }
     you {
         isOwn
-        isStarred
+        isBookmarked
     }
   }
 }`;

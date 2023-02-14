@@ -508,7 +508,7 @@ export const endpoints = {
         const { star: starPartial } = await import('./partial/star');
         const { success: successPartial } = await import('./partial/success');
         return {
-            findMany: toQuery('stars', 'StarSearchInput', ...(await toSearch(starPartial))),
+            findMany: toQuery('bookmarks', 'StarSearchInput', ...(await toSearch(starPartial))),
             star: toMutation('star', 'StarInput', successPartial, 'full'),
         }
     },

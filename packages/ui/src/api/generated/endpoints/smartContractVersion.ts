@@ -100,7 +100,7 @@ query smartContractVersion($input: FindVersionInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -108,12 +108,12 @@ query smartContractVersion($input: FindVersionInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -296,7 +296,7 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -304,12 +304,12 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -445,7 +445,7 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -453,12 +453,12 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }

@@ -223,7 +223,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
 }
 
 const __typename = 'Routine' as const;
-type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
+type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const RoutineModel: ModelLogic<{
     IsTransferable: true,

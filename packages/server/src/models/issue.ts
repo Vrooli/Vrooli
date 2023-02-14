@@ -9,7 +9,7 @@ import { ModelLogic } from "./types";
 import { VoteModel } from "./vote";
 
 const __typename = 'Issue' as const;
-type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canStar' | 'canReport' | 'canRead' | 'canVote'>;
+type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReport' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const IssueModel: ModelLogic<{
     IsTransferable: false,

@@ -77,7 +77,7 @@ query apiVersion($input: FindVersionInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -85,12 +85,12 @@ query apiVersion($input: FindVersionInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -157,7 +157,7 @@ query apiVersions($input: ApiVersionSearchInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -165,12 +165,12 @@ query apiVersions($input: ApiVersionSearchInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -285,7 +285,7 @@ mutation apiVersionCreate($input: ApiVersionCreateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -293,12 +293,12 @@ mutation apiVersionCreate($input: ApiVersionCreateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -408,7 +408,7 @@ mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -416,12 +416,12 @@ mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }

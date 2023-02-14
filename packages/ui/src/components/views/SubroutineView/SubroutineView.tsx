@@ -195,7 +195,7 @@ export const SubroutineView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && internalRoutineVersion) {
-                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:

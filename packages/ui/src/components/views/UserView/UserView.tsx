@@ -175,7 +175,7 @@ export const UserView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && user) {
-                    setUser(setDotNotationValue(user, 'you.isStarred', action === ObjectActionComplete.Star))
+                    setUser(setDotNotationValue(user, 'you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -302,8 +302,8 @@ export const UserView = ({
                         session={session}
                         objectId={user?.id ?? ''}
                         starFor={BookmarkFor.User}
-                        isStar={user?.you?.isStarred ?? false}
-                        stars={user?.stars ?? 0}
+                        isStar={user?.you?.isBookmarked ?? false}
+                        bookmarks={user?.bookmarks ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />

@@ -76,7 +76,7 @@ export const typeDef = gql`
 
     type QuizYou {
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
         canVote: Boolean!

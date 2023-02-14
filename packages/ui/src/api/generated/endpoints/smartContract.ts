@@ -133,7 +133,7 @@ query smartContract($input: FindByIdInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -141,12 +141,12 @@ query smartContract($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -216,7 +216,7 @@ query smartContracts($input: SmartContractSearchInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -224,12 +224,12 @@ query smartContracts($input: SmartContractSearchInput!) {
             views
             you {
                 canDelete
-                canStar
+                canBookmark
                 canTransfer
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -371,7 +371,7 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -379,12 +379,12 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -520,7 +520,7 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -528,12 +528,12 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }

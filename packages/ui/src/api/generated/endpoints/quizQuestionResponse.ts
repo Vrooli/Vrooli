@@ -26,7 +26,7 @@ query quizQuestionResponse($input: FindByIdInput!) {
                 handle
             }
             score
-            stars
+            bookmarks
             views
             attemptsCount
             quizQuestionsCount
@@ -41,12 +41,12 @@ query quizQuestionResponse($input: FindByIdInput!) {
             }
             you {
                 canDelete
-                canStar
+                canBookmark
                 canUpdate
                 canRead
                 canVote
                 hasCompleted
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }
@@ -101,7 +101,7 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                         handle
                     }
                     score
-                    stars
+                    bookmarks
                     views
                     attemptsCount
                     quizQuestionsCount
@@ -116,12 +116,12 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                     }
                     you {
                         canDelete
-                        canStar
+                        canBookmark
                         canUpdate
                         canRead
                         canVote
                         hasCompleted
-                        isStarred
+                        isBookmarked
                         isUpvoted
                     }
                 }
@@ -179,7 +179,7 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
                 handle
             }
             score
-            stars
+            bookmarks
             views
             attemptsCount
             quizQuestionsCount
@@ -194,12 +194,12 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
             }
             you {
                 canDelete
-                canStar
+                canBookmark
                 canUpdate
                 canRead
                 canVote
                 hasCompleted
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }
@@ -251,7 +251,7 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
                 handle
             }
             score
-            stars
+            bookmarks
             views
             attemptsCount
             quizQuestionsCount
@@ -266,12 +266,12 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
             }
             you {
                 canDelete
-                canStar
+                canBookmark
                 canUpdate
                 canRead
                 canVote
                 hasCompleted
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }

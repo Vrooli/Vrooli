@@ -137,7 +137,7 @@ export const typeDef = gql`
         canComment: Boolean!
         canCopy: Boolean!
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canReport: Boolean!
         canUpdate: Boolean!
         canRun: Boolean!
@@ -187,7 +187,7 @@ export const typeDef = gql`
         maxSimplicity: Int
         maxTimesCompleted: Int
         minScoreRoot: Int
-        minStarsRoot: Int
+        minBookmarksRoot: Int
         minTimesCompleted: Int
         minViewsRoot: Int
         ownedByOrganizationId: ID

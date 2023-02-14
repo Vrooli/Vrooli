@@ -101,7 +101,7 @@ export const typeDef = gql`
     type RoutineYou {
         canComment: Boolean!
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!

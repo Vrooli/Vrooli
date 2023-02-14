@@ -10,7 +10,7 @@ import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
 const __typename = 'Note' as const;
-type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const NoteModel: ModelLogic<{
     IsTransferable: true,

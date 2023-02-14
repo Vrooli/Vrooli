@@ -68,7 +68,7 @@ export enum SearchType {
 export enum HistorySearchPageTabOption {
     Runs = 'Runs',
     Viewed = 'Viewed',
-    Starred = 'Starred',
+    Bookmarked = 'Bookmarked',
 }
 
 export enum SearchPageTabOption {

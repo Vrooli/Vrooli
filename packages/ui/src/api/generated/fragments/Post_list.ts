@@ -33,6 +33,6 @@ updated_at
 commentsCount
 repostsCount
 score
-stars
+bookmarks
 views
 }`;

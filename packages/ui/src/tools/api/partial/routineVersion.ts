@@ -21,7 +21,7 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
         canComment: true,
         canCopy: true,
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canReport: true,
         canRun: true,
         canUpdate: true,

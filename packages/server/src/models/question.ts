@@ -9,7 +9,7 @@ import { StarModel } from "./bookmark";
 import { VoteModel } from "./vote";
 
 const __typename = 'Question' as const;
-type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
+type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
 const suppFields = [] as const;
 export const QuestionModel: ModelLogic<{
     IsTransferable: false,

@@ -173,7 +173,7 @@ export const ProjectVersionModel: ModelLogic<{
             minComplexity: true,
             minScoreRoot: true,
             minSimplicity: true,
-            minStarsRoot: true,
+            minBookmarksRoot: true,
             minTimesCompleted: true,
             minViewsRoot: true,
             ownedByOrganizationId: true,

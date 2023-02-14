@@ -39,12 +39,12 @@ export const QuestionView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, canStar, name } = useMemo(() => {
-        const { canStar } = question?.you ?? {};
+    const { description, canBookmark, name } = useMemo(() => {
+        const { canBookmark } = question?.you ?? {};
         const { description, name } = getTranslation(question ?? partialData, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
-            canStar,
+            canBookmark,
             name,
         };
     }, [language, question, partialData]);
@@ -81,7 +81,7 @@ export const QuestionView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && question) {
-                    setQuestion(setDotNotationValue(question, 'you.isStarred', action === ObjectActionComplete.Star))
+                    setQuestion(setDotNotationValue(question, 'you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -191,19 +191,19 @@ export const QuestionView = ({
                     <ShareButton object={question} zIndex={zIndex} />
                     <ReportsLink object={question} />
                     <StarButton
-                        disabled={!canStar}
+                        disabled={!canBookmark}
                         session={session}
                         objectId={question?.id ?? ''}
                         starFor={BookmarkFor.Question}
-                        isStar={question?.you?.isStarred ?? false}
-                        stars={question?.stars ?? 0}
+                        isStar={question?.you?.isBookmarked ?? false}
+                        bookmarks={question?.bookmarks ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, question, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, question, description, zIndex, canBookmark, session]);
 
     return (
         <>

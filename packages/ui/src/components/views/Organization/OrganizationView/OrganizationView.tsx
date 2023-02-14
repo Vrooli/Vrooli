@@ -49,13 +49,13 @@ export const OrganizationView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, canStar, handle, name, resourceList } = useMemo(() => {
-        const { canStar } = organization?.you ?? {};
+    const { bio, canBookmark, handle, name, resourceList } = useMemo(() => {
+        const { canBookmark } = organization?.you ?? {};
         const resourceList: ResourceList | null | undefined = organization?.resourceList;
         const { bio, name } = getTranslation(organization ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
-            canStar,
+            canBookmark,
             handle: organization?.handle ?? partialData?.handle,
             name,
             resourceList,
@@ -170,7 +170,7 @@ export const OrganizationView = ({
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && organization) {
-                    setOrganization(setDotNotationValue(organization, 'you.isStarred', action === ObjectActionComplete.Star))
+                    setOrganization(setDotNotationValue(organization, 'you.isBookmarked', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -293,19 +293,19 @@ export const OrganizationView = ({
                     <ShareButton object={organization} zIndex={zIndex} />
                     <ReportsLink object={organization} />
                     <StarButton
-                        disabled={!canStar}
+                        disabled={!canBookmark}
                         session={session}
                         objectId={organization?.id ?? ''}
                         starFor={BookmarkFor.Organization}
-                        isStar={organization?.you?.isStarred ?? false}
-                        stars={organization?.stars ?? 0}
+                        isStar={organization?.you?.isBookmarked ?? false}
+                        bookmarks={organization?.bookmarks ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, handle, organization, bio, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, handle, organization, bio, zIndex, canBookmark, session]);
 
     /**
      * Opens add new page

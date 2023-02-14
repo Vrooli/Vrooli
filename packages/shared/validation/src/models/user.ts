@@ -50,7 +50,7 @@ export const userValidation: YupModel<false, true> = {
         isPrivateSmartContracts: opt(bool),
         isPrivateStandards: opt(bool),
         isPrivateStandardsCreated: opt(bool),
-        isPrivateStars: opt(bool),
+        isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
     }, [
         ['schedules', ['Create', 'Update', 'Delete'], 'many', 'opt', userScheduleValidation],

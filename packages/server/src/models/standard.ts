@@ -31,7 +31,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
 }
 
 const __typename = 'Standard' as const;
-type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const StandardModel: ModelLogic<{
     IsTransferable: true,

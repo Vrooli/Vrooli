@@ -13,7 +13,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 
 const __typename = 'SmartContract' as const;
-type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const SmartContractModel: ModelLogic<{
     IsTransferable: true,

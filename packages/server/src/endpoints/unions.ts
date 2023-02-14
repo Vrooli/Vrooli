@@ -386,7 +386,7 @@ export const resolvers: {
                         ids: input.ids,
                         languages: input.languages,
                         maxBookmarks: input.maxBookmarks,   
-                        minBookmarks: input.minStars,
+                        minBookmarks: input.minBookmarks,
                         maxViews: input.maxViews,
                         minViews: input.minViews,
                         isOpenToNewMembers: input.organizationIsOpenToNewMembers,

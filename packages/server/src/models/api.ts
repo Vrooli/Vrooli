@@ -14,7 +14,7 @@ import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
 
 const __typename = 'Api' as const;
-type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const ApiModel: ModelLogic<{
     IsTransferable: true,

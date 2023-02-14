@@ -35,7 +35,7 @@ export type YouInflated = {
     canRead: boolean;
     canReport: boolean;
     canShare: boolean;
-    canStar: boolean;
+    canBookmark: boolean;
     canUpdate: boolean;
     canVote: boolean;
     isBookmarked: boolean;
@@ -102,7 +102,7 @@ export const getYou = (
         canRead: false,
         canReport: false,
         canShare: false,
-        canStar: false,
+        canBookmark: false,
         canUpdate: false,
         canVote: false,
         isBookmarked: false,
@@ -340,7 +340,7 @@ export function listToAutocomplete(
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,
-        isBookmarked: getYou(o).isStarred,
+        isBookmarked: getYou(o).isBookmarked,
         label: getDisplay(o, languages).title,
         runnableObject: o.__typename === 'RunProject' ?
             o.projectVersion :

@@ -37,7 +37,7 @@ query post($input: FindByIdInput!) {
     commentsCount
     repostsCount
     score
-    stars
+    bookmarks
     views
   }
 }`;
@@ -82,7 +82,7 @@ query posts($input: PostSearchInput!) {
             commentsCount
             repostsCount
             score
-            stars
+            bookmarks
             views
         }
     }
@@ -130,7 +130,7 @@ mutation postCreate($input: PostCreateInput!) {
     commentsCount
     repostsCount
     score
-    stars
+    bookmarks
     views
   }
 }`;
@@ -172,7 +172,7 @@ mutation postUpdate($input: PostUpdateInput!) {
     commentsCount
     repostsCount
     score
-    stars
+    bookmarks
     views
   }
 }`;

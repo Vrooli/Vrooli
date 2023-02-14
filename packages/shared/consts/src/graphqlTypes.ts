@@ -137,7 +137,7 @@ export type ApiSearchInput = {
   translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
-};
+} & { [x: string]: any };
 
 export type ApiSearchResult = {
   __typename: 'ApiSearchResult';
@@ -4508,7 +4508,7 @@ export type QueryStandardsArgs = {
 };
 
 
-export type QueryStarsArgs = {
+export type QueryBookmarksArgs = {
   input: StarSearchInput;
 };
 
@@ -8486,7 +8486,7 @@ export type User = {
   smartContractsCreated?: Maybe<Array<SmartContract>>;
   standards?: Maybe<Array<Standard>>;
   standardsCreated?: Maybe<Array<Standard>>;
-  starred?: Maybe<Array<Bookmark>>;
+  bookmarked?: Maybe<Array<Bookmark>>;
   bookmarkedBy: Array<User>;
   bookmarks: Scalars['Int'];
   stats?: Maybe<StatsUser>;
@@ -11663,7 +11663,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType, RequireFields<QueryStandardVersionArgs, 'input'>>;
   standardVersions?: Resolver<ResolversTypes['StandardVersionSearchResult'], ParentType, ContextType, RequireFields<QueryStandardVersionsArgs, 'input'>>;
   standards?: Resolver<ResolversTypes['StandardSearchResult'], ParentType, ContextType, RequireFields<QueryStandardsArgs, 'input'>>;
-  bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryStarsArgs, 'input'>>;
+  bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarksArgs, 'input'>>;
   statsApi?: Resolver<ResolversTypes['StatsApiSearchResult'], ParentType, ContextType, RequireFields<QueryStatsApiArgs, 'input'>>;
   statsOrganization?: Resolver<ResolversTypes['StatsOrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryStatsOrganizationArgs, 'input'>>;
   statsProject?: Resolver<ResolversTypes['StatsProjectSearchResult'], ParentType, ContextType, RequireFields<QueryStatsProjectArgs, 'input'>>;
@@ -13344,7 +13344,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   smartContractsCreated?: Resolver<Maybe<Array<ResolversTypes['SmartContract']>>, ParentType, ContextType>;
   standards?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
   standardsCreated?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
-  starred?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
+  bookmarked?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Maybe<ResolversTypes['StatsUser']>, ParentType, ContextType>;
