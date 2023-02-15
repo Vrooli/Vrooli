@@ -1,10 +1,12 @@
-import { AutocompleteOption, NavigableObject } from "types";
+import { AutocompleteOption, CommonKey, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
 import { DotNotation, GqlModelType, Session, BookmarkFor } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
 import { exists, isOfType } from "@shared/utils";
+import { SearchListGenerator } from "components/lists/types";
+import { SearchType } from "utils/search";
 
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(
@@ -460,3 +462,17 @@ const placeholderColors: [string, string][] = [
 export const placeholderColor = (): [string, string] => {
     return placeholderColors[Math.floor(Math.random() * placeholderColors.length)];
 }
+
+/**
+ * Creates object containing information required to display a search list 
+ * for an object type.
+ */
+export const toSearchListData = (
+    searchType: SearchType | `${SearchType}`,
+    placeholder: CommonKey,
+    where: Record<string, any>,
+): SearchListGenerator => ({
+    searchType,
+    placeholder,
+    where,
+})

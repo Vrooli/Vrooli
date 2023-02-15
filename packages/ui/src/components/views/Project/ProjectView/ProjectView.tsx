@@ -6,15 +6,17 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, SearchType, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, toSearchListData, useObjectActions } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
+import { useTranslation } from "react-i18next";
+import { exists } from "@shared/utils";
 
 enum TabOptions {
-    Resources = "Resources",
-    Routines = "Routines",
-    Standards = "Standards",
+    Resource = "Resource",
+    Routine = "Routine",
+    Standard = "Standard",
 }
 
 export const ProjectView = ({
@@ -24,6 +26,7 @@ export const ProjectView = ({
 }: ProjectViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
     const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(projectVersionFindOne, 'projectVersion', { errorPolicy: 'all' });
@@ -68,9 +71,10 @@ export const ProjectView = ({
      */
     const availableTabs = useMemo(() => {
         const tabs: TabOptions[] = [];
+        // Only display resources if there are any
+        // if (resources) tabs.push(TabOptions.Resource);
         // Always display others (for now)
-        tabs.push(TabOptions.Routines);
-        tabs.push(TabOptions.Standards);
+        tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource));
         return tabs;
     }, []);
 
@@ -94,27 +98,9 @@ export const ProjectView = ({
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        // The first tab doesn't have search results, as it is the project's set resources
-        switch (currTabType) {
-            case TabOptions.Routines:
-                return {
-                    searchType: SearchType.Routine,
-                    placeholder: 'SearchRoutine',
-                    where: { projectId: projectVersion?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                };
-            case TabOptions.Standards:
-                return {
-                    searchType: SearchType.Standard,
-                    placeholder: 'SearchStandard',
-                    where: { projectId: projectVersion?.id, visibility: VisibilityType.All },
-                }
-            default:
-                return {
-                    searchType: SearchType.Routine,
-                    placeholder: 'SearchRoutine',
-                    where: {},
-                }
-        }
+        if (currTabType === TabOptions.Routine)
+            return toSearchListData('Routine', 'SearchRoutine', { projectId: projectVersion?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
+        return toSearchListData('Standard', 'SearchStandard', { projectId: projectVersion?.id, visibility: VisibilityType.All });
     }, [canUpdate, currTabType, projectVersion?.id]);
 
     /**
@@ -229,14 +215,8 @@ export const ProjectView = ({
     * Opens add new page
     */
     const toAddNew = useCallback((event: any) => {
-        switch (currTabType) {
-            case TabOptions.Routines:
-                setLocation(`${APP_LINKS.Routine}/add`);
-                break;
-            case TabOptions.Standards:
-                setLocation(`${APP_LINKS.Standard}/add`);
-                break;
-        }
+        if (!exists(currTabType)) return;
+        setLocation(`${APP_LINKS[currTabType]}/add`);
     }, [currTabType, setLocation]);
 
     return (
@@ -294,7 +274,9 @@ export const ProjectView = ({
                                 key={index}
                                 id={`profile-tab-${index}`}
                                 {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                                label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
+                                label={<span
+                                    style={{ color: tabType === TabOptions.Resource ? '#8e6b00' : 'default' }}
+                                >{t(`common:${tabType}`, { lng: getUserLanguages(session)[0], count: 2 })}</span>}
                             />
                         ))}
                     </Tabs>

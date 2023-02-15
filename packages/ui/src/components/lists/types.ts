@@ -57,7 +57,7 @@ export interface DateRangeMenuProps {
  * Return type for a SearchList generator function
  */
 export interface SearchListGenerator {
-    searchType: SearchType;
+    searchType: SearchType | `${SearchType}`;
     placeholder: CommonKey;
     where: any;
 }
@@ -77,7 +77,7 @@ export interface SearchListProps {
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
-    searchType: SearchType;
+    searchType: SearchType | `${SearchType}`;
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     session: Session;

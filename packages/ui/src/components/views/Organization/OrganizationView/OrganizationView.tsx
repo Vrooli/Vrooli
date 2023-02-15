@@ -6,19 +6,21 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, SearchType, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, toSearchListData, useObjectActions } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { organizationFindOne } from "api/generated/endpoints/organization";
+import { exists } from "@shared/utils";
+import { useTranslation } from "react-i18next";
 
 enum TabOptions {
-    Resources = "Resources",
-    Members = "Members",
-    Projects = "Projects",
-    Routines = "Routines",
-    Standards = "Standards",
+    Resource = "Resource",
+    Member = "Member",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
 }
 
 export const OrganizationView = ({
@@ -28,6 +30,7 @@ export const OrganizationView = ({
 }: OrganizationViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
@@ -94,12 +97,9 @@ export const OrganizationView = ({
     const availableTabs = useMemo(() => {
         const tabs: TabOptions[] = [];
         // Only display resources if there are any
-        if (resources) tabs.push(TabOptions.Resources);
+        if (resources) tabs.push(TabOptions.Resource);
         // Always display others (for now)
-        tabs.push(TabOptions.Members);
-        tabs.push(TabOptions.Projects);
-        tabs.push(TabOptions.Routines);
-        tabs.push(TabOptions.Standards);
+        tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource));
         return tabs;
     }, [resources]);
 
@@ -107,39 +107,15 @@ export const OrganizationView = ({
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        switch (currTabType) {
-            case TabOptions.Members:
-                return {
-                    searchType: SearchType.User,
-                    placeholder: 'SearchMember',
-                    where: { organizationId: organization?.id },
-                };
-            case TabOptions.Projects:
-                return {
-                    searchType: SearchType.Project,
-                    placeholder: 'SearchProject',
-                    where: { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, visibility: VisibilityType.All },
-                };
-            case TabOptions.Routines:
-                return {
-                    searchType: SearchType.Routine,
-                    placeholder: 'SearchRoutine',
-                    where: { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                };
-            case TabOptions.Standards:
-                return {
-                    searchType: SearchType.Standard,
-                    placeholder: 'SearchStandard',
-                    where: { organizationId: organization?.id, visibility: VisibilityType.All },
-                }
-            default:
-                return {
-                    searchType: SearchType.User,
-                    placeholder: 'SearchMember',
-                    where: {},
-                }
-        }
-    }, [currTabType, canUpdate, organization?.id]);
+        // NOTE: The first tab doesn't have search results, as it is the user's set resources
+        if (currTabType === TabOptions.Member)
+            return toSearchListData('User', 'SearchMember', { organizationId: organization?.id });
+        else if (currTabType === TabOptions.Project)
+            return toSearchListData('Project', 'SearchProject', { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, visibility: VisibilityType.All });
+        else if (currTabType === TabOptions.Routine)
+            return toSearchListData('Routine', 'SearchRoutine', { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
+        return toSearchListData('Standard', 'SearchStandard', { organizationId: organization?.id, visibility: VisibilityType.All });
+    }, [canUpdate, currTabType, organization?.id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -287,20 +263,10 @@ export const OrganizationView = ({
      * Opens add new page
      */
     const toAddNew = useCallback((event: any) => {
-        switch (currTabType) {
-            case TabOptions.Members:
-                //TODO
-                break;
-            case TabOptions.Projects:
-                setLocation(`${APP_LINKS.Project}/add`);
-                break;
-            case TabOptions.Routines:
-                setLocation(`${APP_LINKS.Routine}/add`);
-                break;
-            case TabOptions.Standards:
-                setLocation(`${APP_LINKS.Standard}/add`);
-                break;
-        }
+        if (!exists(currTabType)) return;
+        // TODO need member page
+        if (currTabType === TabOptions.Member) return;
+        setLocation(`${APP_LINKS[currTabType]}/add`);
     }, [currTabType, setLocation]);
 
     return (
@@ -358,14 +324,16 @@ export const OrganizationView = ({
                                 key={index}
                                 id={`profile-tab-${index}`}
                                 {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                                label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
+                                label={<span 
+                                    style={{ color: tabType === TabOptions.Resource ? '#8e6b00' : 'default' }}
+                                    >{t(`common:${tabType}`, { lng: getUserLanguages(session)[0], count: 2 })}</span>}
                             />
                         ))}
                     </Tabs>
                 </Box>
                 <Box p={2}>
                     {
-                        currTabType === TabOptions.Resources ? resources : (
+                        currTabType === TabOptions.Resource ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(organization?.id)}
                                 handleAdd={canUpdate ? toAddNew : undefined}

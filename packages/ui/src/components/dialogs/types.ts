@@ -307,7 +307,7 @@ export interface AdvancedSearchDialogProps {
     handleClose: () => any;
     handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
-    searchType: SearchType;
+    searchType: SearchType | `${SearchType}`;
     session: Session;
     zIndex: number;
 }

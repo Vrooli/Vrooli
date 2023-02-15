@@ -6,20 +6,22 @@ import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, SearchType, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, toSearchListData, useObjectActions } from "utils";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
 import { userFindOne } from "api/generated/endpoints/user";
+import { useTranslation } from "react-i18next";
+import { exists } from "@shared/utils";
 
 enum TabOptions {
-    Resources = "Resources",
-    Organizations = "Organizations",
-    Projects = "Projects",
-    Routines = "Routines",
-    Standards = "Standards",
+    Resource = "Resource",
+    Organization = "Organization",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
 }
 
 export const UserView = ({
@@ -29,6 +31,7 @@ export const UserView = ({
 }: UserViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const id = useMemo(() => {
@@ -98,12 +101,9 @@ export const UserView = ({
     const availableTabs = useMemo(() => {
         const tabs: TabOptions[] = [];
         // Only display resources if there are any
-        if (resources) tabs.push(TabOptions.Resources);
+        if (resources) tabs.push(TabOptions.Resource);
         // Always display others (for now)
-        tabs.push(TabOptions.Organizations);
-        tabs.push(TabOptions.Projects);
-        tabs.push(TabOptions.Routines);
-        tabs.push(TabOptions.Standards);
+        tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource))
         return tabs;
     }, [resources]);
 
@@ -115,39 +115,14 @@ export const UserView = ({
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        // The first tab doesn't have search results, as it is the user's set resources
-        switch (currTabType) {
-            case TabOptions.Organizations:
-                return {
-                    searchType: SearchType.Organization,
-                    placeholder: 'SearchOrganization',
-                    where: { userId: id, visibility: VisibilityType.All },
-                }
-            case TabOptions.Projects:
-                return {
-                    searchType: SearchType.Project,
-                    placeholder: 'SearchProject',
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All },
-                }
-            case TabOptions.Routines:
-                return {
-                    searchType: SearchType.Routine,
-                    placeholder: 'SearchRoutine',
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                }
-            case TabOptions.Standards:
-                return {
-                    searchType: SearchType.Standard,
-                    placeholder: 'SearchStandard',
-                    where: { userId: id, visibilityType: VisibilityType.All },
-                }
-            default:
-                return {
-                    searchType: SearchType.Organization,
-                    placeholder: 'SearchOrganization',
-                    where: {},
-                }
-        }
+        // NOTE: The first tab doesn't have search results, as it is the user's set resources
+        if (currTabType === TabOptions.Organization)
+            return toSearchListData('Organization', 'SearchOrganization', { userId: id, visibility: VisibilityType.All });
+        else if (currTabType === TabOptions.Project)
+            return toSearchListData('Project', 'SearchProject', { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All });
+        else if (currTabType === TabOptions.Routine)
+            return toSearchListData('Routine', 'SearchRoutine', { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All });
+        return toSearchListData('Standard', 'SearchStandard', { userId: id, visibility: VisibilityType.All });
     }, [currTabType, id, isOwn]);
 
     // More menu
@@ -297,20 +272,8 @@ export const UserView = ({
      * Opens add new page
      */
     const toAddNew = useCallback((event: any) => {
-        switch (currTabType) {
-            case TabOptions.Organizations:
-                setLocation(`${APP_LINKS.Organization}/add`);
-                break;
-            case TabOptions.Projects:
-                setLocation(`${APP_LINKS.Project}/add`);
-                break;
-            case TabOptions.Routines:
-                setLocation(`${APP_LINKS.Routine}/add`);
-                break;
-            case TabOptions.Standards:
-                setLocation(`${APP_LINKS.Standard}/add`);
-                break;
-        }
+        if (!exists(currTabType)) return;
+        setLocation(`${APP_LINKS[currTabType]}/add`);
     }, [currTabType, setLocation]);
 
     return (
@@ -368,14 +331,16 @@ export const UserView = ({
                                 key={index}
                                 id={`profile-tab-${index}`}
                                 {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                                label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
+                                label={<span
+                                    style={{ color: tabType === TabOptions.Resource ? '#8e6b00' : 'default' }}
+                                >{t(`common:${tabType}`, { lng: getUserLanguages(session)[0], count: 2 })}</span>}
                             />
                         ))}
                     </Tabs>
                 </Box>
                 <Box p={2}>
                     {
-                        currTabType === TabOptions.Resources ? resources : (
+                        currTabType === TabOptions.Resource ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
                                 handleAdd={isOwn ? toAddNew : undefined}
