@@ -3,6 +3,7 @@ export * from './useCopier';
 export * from './useDebounce';
 export * from './useHistoryState';
 export * from './useKeyboardOpen';
+export * from './useObjectActions';
 export * from './usePinchZoom';
 export * from './usePress';
 export * from './usePromptBeforeUnload';

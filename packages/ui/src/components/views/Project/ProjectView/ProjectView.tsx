@@ -6,12 +6,10 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, SearchType, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, SearchType, useObjectActions, uuidToBase36 } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { setDotNotationValue } from "@shared/utils";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
-import { exists } from "@shared/utils";
 
 enum TabOptions {
     Resources = "Resources",
@@ -101,26 +99,11 @@ export const ProjectView = ({
         }
     }, [onEdit]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                if (data.success && projectVersion) {
-                    setProjectVersion(setDotNotationValue(projectVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
-                }
-                break;
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!projectVersion) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(projectVersion, 'root.you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.project, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [projectVersion, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: projectVersion,
+        setLocation,
+        setObject: setProjectVersion,
+    });
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
@@ -276,7 +259,7 @@ export const ProjectView = ({
                 anchorEl={moreMenuAnchor}
                 object={projectVersion as any}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

@@ -1,15 +1,13 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, SmartContractVersion, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { SmartContractViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
-import { uuidValidate } from '@shared/uuid';
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, useObjectActions, uuidToBase36 } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { exists, setDotNotationValue } from "@shared/utils";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion";
 
 export const SmartContractView = ({
@@ -76,20 +74,11 @@ export const SmartContractView = ({
         }
     }, [onEdit]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!smartContractVersion) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(smartContractVersion, 'root.you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.smartContractVersion, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [smartContractVersion, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: smartContractVersion,
+        setLocation,
+        setObject: setSmartContractVersion,
+    });
 
     /**
      * Displays name, avatar, description, and quick links
@@ -211,7 +200,7 @@ export const SmartContractView = ({
                 anchorEl={moreMenuAnchor}
                 object={smartContractVersion as any}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

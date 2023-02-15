@@ -6,13 +6,12 @@ import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, SearchType } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, SearchType, useObjectActions } from "utils";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
-import { exists, setDotNotationValue } from "@shared/utils";
 import { userFindOne } from "api/generated/endpoints/user";
 
 enum TabOptions {
@@ -170,20 +169,11 @@ export const UserView = ({
         }
     }, [onEdit]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!user) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(user, 'you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.user, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [user, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: user,
+        setLocation,
+        setObject: setUser,
+    });
 
     /**
      * Displays name, handle, avatar, bio, and quick links
@@ -339,7 +329,7 @@ export const UserView = ({
                 anchorEl={moreMenuAnchor}
                 object={user}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

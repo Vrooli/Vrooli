@@ -5,12 +5,10 @@ import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { ApiViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, useObjectActions, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
-import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { exists, setDotNotationValue } from "@shared/utils";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion";
 
 export const ApiView = ({
@@ -97,20 +95,11 @@ export const ApiView = ({
         }
     }, [onEdit]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!apiVersion) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(apiVersion, 'root.you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.apiVersion, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [apiVersion, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: apiVersion,
+        setLocation,
+        setObject: setApiVersion,
+    });
 
     /**
      * Displays name, avatar, summary, and quick links
@@ -232,7 +221,7 @@ export const ApiView = ({
                 anchorEl={moreMenuAnchor}
                 object={apiVersion as any}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

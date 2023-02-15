@@ -5,7 +5,7 @@ import { useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { defaultRelationships, defaultResourceList, getLanguageSubtag, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, PubSub, standardVersionToFieldData, TagShape } from "utils";
+import { defaultRelationships, defaultResourceList, getLanguageSubtag, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, PubSub, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
 import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -14,9 +14,7 @@ import { PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
-import { setDotNotationValue } from "@shared/utils";
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion";
-import { exists } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -108,26 +106,11 @@ export const StandardView = ({
         }
     }, [onEdit, openAddCommentDialog]);
 
-    const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                if (data.success && standardVersion) {
-                    setStandardVersion(setDotNotationValue(standardVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
-                }
-                break;
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!standardVersion) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(standardVersion, 'root.you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.standard, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [standardVersion, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: standardVersion,
+        setLocation,
+        setObject: updateStandard,
+    });
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);

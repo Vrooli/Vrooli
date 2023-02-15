@@ -5,13 +5,10 @@ import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { QuestionViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
-import { uuidValidate } from '@shared/uuid';
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, useObjectActions, uuidToBase36 } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { setDotNotationValue } from "@shared/utils";
 import { questionFindOne } from "api/generated/endpoints/question";
-import { exists } from "@shared/utils";
 
 export const QuestionView = ({
     partialData,
@@ -77,20 +74,11 @@ export const QuestionView = ({
         }
     }, [onEdit]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!question) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(question, 'you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.question, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [question, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: question,
+        setLocation,
+        setObject: setQuestion,
+    });
 
     /**
      * Displays name, avatar, description, and quick links
@@ -212,7 +200,7 @@ export const QuestionView = ({
                 anchorEl={moreMenuAnchor}
                 object={question as any}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

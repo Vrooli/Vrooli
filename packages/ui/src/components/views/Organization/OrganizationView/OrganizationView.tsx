@@ -6,12 +6,11 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, SearchType, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, SearchType, useObjectActions, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { exists, setDotNotationValue } from "@shared/utils";
 import { organizationFindOne } from "api/generated/endpoints/organization";
 
 enum TabOptions {
@@ -164,21 +163,12 @@ export const OrganizationView = ({
                 break;
         }
     }, [onEdit]);
-
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!organization) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(organization, 'you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.organization, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [organization, setLocation]);
+    
+    const { onActionComplete } = useObjectActions({
+        object: organization,
+        setLocation,
+        setObject: setOrganization,
+    });
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -333,7 +323,7 @@ export const OrganizationView = ({
                 anchorEl={moreMenuAnchor}
                 object={organization as any}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

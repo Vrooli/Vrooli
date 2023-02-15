@@ -1,7 +1,7 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, uuidToBase36 } from "utils";
+import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -12,8 +12,6 @@ import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { uuid } from "@shared/uuid";
 import { SuccessIcon } from "@shared/icons";
-import { setDotNotationValue } from "@shared/utils";
-import { exists } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -185,26 +183,11 @@ export const SubroutineView = ({
         }
     }, [onEdit, openAddCommentDialog]);
 
-    const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                if (data.success && internalRoutineVersion) {
-                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
-                }
-                break;
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!internalRoutineVersion) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(internalRoutineVersion, 'root.you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.routine, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [internalRoutineVersion, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: internalRoutineVersion,
+        setLocation,
+        setObject: setInternalRoutineVersion,
+    });
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));

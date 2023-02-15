@@ -80,9 +80,9 @@ export const getYouDot = (
     // If the object is a run project, use the project version
     if (isOfType(object, 'RunProject')) return getYouDot(object.projectVersion as ListObjectType, property);
     // Check object.you
-    if (exists((object as any).you?.[property])) return 'you';
+    if (exists((object as any).you?.[property])) return `you.${property}`;
     // Check object.root.you
-    if (exists((object as any).root?.you?.[property])) return 'root.you';
+    if (exists((object as any).root?.you?.[property])) return `root.you.${property}`
     // If not found, return null
     return null;
 }

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { CopyType, DeleteType, ReportFor, BookmarkFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { ObjectActionMenuProps } from "../types";
-import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, PubSub, useVoter } from "utils";
+import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, PubSub, useBookmarker, useVoter } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 import { useCopier } from "utils/hooks/useCopier";
 
@@ -42,6 +42,12 @@ export const ObjectActionMenu = ({
     const openReport = useCallback(() => setReportOpen(true), [setReportOpen]);
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
+    const { handleBookmark } = useBookmarker({
+        objectId: id,
+        objectType: objectType as BookmarkFor,
+        onActionComplete
+    });
+
     const { handleCopy } = useCopier({
         objectId: id,
         objectName: name,
@@ -54,18 +60,6 @@ export const ObjectActionMenu = ({
         objectType: objectType as VoteFor,
         onActionComplete
     });
-
-    // Mutations
-    // const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
-
-    const handleBookmark = useCallback((isBookmarked: boolean, bookmarkFor: BookmarkFor) => {
-        // if (!id) return;
-        // mutationWrapper<Success, StarInput>({
-        //     mutation: star,
-        //     input: { isBookmarked, bookmarkFor, forConnect: id },
-        //     onSuccess: (data) => { onActionComplete(isBookmarked ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
-        // })
-    }, [id, onActionComplete]);
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
@@ -92,7 +86,7 @@ export const ObjectActionMenu = ({
                 break;
             case ObjectAction.Bookmark:
             case ObjectAction.BookmarkUndo:
-                handleBookmark(action === ObjectAction.Bookmark, objectType as string as BookmarkFor);
+                handleBookmark(action === ObjectAction.Bookmark);
                 break;
             case ObjectAction.Stats:
                 onActionStart(ObjectAction.Stats);
@@ -102,7 +96,7 @@ export const ObjectActionMenu = ({
                 handleVote(action === ObjectAction.VoteUp);
         }
         onClose();
-    }, [handleCopy, handleBookmark, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleBookmark, handleVote, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
 
     const data = useMemo(() => getActionsDisplayData(availableActions), [availableActions]);
 

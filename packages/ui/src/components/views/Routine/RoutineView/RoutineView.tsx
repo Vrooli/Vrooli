@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36, parseSingleItemUrl, defaultRelationships, defaultResourceList } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36, parseSingleItemUrl, defaultRelationships, defaultResourceList, useObjectActions } from "utils";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -16,7 +16,7 @@ import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { RelationshipsObject } from "components/inputs/types";
-import { exists, setDotNotationValue } from "@shared/utils";
+import { setDotNotationValue } from "@shared/utils";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion";
 
@@ -120,26 +120,11 @@ export const RoutineView = ({
         }
     }, [onEdit, openAddCommentDialog]);
 
-    const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                if (data.success && routineVersion) {
-                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
-                }
-                break;
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!routineVersion) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(routineVersion, 'root.you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.routine, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [routineVersion, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: routineVersion,
+        setLocation,
+        setObject: setRoutineVersion,
+    });
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {

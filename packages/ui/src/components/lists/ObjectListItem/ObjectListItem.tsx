@@ -5,13 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, getYouDot, ListObjectType } from 'utils';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, ListObjectType, useObjectActions } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, BookmarkButton } from 'components/buttons';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
-import { exists, isOfType, setDotNotationValue } from '@shared/utils';
+import { isOfType } from '@shared/utils';
 import { useTranslation } from 'react-i18next';
 
 function CompletionBar(props) {
@@ -272,27 +272,11 @@ export function ObjectListItem<T extends ListObjectType>({
         }
     }, [beforeNavigation, data, setLocation]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                const isUpvotedLocation = getYouDot(object, 'isUpvoted');
-                if (data.success && isUpvotedLocation && object) setDotNotationValue(object, isUpvotedLocation as any, action === ObjectActionComplete.VoteUp);
-                break;
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                const isBookmarkedLocation = getYouDot(object, 'isBookmarked');
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful && isBookmarkedLocation && object) setDotNotationValue(object, isBookmarkedLocation as any, wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                // Data is in first key with a value
-                const forkData: any = Object.values(data).find((v) => typeof v === 'object');
-                openObject(forkData, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [object, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object,
+        setLocation,
+        setObject,
+    });
 
     return (
         <>
@@ -302,7 +286,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeContextMenu}
                 session={session}
                 zIndex={zIndex + 1}

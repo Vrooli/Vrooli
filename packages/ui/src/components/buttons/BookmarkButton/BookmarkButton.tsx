@@ -35,6 +35,12 @@ export const BookmarkButton = ({
         return count;
     }, [internalIsBookmarked, isBookmarked, bookmarks]);
 
+    // const { handleBookmark } = useBookmarker({
+    //     objectId: id,
+    //     objectType: objectType as BookmarkFor,
+    //     onActionComplete
+    // });
+
     const handleClick = useCallback((event: any) => {
         if (!userId) return;
         const isBookmarked = !internalIsBookmarked;

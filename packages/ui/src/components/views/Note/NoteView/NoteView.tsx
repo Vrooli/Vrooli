@@ -5,11 +5,9 @@ import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { NoteViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
-import { uuidValidate } from '@shared/uuid';
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, useObjectActions, uuidToBase36 } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, NoteIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { exists, setDotNotationValue } from "@shared/utils";
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion";
 
 export const NoteView = ({
@@ -76,20 +74,11 @@ export const NoteView = ({
         }
     }, [onEdit]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo:
-                if (!noteVersion) return;
-                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
-                if (wasSuccessful) setDotNotationValue(noteVersion, 'root.you.isBookmarked', wasSuccessful);
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.noteVersion, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [noteVersion, setLocation]);
+    const { onActionComplete } = useObjectActions({
+        object: noteVersion,
+        setLocation,
+        setObject: setNoteVersion,
+    });
 
     /**
      * Displays name, avatar, description, and quick links
@@ -211,7 +200,7 @@ export const NoteView = ({
                 anchorEl={moreMenuAnchor}
                 object={noteVersion as any}
                 onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
+                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

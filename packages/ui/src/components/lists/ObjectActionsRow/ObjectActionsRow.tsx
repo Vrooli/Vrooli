@@ -74,6 +74,12 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     const openReport = useCallback(() => setReportOpen(true), [setReportOpen]);
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
+    const { handleBookmark } = useBookmarker({
+        objectId: id,
+        objectType: objectType as BookmarkFor,
+        onActionComplete
+    });
+
     const { handleCopy } = useCopier({
         objectId: id,
         objectName: name,
@@ -86,15 +92,6 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
         objectType: objectType as VoteFor,
         onActionComplete
     });
-
-    const handleBookmark = useCallback((isBookmarked: boolean, bookmarkFor: BookmarkFor) => {
-        if (!id) return;
-        // mutationWrapper<Success, StarInput>({
-        //     mutation: star,
-        //     input: { isBookmarked, bookmarkFor, forConnect: id },
-        //     onSuccess: (data) => { onActionComplete(isBookmarked ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
-        // })
-    }, [id, onActionComplete]);
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
