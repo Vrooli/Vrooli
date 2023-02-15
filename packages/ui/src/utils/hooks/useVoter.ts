@@ -22,13 +22,15 @@ export const useVoter = ({
 }: UseVoterProps) => {
     const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
 
+    const hasVotingSupport = exists(VoteFor[objectType]);
+
     const handleVote = useCallback((isUpvote: boolean | null) => {
         // Validate objectId and objectType
         if (!objectId) {
             PubSub.get().publishSnack({ messageKey: `CouldNotRead${objectType}`, severity: 'Error' });
             return;
         }
-        if(!exists(VoteFor[objectType])) {
+        if(!hasVotingSupport) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
             return;
         }
@@ -37,7 +39,7 @@ export const useVoter = ({
             input: { isUpvote, forConnect: objectId, voteFor: VoteFor[objectType] },
             onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
-    }, [objectId, objectType, onActionComplete, vote]);
+    }, [hasVotingSupport, objectId, objectType, onActionComplete, vote]);
 
-    return { handleVote };
+    return { handleVote, hasVotingSupport };
 }

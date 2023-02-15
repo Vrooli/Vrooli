@@ -1,18 +1,11 @@
-import { ApiVersion, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
 import { CommonKey, NavigableObject } from 'types';
-import { ListObjectType, ObjectAction, ObjectActionComplete, SearchType } from 'utils';
+import { ListObjectType, ObjectAction, SearchType, UseObjectActionsReturn } from 'utils';
 
 export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
+    actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
-    /**
-     * Completed actions, which may require updating state or navigating to a new page
-     */
-    onActionComplete: (action: ObjectActionComplete, data: any) => any;
-    /**
-     * Actions which cannot be performed by the menu
-     */
-    onActionStart: (action: ObjectAction.Comment | ObjectAction.Edit | ObjectAction.Stats) => any;
     object: T | null | undefined;
     session: Session;
     zIndex: number;
@@ -22,12 +15,8 @@ export interface ObjectListItemProps<T extends ListObjectType> {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
-     * 
-     * NOTE: Passes back full data so we can display 
-     * known properties of the object, while waiting for the full data to be fetched.
      */
     beforeNavigation?: (item: NavigableObject) => boolean | void,
-    data: T | null;
     /**
      * True if role (admin, owner, etc.) should be hidden
      */
@@ -40,6 +29,8 @@ export interface ObjectListItemProps<T extends ListObjectType> {
      * True if data is still being fetched
      */
     loading: boolean;
+    data: T | null;
+    objectType: GqlModelType | `${GqlModelType}`;
     session: Session;
     zIndex: number;
 }
@@ -76,7 +67,7 @@ export interface SearchListProps {
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    beforeNavigation?: (item: any) => boolean | void,
+    beforeNavigation?: (item: any) => boolean,
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**

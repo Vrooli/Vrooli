@@ -1,14 +1,12 @@
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, Reminder } from "@shared/consts";
+import { FindByIdOrHandleInput, Reminder } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay } from "components";
+import { ObjectActionMenu } from "components";
 import { ReminderViewProps } from "../types";
-import { getTranslation, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
-import { uuidValidate } from '@shared/uuid';
-import { EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
+import { EllipsisIcon, HelpIcon } from "@shared/icons";
 import { reminderFindOne } from "api/generated/endpoints/reminder";
 
 export const ReminderView = ({
@@ -34,10 +32,6 @@ export const ReminderView = ({
     //     document.title = `${name} | Vrooli`;
     // }, [name]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Reminder}/edit/${uuidToBase36(reminder?.id ?? '')}`);
-    }, [reminder?.id, setLocation]);
-
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -46,16 +40,13 @@ export const ReminderView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit]);
+    const actionData = useObjectActions({
+        object: reminder,
+        objectType: 'Reminder',
+        session,
+        setLocation,
+        setObject: setReminder,
+    });
 
     /**
      * Displays name, avatar, description, and quick links
@@ -112,10 +103,9 @@ export const ReminderView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={moreMenuAnchor}
                 object={reminder as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={() => {}}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

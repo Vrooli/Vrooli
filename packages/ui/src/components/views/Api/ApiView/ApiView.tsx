@@ -1,11 +1,11 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, ApiVersion, ResourceList, BookmarkFor } from "@shared/consts";
+import { FindByIdOrHandleInput, ApiVersion, ResourceList, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { ApiViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, useObjectActions, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -73,9 +73,6 @@ export const ApiView = ({
         />
     ) : null, [canUpdate, loading, apiVersion, resourceList, session, zIndex]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Api}/edit/${uuidToBase36(apiVersion?.id ?? '')}`);
-    }, [apiVersion?.id, setLocation]);
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -84,19 +81,10 @@ export const ApiView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: apiVersion,
+        objectType: 'ApiVersion',
+        session,
         setLocation,
         setObject: setApiVersion,
     });
@@ -163,7 +151,7 @@ export const ApiView = ({
                                 <IconButton
                                     aria-label="Edit apiVersion"
                                     size="small"
-                                    onClick={onEdit}
+                                    onClick={() => actionData.onActionStart('Edit')}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -212,16 +200,15 @@ export const ApiView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, apiVersion, summary, zIndex, canBookmark, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, apiVersion, summary, zIndex, canBookmark, session, actionData]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={moreMenuAnchor}
                 object={apiVersion as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

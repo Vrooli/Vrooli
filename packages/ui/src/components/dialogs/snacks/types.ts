@@ -12,7 +12,7 @@ export interface BasicSnackProps {
     handleClose: () => any;
     id: string;
     message?: string;
-    severity?: SnackSeverity;
+    severity?: SnackSeverity | `${SnackSeverity}`;
 }
 
 export interface CookiesSnackProps {

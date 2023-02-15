@@ -109,7 +109,9 @@ export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation
 export const getObjectReportUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}`;
 
 /**
- * Opens the report page for an object with an id and type
+ * Opens the report page for an object with an id and type.
+ * 
+ * NOTE: For VIEWING reports, not creating them
  * @param object Object to open
  */
 export const openObjectReport = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectReportUrl(object));

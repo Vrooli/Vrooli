@@ -1,11 +1,11 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, SmartContractVersion, BookmarkFor } from "@shared/consts";
+import { FindByIdOrHandleInput, SmartContractVersion, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { SmartContractViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, useObjectActions, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion";
@@ -51,10 +51,6 @@ export const SmartContractView = ({
         document.title = `${name} | Vrooli`;
     }, [name]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.SmartContract}/edit/${uuidToBase36(smartContractVersion?.id ?? '')}`);
-    }, [smartContractVersion?.id, setLocation]);
-
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -63,19 +59,10 @@ export const SmartContractView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: smartContractVersion,
+        objectType: 'SmartContractVersion',
+        session,
         setLocation,
         setObject: setSmartContractVersion,
     });
@@ -142,7 +129,7 @@ export const SmartContractView = ({
                                 <IconButton
                                     aria-label="Edit smartContractVersion"
                                     size="small"
-                                    onClick={onEdit}
+                                    onClick={() => actionData.onActionStart('Edit')}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -191,16 +178,15 @@ export const SmartContractView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, smartContractVersion, description, zIndex, canBookmark, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, smartContractVersion, description, zIndex, canBookmark, session, actionData]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={moreMenuAnchor}
                 object={smartContractVersion as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

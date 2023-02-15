@@ -1,8 +1,8 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { Comment, DeleteType, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Session, Standard, User } from '@shared/consts';
+import { Comment, DeleteType, GqlModelType, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Session, Standard, User } from '@shared/consts';
 import { NavigableObject, RoutineStep } from 'types';
-import { ListObjectType, NodeLinkShape, NodeShape, SearchType } from 'utils';
+import { ListObjectType, NodeLinkShape, NodeShape, UseObjectActionDialogsReturn, SearchType, UseObjectActionsReturn } from 'utils';
 import { SvgComponent } from '@shared/icons';
 import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
 import { CookiePreferences } from 'utils/cookies';
@@ -212,18 +212,17 @@ export interface UserDialogProps {
     zIndex: number;
 };
 
+export type ObjectActionDialogsProps = UseObjectActionsReturn & {
+    object: ListObjectType | null | undefined;
+    session: Session;
+    zIndex: number;
+}
+
 export interface ObjectActionMenuProps {
+    actionData: UseObjectActionsReturn;
     anchorEl: HTMLElement | null;
     exclude?: ObjectAction[];
     object: ListObjectType | null | undefined;
-    /**
-     * Completed actions, which may require updating state or navigating to a new page
-     */
-    onActionComplete: (action: ObjectActionComplete, data: any) => any;
-    /**
-     * Actions which cannot be performed by the menu
-     */
-    onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
     onClose: () => any;
     session: Session;
     zIndex: number;

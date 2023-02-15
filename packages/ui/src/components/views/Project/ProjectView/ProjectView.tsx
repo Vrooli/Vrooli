@@ -6,7 +6,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, SearchType, useObjectActions, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, SearchType, useObjectActions } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
@@ -76,10 +76,6 @@ export const ProjectView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const onEdit = useCallback(() => {
-        projectVersion?.id && setLocation(`${APP_LINKS.Project}/edit/${uuidToBase36(projectVersion.id)}`);
-    }, [projectVersion?.id, setLocation]);
-
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -88,19 +84,10 @@ export const ProjectView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: projectVersion,
+        objectType: 'ProjectVersion',
+        session,
         setLocation,
         setObject: setProjectVersion,
     });
@@ -174,7 +161,7 @@ export const ProjectView = ({
                                 <IconButton
                                     aria-label="Edit project"
                                     size="small"
-                                    onClick={onEdit}
+                                    onClick={() => actionData.onActionStart('Edit')}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -236,7 +223,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canUpdate, name, onEdit, handle, projectVersion, description, zIndex, canBookmark, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canUpdate, name, handle, projectVersion, description, zIndex, canBookmark, session, actionData]);
 
     /**
     * Opens add new page
@@ -256,10 +243,9 @@ export const ProjectView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={moreMenuAnchor}
                 object={projectVersion as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

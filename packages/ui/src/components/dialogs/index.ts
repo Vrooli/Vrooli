@@ -12,6 +12,7 @@ export * from './DialogTitle/DialogTitle';
 export * from './LinkDialog/LinkDialog';
 export * from './ListMenu/ListMenu';
 export * from './MenuTitle/MenuTitle';
+export * from './ObjectActionDialogs/ObjectActionDialogs';
 export * from './ObjectActionMenu/ObjectActionMenu';
 export * from './PopoverWithArrow/PopoverWithArrow';
 export * from './ReportDialog/ReportDialog';

@@ -1,13 +1,13 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions, uuidToBase36 } from "utils";
+import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
-import { APP_LINKS, CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
+import { CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { uuid } from "@shared/uuid";
@@ -161,30 +161,15 @@ export const SubroutineView = ({
         )
     }, [copyInput, formValueMap, palette.background.textPrimary, formik, internalRoutineVersion?.inputs, session, zIndex]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(internalRoutineVersion?.id ?? '')}`);
-    }, [internalRoutineVersion?.id, setLocation]);
-
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
-    const onActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Comment:
-                openAddCommentDialog();
-                break;
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit, openAddCommentDialog]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: internalRoutineVersion,
+        objectType: 'RoutineVersion',
+        openAddCommentDialog,
+        session,
         setLocation,
         setObject: setInternalRoutineVersion,
     });
@@ -253,9 +238,8 @@ export const SubroutineView = ({
             </Box>
             {/* Action buttons */}
             <ObjectActionsRow
+                actionData={actionData}
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                onActionStart={onActionStart}
-                onActionComplete={onActionComplete}
                 object={internalRoutineVersion}
                 session={session}
                 zIndex={zIndex}

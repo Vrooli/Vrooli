@@ -412,6 +412,7 @@ export function listToListItems({
                 hideRole={hideRoles}
                 index={i}
                 loading={true}
+                objectType={'Routine'}
                 session={session}
                 zIndex={zIndex}
             />);
@@ -429,6 +430,7 @@ export function listToListItems({
             hideRole={hideRoles}
             index={i}
             loading={false}
+            objectType={curr.__typename}
             session={session}
             zIndex={zIndex}
         />);

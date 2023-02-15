@@ -2,6 +2,7 @@
     "AccountDeleted": "Account deleted.",
     "AccountDeletedDetails": "This account has been deleted. If you think this is a mistake, please contact us.",
     "AccountDeleteFail": "Failed to delete account.",
+    "ActionNotSupported": "Cannot perform this action on this type of object",
     "BadCredentials": "Email or password incorrect.",
     "BannedWord": "Banned word detected.",
     "BannedWordDetails": "You used a banned word. If you think this is a mistake, please contact us.",

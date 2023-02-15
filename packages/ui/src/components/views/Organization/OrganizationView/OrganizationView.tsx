@@ -6,7 +6,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, SearchType, useObjectActions, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, SearchType, useObjectActions } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
@@ -105,10 +105,6 @@ export const OrganizationView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Organization}/edit/${uuidToBase36(organization?.id ?? '')}`);
-    }, [organization?.id, setLocation]);
-
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         switch (currTabType) {
@@ -153,19 +149,10 @@ export const OrganizationView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit]);
-    
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: organization,
+        objectType: 'Organization',
+        session,
         setLocation,
         setObject: setOrganization,
     });
@@ -232,7 +219,7 @@ export const OrganizationView = ({
                                 <IconButton
                                     aria-label="Edit organization"
                                     size="small"
-                                    onClick={onEdit}
+                                    onClick={() => actionData.onActionStart('Edit')}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -294,7 +281,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, handle, organization, bio, zIndex, canBookmark, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canUpdate, name, handle, organization, bio, zIndex, canBookmark, session, actionData]);
 
     /**
      * Opens add new page
@@ -320,10 +307,9 @@ export const OrganizationView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={moreMenuAnchor}
                 object={organization as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

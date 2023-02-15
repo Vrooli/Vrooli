@@ -27,6 +27,8 @@ export const useBookmarker = ({
     // we usually only know that an object has a bookmark - not the bookmarks themselves
     const [getData, { data, loading }] = useLazyQuery<Bookmark, BookmarkSearchInput, 'bookmarks'>(bookmarkFindMany, 'bookmarks', { errorPolicy: 'all' });
 
+    const hasBookmarkingSupport = exists(BookmarkFor[objectType]);
+
     const handleAdd = useCallback(() => {
         mutationWrapper<Bookmark, BookmarkCreateInput>({
             mutation: addBookmark,
@@ -45,7 +47,7 @@ export const useBookmarker = ({
             PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
             return;
         }
-        if(!exists(BookmarkFor[objectType])) {
+        if(!hasBookmarkingSupport) {
             PubSub.get().publishSnack({ messageKey: 'BookmarkNotSupported', severity: 'Error' });
             return;
         }
@@ -54,7 +56,7 @@ export const useBookmarker = ({
         } else {
             handleRemove();
         }
-    }, [handleAdd, handleRemove, objectId, objectType]);
+    }, [handleAdd, handleRemove, hasBookmarkingSupport, objectId]);
 
-    return { handleBookmark };
+    return { handleBookmark, hasBookmarkingSupport };
 }

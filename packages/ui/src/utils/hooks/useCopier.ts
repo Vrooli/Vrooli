@@ -24,13 +24,15 @@ export const useCopier = ({
 }: UseCopierProps) => {
     const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
 
+    const hasCopyingSupport = exists(CopyType[objectType]);
+
     const handleCopy = useCallback(() => {
         // Validate objectId and objectType
         if (!objectId) {
             PubSub.get().publishSnack({ messageKey: `CouldNotRead${objectType}`, severity: 'Error' });
             return;
         }
-        if(!exists(CopyType[objectType])) {
+        if(!hasCopyingSupport) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
             return;
         }
@@ -40,7 +42,7 @@ export const useCopier = ({
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: objectName ?? '' } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
-    }, [copy, objectId, objectName, objectType, onActionComplete]);
+    }, [copy, hasCopyingSupport, objectId, objectName, objectType, onActionComplete]);
 
-    return { handleCopy };
+    return { handleCopy, hasCopyingSupport };
 }

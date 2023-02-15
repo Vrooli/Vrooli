@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getYou, getDisplay, getUserLanguages, ObjectAction, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, ListObjectType, useObjectActions } from 'utils';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, ListObjectType, useObjectActions } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, BookmarkButton } from 'components/buttons';
@@ -31,10 +31,11 @@ function CompletionBar(props) {
 
 export function ObjectListItem<T extends ListObjectType>({
     beforeNavigation,
-    data,
     hideRole,
     index,
     loading,
+    data,
+    objectType,
     session,
     zIndex,
 }: ObjectListItemProps<T>) {
@@ -253,27 +254,11 @@ export function ObjectListItem<T extends ListObjectType>({
         />)
     }, [loading, object]);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                // If data not supplied, don't open
-                if (!data) return;
-                // If beforeNavigation is supplied, call it
-                if (beforeNavigation) {
-                    const shouldContinue = beforeNavigation(data);
-                    if (shouldContinue === false) return;
-                }
-                // Navigate to the object's edit page
-                openObjectEdit(data, setLocation);
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [beforeNavigation, data, setLocation]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
+        beforeNavigation,
         object,
+        objectType,
+        session,
         setLocation,
         setObject,
     });
@@ -282,11 +267,10 @@ export function ObjectListItem<T extends ListObjectType>({
         <>
             {/* Context menu */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={anchorEl}
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onActionComplete}
                 onClose={closeContextMenu}
                 session={session}
                 zIndex={zIndex + 1}

@@ -5,7 +5,7 @@ import { useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { defaultRelationships, defaultResourceList, getLanguageSubtag, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, PubSub, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
+import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, PubSub, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
 import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -83,31 +83,15 @@ export const StandardView = ({
         document.title = `${name} | Vrooli`;
     }, [name]);
 
-    const onEdit = useCallback(() => {
-        if (!standardVersion) return;
-        setLocation(getObjectEditUrl(standardVersion));
-    }, [setLocation, standardVersion]);
-
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
-    const onActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Comment:
-                openAddCommentDialog();
-                break;
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit, openAddCommentDialog]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: standardVersion,
+        objectType: 'Standard',
+        openAddCommentDialog,
+        session,
         setLocation,
         setObject: updateStandard,
     });
@@ -165,7 +149,7 @@ export const StandardView = ({
             }}>
                 {/* Edit button */}
                 {canUpdate ? (
-                    <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { onActionStart(ObjectAction.Edit) }} >
+                    <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}
@@ -268,9 +252,8 @@ export const StandardView = ({
             /> */}
             {/* Action buttons */}
             <ObjectActionsRow
+                actionData={actionData}
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                onActionStart={onActionStart}
-                onActionComplete={onActionComplete}
                 object={standardVersion}
                 session={session}
                 zIndex={zIndex}

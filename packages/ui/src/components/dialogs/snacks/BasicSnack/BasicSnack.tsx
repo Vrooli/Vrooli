@@ -10,7 +10,7 @@ export enum SnackSeverity {
     Warning = 'Warning',
 }
 
-const severityStyle = (severity: SnackSeverity | undefined, palette: Palette) => {
+const severityStyle = (severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) => {
     let backgroundColor: string = palette.primary.light;
     let color: string = palette.primary.contrastText;
     switch (severity) {

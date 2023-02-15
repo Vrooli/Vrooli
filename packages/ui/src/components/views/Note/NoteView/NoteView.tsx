@@ -1,11 +1,11 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, NoteVersion, BookmarkFor } from "@shared/consts";
+import { FindByIdOrHandleInput, NoteVersion, BookmarkFor } from "@shared/consts";
 import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { NoteViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, placeholderColor, useObjectActions, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, NoteIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion";
@@ -51,10 +51,6 @@ export const NoteView = ({
         document.title = `${name} | Vrooli`;
     }, [name]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Note}/edit/${uuidToBase36(noteVersion?.id ?? '')}`);
-    }, [noteVersion?.id, setLocation]);
-
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -63,19 +59,10 @@ export const NoteView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: noteVersion,
+        objectType: 'NoteVersion',
+        session,
         setLocation,
         setObject: setNoteVersion,
     });
@@ -142,7 +129,7 @@ export const NoteView = ({
                                 <IconButton
                                     aria-label="Edit noteVersion"
                                     size="small"
-                                    onClick={onEdit}
+                                    onClick={() => actionData.onActionStart('Edit')}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -191,16 +178,15 @@ export const NoteView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, noteVersion, description, zIndex, canBookmark, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, noteVersion, description, zIndex, canBookmark, session, actionData]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={moreMenuAnchor}
                 object={noteVersion as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

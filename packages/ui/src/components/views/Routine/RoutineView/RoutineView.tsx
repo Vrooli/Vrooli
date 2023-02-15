@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36, parseSingleItemUrl, defaultRelationships, defaultResourceList, useObjectActions } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, parseSingleItemUrl, defaultRelationships, defaultResourceList, useObjectActions } from "utils";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -98,30 +98,15 @@ export const RoutineView = ({
         setRoutineVersion(setDotNotationValue(routineVersion, 'you.runs', [run, ...routineVersion.you.runs]));
     }, [routineVersion]);
 
-    const onEdit = useCallback(() => {
-        routineVersion?.id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(routineVersion.id)}`);
-    }, [setLocation, routineVersion?.id]);
-
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
-    const onActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Comment:
-                openAddCommentDialog();
-                break;
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit, openAddCommentDialog]);
-
-    const { onActionComplete } = useObjectActions({
+    const actionData = useObjectActions({
         object: routineVersion,
+        objectType: 'Routine',
+        openAddCommentDialog,
+        session,
         setLocation,
         setObject: setRoutineVersion,
     });
@@ -240,7 +225,7 @@ export const RoutineView = ({
             }}>
                 {/* Edit button */}
                 {canUpdate ? (
-                    <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { onActionStart(ObjectAction.Edit) }} >
+                    <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}
@@ -382,9 +367,8 @@ export const RoutineView = ({
             /> */}
             {/* Action buttons */}
             <ObjectActionsRow
+                actionData={actionData}
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                onActionStart={onActionStart}
-                onActionComplete={onActionComplete}
                 object={routineVersion}
                 session={session}
                 zIndex={zIndex}
