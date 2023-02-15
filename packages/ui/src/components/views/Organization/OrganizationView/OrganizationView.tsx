@@ -11,7 +11,7 @@ import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { setDotNotationValue } from "@shared/utils";
+import { exists, setDotNotationValue } from "@shared/utils";
 import { organizationFindOne } from "api/generated/endpoints/organization";
 
 enum TabOptions {
@@ -167,11 +167,11 @@ export const OrganizationView = ({
 
     const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && organization) {
-                    setOrganization(setDotNotationValue(organization, 'you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!organization) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(organization, 'you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.organization, setLocation);

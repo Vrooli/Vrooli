@@ -1,5 +1,5 @@
 export * from './useBookmarker';
-export * from './userCopier';
+export * from './useCopier';
 export * from './useDebounce';
 export * from './useHistoryState';
 export * from './useKeyboardOpen';

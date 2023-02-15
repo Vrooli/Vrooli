@@ -11,6 +11,7 @@ import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { setDotNotationValue } from "@shared/utils";
 import { questionFindOne } from "api/generated/endpoints/question";
+import { exists } from "@shared/utils";
 
 export const QuestionView = ({
     partialData,
@@ -78,11 +79,11 @@ export const QuestionView = ({
 
     const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && question) {
-                    setQuestion(setDotNotationValue(question, 'you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!question) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(question, 'you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.question, setLocation);

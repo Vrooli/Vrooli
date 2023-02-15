@@ -9,7 +9,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, NoteIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { setDotNotationValue } from "@shared/utils";
+import { exists, setDotNotationValue } from "@shared/utils";
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion";
 
 export const NoteView = ({
@@ -78,11 +78,11 @@ export const NoteView = ({
 
     const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && noteVersion) {
-                    setNoteVersion(setDotNotationValue(noteVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!noteVersion) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(noteVersion, 'root.you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.noteVersion, setLocation);

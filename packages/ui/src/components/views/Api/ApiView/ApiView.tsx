@@ -10,7 +10,7 @@ import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { setDotNotationValue } from "@shared/utils";
+import { exists, setDotNotationValue } from "@shared/utils";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion";
 
 export const ApiView = ({
@@ -99,11 +99,11 @@ export const ApiView = ({
 
     const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && apiVersion) {
-                    setApiVersion(setDotNotationValue(apiVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!apiVersion) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(apiVersion, 'root.you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.apiVersion, setLocation);

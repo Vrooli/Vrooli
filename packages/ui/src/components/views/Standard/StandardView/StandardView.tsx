@@ -16,6 +16,7 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
 import { setDotNotationValue } from "@shared/utils";
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion";
+import { exists } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -115,11 +116,11 @@ export const StandardView = ({
                     setStandardVersion(setDotNotationValue(standardVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && standardVersion) {
-                    setStandardVersion(setDotNotationValue(standardVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!standardVersion) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(standardVersion, 'root.you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.standard, setLocation);

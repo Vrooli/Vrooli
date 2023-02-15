@@ -11,7 +11,7 @@ import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icon
 import { CommentsButton, ReportsButton, BookmarkButton } from 'components/buttons';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
-import { isOfType, setDotNotationValue } from '@shared/utils';
+import { exists, isOfType, setDotNotationValue } from '@shared/utils';
 import { useTranslation } from 'react-i18next';
 
 function CompletionBar(props) {
@@ -279,10 +279,11 @@ export function ObjectListItem<T extends ListObjectType>({
                 const isUpvotedLocation = getYouDot(object, 'isUpvoted');
                 if (data.success && isUpvotedLocation && object) setDotNotationValue(object, isUpvotedLocation as any, action === ObjectActionComplete.VoteUp);
                 break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
                 const isBookmarkedLocation = getYouDot(object, 'isBookmarked');
-                if (data.success && isBookmarkedLocation && object) setDotNotationValue(object, isBookmarkedLocation as any, action === ObjectActionComplete.Star);
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful && isBookmarkedLocation && object) setDotNotationValue(object, isBookmarkedLocation as any, wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 // Data is in first key with a value

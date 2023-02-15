@@ -16,7 +16,7 @@ import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { RelationshipsObject } from "components/inputs/types";
-import { setDotNotationValue } from "@shared/utils";
+import { exists, setDotNotationValue } from "@shared/utils";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion";
 
@@ -128,11 +128,11 @@ export const RoutineView = ({
                     setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && routineVersion) {
-                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!routineVersion) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(routineVersion, 'root.you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.routine, setLocation);

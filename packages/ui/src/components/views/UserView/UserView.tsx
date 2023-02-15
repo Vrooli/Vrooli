@@ -12,7 +12,7 @@ import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
-import { setDotNotationValue } from "@shared/utils";
+import { exists, setDotNotationValue } from "@shared/utils";
 import { userFindOne } from "api/generated/endpoints/user";
 
 enum TabOptions {
@@ -172,11 +172,11 @@ export const UserView = ({
 
     const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && user) {
-                    setUser(setDotNotationValue(user, 'you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!user) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(user, 'you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.user, setLocation);

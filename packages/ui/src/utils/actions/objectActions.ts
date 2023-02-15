@@ -27,15 +27,15 @@ import { Session } from "@shared/consts";
  * Basically any action that requires updating state or navigating to a new page.
  */
 export enum ObjectActionComplete {
-    Delete = "Delete",
-    EditComplete = "EditComplete",
-    EditCancel = "EditCanel",
-    Fork = "Fork",
-    Report = "Report",
-    Star = "Star",
-    StarUndo = "StarUndo",
-    VoteDown = "VoteDown",
-    VoteUp = "VoteUp",
+    Bookmark = 'Bookmark',
+    BookmarkUndo = 'BookmarkUndo',
+    Delete = 'Delete',
+    EditComplete = 'EditComplete',
+    EditCancel = 'EditCanel',
+    Fork = 'Fork',
+    Report = 'Report',
+    VoteDown = 'VoteDown',
+    VoteUp = 'VoteUp',
 }
 
 /**

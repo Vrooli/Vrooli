@@ -11,6 +11,7 @@ import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { setDotNotationValue } from "@shared/utils";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
+import { exists } from "@shared/utils";
 
 enum TabOptions {
     Resources = "Resources",
@@ -108,11 +109,11 @@ export const ProjectView = ({
                     setProjectVersion(setDotNotationValue(projectVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && projectVersion) {
-                    setProjectVersion(setDotNotationValue(projectVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!projectVersion) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(projectVersion, 'root.you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.project, setLocation);

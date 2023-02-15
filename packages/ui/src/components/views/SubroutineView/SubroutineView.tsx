@@ -13,6 +13,7 @@ import { smallHorizontalScrollbar } from "components/lists/styles";
 import { uuid } from "@shared/uuid";
 import { SuccessIcon } from "@shared/icons";
 import { setDotNotationValue } from "@shared/utils";
+import { exists } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -192,11 +193,11 @@ export const SubroutineView = ({
                     setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && internalRoutineVersion) {
-                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isBookmarked', action === ObjectActionComplete.Star))
-                }
+            case ObjectActionComplete.Bookmark:
+            case ObjectActionComplete.BookmarkUndo:
+                if (!internalRoutineVersion) return;
+                const wasSuccessful = action === ObjectActionComplete.Bookmark ? data.success : exists(data);
+                if (wasSuccessful) setDotNotationValue(internalRoutineVersion, 'root.you.isBookmarked', wasSuccessful);
                 break;
             case ObjectActionComplete.Fork:
                 openObject(data.routine, setLocation);
