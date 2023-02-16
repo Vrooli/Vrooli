@@ -73,7 +73,6 @@ query standardVersion($input: FindVersionInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -268,7 +267,6 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -416,7 +414,6 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType

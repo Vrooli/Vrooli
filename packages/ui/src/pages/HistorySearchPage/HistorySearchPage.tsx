@@ -84,6 +84,8 @@ export function HistorySearchPage({
                     aria-label="search-type-tabs"
                     sx={{
                         marginBottom: 1,
+                        paddingLeft: '1em',
+                        paddingRight: '1em',
                     }}
                 >
                     {tabOptions.map((option, index) => (

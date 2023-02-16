@@ -182,7 +182,7 @@ export const ProjectVersionModel: ModelLogic<{
             ownedByOrganizationId: true,
             ownedByUserId: true,
             rootId: true,
-            tags: true,
+            tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,

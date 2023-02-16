@@ -31,6 +31,8 @@ export type ObjectType = 'Api' |
  * @returns Search URL base for object type
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
+    // If object is a user, use 'Profile'
+    if (isOfType(object, 'User')) return APP_LINKS.Profile;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getObjectUrlBase((object as Bookmark | View | Vote).to as any);
     // If the object is a run routine, use the routine version

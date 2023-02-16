@@ -259,7 +259,6 @@ query projectVersion($input: FindVersionInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -681,7 +680,6 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -1020,7 +1018,6 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType

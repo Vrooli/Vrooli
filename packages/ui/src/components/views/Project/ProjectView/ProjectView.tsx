@@ -1,12 +1,11 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, toSearchListData, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
@@ -27,17 +26,13 @@ export const ProjectView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(projectVersionFindOne, 'projectVersion', { errorPolicy: 'all' });
-    const [projectVersion, setProjectVersion] = useState<ProjectVersion | null | undefined>(null);
-    useEffect(() => {
-        if (urlData.id || urlData.idRoot || urlData.handleRoot) getData({ variables: urlData })
-    }, [getData, urlData]);
-    useEffect(() => {
-        setProjectVersion(data?.projectVersion);
-    }, [data]);
-    const canUpdate = useMemo<boolean>(() => projectVersion?.you?.canUpdate === true, [projectVersion?.you?.canUpdate]);
+
+    const { id, isLoading, object: projectVersion, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion, FindVersionInput>({
+        query: projectVersionFindOne,
+        endpoint: 'projectVersion',
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (projectVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [projectVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -46,11 +41,9 @@ export const ProjectView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { canBookmark, name, description, handle } = useMemo(() => {
-        const { canBookmark } = projectVersion?.root?.you ?? {};
+    const { name, description, handle } = useMemo(() => {
         const { description, name } = getTranslation(projectVersion ?? partialData, [language]);
         return {
-            canBookmark,
             name,
             description,
             handle: projectVersion?.root?.handle ?? partialData?.root?.handle,
@@ -72,7 +65,7 @@ export const ProjectView = ({
     const availableTabs = useMemo(() => {
         const tabs: TabOptions[] = [];
         // Only display resources if there are any
-        // if (resources) tabs.push(TabOptions.Resource);
+        // if (resources || canUpdate) tabs.push(TabOptions.Resource);
         // Always display others (for now)
         tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource));
         return tabs;
@@ -99,9 +92,9 @@ export const ProjectView = ({
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         if (currTabType === TabOptions.Routine)
-            return toSearchListData('Routine', 'SearchRoutine', { projectId: projectVersion?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
+            return toSearchListData('Routine', 'SearchRoutine', { projectId: projectVersion?.id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
         return toSearchListData('Standard', 'SearchStandard', { projectId: projectVersion?.id, visibility: VisibilityType.All });
-    }, [canUpdate, currTabType, projectVersion?.id]);
+    }, [permissions.canUpdate, currTabType, projectVersion?.id]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -128,6 +121,7 @@ export const ProjectView = ({
                         display: 'block',
                         marginLeft: 'auto',
                         marginRight: 1,
+                        paddingRight: '1em',
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />
@@ -136,11 +130,11 @@ export const ProjectView = ({
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canUpdate ? (
+                    ) : permissions.canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit project">
@@ -172,7 +166,7 @@ export const ProjectView = ({
                 }
                 {/* Created date */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Created"
                     timestamp={projectVersion?.created_at}
@@ -180,7 +174,7 @@ export const ProjectView = ({
                 />
                 {/* Description */}
                 {
-                    loading && (
+                    isLoading && (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
@@ -188,7 +182,7 @@ export const ProjectView = ({
                     )
                 }
                 {
-                    !loading && Boolean(description) && <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
+                    !isLoading && Boolean(description) && <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
@@ -198,7 +192,7 @@ export const ProjectView = ({
                     </Tooltip>
                     <ShareButton object={projectVersion} zIndex={zIndex} />
                     <BookmarkButton
-                        disabled={!canBookmark}
+                        disabled={!permissions.canBookmark}
                         session={session}
                         objectId={projectVersion?.id ?? ''}
                         bookmarkFor={BookmarkFor.Project}
@@ -209,7 +203,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canUpdate, name, handle, projectVersion, description, zIndex, canBookmark, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, projectVersion, description, zIndex, session, actionData]);
 
     /**
     * Opens add new page
@@ -242,6 +236,7 @@ export const ProjectView = ({
                     position: 'absolute',
                     top: 8,
                     right: 8,
+                    paddingRight: '1em',
                 }}>
                     <SelectLanguageMenu
                         currentLanguage={language}
@@ -267,6 +262,8 @@ export const ProjectView = ({
                         aria-label="site-statistics-tabs"
                         sx={{
                             marginBottom: 1,
+                            paddingLeft: '1em',
+                            paddingRight: '1em',
                         }}
                     >
                         {availableTabs.map((tabType, index) => (
@@ -284,7 +281,7 @@ export const ProjectView = ({
                 <Box p={2}>
                     <SearchList
                         canSearch={Boolean(projectVersion?.id)}
-                        handleAdd={canUpdate ? toAddNew : undefined}
+                        handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideRoles={true}
                         id="project-view-list"
                         searchType={searchType}

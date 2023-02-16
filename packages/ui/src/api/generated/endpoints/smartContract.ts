@@ -107,7 +107,6 @@ query smartContract($input: FindByIdInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -345,7 +344,6 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -494,7 +492,6 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

@@ -2,11 +2,12 @@ import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListIte
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { bestLabel, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { noNull, padSelect, shapeHelper } from "../builders";
 import { RoutineModel } from "./routine";
 import { SelectWrap } from "../builders/types";
 import { nodeRoutineListItemValidation } from '@shared/validation';
+import { NodeRoutineListModel } from './nodeRoutineList';
 
 const __typename = 'NodeRoutineListItem' as const;
 
@@ -71,5 +72,19 @@ export const NodeRoutineListItemModel: ModelLogic<{
             }),
         },
         yup: nodeRoutineListItemValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: 100000,
+        permissionsSelect: () => ({ list: 'NodeRoutineList' }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => NodeRoutineListModel.validate!.owner(data.list as any),
+        isDeleted: (data, languages) => NodeRoutineListModel.validate!.isDeleted(data.list as any, languages),
+        isPublic: (data, languages) => NodeRoutineListModel.validate!.isPublic(data.list as any, languages),
+        visibility: {
+            private: { list: NodeRoutineListModel.validate!.visibility.private },
+            public: { list: NodeRoutineListModel.validate!.visibility.public },
+            owner: (userId) => ({ list: NodeRoutineListModel.validate!.visibility.owner(userId) }),
+        }
     },
 })

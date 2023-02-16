@@ -146,7 +146,6 @@ query profile {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -183,7 +182,6 @@ query user($input: FindByIdOrHandleInput!) {
   user(input: $input) {
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -408,7 +406,6 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -582,7 +579,6 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

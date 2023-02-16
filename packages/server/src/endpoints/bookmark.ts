@@ -54,7 +54,6 @@ export const typeDef = gql`
         after: String
         excludeLinkedToTag: Boolean
         ids: [ID!]
-        label: String
         searchString: String
         sortBy: BookmarkSortBy
         take: Int

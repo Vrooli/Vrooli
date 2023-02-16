@@ -195,6 +195,7 @@ export type ApiVersion = {
   forks: Array<Api>;
   forksCount: Scalars['Int'];
   id: Scalars['ID'];
+  isComplete: Scalars['Boolean'];
   isLatest: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   pullRequest?: Maybe<PullRequest>;
@@ -215,6 +216,7 @@ export type ApiVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -236,6 +238,8 @@ export type ApiVersionSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxViewsRoot?: InputMaybe<Scalars['Int']>;
@@ -246,7 +250,7 @@ export type ApiVersionSearchInput = {
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ApiVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -307,6 +311,7 @@ export type ApiVersionUpdateInput = {
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -415,7 +420,6 @@ export type BookmarkSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  label?: InputMaybe<Scalars['String']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<BookmarkSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -1038,7 +1042,6 @@ export type LabelSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  label?: InputMaybe<Scalars['String']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -2754,6 +2757,7 @@ export type NoteVersionSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
@@ -2765,7 +2769,7 @@ export type NoteVersionSearchInput = {
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -3457,7 +3461,6 @@ export type ProjectOrOrganizationSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -3480,6 +3483,7 @@ export type ProjectOrOrganizationSearchInput = {
   sortBy?: InputMaybe<ProjectOrOrganizationSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -3518,10 +3522,9 @@ export type ProjectOrRoutinePageInfo = {
 export type ProjectOrRoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
+  hasCompleteVersionExceptions?: InputMaybe<Array<SearchException>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -3546,6 +3549,7 @@ export type ProjectOrRoutineSearchInput = {
   sortBy?: InputMaybe<ProjectOrRoutineSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -3783,6 +3787,7 @@ export type ProjectVersionSearchInput = {
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
   isCompleteWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
   isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
@@ -3800,7 +3805,7 @@ export type ProjectVersionSearchInput = {
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -6361,6 +6366,7 @@ export type RoutineVersionSearchInput = {
   isInternalWithRoot?: InputMaybe<Scalars['Boolean']>;
   isInternalWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
   isInternalWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
@@ -6379,7 +6385,7 @@ export type RoutineVersionSearchInput = {
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -7400,7 +7406,8 @@ export type SmartContractVersionSearchInput = {
   contractType?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
@@ -7412,7 +7419,7 @@ export type SmartContractVersionSearchInput = {
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<SmartContractVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -7700,7 +7707,8 @@ export type StandardVersionSearchInput = {
   completedTimeFrame?: InputMaybe<TimeFrame>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
@@ -7713,7 +7721,7 @@ export type StandardVersionSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardVersionSortBy>;
   standardType?: InputMaybe<Scalars['String']>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -7810,7 +7818,6 @@ export enum StatPeriodType {
 export type StatsApi = {
   __typename: 'StatsApi';
   calls: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -7848,7 +7855,6 @@ export enum StatsApiSortBy {
 export type StatsOrganization = {
   __typename: 'StatsOrganization';
   apis: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   members: Scalars['Int'];
   notes: Scalars['Int'];
@@ -7895,7 +7901,6 @@ export enum StatsOrganizationSortBy {
 export type StatsProject = {
   __typename: 'StatsProject';
   apis: Scalars['Int'];
-  created_at: Scalars['Date'];
   directories: Scalars['Int'];
   id: Scalars['ID'];
   notes: Scalars['Int'];
@@ -7943,7 +7948,6 @@ export enum StatsProjectSortBy {
 export type StatsQuiz = {
   __typename: 'StatsQuiz';
   completionTimeAverage: Scalars['Float'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -7983,7 +7987,6 @@ export enum StatsQuizSortBy {
 
 export type StatsRoutine = {
   __typename: 'StatsRoutine';
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -8090,7 +8093,6 @@ export enum StatsSiteSortBy {
 export type StatsSmartContract = {
   __typename: 'StatsSmartContract';
   calls: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -8127,7 +8129,6 @@ export enum StatsSmartContractSortBy {
 
 export type StatsStandard = {
   __typename: 'StatsStandard';
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   linksToInputs: Scalars['Int'];
   linksToOutputs: Scalars['Int'];
@@ -8166,7 +8167,6 @@ export enum StatsStandardSortBy {
 export type StatsUser = {
   __typename: 'StatsUser';
   apisCreated: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   organizationsCreated: Scalars['Int'];
   periodEnd: Scalars['Date'];
@@ -10341,6 +10341,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   forks?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   forksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
@@ -12954,7 +12955,6 @@ export type StandardYouResolvers<ContextType = any, ParentType extends Resolvers
 
 export type StatsApiResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsApi'] = ResolversParentTypes['StatsApi']> = {
   calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12977,7 +12977,6 @@ export type StatsApiSearchResultResolvers<ContextType = any, ParentType extends 
 
 export type StatsOrganizationResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsOrganization'] = ResolversParentTypes['StatsOrganization']> = {
   apis?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   members?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   notes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13009,7 +13008,6 @@ export type StatsOrganizationSearchResultResolvers<ContextType = any, ParentType
 
 export type StatsProjectResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsProject'] = ResolversParentTypes['StatsProject']> = {
   apis?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directories?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   notes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13042,7 +13040,6 @@ export type StatsProjectSearchResultResolvers<ContextType = any, ParentType exte
 
 export type StatsQuizResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsQuiz'] = ResolversParentTypes['StatsQuiz']> = {
   completionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13067,7 +13064,6 @@ export type StatsQuizSearchResultResolvers<ContextType = any, ParentType extends
 };
 
 export type StatsRoutineResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsRoutine'] = ResolversParentTypes['StatsRoutine']> = {
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13144,7 +13140,6 @@ export type StatsSiteSearchResultResolvers<ContextType = any, ParentType extends
 
 export type StatsSmartContractResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsSmartContract'] = ResolversParentTypes['StatsSmartContract']> = {
   calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13166,7 +13161,6 @@ export type StatsSmartContractSearchResultResolvers<ContextType = any, ParentTyp
 };
 
 export type StatsStandardResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsStandard'] = ResolversParentTypes['StatsStandard']> = {
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   linksToInputs?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   linksToOutputs?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13190,7 +13184,6 @@ export type StatsStandardSearchResultResolvers<ContextType = any, ParentType ext
 
 export type StatsUserResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsUser'] = ResolversParentTypes['StatsUser']> = {
   apisCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   organizationsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;

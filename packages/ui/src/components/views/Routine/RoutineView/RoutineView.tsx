@@ -1,11 +1,11 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
-import { useMutation, useLazyQuery } from "api/hooks";
+import { useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
+import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, parseSingleItemUrl, defaultRelationships, defaultResourceList, useObjectActions } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -42,25 +42,16 @@ export const RoutineView = ({
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(routineVersionFindOne, 'routineVersion', { errorPolicy: 'all' });
-    useEffect(() => {
-        if (urlData.id || urlData.idRoot) getData({ variables: urlData });
-        // If IDs are not invalid, throw error if we are not creating a new routine
-        else {
-            const { build } = parseSearchParams();
+    const { id, isLoading, object: routineVersion, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
+        query: routineVersionFindOne,
+        endpoint: 'routineVersion',
+        onInvalidUrlParams: ({ build }) => {
+            // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
-        }
-    }, [getData, urlData])
-
-    const [routineVersion, setRoutineVersion] = useState<RoutineVersion | null>(null);
-    useEffect(() => {
-        if (!data?.routineVersion) return;
-        setRoutineVersion(data.routineVersion);
-    }, [data]);
-    const updateRoutineVersion = useCallback((newRoutineVersion: RoutineVersion) => { setRoutineVersion(newRoutineVersion); }, [setRoutineVersion]);
-    const { canUpdate } = useMemo(() => getYou(routineVersion), [routineVersion]);
+        },
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (routineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routineVersion?.translations]);
     useEffect(() => {
@@ -91,12 +82,12 @@ export const RoutineView = ({
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!routineVersion) return;
         setRoutineVersion(setDotNotationValue(routineVersion, 'you.runs', routineVersion.you.runs.filter(r => r.id !== run.id)));
-    }, [routineVersion]);
+    }, [routineVersion, setRoutineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!routineVersion) return;
         setRoutineVersion(setDotNotationValue(routineVersion, 'you.runs', [run, ...routineVersion.you.runs]));
-    }, [routineVersion]);
+    }, [routineVersion, setRoutineVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -224,14 +215,14 @@ export const RoutineView = ({
                 height: 'calc(64px + env(safe-area-inset-bottom))',
             }}>
                 {/* Edit button */}
-                {canUpdate ? (
+                {permissions.canUpdate ? (
                     <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
                 {routineVersion?.nodes?.length ? <RunButton
-                    canUpdate={canUpdate}
+                    canUpdate={permissions.canUpdate}
                     handleRunAdd={handleRunAdd as any}
                     handleRunDelete={handleRunDelete as any}
                     isBuildGraphOpen={isBuildOpen}
@@ -257,7 +248,7 @@ export const RoutineView = ({
                     handleClose={stopBuild}
                     handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
                     isEditing={false}
-                    loading={loading}
+                    loading={isLoading}
                     owner={relationships.owner}
                     routineVersion={routineVersion}
                     session={session}
@@ -273,7 +264,7 @@ export const RoutineView = ({
             </Dialog>}
             <ObjectTitle
                 language={language}
-                loading={loading}
+                loading={isLoading}
                 title={name}
                 session={session}
                 setLanguage={setLanguage}
@@ -295,16 +286,16 @@ export const RoutineView = ({
                 list={resourceList}
                 canUpdate={false}
                 handleUpdate={() => { }} // Intentionally blank
-                loading={loading}
+                loading={isLoading}
                 session={session}
                 zIndex={zIndex}
             />}
             {/* Box with description and instructions */}
             <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                 {/* Description */}
-                <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                 {/* Instructions */}
-                <TextCollapse title="Instructions" text={instructions} loading={loading} loadingLines={4} />
+                <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
             </Stack>
             {/* Box with inputs, if this is a single-step routine */}
             {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
@@ -348,7 +339,7 @@ export const RoutineView = ({
             <Stack direction="row" spacing={1} mt={2} mb={1}>
                 {/* Date created */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     timestamp={routineVersion?.created_at}
                 />

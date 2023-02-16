@@ -7,7 +7,6 @@ query statsOrganization($input: StatsOrganizationSearchInput!) {
         cursor
         node {
             id
-            created_at
             periodStart
             periodEnd
             periodType

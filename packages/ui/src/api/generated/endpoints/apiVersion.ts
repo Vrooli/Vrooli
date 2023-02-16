@@ -51,7 +51,6 @@ query apiVersion($input: FindVersionInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -259,7 +258,6 @@ mutation apiVersionCreate($input: ApiVersionCreateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -382,7 +380,6 @@ mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType

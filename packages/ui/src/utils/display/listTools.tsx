@@ -89,6 +89,21 @@ export const getYouDot = (
     return null;
 }
 
+export const defaultYou: YouInflated = {
+    canComment: false,
+    canCopy: false,
+    canDelete: false,
+    canRead: false,
+    canReport: false,
+    canShare: false,
+    canBookmark: false,
+    canUpdate: false,
+    canVote: false,
+    isBookmarked: false,
+    isUpvoted: null,
+    isViewed: false,
+};
+
 /**
  * Gets user permissions and statuses for an object. These are inflated to match YouInflated, so any fields not present are false
  * @param object An object
@@ -97,20 +112,7 @@ export const getYou = (
     object: ListObjectType | null | undefined
 ): YouInflated => {
     // Initialize fields to false (except isUpvoted, where false means downvoted)
-    const defaultPermissions = {
-        canComment: false,
-        canCopy: false,
-        canDelete: false,
-        canRead: false,
-        canReport: false,
-        canShare: false,
-        canBookmark: false,
-        canUpdate: false,
-        canVote: false,
-        isBookmarked: false,
-        isUpvoted: null,
-        isViewed: false,
-    };
+    const defaultPermissions = defaultYou;
     if (!object) return defaultPermissions;
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYou(object.to as ListObjectType);

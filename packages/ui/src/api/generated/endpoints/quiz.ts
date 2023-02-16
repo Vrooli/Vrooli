@@ -108,7 +108,6 @@ query quiz($input: FindByIdInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -320,7 +319,6 @@ mutation quizCreate($input: QuizCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -479,7 +477,6 @@ mutation quizUpdate($input: QuizUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

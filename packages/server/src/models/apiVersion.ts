@@ -82,6 +82,7 @@ export const ApiVersionModel: ModelLogic<{
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
+            isCompleteWithRoot: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,
@@ -90,7 +91,7 @@ export const ApiVersionModel: ModelLogic<{
             minViewsRoot: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
-            tags: true,
+            tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,

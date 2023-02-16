@@ -106,7 +106,6 @@ query standard($input: FindByIdInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -343,7 +342,6 @@ mutation standardCreate($input: StandardCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -491,7 +489,6 @@ mutation standardUpdate($input: StandardUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

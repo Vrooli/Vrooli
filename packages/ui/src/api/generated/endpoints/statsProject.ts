@@ -7,7 +7,6 @@ query statsProject($input: StatsProjectSearchInput!) {
         cursor
         node {
             id
-            created_at
             periodStart
             periodEnd
             periodType

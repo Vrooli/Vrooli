@@ -5,7 +5,6 @@ export const statsOrganization: GqlPartial<StatsOrganization> = {
     __typename: 'StatsOrganization',
     full: {
         id: true,
-        created_at: true,
         periodStart: true,
         periodEnd: true,
         periodType: true,

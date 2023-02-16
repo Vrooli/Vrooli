@@ -104,7 +104,6 @@ export const LabelModel: ModelLogic<{
         sortBy: LabelSortBy,
         searchFields: {
             createdTimeFrame: true,
-            label: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
             translationLanguages: true,

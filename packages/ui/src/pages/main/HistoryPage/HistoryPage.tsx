@@ -159,6 +159,8 @@ export const HistoryPage = ({
                     aria-label="home-pages"
                     sx={{
                         marginBottom: 1,
+                        paddingLeft: '1em',
+                        paddingRight: '1em',
                     }}
                 >
                     {tabOptions.map((option, index) => (

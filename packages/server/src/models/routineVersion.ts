@@ -226,7 +226,7 @@ export const RoutineVersionModel: ModelLogic<{
             ownedByUserId: true,
             reportId: true,
             rootId: true,
-            tags: true,
+            tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,

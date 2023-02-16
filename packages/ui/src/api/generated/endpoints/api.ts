@@ -81,7 +81,6 @@ query api($input: FindByIdInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -289,7 +288,6 @@ mutation apiCreate($input: ApiCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -412,7 +410,6 @@ mutation apiUpdate($input: ApiUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

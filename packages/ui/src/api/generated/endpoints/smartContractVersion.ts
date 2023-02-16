@@ -74,7 +74,6 @@ query smartContractVersion($input: FindVersionInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -270,7 +269,6 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -419,7 +417,6 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType

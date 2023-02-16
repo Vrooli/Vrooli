@@ -5,7 +5,7 @@ import { SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
 
 type Primitive = string | number | boolean;
-type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
+export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
 
 /**
  * Converts url search params to object

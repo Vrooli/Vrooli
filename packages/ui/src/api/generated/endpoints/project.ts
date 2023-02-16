@@ -287,7 +287,6 @@ query project($input: FindByIdOrHandleInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -709,7 +708,6 @@ mutation projectCreate($input: ProjectCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -1048,7 +1046,6 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

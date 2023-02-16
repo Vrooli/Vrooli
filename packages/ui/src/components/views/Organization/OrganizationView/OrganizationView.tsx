@@ -1,12 +1,11 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, BookmarkFor, VisibilityType } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, toSearchListData, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
@@ -32,17 +31,13 @@ export const OrganizationView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdOrHandleInput, 'organization'>(organizationFindOne, 'organization', { errorPolicy: 'all' });
-    const [organization, setOrganization] = useState<Organization | null | undefined>(null);
-    useEffect(() => {
-        if (urlData.id || urlData.handle) getData({ variables: urlData })
-    }, [getData, urlData]);
-    useEffect(() => {
-        setOrganization(data?.organization);
-    }, [data]);
-    const canUpdate = useMemo<boolean>(() => organization?.you?.canUpdate === true, [organization?.you?.canUpdate]);
+
+    const { id, isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization, FindByIdOrHandleInput>({
+        query: organizationFindOne,
+        endpoint: 'organization',
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -51,13 +46,11 @@ export const OrganizationView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, canBookmark, handle, name, resourceList } = useMemo(() => {
-        const { canBookmark } = organization?.you ?? {};
+    const { bio, handle, name, resourceList } = useMemo(() => {
         const resourceList: ResourceList | null | undefined = organization?.resourceList;
         const { bio, name } = getTranslation(organization ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
-            canBookmark,
             handle: organization?.handle ?? partialData?.handle,
             name,
             resourceList,
@@ -69,11 +62,11 @@ export const OrganizationView = ({
         else document.title = `${name} | Vrooli`;
     }, [handle, name]);
 
-    const resources = useMemo(() => (resourceList || canUpdate) ? (
+    const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList as any}
             session={session}
-            canUpdate={canUpdate}
+            canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!organization) return;
                 setOrganization({
@@ -81,11 +74,11 @@ export const OrganizationView = ({
                     resourceList: updatedList
                 })
             }}
-            loading={loading}
+            loading={isLoading}
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [canUpdate, loading, organization, resourceList, session, zIndex]);
+    ) : null, [isLoading, organization, permissions.canUpdate, resourceList, session, setOrganization, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -96,12 +89,12 @@ export const OrganizationView = ({
      */
     const availableTabs = useMemo(() => {
         const tabs: TabOptions[] = [];
-        // Only display resources if there are any
-        if (resources) tabs.push(TabOptions.Resource);
+        // Only display resources if there are any (or if you can add them)
+        if (resources || permissions.canUpdate) tabs.push(TabOptions.Resource);
         // Always display others (for now)
         tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource));
         return tabs;
-    }, [resources]);
+    }, [permissions.canUpdate, resources]);
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
@@ -111,11 +104,11 @@ export const OrganizationView = ({
         if (currTabType === TabOptions.Member)
             return toSearchListData('User', 'SearchMember', { organizationId: organization?.id });
         else if (currTabType === TabOptions.Project)
-            return toSearchListData('Project', 'SearchProject', { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, visibility: VisibilityType.All });
+            return toSearchListData('Project', 'SearchProject', { organizationId: organization?.id, isComplete: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
         else if (currTabType === TabOptions.Routine)
-            return toSearchListData('Routine', 'SearchRoutine', { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
+            return toSearchListData('Routine', 'SearchRoutine', { organizationId: organization?.id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
         return toSearchListData('Standard', 'SearchStandard', { organizationId: organization?.id, visibility: VisibilityType.All });
-    }, [canUpdate, currTabType, organization?.id]);
+    }, [currTabType, organization?.id, permissions.canUpdate]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -176,6 +169,7 @@ export const OrganizationView = ({
                         display: 'block',
                         marginLeft: 'auto',
                         marginRight: 1,
+                        paddingRight: '1em',
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />
@@ -184,11 +178,11 @@ export const OrganizationView = ({
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canUpdate ? (
+                    ) : permissions.canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit organization">
@@ -220,7 +214,7 @@ export const OrganizationView = ({
                 }
                 {/* Joined date */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Joined"
                     timestamp={organization?.created_at}
@@ -228,7 +222,7 @@ export const OrganizationView = ({
                 />
                 {/* Bio */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
@@ -246,7 +240,7 @@ export const OrganizationView = ({
                     <ShareButton object={organization} zIndex={zIndex} />
                     <ReportsLink object={organization} />
                     <BookmarkButton
-                        disabled={!canBookmark}
+                        disabled={!permissions.canBookmark}
                         session={session}
                         objectId={organization?.id ?? ''}
                         bookmarkFor={BookmarkFor.Organization}
@@ -257,7 +251,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canUpdate, name, handle, organization, bio, zIndex, canBookmark, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, organization, bio, zIndex, session, actionData]);
 
     /**
      * Opens add new page
@@ -292,6 +286,7 @@ export const OrganizationView = ({
                     position: 'absolute',
                     top: 8,
                     right: 8,
+                    paddingRight: '1em',
                 }}>
                     <SelectLanguageMenu
                         currentLanguage={language}
@@ -317,6 +312,8 @@ export const OrganizationView = ({
                         aria-label="site-statistics-tabs"
                         sx={{
                             marginBottom: 1,
+                            paddingLeft: '1em',
+                            paddingRight: '1em',
                         }}
                     >
                         {availableTabs.map((tabType, index) => (
@@ -324,9 +321,9 @@ export const OrganizationView = ({
                                 key={index}
                                 id={`profile-tab-${index}`}
                                 {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                                label={<span 
+                                label={<span
                                     style={{ color: tabType === TabOptions.Resource ? '#8e6b00' : 'default' }}
-                                    >{t(`common:${tabType}`, { lng: getUserLanguages(session)[0], count: 2 })}</span>}
+                                >{t(`common:${tabType}`, { lng: getUserLanguages(session)[0], count: 2 })}</span>}
                             />
                         ))}
                     </Tabs>
@@ -336,7 +333,7 @@ export const OrganizationView = ({
                         currTabType === TabOptions.Resource ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(organization?.id)}
-                                handleAdd={canUpdate ? toAddNew : undefined}
+                                handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="organization-view-list"
                                 searchType={searchType}

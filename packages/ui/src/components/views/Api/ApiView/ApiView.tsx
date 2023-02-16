@@ -1,11 +1,10 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { FindByIdOrHandleInput, ApiVersion, ResourceList, BookmarkFor } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
+import { ApiVersion, ResourceList, BookmarkFor, FindVersionInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { ApiViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -19,17 +18,13 @@ export const ApiView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ApiVersion, FindByIdOrHandleInput, 'apiVersion'>(apiVersionFindOne, 'apiVersion', { errorPolicy: 'all' });
-    const [apiVersion, setApiVersion] = useState<ApiVersion | null | undefined>(null);
-    useEffect(() => {
-        if (urlData.id || urlData.handle) getData({ variables: urlData })
-    }, [getData, urlData]);
-    useEffect(() => {
-        setApiVersion(data?.apiVersion);
-    }, [data]);
-    const canUpdate = useMemo<boolean>(() => apiVersion?.you?.canUpdate === true, [apiVersion?.you?.canUpdate]);
+
+    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion, FindVersionInput>({
+        query: apiVersionFindOne,
+        endpoint: 'apiVersion',
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -55,11 +50,11 @@ export const ApiView = ({
         document.title = `${name} | Vrooli`;
     }, [name]);
 
-    const resources = useMemo(() => (resourceList || canUpdate) ? (
+    const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList as any}
             session={session}
-            canUpdate={canUpdate}
+            canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!apiVersion) return;
                 setApiVersion({
@@ -67,11 +62,11 @@ export const ApiView = ({
                     resourceList: updatedList
                 })
             }}
-            loading={loading}
+            loading={isLoading}
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [canUpdate, loading, apiVersion, resourceList, session, zIndex]);
+    ) : null, [resourceList, permissions.canUpdate, session, isLoading, zIndex, apiVersion, setApiVersion]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -140,11 +135,11 @@ export const ApiView = ({
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canUpdate ? (
+                    ) : permissions.canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit apiVersion">
@@ -163,7 +158,7 @@ export const ApiView = ({
                 }
                 {/* Joined date */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Joined"
                     timestamp={apiVersion?.created_at}
@@ -171,7 +166,7 @@ export const ApiView = ({
                 />
                 {/* Bio */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
@@ -200,7 +195,7 @@ export const ApiView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, apiVersion, summary, zIndex, canBookmark, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, name, apiVersion, summary, zIndex, canBookmark, session, actionData]);
 
     return (
         <>

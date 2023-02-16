@@ -78,7 +78,6 @@ query routine($input: FindByIdInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -290,7 +289,6 @@ query routine($input: FindByIdInput!) {
                         }
                         stats {
                             id
-                            created_at
                             periodStart
                             periodEnd
                             periodType
@@ -522,7 +520,6 @@ query routine($input: FindByIdInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -633,7 +630,6 @@ query routine($input: FindByIdInput!) {
                         }
                         stats {
                             id
-                            created_at
                             periodStart
                             periodEnd
                             periodType
@@ -1069,7 +1065,6 @@ query routine($input: FindByIdInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -1335,7 +1330,6 @@ query routine($input: FindByIdInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -1680,7 +1674,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -1892,7 +1885,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         }
                         stats {
                             id
-                            created_at
                             periodStart
                             periodEnd
                             periodType
@@ -2124,7 +2116,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -2235,7 +2226,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         }
                         stats {
                             id
-                            created_at
                             periodStart
                             periodEnd
                             periodType
@@ -2671,7 +2661,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -2937,7 +2926,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -3059,7 +3047,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -3271,7 +3258,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         }
                         stats {
                             id
-                            created_at
                             periodStart
                             periodEnd
                             periodType
@@ -3503,7 +3489,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -3614,7 +3599,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         }
                         stats {
                             id
-                            created_at
                             periodStart
                             periodEnd
                             periodType
@@ -4050,7 +4034,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -4316,7 +4299,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

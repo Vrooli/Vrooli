@@ -104,7 +104,6 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -336,7 +335,6 @@ mutation nodeCreate($input: NodeCreateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -447,7 +445,6 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -819,7 +816,6 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -1051,7 +1047,6 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -1162,7 +1157,6 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType

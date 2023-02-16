@@ -1,11 +1,10 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { FindByIdOrHandleInput, Question, BookmarkFor } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
+import { Question, BookmarkFor, FindByIdInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { QuestionViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { questionFindOne } from "api/generated/endpoints/question";
@@ -18,17 +17,13 @@ export const QuestionView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Question, FindByIdOrHandleInput, 'question'>(questionFindOne, 'question', { errorPolicy: 'all' });
-    const [question, setQuestion] = useState<Question | null | undefined>(null);
-    useEffect(() => {
-        if (urlData.id || urlData.handle) getData({ variables: urlData })
-    }, [getData, urlData]);
-    useEffect(() => {
-        setQuestion(data?.question);
-    }, [data]);
-    const canUpdate = useMemo<boolean>(() => question?.you?.canUpdate === true, [question?.you?.canUpdate]);
+
+    const { id, isLoading, object: question, permissions, setObject: setQuestion } = useObjectFromUrl<Question, FindByIdInput>({
+        query: questionFindOne,
+        endpoint: 'question',
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (question?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [question?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -37,12 +32,10 @@ export const QuestionView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, canBookmark, name } = useMemo(() => {
-        const { canBookmark } = question?.you ?? {};
+    const { description, name } = useMemo(() => {
         const { description, name } = getTranslation(question ?? partialData, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
-            canBookmark,
             name,
         };
     }, [language, question, partialData]);
@@ -118,11 +111,11 @@ export const QuestionView = ({
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canUpdate ? (
+                    ) : permissions.canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit question">
@@ -141,7 +134,7 @@ export const QuestionView = ({
                 }
                 {/* Joined date */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Joined"
                     timestamp={question?.created_at}
@@ -149,7 +142,7 @@ export const QuestionView = ({
                 />
                 {/* Bio */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
@@ -167,7 +160,7 @@ export const QuestionView = ({
                     <ShareButton object={question} zIndex={zIndex} />
                     <ReportsLink object={question} />
                     <BookmarkButton
-                        disabled={!canBookmark}
+                        disabled={!permissions.canBookmark}
                         session={session}
                         objectId={question?.id ?? ''}
                         bookmarkFor={BookmarkFor.Question}
@@ -178,7 +171,7 @@ export const QuestionView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, question, description, zIndex, canBookmark, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, question, description, zIndex, session, actionData]);
 
     return (
         <>

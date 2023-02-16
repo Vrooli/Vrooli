@@ -5,7 +5,6 @@ export const statsQuiz: GqlPartial<StatsQuiz> = {
     __typename: 'StatsQuiz',
     full: {
         id: true,
-        created_at: true,
         periodStart: true,
         periodEnd: true,
         periodType: true,

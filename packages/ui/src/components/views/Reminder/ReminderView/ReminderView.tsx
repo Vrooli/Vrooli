@@ -1,11 +1,10 @@
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { FindByIdOrHandleInput, Reminder } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FindByIdInput, Reminder } from "@shared/consts";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { ObjectActionMenu } from "components";
 import { ReminderViewProps } from "../types";
-import { parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
+import { placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { EllipsisIcon, HelpIcon } from "@shared/icons";
 import { reminderFindOne } from "api/generated/endpoints/reminder";
 
@@ -17,16 +16,13 @@ export const ReminderView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Reminder, FindByIdOrHandleInput, 'reminder'>(reminderFindOne, 'reminder', { errorPolicy: 'all' });
-    const [reminder, setReminder] = useState<Reminder | null | undefined>(null);
-    useEffect(() => {
-        if (urlData.id || urlData.handle) getData({ variables: urlData })
-    }, [getData, urlData]);
-    useEffect(() => {
-        setReminder(data?.reminder);
-    }, [data]);
+
+    const { id, isLoading, object: reminder, permissions, setObject: setReminder } = useObjectFromUrl<Reminder, FindByIdInput>({
+        query: reminderFindOne,
+        endpoint: 'reminder',
+        partialData,
+        session,
+    });
 
     // useEffect(() => {
     //     document.title = `${name} | Vrooli`;

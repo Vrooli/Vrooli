@@ -1,11 +1,10 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSingleItemUrl, PubSub, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
+import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl } from "utils";
 import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -33,20 +32,13 @@ export const StandardView = ({
 }: StandardViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(standardVersionFindOne, 'standardVersion', { errorPolicy: 'all' });
-    useEffect(() => {
-        if (urlData.id || urlData.idRoot) getData({ variables: urlData });
-        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
-    }, [getData, urlData])
 
-    const [standardVersion, setStandardVersion] = useState<StandardVersion | null>(null);
-    useEffect(() => {
-        if (!data) return;
-        setStandardVersion(data.standardVersion);
-    }, [data]);
-    const updateStandard = useCallback((newStandardVersion: StandardVersion) => { setStandardVersion(newStandardVersion); }, [setStandardVersion]);
+    const { id, isLoading, object: standardVersion, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
+        query: standardVersionFindOne,
+        endpoint: 'standardVersion',
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (standardVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standardVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -72,11 +64,10 @@ export const StandardView = ({
         onSubmit: () => { },
     });
 
-    const { canUpdate, description, name } = useMemo(() => {
-        const { canUpdate } = standardVersion?.you ?? {};
+    const { description, name } = useMemo(() => {
         const { description } = getTranslation(standardVersion ?? partialData, [language]);
         const { name } = standardVersion?.root ?? partialData?.root ?? {};
-        return { canUpdate, description, name };
+        return { description, name };
     }, [standardVersion, language, partialData]);
 
     useEffect(() => {
@@ -93,7 +84,7 @@ export const StandardView = ({
         openAddCommentDialog,
         session,
         setLocation,
-        setObject: updateStandard,
+        setObject: setStandardVersion,
     });
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
@@ -148,7 +139,7 @@ export const StandardView = ({
                 height: 'calc(64px + env(safe-area-inset-bottom))',
             }}>
                 {/* Edit button */}
-                {canUpdate ? (
+                {permissions.canUpdate ? (
                     <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
@@ -156,7 +147,7 @@ export const StandardView = ({
             </Stack>
             <ObjectTitle
                 language={language}
-                loading={loading}
+                loading={isLoading}
                 title={name}
                 session={session}
                 setLanguage={setLanguage}
@@ -178,13 +169,13 @@ export const StandardView = ({
                 list={resourceList}
                 canUpdate={false}
                 handleUpdate={() => { }} // Intentionally blank
-                loading={loading}
+                loading={isLoading}
                 session={session}
                 zIndex={zIndex}
             />}
             {/* Box with description */}
             <Box sx={containerProps(palette)}>
-                <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
             </Box>
             {/* Box with standard */}
             <Stack direction="column" spacing={4} sx={containerProps(palette)}>
@@ -233,7 +224,7 @@ export const StandardView = ({
             <Stack direction="row" spacing={1} mt={2} mb={1}>
                 {/* Date created */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     timestamp={standardVersion?.created_at}
                 />

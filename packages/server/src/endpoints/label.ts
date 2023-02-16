@@ -108,7 +108,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        label: String
         ownedByOrganizationId: ID
         ownedByUserId: ID
         searchString: String

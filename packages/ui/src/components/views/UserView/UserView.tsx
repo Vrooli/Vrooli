@@ -1,12 +1,10 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, VisibilityType } from "@shared/consts";
-import { adaHandleRegex } from '@shared/validation';
-import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, toSearchListData, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
@@ -33,22 +31,14 @@ export const UserView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Get URL params
-    const id = useMemo(() => {
-        const { id } = parseSingleItemUrl();
-        return id ?? getCurrentUser(session).id ?? '';
-    }, [session]);
-    const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
-    // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<User, FindByIdOrHandleInput>(userFindOne, 'user', { errorPolicy: 'all' });
-    const [user, setUser] = useState<User | null | undefined>(null);
-    useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { id } })
-        else if (adaHandleRegex.test(id)) getData({ variables: { handle: id } })
-    }, [getData, id]);
-    useEffect(() => {
-        setUser((data?.user as User) ?? partialData);
-    }, [data, partialData]);
+
+    const { id, isLoading, object: user, permissions, setObject: setUser } = useObjectFromUrl<User, FindByIdOrHandleInput>({
+        query: userFindOne,
+        endpoint: 'user',
+        partialData,
+        session,
+        idFallback: getCurrentUser(session).id,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -73,11 +63,11 @@ export const UserView = ({
         else document.title = `${name} | Vrooli`;
     }, [handle, name]);
 
-    const resources = useMemo(() => (resourceList || isOwn) ? (
+    const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList}
             session={session}
-            canUpdate={isOwn}
+            canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!user) return;
                 setUser({
@@ -85,11 +75,11 @@ export const UserView = ({
                     //resourceList: updatedList TODO
                 })
             }}
-            loading={loading}
+            loading={isLoading}
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [isOwn, loading, resourceList, session, user, zIndex]);
+    ) : null, [isLoading, permissions.canUpdate, resourceList, session, setUser, user, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -101,11 +91,11 @@ export const UserView = ({
     const availableTabs = useMemo(() => {
         const tabs: TabOptions[] = [];
         // Only display resources if there are any
-        if (resources) tabs.push(TabOptions.Resource);
+        if (resources || permissions.canUpdate) tabs.push(TabOptions.Resource);
         // Always display others (for now)
         tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource))
         return tabs;
-    }, [resources]);
+    }, [permissions.canUpdate, resources]);
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
@@ -119,11 +109,11 @@ export const UserView = ({
         if (currTabType === TabOptions.Organization)
             return toSearchListData('Organization', 'SearchOrganization', { userId: id, visibility: VisibilityType.All });
         else if (currTabType === TabOptions.Project)
-            return toSearchListData('Project', 'SearchProject', { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All });
+            return toSearchListData('Project', 'SearchProject', { userId: id, isComplete: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
         else if (currTabType === TabOptions.Routine)
-            return toSearchListData('Routine', 'SearchRoutine', { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All });
+            return toSearchListData('Routine', 'SearchRoutine', { userId: id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
         return toSearchListData('Standard', 'SearchStandard', { userId: id, visibility: VisibilityType.All });
-    }, [currTabType, id, isOwn]);
+    }, [currTabType, id, permissions.canUpdate]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -185,6 +175,7 @@ export const UserView = ({
                         display: 'block',
                         marginLeft: 'auto',
                         marginRight: 1,
+                        paddingRight: '1em',
                     }}
                 >
                     <EllipsisIcon fill={palette.background.textSecondary} />
@@ -193,11 +184,11 @@ export const UserView = ({
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : isOwn ? (
+                    ) : permissions.canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit profile">
@@ -229,7 +220,7 @@ export const UserView = ({
                 }
                 {/* Joined date */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Joined"
                     timestamp={user?.created_at}
@@ -237,7 +228,7 @@ export const UserView = ({
                 />
                 {/* Description */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
@@ -254,7 +245,7 @@ export const UserView = ({
                     </Tooltip>
                     <ShareButton object={user} zIndex={zIndex} />
                     <BookmarkButton
-                        disabled={isOwn}
+                        disabled={permissions.canUpdate}
                         session={session}
                         objectId={user?.id ?? ''}
                         bookmarkFor={BookmarkFor.User}
@@ -266,7 +257,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, user, zIndex]);
+    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, user, zIndex]);
 
     /**
      * Opens add new page
@@ -299,6 +290,7 @@ export const UserView = ({
                     position: 'absolute',
                     top: 8,
                     right: 8,
+                    paddingRight: '1em',
                 }}>
                     <SelectLanguageMenu
                         currentLanguage={language}
@@ -324,6 +316,8 @@ export const UserView = ({
                         aria-label="site-statistics-tabs"
                         sx={{
                             marginBottom: 1,
+                            paddingLeft: '1em',
+                            paddingRight: '1em',
                         }}
                     >
                         {availableTabs.map((tabType, index) => (
@@ -343,7 +337,7 @@ export const UserView = ({
                         currTabType === TabOptions.Resource ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                handleAdd={isOwn ? toAddNew : undefined}
+                                handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="user-view-list"
                                 searchType={searchType}

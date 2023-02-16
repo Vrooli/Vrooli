@@ -10,6 +10,7 @@ import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builde
 import { PartialGraphQLInfo } from '../builders/types';
 import { readManyAsFeedHelper } from '../actions';
 import { getUser } from '../auth';
+import { SearchMap } from '../utils';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
@@ -233,10 +234,10 @@ export const resolvers: {
                         after: input.projectAfter,
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
+                        hasCompleteVersion: input.hasCompleteVersion,
+                        hasCompleteExceptions: input.hasCompleteVersionExceptions,
                         ids: input.ids,
-                        isComplete: input.isComplete,
-                        isCompleteExceptions: input.isCompleteExceptions,
-                        languages: input.languages,
+                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
                         maxBookmarks: input.maxBookmarks,
                         maxScore: input.maxScore,
                         minBookmarks: input.minBookmarks,
@@ -269,9 +270,9 @@ export const resolvers: {
                         excludeIds: input.excludeIds,
                         ids: input.ids,
                         isInternal: false,
-                        isComplete: input.isComplete,
-                        isCompleteExceptions: input.isCompleteExceptions,
-                        languages: input.languages,
+                        hasCompleteVersion: input.hasCompleteVersion,
+                        hasCompleteExceptions: input.hasCompleteVersionExceptions,
+                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
                         minComplexity: input.routineMinComplexity,
                         maxComplexity: input.routineMaxComplexity,
                         maxBookmarks: input.maxBookmarks,
@@ -351,7 +352,7 @@ export const resolvers: {
                         ids: input.ids,
                         isComplete: input.projectIsComplete,
                         isCompleteExceptions: input.projectIsCompleteExceptions,
-                        languages: input.languages,
+                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
                         maxBookmarks: input.maxBookmarks,
                         maxScore: input.projectMaxScore,
                         maxViews: input.maxViews,
@@ -384,7 +385,7 @@ export const resolvers: {
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
                         ids: input.ids,
-                        languages: input.languages,
+                        languages: input.translationLanguagesLatestVersion,
                         maxBookmarks: input.maxBookmarks,   
                         minBookmarks: input.minBookmarks,
                         maxViews: input.maxViews,

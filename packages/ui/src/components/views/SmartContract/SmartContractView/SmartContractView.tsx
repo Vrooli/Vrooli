@@ -1,11 +1,10 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { FindByIdOrHandleInput, SmartContractVersion, BookmarkFor } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
+import { SmartContractVersion, BookmarkFor, FindVersionInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { SmartContractViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, parseSingleItemUrl, placeholderColor, useObjectActions } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion";
@@ -18,17 +17,13 @@ export const SmartContractView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<SmartContractVersion, FindByIdOrHandleInput, 'smartContractVersion'>(smartContractVersionFindOne, 'smartContractVersion', { errorPolicy: 'all' });
-    const [smartContractVersion, setSmartContractVersion] = useState<SmartContractVersion | null | undefined>(null);
-    useEffect(() => {
-        if (urlData.id || urlData.handle) getData({ variables: urlData })
-    }, [getData, urlData]);
-    useEffect(() => {
-        setSmartContractVersion(data?.smartContractVersion);
-    }, [data]);
-    const canUpdate = useMemo<boolean>(() => smartContractVersion?.you?.canUpdate === true, [smartContractVersion?.you?.canUpdate]);
+
+    const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion, FindVersionInput>({
+        query: smartContractVersionFindOne,
+        endpoint: 'smartContractVersion',
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (smartContractVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [smartContractVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -37,12 +32,10 @@ export const SmartContractView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, canBookmark, name } = useMemo(() => {
-        const { canBookmark } = smartContractVersion?.root?.you ?? {};
+    const { description, name } = useMemo(() => {
         const { description, name } = getTranslation(smartContractVersion ?? partialData, [language]);
         return {
             description: description && description.trim().length > 0 ? description : undefined,
-            canBookmark,
             name,
         };
     }, [language, smartContractVersion, partialData]);
@@ -118,11 +111,11 @@ export const SmartContractView = ({
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canUpdate ? (
+                    ) : permissions.canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit smartContractVersion">
@@ -141,7 +134,7 @@ export const SmartContractView = ({
                 }
                 {/* Joined date */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Joined"
                     timestamp={smartContractVersion?.created_at}
@@ -149,7 +142,7 @@ export const SmartContractView = ({
                 />
                 {/* Bio */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
@@ -167,7 +160,7 @@ export const SmartContractView = ({
                     <ShareButton object={smartContractVersion} zIndex={zIndex} />
                     <ReportsLink object={smartContractVersion} />
                     <BookmarkButton
-                        disabled={!canBookmark}
+                        disabled={!permissions.canBookmark}
                         session={session}
                         objectId={smartContractVersion?.id ?? ''}
                         bookmarkFor={BookmarkFor.SmartContract}
@@ -178,7 +171,7 @@ export const SmartContractView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, smartContractVersion, description, zIndex, canBookmark, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, smartContractVersion, description, zIndex, session, actionData]);
 
     return (
         <>

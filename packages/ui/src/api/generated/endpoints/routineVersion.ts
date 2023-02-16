@@ -55,7 +55,6 @@ query routineVersion($input: FindVersionInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -267,7 +266,6 @@ query routineVersion($input: FindVersionInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -499,7 +497,6 @@ query routineVersion($input: FindVersionInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -610,7 +607,6 @@ query routineVersion($input: FindVersionInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -1007,7 +1003,6 @@ query routineVersion($input: FindVersionInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -1118,7 +1113,6 @@ query routineVersion($input: FindVersionInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -1616,7 +1610,6 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -1828,7 +1821,6 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -2060,7 +2052,6 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -2171,7 +2162,6 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -2568,7 +2558,6 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -2679,7 +2668,6 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -2995,7 +2983,6 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -3207,7 +3194,6 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -3439,7 +3425,6 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -3550,7 +3535,6 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     }
                     stats {
                         id
-                        created_at
                         periodStart
                         periodEnd
                         periodType
@@ -3947,7 +3931,6 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -4058,7 +4041,6 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType

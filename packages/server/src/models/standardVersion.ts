@@ -433,7 +433,7 @@ export const StandardVersionModel: ModelLogic<{
         searchFields: {
             completedTimeFrame: true,
             createdTimeFrame: true,
-            isComplete: true,
+            isCompleteWithRoot: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,
@@ -443,7 +443,7 @@ export const StandardVersionModel: ModelLogic<{
             reportId: true,
             rootId: true,
             standardType: true,
-            tags: true,
+            tagsRoot: true,
             updatedTimeFrame: true,
             userId: true,
             visibility: true,

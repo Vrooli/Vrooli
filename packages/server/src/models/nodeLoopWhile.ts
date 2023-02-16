@@ -3,6 +3,8 @@ import { SelectWrap } from "../builders/types";
 import { NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
+import { NodeLoopModel } from "./nodeLoop";
 
 const __typename = 'NodeLoopWhile' as const;
 
@@ -40,5 +42,18 @@ export const NodeLoopWhileModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: 100000,
+        permissionsSelect: () => ({ loop: 'NodeLoop' }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => NodeLoopModel.validate!.owner(data.loop as any),
+        isDeleted: (data, languages) => NodeLoopModel.validate!.isDeleted(data.loop as any, languages),
+        isPublic: (data, languages) => NodeLoopModel.validate!.isPublic(data.loop as any, languages),
+        visibility: {
+            private: { loop: NodeLoopModel.validate!.visibility.private },
+            public: { loop: NodeLoopModel.validate!.visibility.public },
+            owner: (userId) => ({ loop: NodeLoopModel.validate!.visibility.owner(userId) }),
+        }
+    },
 })

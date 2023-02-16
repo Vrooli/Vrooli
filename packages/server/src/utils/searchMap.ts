@@ -209,6 +209,7 @@ export const SearchMap = {
     tagId: (id: Maybe<string>) => oneToOneId(id, 'tag'),
     tagsId: (id: Maybe<string>) => oneToManyId(id, 'tags'),
     tags: (tags: Maybe<string[]>) => ({ tags: { some: { tag: { tag: { in: tags } } } } }),
+    tagsRoot: (tags: Maybe<string[]>) => ({ root: { tags: { some: { tag: { tag: { in: tags } } } } } }),
     transferId: (id: Maybe<string>) => oneToOneId(id, 'transfer'),
     transfersId: (id: Maybe<string>) => oneToManyId(id, 'transfers'),
     translationLanguages: (languages: Maybe<string[]>) => ({ translations: { some: { language: { in: languages } } } }),

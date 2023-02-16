@@ -30,7 +30,6 @@ export const typeDef = gql`
 
     type StatsApi {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!

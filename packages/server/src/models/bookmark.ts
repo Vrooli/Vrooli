@@ -163,10 +163,10 @@ export const BookmarkModel: ModelLogic<{
         sortBy: BookmarkSortBy,
         searchFields: {
             excludeLinkedToTag: true,
-            label: true,
         },
         searchStringQuery: () => ({
             OR: [
+                'labelWrapped',
                 { api: ApiModel.search!.searchStringQuery() },
                 { comment: CommentModel.search!.searchStringQuery() },
                 { issue: IssueModel.search!.searchStringQuery() },
