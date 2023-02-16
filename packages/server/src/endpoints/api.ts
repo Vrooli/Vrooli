@@ -18,8 +18,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -71,7 +71,7 @@ export const typeDef = gql`
         versions: [ApiVersion!]!
         versionsCount: Int!
         labels: [Label!]!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         score: Int!
         issues: [Issue!]!
@@ -83,18 +83,18 @@ export const typeDef = gql`
         questionsCount: Int!
         transfers: [Transfer!]!
         transfersCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         you: ApiYou!
     }
 
     type ApiYou {
         canDelete: Boolean!
         canUpdate: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
         canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
@@ -109,10 +109,10 @@ export const typeDef = gql`
         issuesId: ID
         labelsIds: [ID!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         maxViews: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID

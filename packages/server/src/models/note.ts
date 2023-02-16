@@ -4,13 +4,13 @@ import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, No
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
 const __typename = 'Note' as const;
-type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const NoteModel: ModelLogic<{
     IsTransferable: true,
@@ -54,7 +54,7 @@ export const NoteModel: ModelLogic<{
             parent: 'Note',
             pullRequests: 'PullRequest',
             questions: 'Question',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'NoteVersion',
@@ -70,10 +70,10 @@ export const NoteModel: ModelLogic<{
             labels: 'Label',
             issues: 'Issue',
             tags: 'Tag',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             questions: 'Question',
         },
-        joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
+        joinMap: { labels: 'label', bookmarkedBy: 'user', tags: 'tag' },
         countFields: {
             issuesCount: true,
             labelsCount: true,
@@ -88,7 +88,7 @@ export const NoteModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     }

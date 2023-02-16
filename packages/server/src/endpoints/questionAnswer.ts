@@ -15,8 +15,8 @@ export const typeDef = gql`
         DateUpdatedDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     input QuestionAnswerCreateInput {
@@ -34,13 +34,13 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         createdBy: User
+        bookmarks: Int!
         score: Int!
-        stars: Int!
         isAccepted: Boolean!
         question: Question!
         comments: [Comment!]!
         commentsCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         translations: [QuestionAnswerTranslation!]!
     }
 
@@ -67,7 +67,7 @@ export const typeDef = gql`
         ids: [ID!]
         languages: [String!]
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         searchString: String
         sortBy: QuestionAnswerSortBy
         take: Int

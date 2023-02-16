@@ -157,7 +157,7 @@ versions {
         canComment
         canCopy
         canDelete
-        canStar
+        canBookmark
         canReport
         canRun
         canUpdate
@@ -185,7 +185,7 @@ owner {
 permissions
 questionsCount
 score
-stars
+bookmarks
 tags {
     ...Tag_list
 }
@@ -194,11 +194,11 @@ views
 you {
     canComment
     canDelete
-    canStar
+    canBookmark
     canUpdate
     canRead
     canVote
-    isStarred
+    isBookmarked
     isUpvoted
     isViewed
 }

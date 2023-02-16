@@ -8,7 +8,7 @@ import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { getDeviceInfo, PubSub, usePress } from 'utils';
-import { ColorIconButton, SnackSeverity } from 'components';
+import { ColorIconButton } from 'components';
 
 // Invite link
 const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
@@ -39,7 +39,7 @@ export const ShareSiteDialog = ({
 
     const copyInviteLink = () => {
         navigator.clipboard.writeText(inviteLink);
-        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
+        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
     }
 
     /**

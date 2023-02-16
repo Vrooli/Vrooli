@@ -20,8 +20,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -69,8 +69,8 @@ export const typeDef = gql`
         isPrivate: Boolean!
         translatedName: String!
         score: Int!
-        stars: Int!
         views: Int!
+        bookmarks: Int!
         createdBy: User
         owner: Owner
         issues: [Issue!]!
@@ -84,7 +84,7 @@ export const typeDef = gql`
         questionsCount: Int!
         quizzes: [Quiz!]!
         quizzesCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         stats: [StatsProject!]!
         tags: [Tag!]!
         transfers: [Transfer!]!
@@ -96,12 +96,12 @@ export const typeDef = gql`
 
     type ProjectYou {
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
@@ -116,10 +116,10 @@ export const typeDef = gql`
         issuesId: ID
         labelsIds: [ID!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         maxViews: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID

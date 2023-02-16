@@ -1,5 +1,5 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, StarFor } from '@shared/consts';
+import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import React from 'react';
 import { NavigableObject} from 'types';
@@ -111,17 +111,16 @@ export interface ShareButtonProps {
     zIndex: number;
 }
 
-export interface StarButtonProps {
+export interface BookmarkButtonProps {
     disabled?: boolean;
-    isStar?: boolean | null; // Defaults to false
+    isBookmarked?: boolean | null; // Defaults to false
     objectId: string;
-    onChange?: (isStar: boolean, event?: any) => void;
+    onChange?: (isBookmarked: boolean, event?: any) => void;
     session: Session;
-    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
-    starFor: StarFor;
-    stars?: number | null; // Defaults to 0
+    showBookmarks?: boolean; // Defaults to true. If false, the number of bookmarks is not shown
+    bookmarkFor: BookmarkFor;
+    bookmarks?: number | null; // Defaults to 0
     sxs?: { root?: { [key: string]: any } };
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export interface StatusMessageArray {

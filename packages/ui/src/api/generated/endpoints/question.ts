@@ -40,16 +40,16 @@ query question($input: FindByIdInput!) {
                 }
             }
             score
-            stars
+            bookmarks
             reportsCount
             you {
                 canDelete
-                canStar
+                canBookmark
                 canReply
                 canReport
                 canUpdate
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }
@@ -67,7 +67,7 @@ query question($input: FindByIdInput!) {
             handle
         }
         score
-        stars
+        bookmarks
         isAccepted
         commentsCount
     }
@@ -87,7 +87,7 @@ query question($input: FindByIdInput!) {
     }
     hasAcceptedAnswer
     score
-    stars
+    bookmarks
     answersCount
     commentsCount
     reportsCount
@@ -153,7 +153,7 @@ query questions($input: QuestionSearchInput!) {
             }
             hasAcceptedAnswer
             score
-            stars
+            bookmarks
             answersCount
             commentsCount
             reportsCount
@@ -226,16 +226,16 @@ mutation questionCreate($input: QuestionCreateInput!) {
                 }
             }
             score
-            stars
+            bookmarks
             reportsCount
             you {
                 canDelete
-                canStar
+                canBookmark
                 canReply
                 canReport
                 canUpdate
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }
@@ -253,7 +253,7 @@ mutation questionCreate($input: QuestionCreateInput!) {
             handle
         }
         score
-        stars
+        bookmarks
         isAccepted
         commentsCount
     }
@@ -273,7 +273,7 @@ mutation questionCreate($input: QuestionCreateInput!) {
     }
     hasAcceptedAnswer
     score
-    stars
+    bookmarks
     answersCount
     commentsCount
     reportsCount
@@ -340,16 +340,16 @@ mutation questionUpdate($input: QuestionUpdateInput!) {
                 }
             }
             score
-            stars
+            bookmarks
             reportsCount
             you {
                 canDelete
-                canStar
+                canBookmark
                 canReply
                 canReport
                 canUpdate
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }
@@ -367,7 +367,7 @@ mutation questionUpdate($input: QuestionUpdateInput!) {
             handle
         }
         score
-        stars
+        bookmarks
         isAccepted
         commentsCount
     }
@@ -387,7 +387,7 @@ mutation questionUpdate($input: QuestionUpdateInput!) {
     }
     hasAcceptedAnswer
     score
-    stars
+    bookmarks
     answersCount
     commentsCount
     reportsCount

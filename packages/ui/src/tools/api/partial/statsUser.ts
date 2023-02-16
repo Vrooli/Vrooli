@@ -5,7 +5,6 @@ export const statsUser: GqlPartial<StatsUser> = {
     __typename: 'StatsUser',
     full: {
         id: true,
-        created_at: true,
         periodStart: true,
         periodEnd: true,
         periodType: true,

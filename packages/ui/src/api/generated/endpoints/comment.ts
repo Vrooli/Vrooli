@@ -93,16 +93,16 @@ query comment($input: FindByIdInput!) {
         }
     }
     score
-    stars
+    bookmarks
     reportsCount
     you {
         canDelete
-        canStar
+        canBookmark
         canReply
         canReport
         canUpdate
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
     }
   }
@@ -185,16 +185,16 @@ query comments($input: CommentSearchInput!) {
                     }
                 }
                 score
-                stars
+                bookmarks
                 reportsCount
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canReply
                     canReport
                     canUpdate
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                 }
             }
@@ -254,16 +254,16 @@ query comments($input: CommentSearchInput!) {
                 }
             }
             score
-            stars
+            bookmarks
             reportsCount
             you {
                 canDelete
-                canStar
+                canBookmark
                 canReply
                 canReport
                 canUpdate
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
             }
         }
@@ -323,16 +323,16 @@ query comments($input: CommentSearchInput!) {
             }
         }
         score
-        stars
+        bookmarks
         reportsCount
         you {
             canDelete
-            canStar
+            canBookmark
             canReply
             canReport
             canUpdate
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
         }
     }
@@ -415,16 +415,16 @@ mutation commentCreate($input: CommentCreateInput!) {
         }
     }
     score
-    stars
+    bookmarks
     reportsCount
     you {
         canDelete
-        canStar
+        canBookmark
         canReply
         canReport
         canUpdate
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
     }
   }
@@ -504,16 +504,16 @@ mutation commentUpdate($input: CommentUpdateInput!) {
         }
     }
     score
-    stars
+    bookmarks
     reportsCount
     you {
         canDelete
-        canStar
+        canBookmark
         canReply
         canReport
         canUpdate
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
     }
   }

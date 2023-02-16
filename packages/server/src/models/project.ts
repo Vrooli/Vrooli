@@ -1,5 +1,5 @@
 import { projectValidation } from "@shared/validation";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, ProjectYou, PrependString } from '@shared/consts';
@@ -28,7 +28,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 }
 
 const __typename = 'Project' as const;
-type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const ProjectModel: ModelLogic<{
     IsTransferable: true,
@@ -74,7 +74,7 @@ export const ProjectModel: ModelLogic<{
             pullRequests: 'PullRequest',
             questions: 'Question',
             quizzes: 'Quiz',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'ProjectVersion',
@@ -89,14 +89,14 @@ export const ProjectModel: ModelLogic<{
             labels: 'Label',
             tags: 'Tag',
             versions: 'ProjectVersion',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             pullRequests: 'PullRequest',
             stats: 'StatsProject',
             questions: 'Question',
             transfers: 'Transfer',
             quizzes: 'Quiz',
         },
-        joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
+        joinMap: { labels: 'label', bookmarkedBy: 'user', tags: 'tag' },
         countFields: {
             issuesCount: true,
             labelsCount: true,
@@ -112,7 +112,7 @@ export const ProjectModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },
@@ -153,10 +153,10 @@ export const ProjectModel: ModelLogic<{
             issuesId: true,
             labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,

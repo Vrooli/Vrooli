@@ -16,11 +16,11 @@ query memberInvite($input: FindByIdInput!) {
         you {
             canAddMembers
             canDelete
-            canStar
+            canBookmark
             canReport
             canUpdate
             canRead
-            isStarred
+            isBookmarked
             isViewed
             yourMembership {
                 id
@@ -62,11 +62,11 @@ query memberInvites($input: MemberInviteSearchInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canUpdate
                     canRead
-                    isStarred
+                    isBookmarked
                     isViewed
                     yourMembership {
                         id
@@ -111,11 +111,11 @@ mutation memberInviteCreate($input: MemberInviteCreateInput!) {
         you {
             canAddMembers
             canDelete
-            canStar
+            canBookmark
             canReport
             canUpdate
             canRead
-            isStarred
+            isBookmarked
             isViewed
             yourMembership {
                 id
@@ -154,11 +154,11 @@ mutation memberInviteUpdate($input: MemberInviteUpdateInput!) {
         you {
             canAddMembers
             canDelete
-            canStar
+            canBookmark
             canReport
             canUpdate
             canRead
-            isStarred
+            isBookmarked
             isViewed
             yourMembership {
                 id
@@ -197,11 +197,11 @@ mutation memberInviteAccept($input: FindByIdInput!) {
         you {
             canAddMembers
             canDelete
-            canStar
+            canBookmark
             canReport
             canUpdate
             canRead
-            isStarred
+            isBookmarked
             isViewed
             yourMembership {
                 id
@@ -240,11 +240,11 @@ mutation memberInviteDecline($input: FindByIdInput!) {
         you {
             canAddMembers
             canDelete
-            canStar
+            canBookmark
             canReport
             canUpdate
             canRead
-            isStarred
+            isBookmarked
             isViewed
             yourMembership {
                 id

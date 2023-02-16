@@ -17,7 +17,7 @@ import { ModelLogic } from "./types";
 //         'issuesId',
 //         'labelsId',
 //         'minScore',
-//         'minStars',
+//         'minBookmarks',
 //         'minViews',
 //         'ownedByOrganizationId',
 //         'ownedByUserId',

@@ -12,7 +12,6 @@ import { Button, Grid, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { DropzoneProps } from '../types';
 import { PubSub } from 'utils';
-import { SnackSeverity } from 'components';
 
 const useStyles = makeStyles((theme: Theme) => ({
     gridPad: {
@@ -75,7 +74,7 @@ export const Dropzone = ({
         maxFiles: maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
-                PubSub.get().publishSnack({ messageKey: 'FilesNotAccepted', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'FilesNotAccepted', severity: 'Error' });
                 return;
             }
             setFiles(acceptedFiles.map(file => Object.assign(file, {
@@ -87,7 +86,7 @@ export const Dropzone = ({
     const upload = (e) => {
         e.stopPropagation();
         if (files.length === 0) {
-            PubSub.get().publishSnack({ messageKey: 'NoFilesSelected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'NoFilesSelected', severity: 'Error' });
             return;
         }
         onUpload(files);

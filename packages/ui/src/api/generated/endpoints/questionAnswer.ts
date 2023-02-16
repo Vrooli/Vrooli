@@ -39,16 +39,16 @@ query questionAnswer($input: FindByIdInput!) {
             }
         }
         score
-        stars
+        bookmarks
         reportsCount
         you {
             canDelete
-            canStar
+            canBookmark
             canReply
             canReport
             canUpdate
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
         }
     }
@@ -63,7 +63,7 @@ query questionAnswer($input: FindByIdInput!) {
         }
         hasAcceptedAnswer
         score
-        stars
+        bookmarks
         answersCount
         commentsCount
         reportsCount
@@ -111,7 +111,7 @@ query questionAnswer($input: FindByIdInput!) {
         handle
     }
     score
-    stars
+    bookmarks
     isAccepted
     commentsCount
   }
@@ -137,7 +137,7 @@ query questionAnswers($input: QuestionAnswerSearchInput!) {
                 handle
             }
             score
-            stars
+            bookmarks
             isAccepted
             commentsCount
         }
@@ -179,16 +179,16 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
             }
         }
         score
-        stars
+        bookmarks
         reportsCount
         you {
             canDelete
-            canStar
+            canBookmark
             canReply
             canReport
             canUpdate
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
         }
     }
@@ -203,7 +203,7 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
         }
         hasAcceptedAnswer
         score
-        stars
+        bookmarks
         answersCount
         commentsCount
         reportsCount
@@ -251,7 +251,7 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
         handle
     }
     score
-    stars
+    bookmarks
     isAccepted
     commentsCount
   }
@@ -287,16 +287,16 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
             }
         }
         score
-        stars
+        bookmarks
         reportsCount
         you {
             canDelete
-            canStar
+            canBookmark
             canReply
             canReport
             canUpdate
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
         }
     }
@@ -311,7 +311,7 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
         }
         hasAcceptedAnswer
         score
-        stars
+        bookmarks
         answersCount
         commentsCount
         reportsCount
@@ -359,7 +359,7 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
         handle
     }
     score
-    stars
+    bookmarks
     isAccepted
     commentsCount
   }
@@ -395,16 +395,16 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
             }
         }
         score
-        stars
+        bookmarks
         reportsCount
         you {
             canDelete
-            canStar
+            canBookmark
             canReply
             canReport
             canUpdate
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
         }
     }
@@ -419,7 +419,7 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
         }
         hasAcceptedAnswer
         score
-        stars
+        bookmarks
         answersCount
         commentsCount
         reportsCount
@@ -467,7 +467,7 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
         handle
     }
     score
-    stars
+    bookmarks
     isAccepted
     commentsCount
   }

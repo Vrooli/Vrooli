@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { getDeviceInfo, getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { ColorIconButton, SnackSeverity } from 'components';
+import { ColorIconButton } from 'components';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -46,7 +46,7 @@ export const ShareObjectDialog = ({
 
     const copyLink = () => {
         navigator.clipboard.writeText(url);
-        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
+        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
     }
 
     /**

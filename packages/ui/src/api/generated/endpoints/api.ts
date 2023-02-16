@@ -81,7 +81,6 @@ query api($input: FindByIdInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -107,7 +106,7 @@ query api($input: FindByIdInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -115,12 +114,12 @@ query api($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -186,7 +185,7 @@ query apis($input: ApiSearchInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -194,12 +193,12 @@ query apis($input: ApiSearchInput!) {
             views
             you {
                 canDelete
-                canStar
+                canBookmark
                 canTransfer
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -289,7 +288,6 @@ mutation apiCreate($input: ApiCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -315,7 +313,7 @@ mutation apiCreate($input: ApiCreateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -323,12 +321,12 @@ mutation apiCreate($input: ApiCreateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -412,7 +410,6 @@ mutation apiUpdate($input: ApiUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -438,7 +435,7 @@ mutation apiUpdate($input: ApiUpdateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -446,12 +443,12 @@ mutation apiUpdate($input: ApiUpdateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }

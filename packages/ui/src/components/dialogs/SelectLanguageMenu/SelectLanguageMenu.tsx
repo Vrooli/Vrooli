@@ -3,7 +3,7 @@ import { ListMenuItemData, SelectLanguageMenuProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils';
 import { FixedSizeList } from 'react-window';
-import { ListMenu, MenuTitle, SnackSeverity } from 'components';
+import { ListMenu, MenuTitle } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
 import { useLazyQuery } from 'api/hooks';
 import { queryWrapper } from 'api/utils';
@@ -70,7 +70,7 @@ export const SelectLanguageMenu = ({
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);
         if (!sourceTranslation) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotFindTranslation', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'CouldNotFindTranslation', severity: 'Error' })
             return;
         }
         queryWrapper<Translate, TranslateInput>({
@@ -82,7 +82,7 @@ export const SelectLanguageMenu = ({
                 if (data) {
                     console.log('TODO')
                 } else {
-                    PubSub.get().publishSnack({ messageKey: 'FailedToTranslate', severity: SnackSeverity.Error });
+                    PubSub.get().publishSnack({ messageKey: 'FailedToTranslate', severity: 'Error' });
                 }
             },
             errorMessage: () => ({ key: 'FailedToTranslate' }),

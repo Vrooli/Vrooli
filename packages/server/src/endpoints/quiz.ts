@@ -16,8 +16,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     input QuizCreateInput {
@@ -59,7 +59,7 @@ export const typeDef = gql`
         isPrivate: Boolean!
         randomizeQuestionOrder: Boolean!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         attempts: [QuizAttempt!]!
         attemptsCount: Int!
@@ -68,7 +68,7 @@ export const typeDef = gql`
         quizQuestions: [QuizQuestion!]!
         quizQuestionsCount: Int!
         routine: Routine
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         stats: [StatsQuiz!]!
         translations: [QuizTranslation!]!
         you: QuizYou!
@@ -76,12 +76,12 @@ export const typeDef = gql`
 
     type QuizYou {
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
         canVote: Boolean!
         hasCompleted: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
     }
 
@@ -110,8 +110,10 @@ export const typeDef = gql`
         ids: [ID!]
         isComplete: Boolean
         languages: [String!]
+        maxBookmarks: Int
+        maxScore: Int
+        minBookmarks: Int
         minScore: Int
-        minStars: Int
         routineId: ID
         projectId: ID
         userId: ID

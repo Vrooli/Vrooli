@@ -12,8 +12,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     type User {
@@ -38,12 +38,12 @@ export const typeDef = gql`
         isPrivateSmartContracts: Boolean!
         isPrivateStandards: Boolean!
         isPrivateStandardsCreated: Boolean!
-        isPrivateStars: Boolean!
+        isPrivateBookmarks: Boolean!
         isPrivateVotes: Boolean!
         name: String!
         theme: String
         status: AccountStatus
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         apiKeys: [ApiKey!]
         apis: [Api!]!
@@ -93,8 +93,8 @@ export const typeDef = gql`
         smartContracts: [SmartContract!]
         standardsCreated: [Standard!]
         standards: [Standard!]
-        starredBy: [User!]!
-        starred: [Star!]
+        bookmarkedBy: [User!]!
+        bookmarked: [Bookmark!]
         stats: StatsUser
         tags: [Tag!]
         transfersIncoming: [Transfer!]
@@ -110,7 +110,7 @@ export const typeDef = gql`
     type UserYou {
         canDelete: Boolean!
         canReport: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         canUpdate: Boolean!
         isViewed: Boolean!
     }
@@ -152,7 +152,7 @@ export const typeDef = gql`
         isPrivateSmartContracts: Boolean
         isPrivateStandards: Boolean
         isPrivateStandardsCreated: Boolean
-        isPrivateStars: Boolean
+        isPrivateBookmarks: Boolean
         isPrivateVotes: Boolean
         notificationSettings: String
         languages: [String!]
@@ -177,7 +177,9 @@ export const typeDef = gql`
     }
 
     input UserSearchInput {
-        minStars: Int
+        maxBookmarks: Int
+        maxViews: Int
+        minBookmarks: Int
         minViews: Int
         ids: [ID!]
         sortBy: UserSortBy

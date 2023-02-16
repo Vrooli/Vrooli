@@ -1,16 +1,13 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, ApiVersion, ResourceList, StarFor } from "@shared/consts";
-import { useLazyQuery } from "api/hooks";
+import { ApiVersion, ResourceList, BookmarkFor, FindVersionInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { ApiViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { ResourceListVertical } from "components/lists";
-import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { setDotNotationValue } from "@shared/utils";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion";
 
 export const ApiView = ({
@@ -21,17 +18,13 @@ export const ApiView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ApiVersion, FindByIdOrHandleInput, 'apiVersion'>(apiVersionFindOne, 'apiVersion', { errorPolicy: 'all' });
-    const [apiVersion, setApiVersion] = useState<ApiVersion | null | undefined>(null);
-    useEffect(() => {
-        if (urlData.id || urlData.handle) getData({ variables: urlData })
-    }, [getData, urlData]);
-    useEffect(() => {
-        setApiVersion(data?.apiVersion);
-    }, [data]);
-    const canUpdate = useMemo<boolean>(() => apiVersion?.you?.canUpdate === true, [apiVersion?.you?.canUpdate]);
+
+    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion, FindVersionInput>({
+        query: apiVersionFindOne,
+        endpoint: 'apiVersion',
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -40,13 +33,13 @@ export const ApiView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { canStar, details, name, resourceList, summary } = useMemo(() => {
-        const { canStar } = apiVersion?.root?.you ?? {};
+    const { canBookmark, details, name, resourceList, summary } = useMemo(() => {
+        const { canBookmark } = apiVersion?.root?.you ?? {};
         const resourceList: ResourceList | null | undefined = apiVersion?.resourceList;
         const { details, name, summary } = getTranslation(apiVersion ?? partialData, [language]);
         return {
             details,
-            canStar,
+            canBookmark,
             name,
             resourceList,
             summary,
@@ -57,11 +50,11 @@ export const ApiView = ({
         document.title = `${name} | Vrooli`;
     }, [name]);
 
-    const resources = useMemo(() => (resourceList || canUpdate) ? (
+    const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList as any}
             session={session}
-            canUpdate={canUpdate}
+            canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!apiVersion) return;
                 setApiVersion({
@@ -69,15 +62,12 @@ export const ApiView = ({
                     resourceList: updatedList
                 })
             }}
-            loading={loading}
+            loading={isLoading}
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [canUpdate, loading, apiVersion, resourceList, session, zIndex]);
+    ) : null, [resourceList, permissions.canUpdate, session, isLoading, zIndex, apiVersion, setApiVersion]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Api}/edit/${uuidToBase36(apiVersion?.id ?? '')}`);
-    }, [apiVersion?.id, setLocation]);
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -86,31 +76,13 @@ export const ApiView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit]);
-
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && apiVersion) {
-                    setApiVersion(setDotNotationValue(apiVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
-                }
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.apiVersion, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [apiVersion, setLocation]);
+    const actionData = useObjectActions({
+        object: apiVersion,
+        objectType: 'ApiVersion',
+        session,
+        setLocation,
+        setObject: setApiVersion,
+    });
 
     /**
      * Displays name, avatar, summary, and quick links
@@ -163,18 +135,18 @@ export const ApiView = ({
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {/* Title */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canUpdate ? (
+                    ) : permissions.canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit apiVersion">
                                 <IconButton
                                     aria-label="Edit apiVersion"
                                     size="small"
-                                    onClick={onEdit}
+                                    onClick={() => actionData.onActionStart('Edit')}
                                 >
                                     <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
@@ -186,7 +158,7 @@ export const ApiView = ({
                 }
                 {/* Joined date */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     textBeforeDate="Joined"
                     timestamp={apiVersion?.created_at}
@@ -194,7 +166,7 @@ export const ApiView = ({
                 />
                 {/* Bio */}
                 {
-                    loading ? (
+                    isLoading ? (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
@@ -211,29 +183,27 @@ export const ApiView = ({
                     </Tooltip>
                     <ShareButton object={apiVersion} zIndex={zIndex} />
                     <ReportsLink object={apiVersion} />
-                    <StarButton
-                        disabled={!canStar}
+                    <BookmarkButton
+                        disabled={!canBookmark}
                         session={session}
                         objectId={apiVersion?.id ?? ''}
-                        starFor={StarFor.Api}
-                        isStar={apiVersion?.root?.you?.isStarred ?? false}
-                        stars={apiVersion?.root?.stars ?? 0}
-                        onChange={(isStar: boolean) => { }}
-                        tooltipPlacement="bottom"
+                        bookmarkFor={BookmarkFor.Api}
+                        isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
+                        bookmarks={apiVersion?.root?.bookmarks ?? 0}
+                        onChange={(isBookmarked: boolean) => { }}
                     />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, apiVersion, summary, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, name, apiVersion, summary, zIndex, canBookmark, session, actionData]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={moreMenuAnchor}
                 object={apiVersion as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
                 zIndex={zIndex + 1}

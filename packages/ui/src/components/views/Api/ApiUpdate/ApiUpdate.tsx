@@ -6,7 +6,7 @@ import { mutationWrapper } from 'api/utils';
 import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeApiVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, ApiVersion, ApiVersionUpdateInput, ResourceList } from "@shared/consts";
@@ -53,7 +53,7 @@ session,
         validationSchema: apiVersionValidation.update({}),
         onSubmit: (values) => {
             if (!apiVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadApi', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadApi', severity: 'Error' });
                 return;
             }
             // mutationWrapper<ApiVersion, ApiVersionUpdateInput>({

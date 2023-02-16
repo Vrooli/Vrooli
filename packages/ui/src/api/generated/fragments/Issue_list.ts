@@ -37,7 +37,7 @@ to {
 commentsCount
 reportsCount
 score
-stars
+bookmarks
 views
 labels {
     ...Label_common
@@ -45,12 +45,12 @@ labels {
 you {
     canComment
     canDelete
-    canStar
+    canBookmark
     canReport
     canUpdate
     canRead
     canVote
-    isStarred
+    isBookmarked
     isUpvoted
 }
 }`;

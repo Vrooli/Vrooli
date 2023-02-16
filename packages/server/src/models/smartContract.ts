@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
@@ -13,7 +13,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 
 const __typename = 'SmartContract' as const;
-type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const SmartContractModel: ModelLogic<{
     IsTransferable: true,
@@ -57,7 +57,7 @@ export const SmartContractModel: ModelLogic<{
             parent: 'SmartContract',
             pullRequests: 'PullRequest',
             questions: 'Question',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'NoteVersion',
@@ -72,12 +72,12 @@ export const SmartContractModel: ModelLogic<{
             parent: 'NoteVersion',
             pullRequests: 'PullRequest',
             questions: 'Question',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'NoteVersion',
         },
-        joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
+        joinMap: { labels: 'label', bookmarkedBy: 'user', tags: 'tag' },
         countFields: {
             issuesCount: true,
             pullRequestsCount: true,
@@ -91,7 +91,7 @@ export const SmartContractModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },
@@ -112,10 +112,10 @@ export const SmartContractModel: ModelLogic<{
             issuesId: true,
             labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,

@@ -7,7 +7,6 @@ query statsQuiz($input: StatsQuizSearchInput!) {
         cursor
         node {
             id
-            created_at
             periodStart
             periodEnd
             periodType

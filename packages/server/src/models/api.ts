@@ -4,7 +4,7 @@ import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiYou,
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
@@ -14,7 +14,7 @@ import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
 
 const __typename = 'Api' as const;
-type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const ApiModel: ModelLogic<{
     IsTransferable: true,
@@ -60,7 +60,7 @@ export const ApiModel: ModelLogic<{
             issues: 'Issue',
             pullRequests: 'PullRequest',
             questions: 'Question',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             stats: 'StatsApi',
             transfers: 'Transfer',
         },
@@ -72,7 +72,7 @@ export const ApiModel: ModelLogic<{
             parent: 'ApiVersion',
             tags: 'Tag',
             issues: 'Issue',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             votedBy: 'Vote',
             viewedBy: 'View',
             pullRequests: 'PullRequest',
@@ -82,7 +82,7 @@ export const ApiModel: ModelLogic<{
             questions: 'Question',
             transfers: 'Transfer',
         },
-        joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
+        joinMap: { labels: 'label', bookmarkedBy: 'user', tags: 'tag' },
         countFields: {
             issuesCount: true,
             pullRequestsCount: true,
@@ -96,7 +96,7 @@ export const ApiModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     }
@@ -143,10 +143,10 @@ export const ApiModel: ModelLogic<{
             issuesId: true,
             labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,

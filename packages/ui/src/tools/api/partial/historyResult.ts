@@ -9,7 +9,7 @@ export const historyResult: GqlPartial<HistoryResult> = {
             0: async () => rel((await import('./runProject')).runProject, 'list'),
             1: async () => rel((await import('./runRoutine')).runRoutine, 'list'),
             2: async () => rel((await import('./view')).view, 'list'),
-            3: async () => rel((await import('./star')).star, 'list'),
+            3: async () => rel((await import('./bookmark')).bookmark, 'list'),
         },
         activeRuns: {
             __union: {
@@ -24,6 +24,6 @@ export const historyResult: GqlPartial<HistoryResult> = {
             },
         },
         recentlyViewed: { __use: 2 },
-        recentlyStarred: { __use: 3 },
+        recentlyBookmarked: { __use: 3 },
     }
 }

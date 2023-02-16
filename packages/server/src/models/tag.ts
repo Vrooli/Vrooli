@@ -1,6 +1,6 @@
 import { tagValidation } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -59,7 +59,7 @@ export const TagModel: ModelLogic<{
             routines: 'Routine',
             smartContracts: 'SmartContract',
             standards: 'Standard',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
         },
         prismaRelMap: {
             __typename,
@@ -73,7 +73,7 @@ export const TagModel: ModelLogic<{
             routines: 'Routine',
             smartContracts: 'SmartContract',
             standards: 'Standard',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             // scheduleFilters: 'ScheduleFilter',
         },
         joinMap: {
@@ -86,7 +86,7 @@ export const TagModel: ModelLogic<{
             routines: 'tagged',
             smartContracts: 'tagged',
             standards: 'tagged',
-            starredBy: 'user'
+            bookmarkedBy: 'user'
         },
         countFields: {},
         supplemental: {
@@ -94,7 +94,7 @@ export const TagModel: ModelLogic<{
             dbFields: ['createdById', 'id'],
             toGraphQL: async ({ ids, objects, prisma, userData }) => ({
                 you: {
-                    isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                     isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
                 },
             }),
@@ -102,14 +102,14 @@ export const TagModel: ModelLogic<{
     },
     mutate: {} as any,//mutater(),
     search: {
-        defaultSort: TagSortBy.StarsDesc,
+        defaultSort: TagSortBy.BookmarksDesc,
         sortBy: TagSortBy,
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
             excludeIds: true,
-            maxStars: true,
-            minStars: true,
+            maxBookmarks: true,
+            minBookmarks: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },

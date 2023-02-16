@@ -28,6 +28,7 @@ export const typeDef = gql`
         documentationLink: String
         isLatest: Boolean
         isPrivate: Boolean
+        isComplete: Boolean
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -42,6 +43,7 @@ export const typeDef = gql`
         documentationLink: String
         isLatest: Boolean
         isPrivate: Boolean
+        isComplete: Boolean
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -61,6 +63,7 @@ export const typeDef = gql`
         documentationLink: String
         isLatest: Boolean!
         isPrivate: Boolean!
+        isComplete: Boolean!
         resourceList: ResourceList
         versionIndex: Int!
         versionLabel: String!
@@ -105,15 +108,20 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
+        isCompleteWithRoot: Boolean
+        isLatest: Boolean
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
+        minViewsRoot: Int
         createdById: ID
         ownedByUserId: ID
         ownedByOrganizationId: ID
         searchString: String
         sortBy: ApiVersionSortBy
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         translationLanguages: [String!]
         updatedTimeFrame: TimeFrame

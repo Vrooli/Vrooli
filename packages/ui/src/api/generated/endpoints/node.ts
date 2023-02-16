@@ -104,7 +104,6 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -130,7 +129,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -138,12 +137,12 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -336,7 +335,6 @@ mutation nodeCreate($input: NodeCreateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -365,7 +363,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -374,11 +372,11 @@ mutation nodeCreate($input: NodeCreateInput!) {
             you {
                 canComment
                 canDelete
-                canStar
+                canBookmark
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -447,7 +445,6 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -473,7 +470,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -481,12 +478,12 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -703,7 +700,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
             canComment
             canCopy
             canDelete
-            canStar
+            canBookmark
             canReport
             canRun
             canUpdate
@@ -819,7 +816,6 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -845,7 +841,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -853,12 +849,12 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -1051,7 +1047,6 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             }
             stats {
                 id
-                created_at
                 periodStart
                 periodEnd
                 periodType
@@ -1080,7 +1075,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -1089,11 +1084,11 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canStar
+                canBookmark
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -1162,7 +1157,6 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 }
                 stats {
                     id
-                    created_at
                     periodStart
                     periodEnd
                     periodType
@@ -1188,7 +1182,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 permissions
                 questionsCount
                 score
-                stars
+                bookmarks
                 tags {
                     ...Tag_list
                 }
@@ -1196,12 +1190,12 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 views
                 you {
                     canDelete
-                    canStar
+                    canBookmark
                     canTransfer
                     canUpdate
                     canRead
                     canVote
-                    isStarred
+                    isBookmarked
                     isUpvoted
                     isViewed
                 }
@@ -1418,7 +1412,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canStar
+            canBookmark
             canReport
             canRun
             canUpdate

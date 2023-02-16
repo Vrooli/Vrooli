@@ -2,7 +2,7 @@ import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationYou, PrependString } from '@shared/consts';
 import { organizationValidation } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
 import { uuid } from "@shared/uuid";
@@ -13,7 +13,7 @@ import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 
 const __typename = 'Organization' as const;
-type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canStar' | 'canRead'>;
+type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const OrganizationModel: ModelLogic<{
     IsTransferable: false,
@@ -60,7 +60,7 @@ export const OrganizationModel: ModelLogic<{
             routines: 'Routine',
             smartContracts: 'SmartContract',
             standards: 'Standard',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfersIncoming: 'Transfer',
             transfersOutgoing: 'Transfer',
@@ -91,12 +91,12 @@ export const OrganizationModel: ModelLogic<{
             routines: 'Routine',
             runRoutines: 'RunRoutine',
             standards: 'Standard',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             transfersIncoming: 'Transfer',
             transfersOutgoing: 'Transfer',
             wallets: 'Wallet',
         },
-        joinMap: { starredBy: 'user', tags: 'tag' },
+        joinMap: { bookmarkedBy: 'user', tags: 'tag' },
         countFields: {
             apisCount: true,
             commentsCount: true,
@@ -121,7 +121,7 @@ export const OrganizationModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                     },
                     translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'organization.translatedName'),
@@ -189,14 +189,14 @@ export const OrganizationModel: ModelLogic<{
         yup: organizationValidation,
     },
     search: {
-        defaultSort: OrganizationSortBy.StarsDesc,
+        defaultSort: OrganizationSortBy.BookmarksDesc,
         searchFields: {
             createdTimeFrame: true,
             isOpenToNewMembers: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             memberUserIds: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             projectId: true,
             reportId: true,

@@ -52,7 +52,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     where,
     zIndex,
 }: SelectOrCreateDialogProps<T>) => {
-    console.log('selectorcreate 1');
+    console.log('selectorcreate 1', objectType);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -124,7 +124,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, string>(query ?? routineFindOne, endpoint ?? 'routine');  // We have to set something as the defaults, so I picked routine
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: T) => {
-        if (!endpoint || !query) return;
+        if (!endpoint || !query) return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData[endpoint].id === item.id) {
             console.log('before handleadd 2')

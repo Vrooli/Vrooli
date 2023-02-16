@@ -5,13 +5,13 @@ import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 
 const __typename = 'Quiz' as const;
-type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
+type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const QuizModel: ModelLogic<{
     IsTransferable: false,
@@ -42,7 +42,7 @@ export const QuizModel: ModelLogic<{
             project: 'Project',
             quizQuestions: 'QuizQuestion',
             routine: 'Routine',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
         },
         prismaRelMap: {
             __typename,
@@ -51,9 +51,9 @@ export const QuizModel: ModelLogic<{
             project: 'Project',
             quizQuestions: 'QuizQuestion',
             routine: 'Routine',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
         },
-        joinMap: { starredBy: 'user' },
+        joinMap: { bookmarkedBy: 'user' },
         countFields: {
             attemptsCount: true,
             quizQuestionsCount: true,
@@ -65,7 +65,7 @@ export const QuizModel: ModelLogic<{
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     }
                 }

@@ -2,14 +2,14 @@ import { InputType, ProjectOrOrganizationSortBy } from "@shared/consts";
 import { projectOrOrganizationFindMany } from "api/generated/endpoints/projectOrOrganization";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { languagesContainer, languagesFields, searchFormLayout, starsContainer, starsFields, tagsContainer, tagsFields } from "./common";
+import { searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, languagesVersionContainer, languagesVersionFields } from "./common";
 
 export const projectOrOrganizationSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchProjectOrOrganization', lng),
     containers: [
         { totalItems: 1 },
-        starsContainer,
-        languagesContainer,
+        bookmarksContainer,
+        languagesVersionContainer,
         tagsContainer,
     ],
     fields: [
@@ -27,10 +27,10 @@ export const projectOrOrganizationSearchSchema = (lng: string): FormSchema => ({
                 ]
             }
         },
-        ...starsFields,
-        ...languagesFields,
+        ...bookmarksFields,
+        ...languagesVersionFields,
         ...tagsFields,
     ]
 })
 
-export const projectOrOrganizationSearchParams = (lng: string) => toParams(projectOrOrganizationSearchSchema(lng), projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.StarsDesc)
+export const projectOrOrganizationSearchParams = (lng: string) => toParams(projectOrOrganizationSearchSchema(lng), projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc)

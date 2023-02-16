@@ -5,7 +5,6 @@ export const statsRoutine: GqlPartial<StatsRoutine> = {
     __typename: 'StatsRoutine',
     full: {
         id: true,
-        created_at: true,
         periodStart: true,
         periodEnd: true,
         periodType: true,

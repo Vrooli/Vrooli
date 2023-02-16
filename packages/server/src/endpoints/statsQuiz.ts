@@ -30,7 +30,6 @@ export const typeDef = gql`
 
     type StatsQuiz {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!

@@ -25,7 +25,7 @@ Vrooli is an automation platform built for the decentralized age. We are aiming 
 ## How does it work?
 Vrooli contains various *routines* that can be executed to perform a variety of tasks. Some are very specific (e.g. *How to create a Project Catalyst proposal*), and some are more general (e.g *Validate your business idea*).The more general routines are often constructed from a graph of *subroutines*. Each subroutine in turn can consist of multiple subroutines, and so on. This allows for routines to be built in a way that is flexible and scalable.
 
-When a proposer is looking for a new project to tackle, they can search for existing routines which are both *complex* (i.e. consist of many steps) and *popular* (e.g. number of votes, stars, executions, and parent routines). This combination of complexity and popularity can be used to estimate the time and money that would be saved by the community as a whole if a simpler routine was created. Using the design of a simpler routine, you can also demonstrate to voters your project's user experience.
+When a proposer is looking for a new project to tackle, they can search for existing routines which are both *complex* (i.e. consist of many steps) and *popular* (e.g. number of votes, bookmarks, executions, and parent routines). This combination of complexity and popularity can be used to estimate the time and money that would be saved by the community as a whole if a simpler routine was created. Using the design of a simpler routine, you can also demonstrate to voters your project's user experience.
 
 
 ## What are the limitations of Vrooli?
@@ -130,10 +130,10 @@ export const HomePage = ({
                 id: APP_LINKS.FAQ,
             });
         }
-        // Group all query results and sort by number of stars. Ignore any value that isn't an array
+        // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
         const flattened = (Object.values(data?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
-            return b.stars - a.stars;
+            return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [languages, data, searchString]);
@@ -304,6 +304,8 @@ export const HomePage = ({
                         aria-label="home-pages"
                         sx={{
                             marginBottom: 1,
+                            paddingLeft: '1em',
+                            paddingRight: '1em',
                         }}
                     >
                         {tabOptions.map((option, index) => (

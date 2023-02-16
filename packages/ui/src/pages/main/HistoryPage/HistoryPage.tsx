@@ -17,7 +17,7 @@ const completedRoutinesText = `Routines that you've executed and completed`
 
 const recentText = `Organizations, projects, routines, standards, and users that you've recently viewed.`;
 
-const starredText = `Organizations, projects, routines, standards, and users that you've starred.`;
+const bookmarkedText = `Organizations, projects, routines, standards, and users that you've bookmarked.`;
 
 const tabOptions = [
     ['For You', APP_LINKS.Home],
@@ -86,14 +86,14 @@ export const HistoryPage = ({
         zIndex,
     }), [data?.history?.recentlyViewed, loading, session])
 
-    const starred = useMemo(() => listToListItems({
+    const bookmarked = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
-        items: data?.history?.recentlyStarred,
-        keyPrefix: 'starred-list-item',
+        items: data?.history?.recentlyBookmarked,
+        keyPrefix: 'bookmarked-list-item',
         loading,
         session,
         zIndex,
-    }), [data?.history?.recentlyStarred, loading, session])
+    }), [data?.history?.recentlyBookmarked, loading, session])
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -137,10 +137,10 @@ export const HistoryPage = ({
         })}`);
     }, [setLocation]);
 
-    const toSeeAllStarred = useCallback((event: any) => {
+    const toSeeAllBookmarked = useCallback((event: any) => {
         event?.stopPropagation();
         setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Starred,
+            type: HistorySearchPageTabOption.Bookmarked,
         })}`);
     }, [setLocation]);
 
@@ -159,6 +159,8 @@ export const HistoryPage = ({
                     aria-label="home-pages"
                     sx={{
                         marginBottom: 1,
+                        paddingLeft: '1em',
+                        paddingRight: '1em',
                     }}
                 >
                     {tabOptions.map((option, index) => (
@@ -225,14 +227,14 @@ export const HistoryPage = ({
                     {recent}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={"Starred"}
-                    helpText={starredText}
-                    isEmpty={starred.length === 0}
-                    onClick={toSeeAllStarred}
-                    options={[['See all', toSeeAllStarred]]}
+                    title={"Bookmarked"}
+                    helpText={bookmarkedText}
+                    isEmpty={bookmarked.length === 0}
+                    onClick={toSeeAllBookmarked}
+                    options={[['See all', toSeeAllBookmarked]]}
                     session={session}
                 >
-                    {starred}
+                    {bookmarked}
                 </ListTitleContainer>
             </Stack>
         </PageContainer>

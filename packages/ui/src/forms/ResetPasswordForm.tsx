@@ -11,7 +11,7 @@ import { mutationWrapper } from 'api/utils';
 import { useLocation } from '@shared/route';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
-import { PasswordTextField, SnackSeverity } from 'components';
+import { PasswordTextField } from 'components';
 import { PubSub } from 'utils';
 import { authEmailResetPassword } from 'api/generated/endpoints/auth';
 
@@ -31,7 +31,7 @@ export const ResetPasswordForm = ({
         onSubmit: (values) => {
             // Check for valid userId and code
             if (!userId || !code) {
-                PubSub.get().publishSnack({ messageKey: 'InvalidResetPasswordUrl', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'InvalidResetPasswordUrl', severity: 'Error' });
                 return;
             }
             mutationWrapper<Session, EmailResetPasswordInput>({

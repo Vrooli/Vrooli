@@ -1,5 +1,5 @@
 import { routineValidation } from "@shared/validation";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Trigger } from "../events";
@@ -10,7 +10,6 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { padSelect } from "../builders";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
@@ -223,7 +222,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
 }
 
 const __typename = 'Routine' as const;
-type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
+type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const RoutineModel: ModelLogic<{
     IsTransferable: true,
@@ -267,7 +266,7 @@ export const RoutineModel: ModelLogic<{
             issues: 'Issue',
             labels: 'Label',
             parent: 'Routine',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             versions: 'RoutineVersion',
         },
@@ -282,14 +281,14 @@ export const RoutineModel: ModelLogic<{
             issues: 'Issue',
             labels: 'Label',
             pullRequests: 'PullRequest',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             stats: 'StatsRoutine',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'RoutineVersion',
             viewedBy: 'View',
         },
-        joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
+        joinMap: { labels: 'label', tags: 'tag', bookmarkedBy: 'user' },
         countFields: {
             forksCount: true,
             issuesCount: true,
@@ -305,7 +304,7 @@ export const RoutineModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },
@@ -438,10 +437,10 @@ export const RoutineModel: ModelLogic<{
             issuesId: true,
             labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,

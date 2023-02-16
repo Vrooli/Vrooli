@@ -1,4 +1,4 @@
-export const Star_list = `fragment Star_list on Star {
+export const Bookmark_list = `fragment Bookmark_list on Bookmark {
 id
 to {
     ... on Api {

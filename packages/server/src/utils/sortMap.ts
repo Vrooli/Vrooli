@@ -9,7 +9,7 @@ const Order = {
  * Example: SortMap['PullRequestsAsc'] = ({ pullRequests: { _count: 'asc' } })
  * 
  * NOTE: This relies on duplicate keys always having the same query, regardless of the object. 
- * This ensures that the database implementation of various relations (stars, views, etc.) is 
+ * This ensures that the database implementation of various relations (bookmarks, views, etc.) is 
  * consistent across all objects.
  */
 export const SortMap = {
@@ -71,8 +71,8 @@ export const SortMap = {
     SimplicityDesc: { simplicity: Order.Desc },
     StepsAsc: { steps: { _count: Order.Asc } },
     StepsDesc: { steps: { _count: Order.Desc } },
-    StarsAsc: { starredBy: { _count: Order.Asc } },
-    StarsDesc: { starredBy: { _count: Order.Desc } },
+    BookmarksAsc: { bookmarkedBy: { _count: Order.Asc } },
+    BookmarksDesc: { bookmarkedBy: { _count: Order.Desc } },
     UsedForAsc: { usedFor: Order.Asc },
     UsedForDesc: { usedFor: Order.Desc },
     VersionsAsc: { versions: { _count: Order.Asc } },

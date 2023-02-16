@@ -94,7 +94,7 @@ query note($input: FindByIdInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -102,12 +102,12 @@ query note($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -169,7 +169,7 @@ query notes($input: NoteSearchInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -177,12 +177,12 @@ query notes($input: NoteSearchInput!) {
             views
             you {
                 canDelete
-                canStar
+                canBookmark
                 canTransfer
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -285,7 +285,7 @@ mutation noteCreate($input: NoteCreateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -293,12 +293,12 @@ mutation noteCreate($input: NoteCreateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -395,7 +395,7 @@ mutation noteUpdate($input: NoteUpdateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -403,12 +403,12 @@ mutation noteUpdate($input: NoteUpdateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }

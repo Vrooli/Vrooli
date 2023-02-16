@@ -15,7 +15,7 @@ import { mutationWrapper } from 'api/utils';
 import { useMutation } from 'api/hooks';
 import { APP_LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DialogTitle, PasswordTextField, SnackSeverity } from 'components';
+import { DialogTitle, PasswordTextField } from 'components';
 import { DeleteIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
@@ -49,7 +49,7 @@ export const DeleteAccountDialog = ({
         validationSchema,
         onSubmit: (values) => {
             if (!id) {
-                PubSub.get().publishSnack({ messageKey: 'NoUserIdFound', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'NoUserIdFound', severity: 'Error' });
                 return;
             }
             mutationWrapper<Success, UserDeleteInput>({

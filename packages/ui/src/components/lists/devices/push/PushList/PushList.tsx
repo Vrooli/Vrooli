@@ -10,7 +10,6 @@ import { getDeviceInfo, PubSub, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { PushListItem } from '../PushListItem/PushListItem';
 import { AddIcon } from '@shared/icons';
-import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from '@shared/consts';
 import { pushDeviceValidation } from '@shared/validation';
@@ -48,7 +47,7 @@ export const PushList = ({
                     name: getDeviceInfo().deviceName,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });
+                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: 'Info' });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },

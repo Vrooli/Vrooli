@@ -29,7 +29,7 @@ mutation emailLogIn($input: EmailLogInInput!) {
                     id
                     created_at
                     tag
-                    stars
+                    bookmarks
                     translations {
                         id
                         language
@@ -37,7 +37,7 @@ mutation emailLogIn($input: EmailLogInInput!) {
                     }
                     you {
                         isOwn
-                        isStarred
+                        isBookmarked
                     }
                 }
                 userSchedule {
@@ -121,7 +121,7 @@ mutation emailSignUp($input: EmailSignUpInput!) {
                     id
                     created_at
                     tag
-                    stars
+                    bookmarks
                     translations {
                         id
                         language
@@ -129,7 +129,7 @@ mutation emailSignUp($input: EmailSignUpInput!) {
                     }
                     you {
                         isOwn
-                        isStarred
+                        isBookmarked
                     }
                 }
                 userSchedule {
@@ -220,7 +220,7 @@ mutation emailResetPassword($input: EmailResetPasswordInput!) {
                     id
                     created_at
                     tag
-                    stars
+                    bookmarks
                     translations {
                         id
                         language
@@ -228,7 +228,7 @@ mutation emailResetPassword($input: EmailResetPasswordInput!) {
                     }
                     you {
                         isOwn
-                        isStarred
+                        isBookmarked
                     }
                 }
                 userSchedule {
@@ -312,7 +312,7 @@ mutation guestLogIn {
                     id
                     created_at
                     tag
-                    stars
+                    bookmarks
                     translations {
                         id
                         language
@@ -320,7 +320,7 @@ mutation guestLogIn {
                     }
                     you {
                         isOwn
-                        isStarred
+                        isBookmarked
                     }
                 }
                 userSchedule {
@@ -404,7 +404,7 @@ mutation logOut($input: LogOutInput!) {
                     id
                     created_at
                     tag
-                    stars
+                    bookmarks
                     translations {
                         id
                         language
@@ -412,7 +412,7 @@ mutation logOut($input: LogOutInput!) {
                     }
                     you {
                         isOwn
-                        isStarred
+                        isBookmarked
                     }
                 }
                 userSchedule {
@@ -496,7 +496,7 @@ mutation validateSession($input: ValidateSessionInput!) {
                     id
                     created_at
                     tag
-                    stars
+                    bookmarks
                     translations {
                         id
                         language
@@ -504,7 +504,7 @@ mutation validateSession($input: ValidateSessionInput!) {
                     }
                     you {
                         isOwn
-                        isStarred
+                        isBookmarked
                     }
                 }
                 userSchedule {
@@ -588,7 +588,7 @@ mutation switchCurrentAccount($input: SwitchCurrentAccountInput!) {
                     id
                     created_at
                     tag
-                    stars
+                    bookmarks
                     translations {
                         id
                         language
@@ -596,7 +596,7 @@ mutation switchCurrentAccount($input: SwitchCurrentAccountInput!) {
                     }
                     you {
                         isOwn
-                        isStarred
+                        isBookmarked
                     }
                 }
                 userSchedule {

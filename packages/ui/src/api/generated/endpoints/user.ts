@@ -31,7 +31,7 @@ query profile {
     isPrivateRoutinesCreated
     isPrivateStandards
     isPrivateStandardsCreated
-    isPrivateStars
+    isPrivateBookmarks
     isPrivateVotes
     name
     theme
@@ -80,7 +80,7 @@ query profile {
                 id
                 created_at
                 tag
-                stars
+                bookmarks
                 translations {
                     id
                     language
@@ -88,7 +88,7 @@ query profile {
                 }
                 you {
                     isOwn
-                    isStarred
+                    isBookmarked
                 }
             }
             userSchedule {
@@ -146,7 +146,6 @@ query profile {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -183,7 +182,6 @@ query user($input: FindByIdOrHandleInput!) {
   user(input: $input) {
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -221,13 +219,13 @@ query user($input: FindByIdOrHandleInput!) {
     created_at
     handle
     name
-    stars
+    bookmarks
     reportsReceivedCount
     you {
         canDelete
         canReport
         canUpdate
-        isStarred
+        isBookmarked
         isViewed
     }
   }
@@ -248,13 +246,13 @@ query users($input: UserSearchInput!) {
             created_at
             handle
             name
-            stars
+            bookmarks
             reportsReceivedCount
             you {
                 canDelete
                 canReport
                 canUpdate
-                isStarred
+                isBookmarked
                 isViewed
             }
         }
@@ -293,7 +291,7 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
     isPrivateRoutinesCreated
     isPrivateStandards
     isPrivateStandardsCreated
-    isPrivateStars
+    isPrivateBookmarks
     isPrivateVotes
     name
     theme
@@ -342,7 +340,7 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
                 id
                 created_at
                 tag
-                stars
+                bookmarks
                 translations {
                     id
                     language
@@ -350,7 +348,7 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
                 }
                 you {
                     isOwn
-                    isStarred
+                    isBookmarked
                 }
             }
             userSchedule {
@@ -408,7 +406,6 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -467,7 +464,7 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
     isPrivateRoutinesCreated
     isPrivateStandards
     isPrivateStandardsCreated
-    isPrivateStars
+    isPrivateBookmarks
     isPrivateVotes
     name
     theme
@@ -516,7 +513,7 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
                 id
                 created_at
                 tag
-                stars
+                bookmarks
                 translations {
                     id
                     language
@@ -524,7 +521,7 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
                 }
                 you {
                     isOwn
-                    isStarred
+                    isBookmarked
                 }
             }
             userSchedule {
@@ -582,7 +579,6 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType

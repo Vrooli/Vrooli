@@ -32,7 +32,7 @@ const validateNodePositions = async (
 }
 
 const __typename = 'RoutineVersion' as const;
-type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canCopy' | 'canDelete' | 'canUpdate' | 'canStar' | 'canReport' | 'canRun' | 'canRead' | 'canVote'>;
+type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canCopy' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReport' | 'canRun' | 'canRead' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const RoutineVersionModel: ModelLogic<{
     IsTransferable: false,
@@ -214,16 +214,19 @@ export const RoutineVersionModel: ModelLogic<{
             maxSimplicity: true,
             maxTimesCompleted: true,
             minComplexity: true,
-            minScoreRoot: true,
             minSimplicity: true,
-            minStarsRoot: true,
             minTimesCompleted: true,
+            maxBookmarksRoot: true,
+            maxScoreRoot: true,
+            maxViewsRoot: true,
+            minBookmarksRoot: true,
+            minScoreRoot: true,
             minViewsRoot: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
             reportId: true,
             rootId: true,
-            tags: true,
+            tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,

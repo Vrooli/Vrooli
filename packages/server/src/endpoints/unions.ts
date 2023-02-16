@@ -10,6 +10,7 @@ import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builde
 import { PartialGraphQLInfo } from '../builders/types';
 import { readManyAsFeedHelper } from '../actions';
 import { getUser } from '../auth';
+import { SearchMap } from '../utils';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
@@ -27,8 +28,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -40,8 +41,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     enum RunProjectOrRunRoutineSortBy {
@@ -67,11 +68,13 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
+        hasCompleteVersion: Boolean
+        hasCompleteVersionExceptions: [SearchException!]
+        translationLanguagesLatestVersion: [String!]
+        maxBookmarks: Int
+        maxScore: Int
+        minBookmarks: Int
         minScore: Int
-        minStars: Int
         minViews: Int
         objectType: String
         organizationId: ID
@@ -114,8 +117,10 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        languages: [String!]
-        minStars: Int
+        translationLanguagesLatestVersion: [String!]
+        maxBookmarks: Int
+        maxViews: Int
+        minBookmarks: Int
         minViews: Int
         objectType: String
         organizationAfter: String
@@ -125,6 +130,7 @@ export const typeDef = gql`
         projectAfter: String
         projectIsComplete: Boolean
         projectIsCompleteExceptions: [SearchException!]
+        projectMaxScore: Int
         projectMinScore: Int
         projectOrganizationId: ID
         projectParentId: ID
@@ -228,12 +234,14 @@ export const resolvers: {
                         after: input.projectAfter,
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
+                        hasCompleteVersion: input.hasCompleteVersion,
+                        hasCompleteExceptions: input.hasCompleteVersionExceptions,
                         ids: input.ids,
-                        isComplete: input.isComplete,
-                        isCompleteExceptions: input.isCompleteExceptions,
-                        languages: input.languages,
+                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                        maxBookmarks: input.maxBookmarks,
+                        maxScore: input.maxScore,
+                        minBookmarks: input.minBookmarks,
                         minScore: input.minScore,
-                        minStars: input.minStars,
                         minViews: input.minViews,
                         organizationId: input.organizationId,
                         parentId: input.parentId,
@@ -262,15 +270,16 @@ export const resolvers: {
                         excludeIds: input.excludeIds,
                         ids: input.ids,
                         isInternal: false,
-                        isComplete: input.isComplete,
-                        isCompleteExceptions: input.isCompleteExceptions,
-                        languages: input.languages,
+                        hasCompleteVersion: input.hasCompleteVersion,
+                        hasCompleteExceptions: input.hasCompleteVersionExceptions,
+                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
                         minComplexity: input.routineMinComplexity,
                         maxComplexity: input.routineMaxComplexity,
+                        maxBookmarks: input.maxBookmarks,
+                        maxScore: input.maxScore,
+                        minBookmarks: input.minBookmarks,
                         minScore: input.minScore,
                         minSimplicity: input.routineMinSimplicity,
-                        maxSimplicity: input.routineMaxSimplicity,
-                        minStars: input.minStars,
                         minTimesCompleted: input.routineMinTimesCompleted,
                         maxTimesCompleted: input.routineMaxTimesCompleted,
                         minViews: input.minViews,
@@ -343,9 +352,12 @@ export const resolvers: {
                         ids: input.ids,
                         isComplete: input.projectIsComplete,
                         isCompleteExceptions: input.projectIsCompleteExceptions,
-                        languages: input.languages,
+                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                        maxBookmarks: input.maxBookmarks,
+                        maxScore: input.projectMaxScore,
+                        maxViews: input.maxViews,
+                        minBookmarks: input.minBookmarks,
                         minScore: input.projectMinScore,
-                        minStars: input.minStars,
                         minViews: input.minViews,
                         organizationId: input.projectOrganizationId,
                         parentId: input.projectParentId,
@@ -373,8 +385,10 @@ export const resolvers: {
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
                         ids: input.ids,
-                        languages: input.languages,
-                        minStars: input.minStars,
+                        languages: input.translationLanguagesLatestVersion,
+                        maxBookmarks: input.maxBookmarks,   
+                        minBookmarks: input.minBookmarks,
+                        maxViews: input.maxViews,
                         minViews: input.minViews,
                         isOpenToNewMembers: input.organizationIsOpenToNewMembers,
                         projectId: input.organizationProjectId,

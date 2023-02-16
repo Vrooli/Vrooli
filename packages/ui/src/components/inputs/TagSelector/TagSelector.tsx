@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@apollo/client';
-import { StarFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
+import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
-import { SnackSeverity, StarButton } from 'components';
+import { BookmarkButton } from 'components';
 import { PubSub, TagShape } from 'utils';
 import { Wrap } from 'types';
 import { tagFindMany } from 'api/generated/endpoints/tag';
@@ -45,17 +45,17 @@ export const TagSelector = ({
         tagLabel = tagLabel.replace(/[,;]/g, '');
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.get().publishSnack({ messageKey: 'TagTooShort', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'TagTooShort', severity: 'Error' });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.get().publishSnack({ messageKey: 'TagTooLong', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'TagTooLong', severity: 'Error' });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.get().publishSnack({ messageKey: 'TagAlreadySelected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'TagAlreadySelected', severity: 'Error' });
             return;
         }
         // Add tag
@@ -97,7 +97,7 @@ export const TagSelector = ({
                         .map(t => (t as Tag).id) as string[] :
                     [],
                 searchString: inputValue,
-                sortBy: TagSortBy.StarsDesc,
+                sortBy: TagSortBy.BookmarksDesc,
                 take: 25,
             }
         }
@@ -129,10 +129,10 @@ export const TagSelector = ({
         return [...queried, ...known];
     }, [autocompleteData, inputValue, tagsRef]);
 
-    const handleIsStarred = useCallback((tag: string, isStarred: boolean) => {
+    const handleIsBookmarked = useCallback((tag: string, isBookmarked: boolean) => {
         // Update tag ref
         if (!tagsRef.current) tagsRef.current = {};
-        ((tagsRef.current as TagsRef)[tag] as any) = { ...(tagsRef.current as TagsRef)[tag], isStarred };
+        ((tagsRef.current as TagsRef)[tag] as any) = { ...(tagsRef.current as TagsRef)[tag], isBookmarked };
     }, [tagsRef]);
 
     return (
@@ -171,13 +171,13 @@ export const TagSelector = ({
                     onClick={() => onInputSelect(option as Tag)} //TODO
                 >
                     <ListItemText>{option.tag}</ListItemText>
-                    <StarButton
+                    <BookmarkButton
                         session={session}
                         objectId={(option as Tag).id ?? ''}
-                        starFor={StarFor.Tag}
-                        isStar={(option as Tag).you.isStarred}
-                        stars={(option as Tag).stars}
-                        onChange={(isStar) => { handleIsStarred(option.tag, isStar); }}
+                        bookmarkFor={BookmarkFor.Tag}
+                        isBookmarked={(option as Tag).you.isBookmarked}
+                        bookmarks={(option as Tag).bookmarks}
+                        onChange={(isBookmarked) => { handleIsBookmarked(option.tag, isBookmarked); }}
                     />
                 </MenuItem>
             )}

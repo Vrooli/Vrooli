@@ -3,7 +3,6 @@
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
 import { WalletComplete } from '@shared/consts';
-import { SnackSeverity } from 'components';
 import { errorToCode, initializeApollo } from 'api/utils';
 import { ApolloError } from 'types';
 import { PubSub } from 'utils';
@@ -113,7 +112,7 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
         mutation: authWalletInit,
         variables: { input: { stakingAddress } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletInit;
@@ -132,7 +131,7 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
         mutation: authWalletComplete,
         variables: { input: { stakingAddress, signedPayload } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletComplete;

@@ -36,7 +36,7 @@ export type SnackPub = {
     id?: string;
     messageKey: ErrorKey | CommonKey;
     messageVariables?: { [key: string]: string | number };
-    severity: SnackSeverity;
+    severity: `${SnackSeverity}`;
 }
 
 export type AlertDialogPub = {

@@ -30,6 +30,8 @@ export const StatsPage = () => {
                     aria-label="site-statistics-tabs"
                     sx={{
                         marginBottom: 1,
+                        paddingLeft: '1em',
+                        paddingRight: '1em',
                     }}
                 >
                     {tabLabels.map((label, index) => (

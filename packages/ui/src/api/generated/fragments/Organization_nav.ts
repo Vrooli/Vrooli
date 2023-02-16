@@ -4,11 +4,11 @@ handle
 you {
     canAddMembers
     canDelete
-    canStar
+    canBookmark
     canReport
     canUpdate
     canRead
-    isStarred
+    isBookmarked
     isViewed
     yourMembership {
         id

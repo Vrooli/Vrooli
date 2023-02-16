@@ -52,7 +52,7 @@ owner {
 permissions
 questionsCount
 score
-stars
+bookmarks
 tags {
     ...Tag_list
 }
@@ -60,12 +60,12 @@ transfersCount
 views
 you {
     canDelete
-    canStar
+    canBookmark
     canTransfer
     canUpdate
     canRead
     canVote
-    isStarred
+    isBookmarked
     isUpvoted
     isViewed
 }

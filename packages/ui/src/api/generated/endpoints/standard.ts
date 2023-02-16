@@ -106,7 +106,6 @@ query standard($input: FindByIdInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -132,7 +131,7 @@ query standard($input: FindByIdInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -140,12 +139,12 @@ query standard($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -215,7 +214,7 @@ query standards($input: StandardSearchInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -223,12 +222,12 @@ query standards($input: StandardSearchInput!) {
             views
             you {
                 canDelete
-                canStar
+                canBookmark
                 canTransfer
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -343,7 +342,6 @@ mutation standardCreate($input: StandardCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -369,7 +367,7 @@ mutation standardCreate($input: StandardCreateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -377,12 +375,12 @@ mutation standardCreate($input: StandardCreateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -491,7 +489,6 @@ mutation standardUpdate($input: StandardUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -517,7 +514,7 @@ mutation standardUpdate($input: StandardUpdateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -525,12 +522,12 @@ mutation standardUpdate($input: StandardUpdateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }

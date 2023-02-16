@@ -1,6 +1,7 @@
 export * from './api';
 export * from './apiKey';
 export * from './apiVersion';
+export * from './bookmark';
 export * from './comment';
 export * from './copyResult';
 export * from './count';
@@ -67,7 +68,6 @@ export * from './smartContract';
 export * from './smartContractVersion';
 export * from './standard';
 export * from './standardVersion';
-export * from './star';
 export * from './statsApi';
 export * from './statsOrganization';
 export * from './statsProject';

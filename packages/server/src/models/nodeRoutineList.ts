@@ -6,6 +6,7 @@ import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 import { nodeRoutineListValidation } from '@shared/validation';
+import { defaultPermissions } from '../utils';
 
 const __typename = 'NodeRoutineList' as const;
 
@@ -59,5 +60,19 @@ export const NodeRoutineListModel: ModelLogic<{
             }),
         },
         yup: nodeRoutineListValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: 100000,
+        permissionsSelect: () => ({ node: 'Node' }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => NodeModel.validate!.owner(data.node as any),
+        isDeleted: (data, languages) => NodeModel.validate!.isDeleted(data.node as any, languages),
+        isPublic: (data, languages) => NodeModel.validate!.isPublic(data.node as any, languages),
+        visibility: {
+            private: { node: NodeModel.validate!.visibility.private },
+            public: { node: NodeModel.validate!.visibility.public },
+            owner: (userId) => ({ node: NodeModel.validate!.visibility.owner(userId) }),
+        }
     },
 })

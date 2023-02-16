@@ -197,7 +197,7 @@ export const Reputation = () => ({
         await updateReputationHelper(delta, prisma, userId, 'ReceivedVote');
     },
     /**
-     * Custom reputation update function for stars
+     * Custom reputation update function for bookmarks
      * @param v0 The original star count
      * @param v1 The new star count
      * @param prisma The prisma client

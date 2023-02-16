@@ -17,7 +17,7 @@ import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { DialogTitle, HelpButton, SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
+import { DialogTitle, HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -84,7 +84,7 @@ export const StartPage = ({
                     mutation: emailLogIn,
                     input: { verificationCode },
                     onSuccess: (data) => {
-                        PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: SnackSeverity.Success });
+                        PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
                         PubSub.get().publishSession(data);
                         setLocation(redirect ?? APP_LINKS.Home)
                     },
@@ -144,7 +144,7 @@ export const StartPage = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
-            PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: SnackSeverity.Success })
+            PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: 'Success' })
             // Set actor role
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard

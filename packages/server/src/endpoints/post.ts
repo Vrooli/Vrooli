@@ -18,8 +18,8 @@ export const typeDef = gql`
         RepostsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         ViewsAsc
         ViewsDesc
     }
@@ -57,9 +57,9 @@ export const typeDef = gql`
         repostsCount: Int!
         resourceList: ResourceList!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         tags: [Tag!]!
         translations: [PostTranslation!]!
     }
@@ -90,8 +90,10 @@ export const typeDef = gql`
         isPinned: Boolean
         ids: [ID!]
         languages: [String!]
+        maxScore: Int
+        maxBookmarks: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         organizationId: ID
         userId: ID
         repostedFromIds: [ID!]

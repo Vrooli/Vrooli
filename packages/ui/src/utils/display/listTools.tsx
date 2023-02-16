@@ -1,10 +1,12 @@
-import { AutocompleteOption, NavigableObject } from "types";
+import { AutocompleteOption, CommonKey, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
-import { DotNotation, GqlModelType, Session, StarFor } from "@shared/consts";
+import { DotNotation, GqlModelType, Session, BookmarkFor } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
 import { exists, isOfType } from "@shared/utils";
+import { SearchListGenerator } from "components/lists/types";
+import { SearchType } from "utils/search";
 
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(
@@ -35,10 +37,10 @@ export type YouInflated = {
     canRead: boolean;
     canReport: boolean;
     canShare: boolean;
-    canStar: boolean;
+    canBookmark: boolean;
     canUpdate: boolean;
     canVote: boolean;
-    isStarred: boolean;
+    isBookmarked: boolean;
     isUpvoted: boolean | null;
     isViewed: boolean;
 }
@@ -55,7 +57,7 @@ export type CountsInflated = {
     questions: number;
     reports: number;
     score: number;
-    stars: number;
+    bookmarks: number;
     transfers: number;
     translations: number;
     versions: number;
@@ -74,18 +76,33 @@ export const getYouDot = (
     // If no object, return null
     if (!object) return null;
     // If the object is a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getYouDot(object.to as ListObjectType, property);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYouDot(object.to as ListObjectType, property);
     // If the object is a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getYouDot(object.routineVersion as ListObjectType, property);
     // If the object is a run project, use the project version
     if (isOfType(object, 'RunProject')) return getYouDot(object.projectVersion as ListObjectType, property);
     // Check object.you
-    if (exists((object as any).you?.[property])) return 'you';
+    if (exists((object as any).you?.[property])) return `you.${property}`;
     // Check object.root.you
-    if (exists((object as any).root?.you?.[property])) return 'root.you';
+    if (exists((object as any).root?.you?.[property])) return `root.you.${property}`
     // If not found, return null
     return null;
 }
+
+export const defaultYou: YouInflated = {
+    canComment: false,
+    canCopy: false,
+    canDelete: false,
+    canRead: false,
+    canReport: false,
+    canShare: false,
+    canBookmark: false,
+    canUpdate: false,
+    canVote: false,
+    isBookmarked: false,
+    isUpvoted: null,
+    isViewed: false,
+};
 
 /**
  * Gets user permissions and statuses for an object. These are inflated to match YouInflated, so any fields not present are false
@@ -95,23 +112,10 @@ export const getYou = (
     object: ListObjectType | null | undefined
 ): YouInflated => {
     // Initialize fields to false (except isUpvoted, where false means downvoted)
-    const defaultPermissions = {
-        canComment: false,
-        canCopy: false,
-        canDelete: false,
-        canRead: false,
-        canReport: false,
-        canShare: false,
-        canStar: false,
-        canUpdate: false,
-        canVote: false,
-        isStarred: false,
-        isUpvoted: null,
-        isViewed: false,
-    };
+    const defaultPermissions = defaultYou;
     if (!object) return defaultPermissions;
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getYou(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYou(object.to as ListObjectType);
     // If a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getYou(object.routineVersion as ListObjectType);
     // If a run project, use the project version
@@ -148,7 +152,7 @@ export const getCounts = (
         questions: 0,
         reports: 0,
         score: 0,
-        stars: 0,
+        bookmarks: 0,
         transfers: 0,
         translations: 0,
         versions: 0,
@@ -156,7 +160,7 @@ export const getCounts = (
     };
     if (!object) return defaultCounts;
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
     // If a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getCounts(object.routineVersion as ListObjectType);
     // If a run project, use the project version
@@ -261,7 +265,7 @@ export const getDisplay = (
 ): { title: string, subtitle: string } => {
     if (!object) return { title: '', subtitle: '' };
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
     // If a run routine, use the routine version's display and the startedAt/completedAt date
     if (isOfType(object, 'RunRoutine')) {
@@ -306,10 +310,10 @@ export const getDisplay = (
  */
 export const getStarFor = (
     object: ListObjectType | null | undefined,
-): { starFor: StarFor, starForId: string } | { starFor: null, starForId: null } => {
-    if (!object) return { starFor: null, starForId: null };
+): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
+    if (!object) return { bookmarkFor: null, starForId: null };
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Star', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
     // If a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getStarFor(object.routineVersion as ListObjectType);
     // If a run project, use the project version
@@ -319,7 +323,7 @@ export const getStarFor = (
     // If the object contains a root object, use that
     if ((object as any).root) return getStarFor((object as any).root);
     // Use current object
-    return { starFor: object.__typename as unknown as StarFor, starForId: object.id };
+    return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
 }
 
 /**
@@ -330,7 +334,7 @@ export const getStarFor = (
  * {
  *  id: The ID of the object.
  *  label: The label of the object.
- *  stars: The number of stars the object has.
+ *  bookmarks: The number of bookmarks the object has.
  * }
  */
 export function listToAutocomplete(
@@ -340,15 +344,15 @@ export function listToAutocomplete(
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,
-        isStarred: getYou(o).isStarred,
+        isBookmarked: getYou(o).isBookmarked,
         label: getDisplay(o, languages).title,
         runnableObject: o.__typename === 'RunProject' ?
             o.projectVersion :
             o.__typename === 'RunRoutine' ?
                 o.routineVersion :
                 undefined,
-        stars: getCounts(o).stars,
-        to: isOfType(o, 'Star', 'View', 'Vote') ? o.to : undefined,
+        bookmarks: getCounts(o).bookmarks,
+        to: isOfType(o, 'Bookmark', 'View', 'Vote') ? o.to : undefined,
         versions: isOfType(o, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard') ? o.versions : undefined,
         root: isOfType(o, 'ApiVersion', 'NoteVersion', 'ProjectVersion', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion') ? o.root : undefined,
     }));
@@ -412,6 +416,7 @@ export function listToListItems({
                 hideRole={hideRoles}
                 index={i}
                 loading={true}
+                objectType={'Routine'}
                 session={session}
                 zIndex={zIndex}
             />);
@@ -421,7 +426,7 @@ export function listToListItems({
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
         // If "Star", "View", or "Vote", use the "to" object
-        if (isOfType(curr, 'Star', 'View', 'Vote')) curr = curr.to as ListObjectType;
+        if (isOfType(curr, 'Bookmark', 'View', 'Vote')) curr = curr.to as ListObjectType;
         listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
             beforeNavigation={beforeNavigation}
@@ -429,6 +434,7 @@ export function listToListItems({
             hideRole={hideRoles}
             index={i}
             loading={false}
+            objectType={curr.__typename}
             session={session}
             zIndex={zIndex}
         />);
@@ -458,3 +464,17 @@ const placeholderColors: [string, string][] = [
 export const placeholderColor = (): [string, string] => {
     return placeholderColors[Math.floor(Math.random() * placeholderColors.length)];
 }
+
+/**
+ * Creates object containing information required to display a search list 
+ * for an object type.
+ */
+export const toSearchListData = (
+    searchType: SearchType | `${SearchType}`,
+    placeholder: CommonKey,
+    where: Record<string, any>,
+): SearchListGenerator => ({
+    searchType,
+    placeholder,
+    where,
+})

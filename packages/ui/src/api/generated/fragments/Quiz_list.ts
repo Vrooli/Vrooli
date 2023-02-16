@@ -14,7 +14,7 @@ createdBy {
     handle
 }
 score
-stars
+bookmarks
 views
 attemptsCount
 quizQuestionsCount
@@ -29,12 +29,12 @@ routine {
 }
 you {
     canDelete
-    canStar
+    canBookmark
     canUpdate
     canRead
     canVote
     hasCompleted
-    isStarred
+    isBookmarked
     isUpvoted
 }
 }`;

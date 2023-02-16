@@ -2,7 +2,7 @@ export const Tag_list = `fragment Tag_list on Tag {
 id
 created_at
 tag
-stars
+bookmarks
 translations {
     id
     language
@@ -10,6 +10,6 @@ translations {
 }
 you {
     isOwn
-    isStarred
+    isBookmarked
 }
 }`;

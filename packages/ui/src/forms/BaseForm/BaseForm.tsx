@@ -3,8 +3,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { BaseFormProps } from '../types';
 import { useFormik } from 'formik';
 import { FieldData } from 'forms/types';
-import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
+import { generateDefaultProps, generateYupSchema } from 'forms/generators';
 import { useTheme } from '@mui/material';
+import { GeneratedGrid } from 'components';
 
 /**
  * Form component that is generated from a JSON schema
@@ -55,23 +56,19 @@ export const BaseForm = ({
         validationSchema,
         onSubmit: (values) => onSubmit(values),
     });
-    const grid = useMemo(() => {
-        if (!schema) return null;
-        return generateGrid({
-            childContainers: schema.containers,
-            fields: schema.fields,
-            formik,
-            layout: schema.formLayout,
-            onUpload: () => {},
-            session,
-            theme,
-            zIndex,
-        })
-    }, [schema, formik, session, theme, zIndex])
 
     return (
         <form onSubmit={formik.handleSubmit}>
-            {grid}
+            {schema && <GeneratedGrid
+                childContainers={schema.containers}
+                fields={schema.fields}
+                formik={formik}
+                layout={schema.formLayout}
+                onUpload={onUpload}
+                session={session}
+                theme={theme}
+                zIndex={zIndex}
+            />}
         </form>
     );
 }

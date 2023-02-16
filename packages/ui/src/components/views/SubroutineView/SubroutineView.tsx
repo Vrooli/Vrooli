@@ -1,18 +1,16 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
+import { CommentContainer, ContentCollapse, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, uuidToBase36 } from "utils";
+import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
-import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
-import { APP_LINKS, CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
+import { CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { uuid } from "@shared/uuid";
 import { SuccessIcon } from "@shared/icons";
-import { setDotNotationValue } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -135,9 +133,9 @@ export const SubroutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
         } else {
-            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: 'Error' });
         }
     }, [formik.values]);
 
@@ -146,64 +144,34 @@ export const SubroutineView = ({
         return (
             <Box>
                 {Object.values(formValueMap).map((fieldData: FieldData, index: number) => (
-                    generateInputWithLabel({
-                        copyInput,
-                        disabled: false,
-                        fieldData,
-                        formik: formik,
-                        index,
-                        session,
-                        textPrimary: palette.background.textPrimary,
-                        onUpload: () => { },
-                        zIndex,
-                    })
+                    <GeneratedInputComponentWithLabel
+                        copyInput={copyInput}
+                        disabled={false}
+                        fieldData={fieldData}
+                        formik={formik}
+                        index={index}
+                        session={session}
+                        textPrimary={palette.background.textPrimary}
+                        onUpload={() => { }}
+                        zIndex={zIndex}
+                    />
                 ))}
             </Box>
         )
     }, [copyInput, formValueMap, palette.background.textPrimary, formik, internalRoutineVersion?.inputs, session, zIndex]);
 
-    const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(internalRoutineVersion?.id ?? '')}`);
-    }, [internalRoutineVersion?.id, setLocation]);
-
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
-    const onActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Comment:
-                openAddCommentDialog();
-                break;
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit, openAddCommentDialog]);
-
-    const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                if (data.success && internalRoutineVersion) {
-                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
-                }
-                break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && internalRoutineVersion) {
-                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
-                }
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.routine, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [internalRoutineVersion, setLocation]);
+    const actionData = useObjectActions({
+        object: internalRoutineVersion,
+        objectType: 'RoutineVersion',
+        openAddCommentDialog,
+        session,
+        setLocation,
+        setObject: setInternalRoutineVersion,
+    });
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
@@ -269,9 +237,8 @@ export const SubroutineView = ({
             </Box>
             {/* Action buttons */}
             <ObjectActionsRow
+                actionData={actionData}
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                onActionStart={onActionStart}
-                onActionComplete={onActionComplete}
                 object={internalRoutineVersion}
                 session={session}
                 zIndex={zIndex}

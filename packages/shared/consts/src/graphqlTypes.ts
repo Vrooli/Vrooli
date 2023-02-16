@@ -28,6 +28,8 @@ export type AnyRun = RunProject | RunRoutine;
 
 export type Api = {
   __typename: 'Api';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -46,8 +48,6 @@ export type Api = {
   questions: Array<Question>;
   questionsCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats: Array<StatsApi>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
@@ -120,11 +120,11 @@ export type ApiSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   issuesId?: InputMaybe<Scalars['ID']>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
@@ -146,6 +146,8 @@ export type ApiSearchResult = {
 };
 
 export enum ApiSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -158,8 +160,6 @@ export enum ApiSortBy {
   QuestionsDesc = 'QuestionsDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   VersionsAsc = 'VersionsAsc',
   VersionsDesc = 'VersionsDesc',
   ViewsAsc = 'ViewsAsc',
@@ -195,6 +195,7 @@ export type ApiVersion = {
   forks: Array<Api>;
   forksCount: Scalars['Int'];
   id: Scalars['ID'];
+  isComplete: Scalars['Boolean'];
   isLatest: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   pullRequest?: Maybe<PullRequest>;
@@ -215,6 +216,7 @@ export type ApiVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -236,14 +238,19 @@ export type ApiVersionSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
+  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  maxScoreRoot?: InputMaybe<Scalars['Int']>;
+  maxViewsRoot?: InputMaybe<Scalars['Int']>;
+  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  minScoreRoot?: InputMaybe<Scalars['Int']>;
+  minViewsRoot?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ApiVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -304,6 +311,7 @@ export type ApiVersionUpdateInput = {
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -318,13 +326,13 @@ export type ApiVersionUpdateInput = {
 
 export type ApiYou = {
   __typename: 'ApiYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
 };
@@ -346,7 +354,7 @@ export enum AwardCategory {
   CommentCreate = 'CommentCreate',
   IssueCreate = 'IssueCreate',
   NoteCreate = 'NoteCreate',
-  ObjectStar = 'ObjectStar',
+  ObjectBookmark = 'ObjectBookmark',
   ObjectVote = 'ObjectVote',
   OrganizationCreate = 'OrganizationCreate',
   OrganizationJoin = 'OrganizationJoin',
@@ -369,8 +377,76 @@ export enum AwardCategory {
   UserInvite = 'UserInvite'
 }
 
+export type Bookmark = {
+  __typename: 'Bookmark';
+  by: User;
+  id: Scalars['ID'];
+  label: Scalars['String'];
+  to: BookmarkTo;
+};
+
+export type BookmarkCreateInput = {
+  bookmarkFor: BookmarkFor;
+  forConnect: Scalars['ID'];
+  id: Scalars['ID'];
+  label?: InputMaybe<Scalars['String']>;
+};
+
+export type BookmarkEdge = {
+  __typename: 'BookmarkEdge';
+  cursor: Scalars['String'];
+  node: Bookmark;
+};
+
+export enum BookmarkFor {
+  Api = 'Api',
+  Comment = 'Comment',
+  Issue = 'Issue',
+  Note = 'Note',
+  Organization = 'Organization',
+  Post = 'Post',
+  Project = 'Project',
+  Question = 'Question',
+  QuestionAnswer = 'QuestionAnswer',
+  Quiz = 'Quiz',
+  Routine = 'Routine',
+  SmartContract = 'SmartContract',
+  Standard = 'Standard',
+  Tag = 'Tag',
+  User = 'User'
+}
+
+export type BookmarkSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<BookmarkSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type BookmarkSearchResult = {
+  __typename: 'BookmarkSearchResult';
+  edges: Array<BookmarkEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum BookmarkSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export type BookmarkTo = Api | Comment | Issue | Note | Organization | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard | Tag | User;
+
+export type BookmarkUpdateInput = {
+  id: Scalars['ID'];
+  label?: InputMaybe<Scalars['String']>;
+};
+
 export type Comment = {
   __typename: 'Comment';
+  bookmarkedBy?: Maybe<Array<User>>;
+  bookmarks: Scalars['Int'];
   commentedOn: CommentedOn;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -378,8 +454,6 @@ export type Comment = {
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy?: Maybe<Array<User>>;
-  stars: Scalars['Int'];
   translations: Array<CommentTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
@@ -413,8 +487,8 @@ export type CommentSearchInput = {
   apiVersionId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   issueId?: InputMaybe<Scalars['ID']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   noteVersionId?: InputMaybe<Scalars['ID']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
@@ -441,14 +515,14 @@ export type CommentSearchResult = {
 };
 
 export enum CommentSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
   ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  ScoreDesc = 'ScoreDesc'
 }
 
 export type CommentThread = {
@@ -487,13 +561,13 @@ export type CommentUpdateInput = {
 
 export type CommentYou = {
   __typename: 'CommentYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canReply: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
 };
 
@@ -544,6 +618,7 @@ export type DeleteOneInput = {
 export enum DeleteType {
   Api = 'Api',
   ApiVersion = 'ApiVersion',
+  Bookmark = 'Bookmark',
   Comment = 'Comment',
   Email = 'Email',
   Issue = 'Issue',
@@ -641,6 +716,7 @@ export enum GqlModelType {
   Api = 'Api',
   ApiKey = 'ApiKey',
   ApiVersion = 'ApiVersion',
+  Bookmark = 'Bookmark',
   Comment = 'Comment',
   Copy = 'Copy',
   DevelopResult = 'DevelopResult',
@@ -714,7 +790,6 @@ export enum GqlModelType {
   SmartContractVersion = 'SmartContractVersion',
   Standard = 'Standard',
   StandardVersion = 'StandardVersion',
-  Star = 'Star',
   StatsApi = 'StatsApi',
   StatsOrganization = 'StatsOrganization',
   StatsProject = 'StatsProject',
@@ -750,12 +825,14 @@ export type HistoryResult = {
   __typename: 'HistoryResult';
   activeRuns: Array<AnyRun>;
   completedRuns: Array<AnyRun>;
-  recentlyStarred: Array<Star>;
+  recentlyBookmarked: Array<Bookmark>;
   recentlyViewed: Array<View>;
 };
 
 export type Issue = {
   __typename: 'Issue';
+  bookmarkedBy?: Maybe<Array<Bookmark>>;
+  bookmarks: Scalars['Int'];
   closedAt?: Maybe<Scalars['Date']>;
   closedBy?: Maybe<User>;
   comments: Array<Comment>;
@@ -769,8 +846,6 @@ export type Issue = {
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy?: Maybe<Array<Star>>;
-  stars: Scalars['Int'];
   status: IssueStatus;
   to: IssueTo;
   translations: Array<IssueTranslation>;
@@ -818,8 +893,8 @@ export type IssueSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   noteId?: InputMaybe<Scalars['ID']>;
   organizationId?: InputMaybe<Scalars['ID']>;
@@ -844,6 +919,8 @@ export type IssueSearchResult = {
 };
 
 export enum IssueSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCompletedAsc = 'DateCompletedAsc',
@@ -855,9 +932,7 @@ export enum IssueSortBy {
   ForksAsc = 'ForksAsc',
   ForksDesc = 'ForksDesc',
   ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  ScoreDesc = 'ScoreDesc'
 }
 
 export enum IssueStatus {
@@ -903,14 +978,14 @@ export type IssueUpdateInput = {
 
 export type IssueYou = {
   __typename: 'IssueYou';
+  canBookmark: Scalars['Boolean'];
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
 };
 
@@ -967,7 +1042,6 @@ export type LabelSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  label?: InputMaybe<Scalars['String']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1417,6 +1491,8 @@ export type Mutation = {
   apiUpdate: Api;
   apiVersionCreate: ApiVersion;
   apiVersionUpdate: ApiVersion;
+  bookmarkCreate: Bookmark;
+  bookmarkUpdate: Bookmark;
   commentCreate: Comment;
   commentUpdate: Comment;
   copy: CopyResult;
@@ -1525,7 +1601,6 @@ export type Mutation = {
   standardUpdate: Standard;
   standardVersionCreate: StandardVersion;
   standardVersionUpdate: StandardVersion;
-  star: Success;
   switchCurrentAccount: Session;
   tagCreate: Tag;
   tagUpdate: Tag;
@@ -1584,6 +1659,16 @@ export type MutationApiVersionCreateArgs = {
 
 export type MutationApiVersionUpdateArgs = {
   input: ApiVersionUpdateInput;
+};
+
+
+export type MutationBookmarkCreateArgs = {
+  input: BookmarkCreateInput;
+};
+
+
+export type MutationBookmarkUpdateArgs = {
+  input: BookmarkUpdateInput;
 };
 
 
@@ -2102,11 +2187,6 @@ export type MutationStandardVersionUpdateArgs = {
 };
 
 
-export type MutationStarArgs = {
-  input: StarInput;
-};
-
-
 export type MutationSwitchCurrentAccountArgs = {
   input: SwitchCurrentAccountInput;
 };
@@ -2519,6 +2599,8 @@ export type NodeUpdateInput = {
 
 export type Note = {
   __typename: 'Note';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -2535,8 +2617,6 @@ export type Note = {
   questions: Array<Question>;
   questionsCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
@@ -2573,10 +2653,10 @@ export type NoteSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
@@ -2594,6 +2674,8 @@ export type NoteSearchResult = {
 };
 
 export enum NoteSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -2606,8 +2688,6 @@ export enum NoteSortBy {
   QuestionsDesc = 'QuestionsDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   VersionsAsc = 'VersionsAsc',
   VersionsDesc = 'VersionsDesc',
   ViewsAsc = 'ViewsAsc',
@@ -2677,15 +2757,19 @@ export type NoteVersionSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
+  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  maxScoreRoot?: InputMaybe<Scalars['Int']>;
+  maxViewsRoot?: InputMaybe<Scalars['Int']>;
+  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  minScoreRoot?: InputMaybe<Scalars['Int']>;
+  minViewsRoot?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -2753,13 +2837,13 @@ export type NoteVersionUpdateInput = {
 
 export type NoteYou = {
   __typename: 'NoteYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
 };
@@ -2909,6 +2993,8 @@ export type Organization = {
   __typename: 'Organization';
   apis: Array<Api>;
   apisCount: Scalars['Int'];
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
@@ -2949,8 +3035,6 @@ export type Organization = {
   smartContractsCount: Scalars['Int'];
   standards: Array<Standard>;
   standardsCount: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats: Array<StatsOrganization>;
   tags: Array<Tag>;
   transfersIncoming: Array<Transfer>;
@@ -2989,10 +3073,10 @@ export type OrganizationSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
   memberUserIds?: InputMaybe<Array<Scalars['ID']>>;
-  minStars?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
@@ -3014,12 +3098,12 @@ export type OrganizationSearchResult = {
 };
 
 export enum OrganizationSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type OrganizationTranslation = {
@@ -3069,12 +3153,12 @@ export type OrganizationUpdateInput = {
 export type OrganizationYou = {
   __typename: 'OrganizationYou';
   canAddMembers: Scalars['Boolean'];
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
   yourMembership?: Maybe<Member>;
 };
@@ -3137,6 +3221,8 @@ export type PopularResult = {
 
 export type Post = {
   __typename: 'Post';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
@@ -3148,8 +3234,6 @@ export type Post = {
   repostsCount: Scalars['Int'];
   resourceList: ResourceList;
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   tags: Array<Tag>;
   translations: Array<PostTranslation>;
   updated_at: Scalars['Date'];
@@ -3181,8 +3265,10 @@ export type PostSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isPinned?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxScore?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   repostedFromIds?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -3200,6 +3286,8 @@ export type PostSearchResult = {
 };
 
 export enum PostSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -3212,8 +3300,6 @@ export enum PostSortBy {
   RepostsDesc = 'RepostsDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   ViewsAsc = 'ViewsAsc',
   ViewsDesc = 'ViewsDesc'
 }
@@ -3271,6 +3357,7 @@ export type ProfileUpdateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   isPrivateApis?: InputMaybe<Scalars['Boolean']>;
   isPrivateApisCreated?: InputMaybe<Scalars['Boolean']>;
+  isPrivateBookmarks?: InputMaybe<Scalars['Boolean']>;
   isPrivateMemberships?: InputMaybe<Scalars['Boolean']>;
   isPrivateOrganizationsCreated?: InputMaybe<Scalars['Boolean']>;
   isPrivateProjects?: InputMaybe<Scalars['Boolean']>;
@@ -3285,7 +3372,6 @@ export type ProfileUpdateInput = {
   isPrivateSmartContracts?: InputMaybe<Scalars['Boolean']>;
   isPrivateStandards?: InputMaybe<Scalars['Boolean']>;
   isPrivateStandardsCreated?: InputMaybe<Scalars['Boolean']>;
-  isPrivateStars?: InputMaybe<Scalars['Boolean']>;
   isPrivateVotes?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   name?: InputMaybe<Scalars['String']>;
@@ -3301,6 +3387,8 @@ export type ProfileUpdateInput = {
 
 export type Project = {
   __typename: 'Project';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   handle?: Maybe<Scalars['String']>;
@@ -3321,8 +3409,6 @@ export type Project = {
   quizzes: Array<Quiz>;
   quizzesCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats: Array<StatsProject>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
@@ -3375,8 +3461,9 @@ export type ProjectOrOrganizationSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
-  minStars?: InputMaybe<Scalars['Int']>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   objectType?: InputMaybe<Scalars['String']>;
   organizationAfter?: InputMaybe<Scalars['String']>;
@@ -3386,6 +3473,7 @@ export type ProjectOrOrganizationSearchInput = {
   projectAfter?: InputMaybe<Scalars['String']>;
   projectIsComplete?: InputMaybe<Scalars['Boolean']>;
   projectIsCompleteExceptions?: InputMaybe<Array<SearchException>>;
+  projectMaxScore?: InputMaybe<Scalars['Int']>;
   projectMinScore?: InputMaybe<Scalars['Int']>;
   projectOrganizationId?: InputMaybe<Scalars['ID']>;
   projectParentId?: InputMaybe<Scalars['ID']>;
@@ -3395,6 +3483,7 @@ export type ProjectOrOrganizationSearchInput = {
   sortBy?: InputMaybe<ProjectOrOrganizationSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -3407,12 +3496,12 @@ export type ProjectOrOrganizationSearchResult = {
 };
 
 export enum ProjectOrOrganizationSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type ProjectOrRoutine = Project | Routine;
@@ -3433,12 +3522,13 @@ export type ProjectOrRoutinePageInfo = {
 export type ProjectOrRoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
+  hasCompleteVersionExceptions?: InputMaybe<Array<SearchException>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxScore?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   objectType?: InputMaybe<Scalars['String']>;
   organizationId?: InputMaybe<Scalars['ID']>;
@@ -3459,6 +3549,7 @@ export type ProjectOrRoutineSearchInput = {
   sortBy?: InputMaybe<ProjectOrRoutineSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -3471,6 +3562,8 @@ export type ProjectOrRoutineSearchResult = {
 };
 
 export enum ProjectOrRoutineSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCompletedAsc = 'DateCompletedAsc',
   DateCompletedDesc = 'DateCompletedDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -3485,8 +3578,6 @@ export enum ProjectOrRoutineSortBy {
   QuestionsDesc = 'QuestionsDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   VersionsAsc = 'VersionsAsc',
   VersionsDesc = 'VersionsDesc',
   ViewsAsc = 'ViewsAsc',
@@ -3502,11 +3593,11 @@ export type ProjectSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   issuesId?: InputMaybe<Scalars['ID']>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
@@ -3528,6 +3619,8 @@ export type ProjectSearchResult = {
 };
 
 export enum ProjectSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCompletedAsc = 'DateCompletedAsc',
   DateCompletedDesc = 'DateCompletedDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -3542,8 +3635,6 @@ export enum ProjectSortBy {
   QuestionsDesc = 'QuestionsDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   VersionsAsc = 'VersionsAsc',
   VersionsDesc = 'VersionsDesc',
   ViewsAsc = 'ViewsAsc',
@@ -3696,13 +3787,17 @@ export type ProjectVersionSearchInput = {
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
   isCompleteWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
   isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
+  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
+  maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;
   maxTimesCompleted?: InputMaybe<Scalars['Int']>;
+  maxViewsRoot?: InputMaybe<Scalars['Int']>;
+  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minComplexity?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minSimplicity?: InputMaybe<Scalars['Int']>;
-  minStarsRoot?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
@@ -3710,7 +3805,7 @@ export type ProjectVersionSearchInput = {
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -3798,13 +3893,13 @@ export type ProjectVersionYou = {
 
 export type ProjectYou = {
   __typename: 'ProjectYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
 };
@@ -3931,6 +4026,8 @@ export type Query = {
   apiVersion?: Maybe<ApiVersion>;
   apiVersions: ApiVersionSearchResult;
   apis: ApiSearchResult;
+  bookmark?: Maybe<Bookmark>;
+  bookmarks: BookmarkSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   develop: DevelopResult;
@@ -4024,7 +4121,6 @@ export type Query = {
   standardVersion?: Maybe<StandardVersion>;
   standardVersions: StandardVersionSearchResult;
   standards: StandardSearchResult;
-  stars: StarSearchResult;
   statsApi: StatsApiSearchResult;
   statsOrganization: StatsOrganizationSearchResult;
   statsProject: StatsProjectSearchResult;
@@ -4065,6 +4161,16 @@ export type QueryApiVersionsArgs = {
 
 export type QueryApisArgs = {
   input: ApiSearchInput;
+};
+
+
+export type QueryBookmarkArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryBookmarksArgs = {
+  input: BookmarkSearchInput;
 };
 
 
@@ -4508,11 +4614,6 @@ export type QueryStandardsArgs = {
 };
 
 
-export type QueryStarsArgs = {
-  input: StarSearchInput;
-};
-
-
 export type QueryStatsApiArgs = {
   input: StatsApiSearchInput;
 };
@@ -4616,6 +4717,8 @@ export type Question = {
   __typename: 'Question';
   answers: Array<QuestionAnswer>;
   answersCount: Scalars['Int'];
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   createdBy?: Maybe<User>;
@@ -4626,8 +4729,6 @@ export type Question = {
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   tags: Array<Tag>;
   translations: Array<QuestionTranslation>;
   translationsCount: Scalars['Int'];
@@ -4637,6 +4738,8 @@ export type Question = {
 
 export type QuestionAnswer = {
   __typename: 'QuestionAnswer';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   createdBy?: Maybe<User>;
@@ -4645,8 +4748,6 @@ export type QuestionAnswer = {
   isAccepted: Scalars['Boolean'];
   question: Question;
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   translations: Array<QuestionAnswerTranslation>;
   updated_at: Scalars['Date'];
 };
@@ -4668,8 +4769,8 @@ export type QuestionAnswerSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuestionAnswerSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -4683,6 +4784,8 @@ export type QuestionAnswerSearchResult = {
 };
 
 export enum QuestionAnswerSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -4690,9 +4793,7 @@ export enum QuestionAnswerSortBy {
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
   ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  ScoreDesc = 'ScoreDesc'
 }
 
 export type QuestionAnswerTranslation = {
@@ -4758,10 +4859,10 @@ export type QuestionSearchInput = {
   hasAcceptedAnswer?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   noteId?: InputMaybe<Scalars['ID']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
@@ -4783,6 +4884,8 @@ export type QuestionSearchResult = {
 export enum QuestionSortBy {
   AnswersAsc = 'AnswersAsc',
   AnswersDesc = 'AnswersDesc',
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -4790,9 +4893,7 @@ export enum QuestionSortBy {
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
   ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  ScoreDesc = 'ScoreDesc'
 }
 
 export type QuestionTranslation = {
@@ -4830,12 +4931,12 @@ export type QuestionUpdateInput = {
 
 export type QuestionYou = {
   __typename: 'QuestionYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
 };
 
@@ -4843,6 +4944,8 @@ export type Quiz = {
   __typename: 'Quiz';
   attempts: Array<QuizAttempt>;
   attemptsCount: Scalars['Int'];
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -4853,8 +4956,6 @@ export type Quiz = {
   randomizeQuestionOrder: Scalars['Boolean'];
   routine?: Maybe<Routine>;
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats: Array<StatsQuiz>;
   translations: Array<QuizTranslation>;
   updated_at: Scalars['Date'];
@@ -5160,8 +5261,10 @@ export type QuizSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxScore?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -5181,6 +5284,8 @@ export type QuizSearchResult = {
 export enum QuizSortBy {
   AttemptsAsc = 'AttemptsAsc',
   AttemptsDesc = 'AttemptsDesc',
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -5188,9 +5293,7 @@ export enum QuizSortBy {
   QuestionsAsc = 'QuestionsAsc',
   QuestionsDesc = 'QuestionsDesc',
   ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  ScoreDesc = 'ScoreDesc'
 }
 
 export type QuizTranslation = {
@@ -5237,13 +5340,13 @@ export type QuizUpdateInput = {
 
 export type QuizYou = {
   __typename: 'QuizYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   hasCompleted: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
 };
 
@@ -5919,6 +6022,8 @@ export type RoleUpdateInput = {
 
 export type Routine = {
   __typename: 'Routine';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -5942,8 +6047,6 @@ export type Routine = {
   quizzes: Array<Quiz>;
   quizzesCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats: Array<StatsRoutine>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
@@ -5987,11 +6090,11 @@ export type RoutineSearchInput = {
   isInternal?: InputMaybe<Scalars['Boolean']>;
   issuesId?: InputMaybe<Scalars['ID']>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
@@ -6013,6 +6116,8 @@ export type RoutineSearchResult = {
 };
 
 export enum RoutineSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCompletedAsc = 'DateCompletedAsc',
   DateCompletedDesc = 'DateCompletedDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -6029,8 +6134,6 @@ export enum RoutineSortBy {
   QuizzesDesc = 'QuizzesDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   VersionsAsc = 'VersionsAsc',
   VersionsDesc = 'VersionsDesc',
   ViewsAsc = 'ViewsAsc',
@@ -6263,13 +6366,17 @@ export type RoutineVersionSearchInput = {
   isInternalWithRoot?: InputMaybe<Scalars['Boolean']>;
   isInternalWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
   isInternalWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
+  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
+  maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;
   maxTimesCompleted?: InputMaybe<Scalars['Int']>;
+  maxViewsRoot?: InputMaybe<Scalars['Int']>;
+  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minComplexity?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minSimplicity?: InputMaybe<Scalars['Int']>;
-  minStarsRoot?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
@@ -6278,7 +6385,7 @@ export type RoutineVersionSearchInput = {
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -6377,13 +6484,13 @@ export type RoutineVersionUpdateInput = {
 
 export type RoutineVersionYou = {
   __typename: 'RoutineVersionYou';
+  canBookmark: Scalars['Boolean'];
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canRun: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   runs: Array<RunRoutine>;
@@ -6391,14 +6498,14 @@ export type RoutineVersionYou = {
 
 export type RoutineYou = {
   __typename: 'RoutineYou';
+  canBookmark: Scalars['Boolean'];
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
 };
@@ -7112,6 +7219,8 @@ export type SessionUser = {
 
 export type SmartContract = {
   __typename: 'SmartContract';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -7130,8 +7239,6 @@ export type SmartContract = {
   questions: Array<Question>;
   questionsCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats: Array<StatsSmartContract>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
@@ -7173,11 +7280,11 @@ export type SmartContractSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   issuesId?: InputMaybe<Scalars['ID']>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
@@ -7199,6 +7306,8 @@ export type SmartContractSearchResult = {
 };
 
 export enum SmartContractSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCompletedAsc = 'DateCompletedAsc',
   DateCompletedDesc = 'DateCompletedDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -7213,8 +7322,6 @@ export enum SmartContractSortBy {
   QuestionsDesc = 'QuestionsDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   VersionsAsc = 'VersionsAsc',
   VersionsDesc = 'VersionsDesc',
   ViewsAsc = 'ViewsAsc',
@@ -7299,13 +7406,20 @@ export type SmartContractVersionSearchInput = {
   contractType?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  maxScoreRoot?: InputMaybe<Scalars['Int']>;
+  maxViewsRoot?: InputMaybe<Scalars['Int']>;
+  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  minScoreRoot?: InputMaybe<Scalars['Int']>;
+  minViewsRoot?: InputMaybe<Scalars['Int']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<SmartContractVersionSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -7382,19 +7496,21 @@ export type SmartContractVersionUpdateInput = {
 
 export type SmartContractYou = {
   __typename: 'SmartContractYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
 };
 
 export type Standard = {
   __typename: 'Standard';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -7417,8 +7533,6 @@ export type Standard = {
   questions: Array<Question>;
   questionsCount: Scalars['Int'];
   score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats: Array<StatsStandard>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
@@ -7463,11 +7577,11 @@ export type StandardSearchInput = {
   isInternal?: InputMaybe<Scalars['Boolean']>;
   issuesId?: InputMaybe<Scalars['ID']>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
-  maxStars?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
@@ -7489,6 +7603,8 @@ export type StandardSearchResult = {
 };
 
 export enum StandardSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCompletedAsc = 'DateCompletedAsc',
   DateCompletedDesc = 'DateCompletedDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -7503,8 +7619,6 @@ export enum StandardSortBy {
   QuestionsDesc = 'QuestionsDesc',
   ScoreAsc = 'ScoreAsc',
   ScoreDesc = 'ScoreDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
   VersionsAsc = 'VersionsAsc',
   VersionsDesc = 'VersionsDesc',
   ViewsAsc = 'ViewsAsc',
@@ -7593,14 +7707,21 @@ export type StandardVersionSearchInput = {
   completedTimeFrame?: InputMaybe<TimeFrame>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  maxScoreRoot?: InputMaybe<Scalars['Int']>;
+  maxViewsRoot?: InputMaybe<Scalars['Int']>;
+  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  minScoreRoot?: InputMaybe<Scalars['Int']>;
+  minViewsRoot?: InputMaybe<Scalars['Int']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardVersionSortBy>;
   standardType?: InputMaybe<Scalars['String']>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -7676,75 +7797,16 @@ export type StandardVersionUpdateInput = {
 
 export type StandardYou = {
   __typename: 'StandardYou';
+  canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
 };
-
-export type Star = {
-  __typename: 'Star';
-  by: User;
-  id: Scalars['ID'];
-  to: StarTo;
-};
-
-export type StarEdge = {
-  __typename: 'StarEdge';
-  cursor: Scalars['String'];
-  node: Star;
-};
-
-export enum StarFor {
-  Api = 'Api',
-  Comment = 'Comment',
-  Issue = 'Issue',
-  Note = 'Note',
-  Organization = 'Organization',
-  Post = 'Post',
-  Project = 'Project',
-  Question = 'Question',
-  QuestionAnswer = 'QuestionAnswer',
-  Quiz = 'Quiz',
-  Routine = 'Routine',
-  SmartContract = 'SmartContract',
-  Standard = 'Standard',
-  Tag = 'Tag',
-  User = 'User'
-}
-
-export type StarInput = {
-  forConnect: Scalars['ID'];
-  isStar: Scalars['Boolean'];
-  starFor: StarFor;
-};
-
-export type StarSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<StarSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
-};
-
-export type StarSearchResult = {
-  __typename: 'StarSearchResult';
-  edges: Array<StarEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum StarSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
-
-export type StarTo = Api | Comment | Issue | Note | Organization | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard | Tag | User;
 
 export enum StatPeriodType {
   Daily = 'Daily',
@@ -7756,7 +7818,6 @@ export enum StatPeriodType {
 export type StatsApi = {
   __typename: 'StatsApi';
   calls: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -7794,7 +7855,6 @@ export enum StatsApiSortBy {
 export type StatsOrganization = {
   __typename: 'StatsOrganization';
   apis: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   members: Scalars['Int'];
   notes: Scalars['Int'];
@@ -7841,7 +7901,6 @@ export enum StatsOrganizationSortBy {
 export type StatsProject = {
   __typename: 'StatsProject';
   apis: Scalars['Int'];
-  created_at: Scalars['Date'];
   directories: Scalars['Int'];
   id: Scalars['ID'];
   notes: Scalars['Int'];
@@ -7889,7 +7948,6 @@ export enum StatsProjectSortBy {
 export type StatsQuiz = {
   __typename: 'StatsQuiz';
   completionTimeAverage: Scalars['Float'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -7929,7 +7987,6 @@ export enum StatsQuizSortBy {
 
 export type StatsRoutine = {
   __typename: 'StatsRoutine';
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -8036,7 +8093,6 @@ export enum StatsSiteSortBy {
 export type StatsSmartContract = {
   __typename: 'StatsSmartContract';
   calls: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
@@ -8073,7 +8129,6 @@ export enum StatsSmartContractSortBy {
 
 export type StatsStandard = {
   __typename: 'StatsStandard';
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   linksToInputs: Scalars['Int'];
   linksToOutputs: Scalars['Int'];
@@ -8112,7 +8167,6 @@ export enum StatsStandardSortBy {
 export type StatsUser = {
   __typename: 'StatsUser';
   apisCreated: Scalars['Int'];
-  created_at: Scalars['Date'];
   id: Scalars['ID'];
   organizationsCreated: Scalars['Int'];
   periodEnd: Scalars['Date'];
@@ -8200,6 +8254,8 @@ export type SwitchCurrentAccountInput = {
 export type Tag = {
   __typename: 'Tag';
   apis: Array<Api>;
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   notes: Array<Note>;
@@ -8210,8 +8266,6 @@ export type Tag = {
   routines: Array<Routine>;
   smartContracts: Array<SmartContract>;
   standards: Array<Standard>;
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   tag: Scalars['String'];
   translations: Array<TagTranslation>;
   updated_at: Scalars['Date'];
@@ -8236,8 +8290,8 @@ export type TagSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  maxStars?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -8252,12 +8306,12 @@ export type TagSearchResult = {
 };
 
 export enum TagSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type TagTranslation = {
@@ -8289,8 +8343,8 @@ export type TagUpdateInput = {
 
 export type TagYou = {
   __typename: 'TagYou';
+  isBookmarked: Scalars['Boolean'];
   isOwn: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
 };
 
 export type TimeFrame = {
@@ -8419,6 +8473,9 @@ export type User = {
   apis: Array<Api>;
   apisCreated?: Maybe<Array<Api>>;
   awards?: Maybe<Array<Award>>;
+  bookmarked?: Maybe<Array<Bookmark>>;
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
   comments?: Maybe<Array<Comment>>;
   created_at: Scalars['Date'];
   emails?: Maybe<Array<Email>>;
@@ -8429,6 +8486,7 @@ export type User = {
   isPrivate: Scalars['Boolean'];
   isPrivateApis: Scalars['Boolean'];
   isPrivateApisCreated: Scalars['Boolean'];
+  isPrivateBookmarks: Scalars['Boolean'];
   isPrivateMemberships: Scalars['Boolean'];
   isPrivateOrganizationsCreated: Scalars['Boolean'];
   isPrivateProjects: Scalars['Boolean'];
@@ -8443,7 +8501,6 @@ export type User = {
   isPrivateSmartContracts: Scalars['Boolean'];
   isPrivateStandards: Scalars['Boolean'];
   isPrivateStandardsCreated: Scalars['Boolean'];
-  isPrivateStars: Scalars['Boolean'];
   isPrivateVotes: Scalars['Boolean'];
   issuesClosed?: Maybe<Array<Issue>>;
   issuesCreated?: Maybe<Array<Issue>>;
@@ -8486,9 +8543,6 @@ export type User = {
   smartContractsCreated?: Maybe<Array<SmartContract>>;
   standards?: Maybe<Array<Standard>>;
   standardsCreated?: Maybe<Array<Standard>>;
-  starred?: Maybe<Array<Star>>;
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
   stats?: Maybe<StatsUser>;
   status?: Maybe<AccountStatus>;
   tags?: Maybe<Array<Tag>>;
@@ -8642,7 +8696,9 @@ export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  minStars?: InputMaybe<Scalars['Int']>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserSortBy>;
@@ -8658,12 +8714,12 @@ export type UserSearchResult = {
 };
 
 export enum UserSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type UserTranslation = {
@@ -8690,7 +8746,7 @@ export type UserYou = {
   canDelete: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
 };
 
@@ -8943,6 +8999,15 @@ export type ResolversTypes = {
   ApiYou: ResolverTypeWrapper<ApiYou>;
   Award: ResolverTypeWrapper<Award>;
   AwardCategory: AwardCategory;
+  Bookmark: ResolverTypeWrapper<Omit<Bookmark, 'to'> & { to: ResolversTypes['BookmarkTo'] }>;
+  BookmarkCreateInput: BookmarkCreateInput;
+  BookmarkEdge: ResolverTypeWrapper<BookmarkEdge>;
+  BookmarkFor: BookmarkFor;
+  BookmarkSearchInput: BookmarkSearchInput;
+  BookmarkSearchResult: ResolverTypeWrapper<BookmarkSearchResult>;
+  BookmarkSortBy: BookmarkSortBy;
+  BookmarkTo: ResolversTypes['Api'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['Tag'] | ResolversTypes['User'];
+  BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
   Comment: ResolverTypeWrapper<Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversTypes['CommentedOn'], owner?: Maybe<ResolversTypes['Owner']> }>;
   CommentCreateInput: CommentCreateInput;
@@ -9478,14 +9543,6 @@ export type ResolversTypes = {
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: ResolverTypeWrapper<StandardYou>;
-  Star: ResolverTypeWrapper<Omit<Star, 'to'> & { to: ResolversTypes['StarTo'] }>;
-  StarEdge: ResolverTypeWrapper<StarEdge>;
-  StarFor: StarFor;
-  StarInput: StarInput;
-  StarSearchInput: StarSearchInput;
-  StarSearchResult: ResolverTypeWrapper<StarSearchResult>;
-  StarSortBy: StarSortBy;
-  StarTo: ResolversTypes['Api'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['Tag'] | ResolversTypes['User'];
   StatPeriodType: StatPeriodType;
   StatsApi: ResolverTypeWrapper<StatsApi>;
   StatsApiEdge: ResolverTypeWrapper<StatsApiEdge>;
@@ -9635,6 +9692,13 @@ export type ResolversParentTypes = {
   ApiVersionUpdateInput: ApiVersionUpdateInput;
   ApiYou: ApiYou;
   Award: Award;
+  Bookmark: Omit<Bookmark, 'to'> & { to: ResolversParentTypes['BookmarkTo'] };
+  BookmarkCreateInput: BookmarkCreateInput;
+  BookmarkEdge: BookmarkEdge;
+  BookmarkSearchInput: BookmarkSearchInput;
+  BookmarkSearchResult: BookmarkSearchResult;
+  BookmarkTo: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Tag'] | ResolversParentTypes['User'];
+  BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: Scalars['Boolean'];
   Comment: Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversParentTypes['CommentedOn'], owner?: Maybe<ResolversParentTypes['Owner']> };
   CommentCreateInput: CommentCreateInput;
@@ -10105,12 +10169,6 @@ export type ResolversParentTypes = {
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: StandardYou;
-  Star: Omit<Star, 'to'> & { to: ResolversParentTypes['StarTo'] };
-  StarEdge: StarEdge;
-  StarInput: StarInput;
-  StarSearchInput: StarSearchInput;
-  StarSearchResult: StarSearchResult;
-  StarTo: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Tag'] | ResolversParentTypes['User'];
   StatsApi: StatsApi;
   StatsApiEdge: StatsApiEdge;
   StatsApiSearchInput: StatsApiSearchInput;
@@ -10218,6 +10276,8 @@ export type AnyRunResolvers<ContextType = any, ParentType extends ResolversParen
 };
 
 export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTypes['Api'] = ResolversParentTypes['Api']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -10236,8 +10296,6 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
   questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsApi']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
@@ -10283,6 +10341,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   forks?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   forksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
@@ -10321,13 +10380,13 @@ export type ApiVersionTranslationResolvers<ContextType = any, ParentType extends
 };
 
 export type ApiYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ApiYou'] = ResolversParentTypes['ApiYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10343,7 +10402,33 @@ export type AwardResolvers<ContextType = any, ParentType extends ResolversParent
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type BookmarkResolvers<ContextType = any, ParentType extends ResolversParentTypes['Bookmark'] = ResolversParentTypes['Bookmark']> = {
+  by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  label?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  to?: Resolver<ResolversTypes['BookmarkTo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BookmarkEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkEdge'] = ResolversParentTypes['BookmarkEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BookmarkSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkSearchResult'] = ResolversParentTypes['BookmarkSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['BookmarkEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BookmarkToResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkTo'] = ResolversParentTypes['BookmarkTo']> = {
+  __resolveType: TypeResolveFn<'Api' | 'Comment' | 'Issue' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard' | 'Tag' | 'User', ParentType, ContextType>;
+};
+
 export type CommentResolvers<ContextType = any, ParentType extends ResolversParentTypes['Comment'] = ResolversParentTypes['Comment']> = {
+  bookmarkedBy?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   commentedOn?: Resolver<ResolversTypes['CommentedOn'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -10351,8 +10436,6 @@ export type CommentResolvers<ContextType = any, ParentType extends ResolversPare
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['CommentTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -10383,13 +10466,13 @@ export type CommentTranslationResolvers<ContextType = any, ParentType extends Re
 };
 
 export type CommentYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['CommentYou'] = ResolversParentTypes['CommentYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReply?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10442,12 +10525,14 @@ export type HandleResolvers<ContextType = any, ParentType extends ResolversParen
 export type HistoryResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['HistoryResult'] = ResolversParentTypes['HistoryResult']> = {
   activeRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
   completedRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
-  recentlyStarred?: Resolver<Array<ResolversTypes['Star']>, ParentType, ContextType>;
+  recentlyBookmarked?: Resolver<Array<ResolversTypes['Bookmark']>, ParentType, ContextType>;
   recentlyViewed?: Resolver<Array<ResolversTypes['View']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IssueResolvers<ContextType = any, ParentType extends ResolversParentTypes['Issue'] = ResolversParentTypes['Issue']> = {
+  bookmarkedBy?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   closedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   closedBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
@@ -10461,8 +10546,6 @@ export type IssueResolvers<ContextType = any, ParentType extends ResolversParent
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Maybe<Array<ResolversTypes['Star']>>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['IssueStatus'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['IssueTo'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['IssueTranslation']>, ParentType, ContextType>;
@@ -10498,14 +10581,14 @@ export type IssueTranslationResolvers<ContextType = any, ParentType extends Reso
 };
 
 export type IssueYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['IssueYou'] = ResolversParentTypes['IssueYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10722,6 +10805,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   apiUpdate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationApiUpdateArgs, 'input'>>;
   apiVersionCreate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionCreateArgs, 'input'>>;
   apiVersionUpdate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionUpdateArgs, 'input'>>;
+  bookmarkCreate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkCreateArgs, 'input'>>;
+  bookmarkUpdate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkUpdateArgs, 'input'>>;
   commentCreate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentCreateArgs, 'input'>>;
   commentUpdate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentUpdateArgs, 'input'>>;
   copy?: Resolver<ResolversTypes['CopyResult'], ParentType, ContextType, RequireFields<MutationCopyArgs, 'input'>>;
@@ -10830,7 +10915,6 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   standardUpdate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardUpdateArgs, 'input'>>;
   standardVersionCreate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionCreateArgs, 'input'>>;
   standardVersionUpdate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionUpdateArgs, 'input'>>;
-  star?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationStarArgs, 'input'>>;
   switchCurrentAccount?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationSwitchCurrentAccountArgs, 'input'>>;
   tagCreate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagCreateArgs, 'input'>>;
   tagUpdate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagUpdateArgs, 'input'>>;
@@ -10961,6 +11045,8 @@ export type NodeTranslationResolvers<ContextType = any, ParentType extends Resol
 };
 
 export type NoteResolvers<ContextType = any, ParentType extends ResolversParentTypes['Note'] = ResolversParentTypes['Note']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -10977,8 +11063,6 @@ export type NoteResolvers<ContextType = any, ParentType extends ResolversParentT
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
   questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11048,13 +11132,13 @@ export type NoteVersionTranslationResolvers<ContextType = any, ParentType extend
 };
 
 export type NoteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteYou'] = ResolversParentTypes['NoteYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11130,6 +11214,8 @@ export type NotificationSubscriptionSearchResultResolvers<ContextType = any, Par
 export type OrganizationResolvers<ContextType = any, ParentType extends ResolversParentTypes['Organization'] = ResolversParentTypes['Organization']> = {
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -11170,8 +11256,6 @@ export type OrganizationResolvers<ContextType = any, ParentType extends Resolver
   smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsOrganization']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfersIncoming?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
@@ -11208,12 +11292,12 @@ export type OrganizationTranslationResolvers<ContextType = any, ParentType exten
 
 export type OrganizationYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationYou'] = ResolversParentTypes['OrganizationYou']> = {
   canAddMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   yourMembership?: Resolver<Maybe<ResolversTypes['Member']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11263,6 +11347,8 @@ export type PopularResultResolvers<ContextType = any, ParentType extends Resolve
 };
 
 export type PostResolvers<ContextType = any, ParentType extends ResolversParentTypes['Post'] = ResolversParentTypes['Post']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -11274,8 +11360,6 @@ export type PostResolvers<ContextType = any, ParentType extends ResolversParentT
   repostsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<ResolversTypes['ResourceList'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['PostTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -11313,6 +11397,8 @@ export type PremiumResolvers<ContextType = any, ParentType extends ResolversPare
 };
 
 export type ProjectResolvers<ContextType = any, ParentType extends ResolversParentTypes['Project'] = ResolversParentTypes['Project']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -11333,8 +11419,6 @@ export type ProjectResolvers<ContextType = any, ParentType extends ResolversPare
   quizzes?: Resolver<Array<ResolversTypes['Quiz']>, ParentType, ContextType>;
   quizzesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsProject']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
@@ -11503,13 +11587,13 @@ export type ProjectVersionYouResolvers<ContextType = any, ParentType extends Res
 };
 
 export type ProjectYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectYou'] = ResolversParentTypes['ProjectYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11570,6 +11654,8 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType, RequireFields<QueryApiVersionArgs, 'input'>>;
   apiVersions?: Resolver<ResolversTypes['ApiVersionSearchResult'], ParentType, ContextType, RequireFields<QueryApiVersionsArgs, 'input'>>;
   apis?: Resolver<ResolversTypes['ApiSearchResult'], ParentType, ContextType, RequireFields<QueryApisArgs, 'input'>>;
+  bookmark?: Resolver<Maybe<ResolversTypes['Bookmark']>, ParentType, ContextType, RequireFields<QueryBookmarkArgs, 'input'>>;
+  bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarksArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
   develop?: Resolver<ResolversTypes['DevelopResult'], ParentType, ContextType>;
@@ -11663,7 +11749,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType, RequireFields<QueryStandardVersionArgs, 'input'>>;
   standardVersions?: Resolver<ResolversTypes['StandardVersionSearchResult'], ParentType, ContextType, RequireFields<QueryStandardVersionsArgs, 'input'>>;
   standards?: Resolver<ResolversTypes['StandardSearchResult'], ParentType, ContextType, RequireFields<QueryStandardsArgs, 'input'>>;
-  stars?: Resolver<ResolversTypes['StarSearchResult'], ParentType, ContextType, RequireFields<QueryStarsArgs, 'input'>>;
   statsApi?: Resolver<ResolversTypes['StatsApiSearchResult'], ParentType, ContextType, RequireFields<QueryStatsApiArgs, 'input'>>;
   statsOrganization?: Resolver<ResolversTypes['StatsOrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryStatsOrganizationArgs, 'input'>>;
   statsProject?: Resolver<ResolversTypes['StatsProjectSearchResult'], ParentType, ContextType, RequireFields<QueryStatsProjectArgs, 'input'>>;
@@ -11689,6 +11774,8 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
 export type QuestionResolvers<ContextType = any, ParentType extends ResolversParentTypes['Question'] = ResolversParentTypes['Question']> = {
   answers?: Resolver<Array<ResolversTypes['QuestionAnswer']>, ParentType, ContextType>;
   answersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
@@ -11699,8 +11786,6 @@ export type QuestionResolvers<ContextType = any, ParentType extends ResolversPar
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuestionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11710,6 +11795,8 @@ export type QuestionResolvers<ContextType = any, ParentType extends ResolversPar
 };
 
 export type QuestionAnswerResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionAnswer'] = ResolversParentTypes['QuestionAnswer']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
@@ -11718,8 +11805,6 @@ export type QuestionAnswerResolvers<ContextType = any, ParentType extends Resolv
   isAccepted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   question?: Resolver<ResolversTypes['Question'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuestionAnswerTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11769,12 +11854,12 @@ export type QuestionTranslationResolvers<ContextType = any, ParentType extends R
 };
 
 export type QuestionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionYou'] = ResolversParentTypes['QuestionYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11782,6 +11867,8 @@ export type QuestionYouResolvers<ContextType = any, ParentType extends Resolvers
 export type QuizResolvers<ContextType = any, ParentType extends ResolversParentTypes['Quiz'] = ResolversParentTypes['Quiz']> = {
   attempts?: Resolver<Array<ResolversTypes['QuizAttempt']>, ParentType, ContextType>;
   attemptsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -11792,8 +11879,6 @@ export type QuizResolvers<ContextType = any, ParentType extends ResolversParentT
   randomizeQuestionOrder?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   routine?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsQuiz']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuizTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -11935,13 +12020,13 @@ export type QuizTranslationResolvers<ContextType = any, ParentType extends Resol
 };
 
 export type QuizYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizYou'] = ResolversParentTypes['QuizYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   hasCompleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12208,6 +12293,8 @@ export type RoleTranslationResolvers<ContextType = any, ParentType extends Resol
 };
 
 export type RoutineResolvers<ContextType = any, ParentType extends ResolversParentTypes['Routine'] = ResolversParentTypes['Routine']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12231,8 +12318,6 @@ export type RoutineResolvers<ContextType = any, ParentType extends ResolversPare
   quizzes?: Resolver<Array<ResolversTypes['Quiz']>, ParentType, ContextType>;
   quizzesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsRoutine']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
@@ -12366,13 +12451,13 @@ export type RoutineVersionTranslationResolvers<ContextType = any, ParentType ext
 };
 
 export type RoutineVersionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionYou'] = ResolversParentTypes['RoutineVersionYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRun?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   runs?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
@@ -12380,14 +12465,14 @@ export type RoutineVersionYouResolvers<ContextType = any, ParentType extends Res
 };
 
 export type RoutineYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineYou'] = ResolversParentTypes['RoutineYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12640,6 +12725,8 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
 };
 
 export type SmartContractResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContract'] = ResolversParentTypes['SmartContract']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12658,8 +12745,6 @@ export type SmartContractResolvers<ContextType = any, ParentType extends Resolve
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
   questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsSmartContract']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
@@ -12739,19 +12824,21 @@ export type SmartContractVersionTranslationResolvers<ContextType = any, ParentTy
 };
 
 export type SmartContractYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractYou'] = ResolversParentTypes['SmartContractYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type StandardResolvers<ContextType = any, ParentType extends ResolversParentTypes['Standard'] = ResolversParentTypes['Standard']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12774,8 +12861,6 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
   questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsStandard']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
@@ -12856,44 +12941,20 @@ export type StandardVersionTranslationResolvers<ContextType = any, ParentType ex
 };
 
 export type StandardYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['StandardYou'] = ResolversParentTypes['StandardYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type StarResolvers<ContextType = any, ParentType extends ResolversParentTypes['Star'] = ResolversParentTypes['Star']> = {
-  by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  to?: Resolver<ResolversTypes['StarTo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type StarEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['StarEdge'] = ResolversParentTypes['StarEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['Star'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type StarSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StarSearchResult'] = ResolversParentTypes['StarSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['StarEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type StarToResolvers<ContextType = any, ParentType extends ResolversParentTypes['StarTo'] = ResolversParentTypes['StarTo']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Comment' | 'Issue' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard' | 'Tag' | 'User', ParentType, ContextType>;
-};
-
 export type StatsApiResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsApi'] = ResolversParentTypes['StatsApi']> = {
   calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12916,7 +12977,6 @@ export type StatsApiSearchResultResolvers<ContextType = any, ParentType extends 
 
 export type StatsOrganizationResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsOrganization'] = ResolversParentTypes['StatsOrganization']> = {
   apis?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   members?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   notes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12948,7 +13008,6 @@ export type StatsOrganizationSearchResultResolvers<ContextType = any, ParentType
 
 export type StatsProjectResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsProject'] = ResolversParentTypes['StatsProject']> = {
   apis?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directories?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   notes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12981,7 +13040,6 @@ export type StatsProjectSearchResultResolvers<ContextType = any, ParentType exte
 
 export type StatsQuizResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsQuiz'] = ResolversParentTypes['StatsQuiz']> = {
   completionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13006,7 +13064,6 @@ export type StatsQuizSearchResultResolvers<ContextType = any, ParentType extends
 };
 
 export type StatsRoutineResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsRoutine'] = ResolversParentTypes['StatsRoutine']> = {
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13083,7 +13140,6 @@ export type StatsSiteSearchResultResolvers<ContextType = any, ParentType extends
 
 export type StatsSmartContractResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsSmartContract'] = ResolversParentTypes['StatsSmartContract']> = {
   calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13105,7 +13161,6 @@ export type StatsSmartContractSearchResultResolvers<ContextType = any, ParentTyp
 };
 
 export type StatsStandardResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsStandard'] = ResolversParentTypes['StatsStandard']> = {
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   linksToInputs?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   linksToOutputs?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13129,7 +13184,6 @@ export type StatsStandardSearchResultResolvers<ContextType = any, ParentType ext
 
 export type StatsUserResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsUser'] = ResolversParentTypes['StatsUser']> = {
   apisCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   organizationsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13183,6 +13237,8 @@ export type SuccessResolvers<ContextType = any, ParentType extends ResolversPare
 
 export type TagResolvers<ContextType = any, ParentType extends ResolversParentTypes['Tag'] = ResolversParentTypes['Tag']> = {
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
@@ -13193,8 +13249,6 @@ export type TagResolvers<ContextType = any, ParentType extends ResolversParentTy
   routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
   smartContracts?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
   standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tag?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['TagTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -13222,8 +13276,8 @@ export type TagTranslationResolvers<ContextType = any, ParentType extends Resolv
 };
 
 export type TagYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['TagYou'] = ResolversParentTypes['TagYou']> = {
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isOwn?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13277,6 +13331,9 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   apisCreated?: Resolver<Maybe<Array<ResolversTypes['Api']>>, ParentType, ContextType>;
   awards?: Resolver<Maybe<Array<ResolversTypes['Award']>>, ParentType, ContextType>;
+  bookmarked?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   comments?: Resolver<Maybe<Array<ResolversTypes['Comment']>>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   emails?: Resolver<Maybe<Array<ResolversTypes['Email']>>, ParentType, ContextType>;
@@ -13287,6 +13344,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApis?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApisCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivateBookmarks?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateMemberships?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateOrganizationsCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateProjects?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -13301,7 +13359,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   isPrivateSmartContracts?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateStandards?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateStandardsCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isPrivateStars?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateVotes?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issuesClosed?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   issuesCreated?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
@@ -13344,9 +13401,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   smartContractsCreated?: Resolver<Maybe<Array<ResolversTypes['SmartContract']>>, ParentType, ContextType>;
   standards?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
   standardsCreated?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
-  starred?: Resolver<Maybe<Array<ResolversTypes['Star']>>, ParentType, ContextType>;
-  starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Maybe<ResolversTypes['StatsUser']>, ParentType, ContextType>;
   status?: Resolver<Maybe<ResolversTypes['AccountStatus']>, ParentType, ContextType>;
   tags?: Resolver<Maybe<Array<ResolversTypes['Tag']>>, ParentType, ContextType>;
@@ -13425,7 +13479,7 @@ export type UserYouResolvers<ContextType = any, ParentType extends ResolversPare
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -13521,6 +13575,10 @@ export type Resolvers<ContextType = any> = {
   ApiVersionTranslation?: ApiVersionTranslationResolvers<ContextType>;
   ApiYou?: ApiYouResolvers<ContextType>;
   Award?: AwardResolvers<ContextType>;
+  Bookmark?: BookmarkResolvers<ContextType>;
+  BookmarkEdge?: BookmarkEdgeResolvers<ContextType>;
+  BookmarkSearchResult?: BookmarkSearchResultResolvers<ContextType>;
+  BookmarkTo?: BookmarkToResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;
   CommentSearchResult?: CommentSearchResultResolvers<ContextType>;
   CommentThread?: CommentThreadResolvers<ContextType>;
@@ -13750,10 +13808,6 @@ export type Resolvers<ContextType = any> = {
   StandardVersionSearchResult?: StandardVersionSearchResultResolvers<ContextType>;
   StandardVersionTranslation?: StandardVersionTranslationResolvers<ContextType>;
   StandardYou?: StandardYouResolvers<ContextType>;
-  Star?: StarResolvers<ContextType>;
-  StarEdge?: StarEdgeResolvers<ContextType>;
-  StarSearchResult?: StarSearchResultResolvers<ContextType>;
-  StarTo?: StarToResolvers<ContextType>;
   StatsApi?: StatsApiResolvers<ContextType>;
   StatsApiEdge?: StatsApiEdgeResolvers<ContextType>;
   StatsApiSearchResult?: StatsApiSearchResultResolvers<ContextType>;

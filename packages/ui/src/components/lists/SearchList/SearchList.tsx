@@ -214,7 +214,7 @@ export function SearchList<
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
-            return b.stars - a.stars;
+            return b.bookmarks - a.bookmarks;
         });
     }, [allData, session]);
 

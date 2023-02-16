@@ -1,5 +1,4 @@
 import { Session } from '@shared/consts';
-import { SnackSeverity } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { getLocalStorageKeys } from 'utils/localStorage';
 import { PubSub } from 'utils/pubsub';
@@ -18,5 +17,5 @@ export const clearSearchHistory = (session: Session) => {
     searchHistoryKeys.forEach(key => {
         localStorage.removeItem(key);
     });
-    PubSub.get().publishSnack({ messageKey: 'SearchHistoryCleared', severity: SnackSeverity.Success });
+    PubSub.get().publishSnack({ messageKey: 'SearchHistoryCleared', severity: 'Success' });
 }

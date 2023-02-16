@@ -85,7 +85,7 @@ export type PrismaRelMap<T> = {
 /**
  * Helper functions for adding and removing supplemental fields. These are fields 
  * are requested in the select query, but are either not in the main database or 
- * cannot be requested in the same query (e.g. isStarred, permissions) 
+ * cannot be requested in the same query (e.g. isBookmarked, permissions) 
  */
 export interface SupplementalConverter<
     SuppFields extends readonly any[]

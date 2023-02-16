@@ -23,7 +23,7 @@ export const post: GqlPartial<Post> = {
         commentsCount: true,
         repostsCount: true,
         score: true,
-        stars: true, 
+        bookmarks: true, 
         views: true,
     },
     full: {

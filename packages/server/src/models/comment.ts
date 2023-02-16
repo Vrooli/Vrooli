@@ -2,7 +2,7 @@ import { CommentSortBy, CommentYou, PrependString } from "@shared/consts";
 import { commentValidation } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { Trigger } from "../events";
 import { ModelLogic } from "./types";
@@ -17,7 +17,7 @@ import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
 
 const __typename = 'Comment' as const;
-type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
+type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReply' | 'canReport' | 'canVote'>;
 const suppFields = ['you'] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
@@ -61,7 +61,7 @@ export const CommentModel: ModelLogic<{
                 standardVersion: 'StandardVersion',
             },
             reports: 'Report',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
         },
         prismaRelMap: {
             __typename: 'Comment',
@@ -80,11 +80,11 @@ export const CommentModel: ModelLogic<{
             smartContractVersion: 'SmartContractVersion',
             standardVersion: 'StandardVersion',
             reports: 'Report',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             votedBy: 'Vote',
             parents: 'Comment',
         },
-        joinMap: { starredBy: 'user' },
+        joinMap: { bookmarkedBy: 'user' },
         countFields: {
             reportsCount: true,
             translationsCount: true,
@@ -95,7 +95,7 @@ export const CommentModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     }
                 }
@@ -304,7 +304,7 @@ export const CommentModel: ModelLogic<{
             createdTimeFrame: true,
             issueId: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             noteVersionId: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,

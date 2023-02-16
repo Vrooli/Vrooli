@@ -5,7 +5,7 @@ import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { clearSearchHistory, PubSub, shapeProfile, TagShape, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
 import { SettingsDisplayProps } from "../types";
-import { GridSubmitButtons, HelpButton, PageTitle, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, HelpButton, PageTitle, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
@@ -73,7 +73,7 @@ export const SettingsDisplay = ({
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
             // if (!profile) {
-            //     PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
+            //     PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
             //     return;
             // }
             // if (!formik.isValid) return;
@@ -85,16 +85,16 @@ export const SettingsDisplay = ({
             // const filteredShowMores = showMores.filter(t => !hides.some(h => h.tag === t.tag.tag) && !blurs.some(b => b.tag === t.tag.tag));
             // // If any of the filtered lists are shorter than the original, give warning to user.
             // if (filteredHides.length !== hides.length || filteredBlurs.length !== blurs.length || filteredShowMores.length !== showMores.length) {
-            //     PubSub.get().publishSnack({ messageKey: 'FoundTopicsInFavAndHidden', severity: SnackSeverity.Warning });
+            //     PubSub.get().publishSnack({ messageKey: 'FoundTopicsInFavAndHidden', severity: 'Warning' });
             // }
             // const input = shapeProfile.update(profile, {
             //     id: profile.id,
             //     theme: values.theme as 'light' | 'dark',
-            //     starredTags,
+            //     bookmarkedTags,
             //     filters: filteredHiddenTags,
             // })
             // if (!input || Object.keys(input).length === 0) {
-            //     PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Error });
+            //     PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: 'Error' });
             //     formik.setSubmitting(false);
             //     return;
             // }
@@ -137,9 +137,9 @@ export const SettingsDisplay = ({
             </Stack>
             <Box id="favorite-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
                 {/* <TagSelector
-                    handleTagsUpdate={handleStarredTagsUpdate}
+                    handleTagsUpdate={handleBookmarkedTagsUpdate}
                     session={session}
-                    tags={starredTags}
+                    tags={bookmarkedTags}
                     placeholder={"Enter interests, followed by commas..."}
                 /> */}
             </Box>

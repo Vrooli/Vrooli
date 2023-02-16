@@ -42,7 +42,7 @@ export const PostModel: ModelLogic<{
             repostedFrom: 'Post',
             reposts: 'Post',
             resourceList: 'ResourceList',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
         },
         prismaRelMap: {
@@ -53,7 +53,7 @@ export const PostModel: ModelLogic<{
             reposts: 'Post',
             resourceList: 'ResourceList',
             comments: 'Comment',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             votedBy: 'Vote',
             viewedBy: 'View',
             reports: 'Report',

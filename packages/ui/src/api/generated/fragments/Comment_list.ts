@@ -16,16 +16,16 @@ owner {
     }
 }
 score
-stars
+bookmarks
 reportsCount
 you {
     canDelete
-    canStar
+    canBookmark
     canReply
     canReport
     canUpdate
     canVote
-    isStarred
+    isBookmarked
     isUpvoted
 }
 }`;

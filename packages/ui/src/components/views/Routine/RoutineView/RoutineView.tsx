@@ -1,16 +1,15 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
-import { useMutation, useLazyQuery } from "api/hooks";
+import { useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
+import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36, parseSingleItemUrl, defaultRelationships, defaultResourceList } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
-import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
 import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
@@ -19,6 +18,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { setDotNotationValue } from "@shared/utils";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion";
+import { useTranslation } from "react-i18next";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.`
@@ -40,27 +40,19 @@ export const RoutineView = ({
 }: RoutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    // Fetch data
-    const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(routineVersionFindOne, 'routineVersion', { errorPolicy: 'all' });
-    useEffect(() => {
-        if (urlData.id || urlData.idRoot) getData({ variables: urlData });
-        // If IDs are not invalid, throw error if we are not creating a new routine
-        else {
-            const { build } = parseSearchParams();
-            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
-        }
-    }, [getData, urlData])
-
-    const [routineVersion, setRoutineVersion] = useState<RoutineVersion | null>(null);
-    useEffect(() => {
-        if (!data?.routineVersion) return;
-        setRoutineVersion(data.routineVersion);
-    }, [data]);
-    const updateRoutineVersion = useCallback((newRoutineVersion: RoutineVersion) => { setRoutineVersion(newRoutineVersion); }, [setRoutineVersion]);
-    const { canUpdate } = useMemo(() => getYou(routineVersion), [routineVersion]);
+    const { id, isLoading, object: routineVersion, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
+        query: routineVersionFindOne,
+        endpoint: 'routineVersion',
+        onInvalidUrlParams: ({ build }) => {
+            // Throw error if we are not creating a new routine
+            if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
+        },
+        partialData,
+        session,
+    });
 
     const availableLanguages = useMemo<string[]>(() => (routineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routineVersion?.translations]);
     useEffect(() => {
@@ -91,55 +83,25 @@ export const RoutineView = ({
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!routineVersion) return;
         setRoutineVersion(setDotNotationValue(routineVersion, 'you.runs', routineVersion.you.runs.filter(r => r.id !== run.id)));
-    }, [routineVersion]);
+    }, [routineVersion, setRoutineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!routineVersion) return;
         setRoutineVersion(setDotNotationValue(routineVersion, 'you.runs', [run, ...routineVersion.you.runs]));
-    }, [routineVersion]);
-
-    const onEdit = useCallback(() => {
-        routineVersion?.id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(routineVersion.id)}`);
-    }, [setLocation, routineVersion?.id]);
+    }, [routineVersion, setRoutineVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
-    const onActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Comment:
-                openAddCommentDialog();
-                break;
-            case ObjectAction.Edit:
-                onEdit();
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [onEdit, openAddCommentDialog]);
-
-    const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                if (data.success && routineVersion) {
-                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
-                }
-                break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success && routineVersion) {
-                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
-                }
-                break;
-            case ObjectActionComplete.Fork:
-                openObject(data.routine, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [routineVersion, setLocation]);
+    const actionData = useObjectActions({
+        object: routineVersion,
+        objectType: 'Routine',
+        openAddCommentDialog,
+        session,
+        setLocation,
+        setObject: setRoutineVersion,
+    });
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
@@ -199,9 +161,9 @@ export const RoutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
         } else {
-            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'InputEmpty', severity: 'Error' });
         }
     }, [formik]);
 
@@ -254,14 +216,14 @@ export const RoutineView = ({
                 height: 'calc(64px + env(safe-area-inset-bottom))',
             }}>
                 {/* Edit button */}
-                {canUpdate ? (
-                    <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { onActionStart(ObjectAction.Edit) }} >
+                {permissions.canUpdate ? (
+                    <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
                 {routineVersion?.nodes?.length ? <RunButton
-                    canUpdate={canUpdate}
+                    canUpdate={permissions.canUpdate}
                     handleRunAdd={handleRunAdd as any}
                     handleRunDelete={handleRunDelete as any}
                     isBuildGraphOpen={isBuildOpen}
@@ -287,7 +249,7 @@ export const RoutineView = ({
                     handleClose={stopBuild}
                     handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
                     isEditing={false}
-                    loading={loading}
+                    loading={isLoading}
                     owner={relationships.owner}
                     routineVersion={routineVersion}
                     session={session}
@@ -303,7 +265,7 @@ export const RoutineView = ({
             </Dialog>}
             <ObjectTitle
                 language={language}
-                loading={loading}
+                loading={isLoading}
                 title={name}
                 session={session}
                 setLanguage={setLanguage}
@@ -325,16 +287,16 @@ export const RoutineView = ({
                 list={resourceList}
                 canUpdate={false}
                 handleUpdate={() => { }} // Intentionally blank
-                loading={loading}
+                loading={isLoading}
                 session={session}
                 zIndex={zIndex}
             />}
             {/* Box with description and instructions */}
             <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                 {/* Description */}
-                <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                 {/* Instructions */}
-                <TextCollapse title="Instructions" text={instructions} loading={loading} loadingLines={4} />
+                <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
             </Stack>
             {/* Box with inputs, if this is a single-step routine */}
             {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
@@ -343,17 +305,17 @@ export const RoutineView = ({
                     title="Inputs"
                 >
                     {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                        generateInputWithLabel({
-                            copyInput,
-                            disabled: false,
-                            fieldData,
-                            formik: formik,
-                            index,
-                            session,
-                            textPrimary: palette.background.textPrimary,
-                            onUpload: () => { },
-                            zIndex,
-                        })
+                        <GeneratedInputComponentWithLabel
+                            copyInput={copyInput}
+                            disabled={false}
+                            fieldData={fieldData}
+                            formik={formik}
+                            index={index}
+                            session={session}
+                            textPrimary={palette.background.textPrimary}
+                            onUpload={() => { }}
+                            zIndex={zIndex}
+                        />
                     ))}
                     {getCurrentUser(session).id && <Button
                         startIcon={<SuccessIcon />}
@@ -361,7 +323,7 @@ export const RoutineView = ({
                         onClick={markAsComplete}
                         color="secondary"
                         sx={{ marginTop: 2 }}
-                    >Mark as Complete</Button>}
+                    >{t(`common:MarkAsComplete`, { lng: getUserLanguages(session)[0] })}</Button>}
                 </ContentCollapse>
             </Box>}
             {/* "View Graph" button if this is a multi-step routine */}
@@ -378,7 +340,7 @@ export const RoutineView = ({
             <Stack direction="row" spacing={1} mt={2} mb={1}>
                 {/* Date created */}
                 <DateDisplay
-                    loading={loading}
+                    loading={isLoading}
                     showIcon={true}
                     timestamp={routineVersion?.created_at}
                 />
@@ -397,9 +359,8 @@ export const RoutineView = ({
             /> */}
             {/* Action buttons */}
             <ObjectActionsRow
+                actionData={actionData}
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                onActionStart={onActionStart}
-                onActionComplete={onActionComplete}
                 object={routineVersion}
                 session={session}
                 zIndex={zIndex}

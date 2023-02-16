@@ -2,18 +2,18 @@ import { InputType, ProjectOrRoutineSortBy } from "@shared/consts";
 import { projectOrRoutineFindMany } from "api/generated/endpoints/projectOrRoutine";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { complexityContainer, complexityFields, isCompleteContainer, isCompleteFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, starsContainer, starsFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { complexityContainer, complexityFields, searchFormLayout, simplicityContainer, simplicityFields, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields, languagesVersionContainer, languagesVersionFields, hasCompleteVersionContainer, hasCompleteVersionFields } from "./common";
 
 export const projectOrRoutineSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchProjectOrRoutine', lng),
     containers: [
         { totalItems: 1 },
-        isCompleteContainer,
+        hasCompleteVersionContainer,
         votesContainer,
-        starsContainer,
+        bookmarksContainer,
         simplicityContainer,
         complexityContainer,
-        languagesContainer,
+        languagesVersionContainer,
         tagsContainer,
     ],
     fields: [
@@ -31,14 +31,14 @@ export const projectOrRoutineSearchSchema = (lng: string): FormSchema => ({
                 ]
             }
         },
-        ...isCompleteFields,
+        ...hasCompleteVersionFields,
         ...votesFields,
-        ...starsFields,
+        ...bookmarksFields,
         ...simplicityFields,
         ...complexityFields,
-        ...languagesFields,
+        ...languagesVersionFields,
         ...tagsFields,
     ]
 })
 
-export const projectOrRoutineSearchParams = (lng: string) => toParams(projectOrRoutineSearchSchema(lng), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.StarsDesc)
+export const projectOrRoutineSearchParams = (lng: string) => toParams(projectOrRoutineSearchSchema(lng), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc)

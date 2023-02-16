@@ -96,11 +96,11 @@ query project($input: FindByIdOrHandleInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canUpdate
                     canRead
-                    isStarred
+                    isBookmarked
                     isViewed
                     yourMembership {
                         id
@@ -287,7 +287,6 @@ query project($input: FindByIdOrHandleInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -323,7 +322,7 @@ query project($input: FindByIdOrHandleInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -331,12 +330,12 @@ query project($input: FindByIdOrHandleInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -400,7 +399,7 @@ query projects($input: ProjectSearchInput!) {
             permissions
             questionsCount
             score
-            stars
+            bookmarks
             tags {
                 ...Tag_list
             }
@@ -408,12 +407,12 @@ query projects($input: ProjectSearchInput!) {
             views
             you {
                 canDelete
-                canStar
+                canBookmark
                 canTransfer
                 canUpdate
                 canRead
                 canVote
-                isStarred
+                isBookmarked
                 isUpvoted
                 isViewed
             }
@@ -518,11 +517,11 @@ mutation projectCreate($input: ProjectCreateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canUpdate
                     canRead
-                    isStarred
+                    isBookmarked
                     isViewed
                     yourMembership {
                         id
@@ -709,7 +708,6 @@ mutation projectCreate($input: ProjectCreateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -745,7 +743,7 @@ mutation projectCreate($input: ProjectCreateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -753,12 +751,12 @@ mutation projectCreate($input: ProjectCreateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }
@@ -857,11 +855,11 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canStar
+                    canBookmark
                     canReport
                     canUpdate
                     canRead
-                    isStarred
+                    isBookmarked
                     isViewed
                     yourMembership {
                         id
@@ -1048,7 +1046,6 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
     }
     stats {
         id
-        created_at
         periodStart
         periodEnd
         periodType
@@ -1084,7 +1081,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
     permissions
     questionsCount
     score
-    stars
+    bookmarks
     tags {
         ...Tag_list
     }
@@ -1092,12 +1089,12 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
     views
     you {
         canDelete
-        canStar
+        canBookmark
         canTransfer
         canUpdate
         canRead
         canVote
-        isStarred
+        isBookmarked
         isUpvoted
         isViewed
     }

@@ -1,3 +1,4 @@
+export * from './BookmarkButton/BookmarkButton';
 export * from './BuildEditButtons/BuildEditButtons';
 export * from './CameraButton/CameraButton';
 export * from './ColorIconButton/ColorIconButton';
@@ -10,5 +11,4 @@ export * from './ReportButton/ReportButton';
 export * from './ReportsButton/ReportsButton';
 export * from './ReportsLink/ReportsLink';
 export * from './RunButton/RunButton';
-export * from './StarButton/StarButton';
 export * from './StatusButton/StatusButton';

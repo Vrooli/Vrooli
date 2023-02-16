@@ -105,9 +105,9 @@ export interface ObjectOption {
     root?: { id: string } | null;
     versions?: { id: string }[] | null;
     isFromHistory?: boolean;
-    isStarred?: boolean;
+    isBookmarked?: boolean;
     label: string;
-    stars?: number;
+    bookmarks?: number;
     [key: string]: any;
     runnableObject?: {
         __typename: `${GqlModelType}`

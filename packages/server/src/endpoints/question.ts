@@ -17,8 +17,8 @@ export const typeDef = gql`
         DateUpdatedDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     enum QuestionForType {
@@ -58,8 +58,8 @@ export const typeDef = gql`
         updated_at: Date!
         createdBy: User
         hasAcceptedAnswer: Boolean!
+        bookmarks: Int!
         score: Int!
-        stars: Int!
         forObject: QuestionFor!
         reports: [Report!]!
         reportsCount: Int!
@@ -69,18 +69,18 @@ export const typeDef = gql`
         answersCount: Int!
         comments: [Comment!]!
         commentsCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         tags: [Tag!]!
         you: QuestionYou!
     }
 
     type QuestionYou {
         canDelete: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
     }
 
@@ -119,9 +119,9 @@ export const typeDef = gql`
         ids: [ID!]
         languages: [String!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         searchString: String
         sortBy: QuestionSortBy
         take: Int

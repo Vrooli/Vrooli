@@ -5,7 +5,7 @@ import { QuestionUpdateProps } from "../types";
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeQuestion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Question, QuestionUpdateInput, ResourceList } from "@shared/consts";
@@ -51,7 +51,7 @@ session,
         validationSchema: questionValidation.update({}),
         onSubmit: (values) => {
             if (!question) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadQuestion', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadQuestion', severity: 'Error' });
                 return;
             }
             // mutationWrapper<Question, QuestionUpdateInput>({

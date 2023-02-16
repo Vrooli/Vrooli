@@ -1,5 +1,4 @@
 import { APP_LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
-import { SnackSeverity } from "components";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
@@ -191,9 +190,9 @@ export const newShortcuts: PreSearchItem[] = [
         value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
     },
     {
-        label: 'SearchStar',
-        keywords: [...searchKeywords, 'SearchStarred'],
-        value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}`,
+        label: 'SearchBookmark',
+        keywords: [...searchKeywords, 'SearchBookmarked'],
+        value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`,
     },
     {
         label: 'SearchRunAdvanced',
@@ -206,9 +205,9 @@ export const newShortcuts: PreSearchItem[] = [
         value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}&advanced=true`,
     },
     {
-        label: 'SearchStarAdvanced',
-        keywords: [...searchAdvancedKeywords, 'SearchStarredAdvanced'],
-        value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}&advanced=true`,
+        label: 'SearchBookmarkAdvanced',
+        keywords: [...searchAdvancedKeywords, 'SearchBookmarkedAdvanced'],
+        value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}&advanced=true`,
     },
     // { //TODO should be possible to replicate with normal advanced search
     //     label: 'Search your actively developing projects and routines',
@@ -344,8 +343,8 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
     },
     {
-        label: 'Search starred',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}`,
+        label: 'Search bookmarked',
+        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`,
     },
     {
         label: 'Search runs advanced',
@@ -356,8 +355,8 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}&advanced=true`,
     },
     {
-        label: 'Search starred advanced',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}&advanced=true`,
+        label: 'Search bookmarked advanced',
+        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}&advanced=true`,
     },
     // { //TODO should be possible to replicate with normal advanced search
     //     label: 'Search your actively developing projects and routines',
@@ -444,7 +443,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: userProfileUpdate,
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
-                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
             })
             break;
         case 'activate-light-mode':
@@ -452,7 +451,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: userProfileUpdate,
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },
-                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
             })
             break;
     }

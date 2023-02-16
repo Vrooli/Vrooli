@@ -2,7 +2,6 @@ import { PubSub } from "utils";
 import { DocumentNode } from '@apollo/client';
 import { errorToCode } from './errorParser';
 import { ApolloError, CommonKey, ErrorKey } from 'types';
-import { SnackSeverity } from "components";
 import { initializeApollo } from "./initialize";
 import { exists } from "@shared/utils";
 
@@ -85,12 +84,12 @@ export const graphqlWrapperHelper = <Output extends object>({
         if (typeof errorMessage === 'function') {
             console.log('aaaaaaa')
             const { key, variables } = errorMessage(data);
-            PubSub.get().publishSnack({ messageKey: key, messageVariables: variables, severity: SnackSeverity.Error, data });
+            PubSub.get().publishSnack({ messageKey: key, messageVariables: variables, severity: 'Error', data });
         }
         // Otherwise, if show default error snack is set, display it
         else if (showDefaultErrorSnack) {
             console.log('ccccccc')
-            PubSub.get().publishSnack({ messageKey: isApolloError ? errorToCode(data as ApolloError) : 'ErrorUnknown', severity: SnackSeverity.Error, data });
+            PubSub.get().publishSnack({ messageKey: isApolloError ? errorToCode(data as ApolloError) : 'ErrorUnknown', severity: 'Error', data });
         }
         // If error callback is set, call it
         if (typeof onError === 'function') {
@@ -122,7 +121,7 @@ export const graphqlWrapperHelper = <Output extends object>({
             if (successMessage) PubSub.get().publishSnack({
                 messageKey: successMessage(data).key,
                 messageVariables: successMessage(data).variables,
-                severity: SnackSeverity.Success
+                severity: 'Success'
             });
             if (spinnerDelay) PubSub.get().publishLoading(false);
             if (onSuccess && typeof onSuccess === 'function') onSuccess(data);

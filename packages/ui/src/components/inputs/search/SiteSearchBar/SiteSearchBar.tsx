@@ -2,10 +2,10 @@ import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, Auto
 import { SiteSearchBarProps } from '../types';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { ActionIcon, ApiIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
+import { ActionIcon, ApiIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, BookmarkFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
 import { getLocalStorageKeys, getUserLanguages, performAction, useDebounce } from 'utils';
-import { StarFor } from '@shared/consts';
-import { MicrophoneButton, StarButton } from 'components/buttons';
+import { BookmarkFor } from '@shared/consts';
+import { MicrophoneButton, BookmarkButton } from 'components/buttons';
 import { getCurrentUser } from 'utils/authentication';
 import { useTranslation } from 'react-i18next';
 
@@ -32,7 +32,7 @@ const getSearchHistory = (searchBarId: string, userId: string): { [label: string
 }
 
 /**
- * For a list of options, checks if they are stored in local storage and need their stars/isStarred updated. If so, updates them.
+ * For a list of options, checks if they are stored in local storage and need their bookmarks/isBookmarked updated. If so, updates them.
  * @param searchBarId The search bar ID
  * @param userId The user ID
  * @param options The options to check
@@ -56,20 +56,20 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
         } catch (e) {
             existingHistory = {};
         }
-        // Find options that are in history, and update if stars or isStarred are different
+        // Find options that are in history, and update if bookmarks or isBookmarked are different
         let updatedHistory = options.map(option => {
-            // stars and isStarred are not in shortcuts or actions
+            // bookmarks and isBookmarked are not in shortcuts or actions
             if (option.__typename === 'Shortcut' || option.__typename === 'Action') return null;
             const historyItem = existingHistory[option.label];
             if (historyItem && historyItem.option.__typename !== 'Shortcut' && historyItem.option.__typename !== 'Action') {
-                const { stars, isStarred } = option;
-                if (stars !== historyItem.option.stars || isStarred !== historyItem.option.isStarred) {
+                const { bookmarks, isBookmarked } = option;
+                if (bookmarks !== historyItem.option.bookmarks || isBookmarked !== historyItem.option.isBookmarked) {
                     return {
                         timestamp: historyItem.timestamp,
                         option: {
                             ...option,
-                            stars,
-                            isStarred,
+                            bookmarks,
+                            isBookmarked,
                         }
                     };
                 }
@@ -89,6 +89,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
 const IconMap = {
     Action: ActionIcon,
     Api: ApiIcon,
+    Bookmark: BookmarkFilledIcon,
     Note: NoteIcon,
     Organization: OrganizationIcon,
     Project: ProjectIcon,
@@ -98,7 +99,6 @@ const IconMap = {
     Shortcut: ShortcutIcon,
     SmartContract: SmartContractIcon,
     Standard: StandardIcon,
-    Star: StarFilledIcon,
     User: UserIcon,
     View: VisibleIcon,
 }
@@ -177,7 +177,7 @@ export function SiteSearchBar({
         historyOptions = historyOptions.slice(0, 5);
         // Filter out options that are in history (use id to check)
         const filteredOptions = options.filter(option => !historyOptions.some(historyOption => historyOption.id === option.id));
-        // If any options have a stars/isStarred values which differs from history, update history
+        // If any options have a bookmarks/isBookmarked values which differs from history, update history
         updateHistoryItems(id, userId ?? '', filteredOptions);
         // Combine history and options
         let combinedOptions = [...historyOptions, ...filteredOptions];
@@ -267,12 +267,12 @@ export function SiteSearchBar({
         return isSecondary ? palette.background.textSecondary : palette.background.textPrimary;
     }, [palette]);
 
-    const handleStar = useCallback((option: AutocompleteOption, isStarred: boolean, event: any) => {
+    const handleBookmark = useCallback((option: AutocompleteOption, isBookmarked: boolean, event: any) => {
         if (option.__typename === 'Shortcut' || option.__typename === 'Action') return;
         // Stop propagation so that the option isn't selected
         event.stopPropagation();
-        // Update the option's isStarred and stars value
-        const updatedOption = { ...option, isStarred, stars: isStarred ? (option.stars ?? 0) + 1 : (option.stars ?? 1) - 1 };
+        // Update the option's isBookmarked and bookmarks value
+        const updatedOption = { ...option, isBookmarked, bookmarks: isBookmarked ? (option.bookmarks ?? 0) + 1 : (option.bookmarks ?? 1) - 1 };
         // Update history and state
         updateHistoryItems(id, userId ?? '', [updatedOption]);
         setOptionsWithHistory(optionsWithHistory.map(o => o.id === option.id ? updatedOption : o));
@@ -337,17 +337,16 @@ export function SiteSearchBar({
                         }}>
                             {option.label}
                         </ListItemText>
-                        {/* Star button */}
-                        {option.__typename !== 'Shortcut' && option.__typename !== 'Action' && option.stars !== undefined && <StarButton
-                            isStar={option.isStarred}
+                        {/* Bookmark button */}
+                        {option.__typename !== 'Shortcut' && option.__typename !== 'Action' && option.bookmarks !== undefined && <BookmarkButton
+                            isBookmarked={option.isBookmarked}
                             objectId={option.id}
-                            onChange={(isStarred, event) => handleStar(option, isStarred, event)}
+                            onChange={(isBookmarked, event) => handleBookmark(option, isBookmarked, event)}
                             session={session}
-                            showStars={true}
-                            starFor={option.__typename as unknown as StarFor}
-                            stars={option.stars}
+                            showBookmarks={true}
+                            bookmarkFor={option.__typename as unknown as BookmarkFor}
+                            bookmarks={option.bookmarks}
                             sxs={{ root: { marginRight: 1 } }}
-                            tooltipPlacement="right"
                         />}
                         {/* Object icon */}
                         <ListItemIcon>

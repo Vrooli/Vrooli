@@ -1,5 +1,5 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { DeleteType, CopyType, StarFor, VoteFor, GqlModelType } from "@shared/consts";
+import { DeleteType, CopyType, BookmarkFor, VoteFor, GqlModelType } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
 import { getLogic } from "../getters";
 import { Notify } from "../notify";
@@ -13,7 +13,7 @@ export type ActionTrigger = 'AccountNew' |
     'ObjectNewVersion' |
     'ObjectDelete' |
     'Fork' |
-    'ObjectStar' |
+    'ObjectBookmark' |
     'ObjectVote' |
     'OrganizationJoin' |
     'PullRequestClose' |
@@ -30,7 +30,7 @@ type Owner = { __typename: 'User' | 'Organization', id: string };
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.
  * Some examples include:
- * - Sending a push notification when someone stars your comment
+ * - Sending a push notification when someone bookmarks your comment
  * - Sending an email when your routine receives a report
  * - Giving you an award when you run a routine 100 times
  * Some actions may also do nothing right now, but it's good to send them through this function
@@ -184,9 +184,9 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // fdfdafdsaf
         // notification.toOwner(owner, forkedByUserId);
     },
-    objectStar: async (isStar: boolean, objectType: StarFor, objectId: string, userId: string) => {
+    objectStar: async (isBookmarked: boolean, objectType: BookmarkFor, objectId: string, userId: string) => {
         // const notification = Notify(prisma, languages).pushObjectStar();
-        // // Send notification to owner(s), depending on how many stars the object already has
+        // // Send notification to owner(s), depending on how many bookmarks the object already has
         // fasdf
         // // Increase reputation score of object owner(s)
         // asdfasdf

@@ -93,16 +93,20 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        isLatest: Boolean
         languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
+        minViewsRoot: Int
         createdById: ID
         ownedByUserId: ID
         ownedByOrganizationId: ID
         searchString: String
         sortBy: NoteVersionSortBy
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType

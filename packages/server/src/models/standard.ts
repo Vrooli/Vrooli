@@ -1,5 +1,5 @@
-import { PrependString, StandardSortBy, StandardYou } from "@shared/consts";
-import { StarModel } from "./star";
+import { StandardSortBy, StandardYou } from "@shared/consts";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
@@ -31,7 +31,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
 }
 
 const __typename = 'Standard' as const;
-type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const StandardModel: ModelLogic<{
     IsTransferable: true,
@@ -76,7 +76,7 @@ export const StandardModel: ModelLogic<{
             parent: 'Project',
             pullRequests: 'PullRequest',
             questions: 'Question',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'StandardVersion',
@@ -90,14 +90,14 @@ export const StandardModel: ModelLogic<{
             labels: 'Label',
             parent: 'StandardVersion',
             tags: 'Tag',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             versions: 'StandardVersion',
             pullRequests: 'PullRequest',
             stats: 'StatsStandard',
             questions: 'Question',
             transfers: 'Transfer',
         },
-        joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
+        joinMap: { labels: 'label', tags: 'tag', bookmarkedBy: 'user' },
         countFields: {
             forksCount: true,
             issuesCount: true,
@@ -112,7 +112,7 @@ export const StandardModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isStarred: await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                         isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                     },
@@ -331,10 +331,10 @@ export const StandardModel: ModelLogic<{
             issuesId: true,
             labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,

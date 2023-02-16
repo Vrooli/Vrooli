@@ -5,7 +5,7 @@
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
 import { Box, Stack, useTheme } from '@mui/material';
-import { NodeColumn, NodeEdge, SnackSeverity } from 'components';
+import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NodeGraphProps } from '../types';
 import { firstString, PubSub, usePinchZoom } from 'utils';
@@ -172,7 +172,7 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: 'Error' });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
@@ -194,7 +194,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ messageKey: 'CannotDropNodeHere', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'CannotDropNodeHere', severity: 'Error' })
             return;
         }
         // Get the drop row

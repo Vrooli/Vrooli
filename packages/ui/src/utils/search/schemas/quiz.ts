@@ -10,4 +10,4 @@ export const quizSearchSchema = (lng: string): FormSchema => ({
     fields: [], //TODO
 })
 
-export const quizSearchParams = (lng: string) => toParams(quizSearchSchema(lng), quizFindMany, QuizSortBy, QuizSortBy.StarsDesc)
+export const quizSearchParams = (lng: string) => toParams(quizSearchSchema(lng), quizFindMany, QuizSortBy, QuizSortBy.BookmarksDesc)

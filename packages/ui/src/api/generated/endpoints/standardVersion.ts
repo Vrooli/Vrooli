@@ -73,7 +73,6 @@ query standardVersion($input: FindVersionInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -99,7 +98,7 @@ query standardVersion($input: FindVersionInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -107,12 +106,12 @@ query standardVersion($input: FindVersionInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -268,7 +267,6 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -294,7 +292,7 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -302,12 +300,12 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }
@@ -416,7 +414,6 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
         }
         stats {
             id
-            created_at
             periodStart
             periodEnd
             periodType
@@ -442,7 +439,7 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
         permissions
         questionsCount
         score
-        stars
+        bookmarks
         tags {
             ...Tag_list
         }
@@ -450,12 +447,12 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
         views
         you {
             canDelete
-            canStar
+            canBookmark
             canTransfer
             canUpdate
             canRead
             canVote
-            isStarred
+            isBookmarked
             isUpvoted
             isViewed
         }

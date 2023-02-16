@@ -12,7 +12,6 @@ import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject,
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
-import { SnackSeverity } from "components";
 import { runProjectCreate } from "api/generated/endpoints/runProject";
 import { runRoutineCreate } from "api/generated/endpoints/runRoutine";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany";
@@ -48,7 +47,7 @@ export const RunPickerMenu = ({
     const [createRunRoutine] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(runRoutineCreate, 'runRoutineCreate');
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: 'Error' });
             return;
         }
         if (runnableObject.__typename === 'ProjectVersion') {

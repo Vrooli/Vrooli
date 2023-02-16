@@ -5,13 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, getYouDot, ListObjectType } from 'utils';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, ListObjectType, useObjectActions } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
-import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
+import { CommentsButton, ReportsButton, BookmarkButton } from 'components/buttons';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
-import { isOfType, setDotNotationValue } from '@shared/utils';
+import { isOfType } from '@shared/utils';
 import { useTranslation } from 'react-i18next';
 
 function CompletionBar(props) {
@@ -31,10 +31,11 @@ function CompletionBar(props) {
 
 export function ObjectListItem<T extends ListObjectType>({
     beforeNavigation,
-    data,
     hideRole,
     index,
     loading,
+    data,
+    objectType,
     session,
     zIndex,
 }: ObjectListItemProps<T>) {
@@ -48,7 +49,7 @@ export function ObjectListItem<T extends ListObjectType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const { canComment, canUpdate, canVote, canStar, isStarred, isUpvoted } = useMemo(() => getYou(data), [data]);
+    const { canComment, canUpdate, canVote, canBookmark, isBookmarked, isUpvoted } = useMemo(() => getYou(data), [data]);
     const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
 
@@ -155,7 +156,7 @@ export function ObjectListItem<T extends ListObjectType>({
     const actionButtons = useMemo(() => {
         const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
         const reportsCount: number = getCounts(object).reports;
-        const { starFor, starForId } = getStarFor(object);
+        const { bookmarkFor, starForId } = getStarFor(object);
         return (
             <Stack
                 direction={isMobile ? "row" : "column"}
@@ -213,13 +214,13 @@ export function ObjectListItem<T extends ListObjectType>({
                             onChange={(isUpvoted: boolean | null, score: number) => { }}
                         />
                     )}
-                {starFor && <StarButton
-                    disabled={!canStar}
+                {bookmarkFor && <BookmarkButton
+                    disabled={!canBookmark}
                     session={session}
                     objectId={starForId}
-                    starFor={starFor}
-                    isStar={isStarred}
-                    stars={getCounts(object).stars}
+                    bookmarkFor={bookmarkFor}
+                    isBookmarked={isBookmarked}
+                    bookmarks={getCounts(object).bookmarks}
                 />}
                 {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton
                     commentsCount={getCounts(object).comments}
@@ -232,7 +233,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideRole, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canStar, isStarred, canComment]);
+    }, [object, isMobile, hideRole, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canBookmark, isBookmarked, canComment]);
 
     /**
      * Run list items may get a progress bar
@@ -253,55 +254,23 @@ export function ObjectListItem<T extends ListObjectType>({
         />)
     }, [loading, object]);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                // If data not supplied, don't open
-                if (!data) return;
-                // If beforeNavigation is supplied, call it
-                if (beforeNavigation) {
-                    const shouldContinue = beforeNavigation(data);
-                    if (shouldContinue === false) return;
-                }
-                // Navigate to the object's edit page
-                openObjectEdit(data, setLocation);
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [beforeNavigation, data, setLocation]);
-
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                const isUpvotedLocation = getYouDot(object, 'isUpvoted');
-                if (data.success && isUpvotedLocation && object) setDotNotationValue(object, isUpvotedLocation as any, action === ObjectActionComplete.VoteUp);
-                break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                const isStarredLocation = getYouDot(object, 'isStarred');
-                if (data.success && isStarredLocation && object) setDotNotationValue(object, isStarredLocation as any, action === ObjectActionComplete.Star);
-                break;
-            case ObjectActionComplete.Fork:
-                // Data is in first key with a value
-                const forkData: any = Object.values(data).find((v) => typeof v === 'object');
-                openObject(forkData, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [object, setLocation]);
+    const actionData = useObjectActions({
+        beforeNavigation,
+        object,
+        objectType,
+        session,
+        setLocation,
+        setObject,
+    });
 
     return (
         <>
             {/* Context menu */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={anchorEl}
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
                 onClose={closeContextMenu}
                 session={session}
                 zIndex={zIndex + 1}

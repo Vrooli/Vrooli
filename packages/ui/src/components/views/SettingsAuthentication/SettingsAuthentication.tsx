@@ -9,7 +9,7 @@ import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
-import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from "components";
+import { DeleteAccountDialog, PageTitle, PasswordTextField } from "components";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { SettingsFormData } from "pages";
@@ -50,7 +50,7 @@ export const SettingsAuthentication = ({
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
             return;
         }
         onUpdated({
@@ -62,7 +62,7 @@ export const SettingsAuthentication = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
             return;
         }
         onUpdated({
@@ -84,7 +84,7 @@ export const SettingsAuthentication = ({
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
                 return;
             }
             if (!formik.isValid) return;

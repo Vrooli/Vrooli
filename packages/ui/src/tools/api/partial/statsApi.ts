@@ -5,7 +5,6 @@ export const statsApi: GqlPartial<StatsApi> = {
     __typename: 'StatsApi',
     full: {
         id: true,
-        created_at: true,
         periodStart: true,
         periodEnd: true,
         periodType: true,

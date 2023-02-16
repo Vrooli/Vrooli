@@ -6,38 +6,7 @@
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
 import i18next, { TFuncKey } from 'i18next';
-
-/**
- * All award categories. An award must belong to only one category, 
- * and a category must have at least one award.
- */
-export type AwardCategory = 'AccountAnniversary' |
-    'AccountNew' |
-    'ApiCreate' |
-    'CommentCreate' |
-    'IssueCreate' |
-    'NoteCreate' |
-    'ObjectStar' |
-    'ObjectVote' |
-    'OrganizationCreate' |
-    'OrganizationJoin' |
-    'PostCreate' |
-    'ProjectCreate' |
-    'PullRequestCreate' |
-    'PullRequestComplete' |
-    'QuestionAnswer' |
-    'QuestionCreate' |
-    'QuizPass' |
-    'ReportEnd' |
-    'ReportContribute' |
-    'Reputation' |
-    'RunRoutine' |
-    'RunProject' |
-    'RoutineCreate' |
-    'SmartContractCreate' |
-    'StandardCreate' |
-    'Streak' |
-    'UserInvite';
+import { AwardCategory } from "@shared/consts";
 
 type AwardKey = TFuncKey<'award', undefined>
 
@@ -59,11 +28,11 @@ function closestLower(num: number, list: number[]): number | null {
  * Maps award categories to their tiers, if applicable. Special cases are handled
  * in the shouldAward function.
  */
-export const awardVariants: { [key in Exclude<AwardCategory, 'AccountAnniversary' | 'AccountNew'>]: number[] } = {
+export const awardVariants: { [key in Exclude<`${AwardCategory}`, 'AccountAnniversary' | 'AccountNew'>]: number[] } = {
     Streak: [7, 30, 100, 200, 365, 500, 750, 1000],
     QuizPass: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     Reputation: [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
-    ObjectStar: [1, 100, 500],
+    ObjectBookmark: [1, 100, 500],
     ObjectVote: [1, 100, 1000, 10000],
     PullRequestCreate: [1, 5, 10, 25, 50, 100, 250, 500],
     PullRequestComplete: [1, 5, 10, 25, 50, 100, 250, 500],
@@ -140,12 +109,12 @@ const awardNames: { [key in AwardCategory]: (count: number) => {
         if (!name) return { name: null, body: null };
         return { name, body: 'ReputationPointsBody', bodyVariables: { count } };
     },
-    ObjectStar: (count: number) => {
+    ObjectBookmark: (count: number) => {
         // [1, 100, 500]
-        const tit = <C extends number>(count: C) => `${'ObjectStar'}${count}Title` as const
+        const tit = <C extends number>(count: C) => `${'ObjectBookmark'}${count}Title` as const
         const name = awardTier([[1, tit(1)], [100, tit(100)], [500, tit(500)]], count);
         if (!name) return { name: null, body: null };
-        return { name, body: 'ObjectStarBody', bodyVariables: { count } };
+        return { name, body: 'ObjectBookmarkBody', bodyVariables: { count } };
     },
     ObjectVote: (count: number) => {
         // [1, 100, 1000, 10000]
@@ -303,7 +272,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => {
  * @param currentCount The current count of the award category
  * @returns True if the user should receive the award
  */
-const shouldAward = (awardCategory: AwardCategory, previousCount: number, currentCount: number): boolean => {
+const shouldAward = (awardCategory: `${AwardCategory}`, previousCount: number, currentCount: number): boolean => {
     // Anniversary and new accounts are special cases
     if (awardCategory === 'AccountAnniversary') return currentCount > previousCount;
     if (awardCategory === 'AccountNew') return false;
@@ -329,7 +298,7 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
      * @param newProgress The new progress of the award
      * @param languages Preferred languages for the award name and body
      */
-    update: async (category: AwardCategory, newProgress: number) => {
+    update: async (category: `${AwardCategory}`, newProgress: number) => {
         // Upsert the award into the database, with progress incremented
         // by the new progress
         const award = await prisma.award.upsert({

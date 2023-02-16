@@ -1,5 +1,5 @@
 /**
- * Search page for personal objects (active runs, completed runs, views, stars)
+ * Search page for personal objects (active runs, completed runs, views, bookmarks)
  */
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { PageContainer, SearchList } from "components";
@@ -27,9 +27,9 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         title: 'Views',
         where: {},
     },
-    [TabOption.Starred]: {
-        searchType: SearchType.Star,
-        title: 'Stars',
+    [TabOption.Bookmarked]: {
+        searchType: SearchType.Bookmark,
+        title: 'Bookmarks',
         where: {},
     },
 }
@@ -84,6 +84,8 @@ export function HistorySearchPage({
                     aria-label="search-type-tabs"
                     sx={{
                         marginBottom: 1,
+                        paddingLeft: '1em',
+                        paddingRight: '1em',
                     }}
                 >
                     {tabOptions.map((option, index) => (

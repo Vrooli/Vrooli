@@ -5,7 +5,7 @@ import { ReminderUpdateProps } from "../types";
 import { reminderValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { parseSingleItemUrl, PubSub, usePromptBeforeUnload } from "utils";
-import { GridSubmitButtons, PageTitle, SnackSeverity } from "components";
+import { GridSubmitButtons, PageTitle } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { FindByIdInput, Reminder, ReminderUpdateInput } from "@shared/consts";
 import { reminderFindOne, reminderUpdate } from "api/generated/endpoints/reminder";
@@ -32,7 +32,7 @@ session,
         validationSchema: reminderValidation.update({}),
         onSubmit: (values) => {
             if (!reminder) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadReminder', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadReminder', severity: 'Error' });
                 return;
             }
             // mutationWrapper<Reminder, ReminderUpdateInput>({

@@ -19,11 +19,11 @@ export const organizationYou: GqlPartial<OrganizationYou> = {
     common: {
         canAddMembers: true,
         canDelete: true,
-        canStar: true,
+        canBookmark: true,
         canReport: true,
         canUpdate: true,
         canRead: true,
-        isStarred: true,
+        isBookmarked: true,
         isViewed: true,
         yourMembership: {
             id: true,
@@ -52,7 +52,7 @@ export const organization: GqlPartial<Organization> = {
         commentsCount: true,
         membersCount: true,
         reportsCount: true,
-        stars: true,
+        bookmarks: true,
         tags: { __use: 0 },
         translations: () => rel(organizationTranslation, 'full'),
         you: () => rel(organizationYou, 'full'),
