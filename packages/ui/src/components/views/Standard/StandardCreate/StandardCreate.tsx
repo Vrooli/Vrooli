@@ -8,8 +8,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { uuid } from '@shared/uuid';
 import { FieldData } from "forms/types";
-import { BaseStandardInput, PreviewSwitch, RelationshipButtons } from "components/inputs";
-import { generateInputComponent, generateYupSchema } from "forms/generators";
+import { BaseStandardInput, GeneratedInputComponent, PreviewSwitch, RelationshipButtons } from "components/inputs";
+import { generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
@@ -52,8 +52,8 @@ export const StandardCreate = ({
     });
 
     // Handle resources
-   const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-   const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
+    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -238,14 +238,14 @@ export const StandardCreate = ({
                     />
                     {
                         isPreviewOn ?
-                            (schema && generateInputComponent({
-                                disabled: true,
-                                fieldData: schema,
-                                formik: previewFormik,
-                                session,
-                                onUpload: () => { },
-                                zIndex,
-                            })) :
+                            (schema && <GeneratedInputComponent
+                                disabled={true}
+                                fieldData={schema}
+                                formik={previewFormik}
+                                session={session}
+                                onUpload={() => { }}
+                                zIndex={zIndex}
+                            />) :
                             <Box>
                                 <Selector
                                     fullWidth

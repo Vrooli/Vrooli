@@ -8,12 +8,12 @@ import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPrefer
 import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
-import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion";
+import { GeneratedInputComponent } from "components/inputs/generated";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -186,14 +186,14 @@ export const StandardView = ({
                 />
                 {
                     isPreviewOn ?
-                        schema ? generateInputComponent({
-                            disabled: true,
-                            fieldData: schema,
-                            formik: previewFormik,
-                            session,
-                            onUpload: () => { },
-                            zIndex,
-                        }) :
+                        schema ? <GeneratedInputComponent
+                            disabled={true}
+                            fieldData={schema}
+                            formik={previewFormik}
+                            session={session}
+                            onUpload={() => { }}
+                            zIndex={zIndex}
+                        /> :
                             <Box sx={{
                                 minHeight: 'min(300px, 25vh)',
                                 display: 'flex',

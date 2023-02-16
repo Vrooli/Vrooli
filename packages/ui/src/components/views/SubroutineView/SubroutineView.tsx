@@ -1,11 +1,10 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
+import { CommentContainer, ContentCollapse, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
-import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
 import { CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
@@ -145,17 +144,17 @@ export const SubroutineView = ({
         return (
             <Box>
                 {Object.values(formValueMap).map((fieldData: FieldData, index: number) => (
-                    generateInputWithLabel({
-                        copyInput,
-                        disabled: false,
-                        fieldData,
-                        formik: formik,
-                        index,
-                        session,
-                        textPrimary: palette.background.textPrimary,
-                        onUpload: () => { },
-                        zIndex,
-                    })
+                    <GeneratedInputComponentWithLabel
+                        copyInput={copyInput}
+                        disabled={false}
+                        fieldData={fieldData}
+                        formik={formik}
+                        index={index}
+                        session={session}
+                        textPrimary={palette.background.textPrimary}
+                        onUpload={() => { }}
+                        zIndex={zIndex}
+                    />
                 ))}
             </Box>
         )

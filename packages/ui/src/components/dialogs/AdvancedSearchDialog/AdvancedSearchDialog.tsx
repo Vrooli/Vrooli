@@ -12,9 +12,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
-import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
+import { generateDefaultProps, generateYupSchema } from 'forms/generators';
 import { convertFormikForSearch, convertSearchForFormik, getUserLanguages, parseSearchParams, searchTypeToParams } from 'utils';
-import { DialogTitle } from 'components';
+import { DialogTitle, GeneratedGrid } from 'components';
 import { CancelIcon, SearchIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
 
@@ -78,19 +78,18 @@ export const AdvancedSearchDialog = ({
             handleClose();
         },
     });
-    const grid = useMemo(() => {
-        if (!schema) return null;
-        return generateGrid({
-            childContainers: schema.containers,
-            fields: schema.fields,
-            formik,
-            layout: schema.formLayout,
-            onUpload: () => { },
-            session,
-            theme,
-            zIndex,
-        })
-    }, [schema, formik, session, theme, zIndex])
+    useEffect(() => {
+        console.log('schema changed', schema);
+    }, [schema])
+    useEffect(() => {
+        console.log('formik changed', formik);
+    }, [formik])
+    useEffect(() => {
+        console.log('session changed', session);
+    }, [session])
+    useEffect(() => {
+        console.log('theme changed', theme);
+    }, [theme])
 
     return (
         <Dialog
@@ -131,7 +130,16 @@ export const AdvancedSearchDialog = ({
                     justifyContent: 'center',
                     alignItems: 'center',
                 }}>
-                    {grid}
+                    {schema && <GeneratedGrid
+                        childContainers={schema.containers}
+                        fields={schema.fields}
+                        formik={formik}
+                        layout={schema.formLayout}
+                        onUpload={() => { }}
+                        session={session}
+                        theme={theme}
+                        zIndex={zIndex}
+                    />}
                 </Box>
                 {/* Search/Cancel buttons */}
                 <Grid container spacing={1} sx={{

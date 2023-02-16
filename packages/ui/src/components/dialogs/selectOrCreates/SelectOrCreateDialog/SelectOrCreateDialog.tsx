@@ -52,7 +52,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     where,
     zIndex,
 }: SelectOrCreateDialogProps<T>) => {
-    console.log('selectorcreate 1');
+    console.log('selectorcreate 1', objectType);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();

@@ -4,9 +4,8 @@ import { InputType, Session, StandardVersion } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTranslation, RoutineVersionInputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, RoutineVersionOutputTranslationShape, standardVersionToFieldData, updateArray, getUserLanguages, StandardVersionShape } from 'utils';
 import { useFormik } from 'formik';
-import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardVersionSelectSwitch } from 'components';
+import { BaseStandardInput, GeneratedInputComponent, MarkdownInput, PreviewSwitch, Selector, StandardVersionSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
-import { generateInputComponent } from 'forms/generators';
 import { uuid } from '@shared/uuid';
 import Markdown from 'markdown-to-jsx';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
@@ -322,9 +321,9 @@ export const InputOutputListItem = ({
                         />}
                         {
                             (isPreviewOn || !canUpdateStandardVersion) ?
-                                ((standardVersion || generatedSchema) && generateInputComponent({
-                                    disabled: true,
-                                    fieldData: standardVersion ?
+                                ((standardVersion || generatedSchema) && <GeneratedInputComponent
+                                    disabled={true}
+                                    fieldData={standardVersion ?
                                         standardVersionToFieldData({
                                             fieldName: schemaKey,
                                             description: getTranslation(item, [language]).description ?? getTranslation(standardVersion, [language]).description,
@@ -334,12 +333,12 @@ export const InputOutputListItem = ({
                                             standardType: standardVersion?.standardType ?? InputTypeOptions[0].value,
                                             yup: standardVersion.yup ?? null,
                                         }) as FieldData :
-                                        generatedSchema as FieldData,
-                                    formik,
-                                    session,
-                                    onUpload: () => { },
-                                    zIndex,
-                                })) :
+                                        generatedSchema as FieldData}
+                                    formik={formik}
+                                    session={session}
+                                    onUpload={() => { }}
+                                    zIndex={zIndex}
+                                />) :
                                 // Only editable if standard not selected and is editing
                                 <Box>
                                     <Selector

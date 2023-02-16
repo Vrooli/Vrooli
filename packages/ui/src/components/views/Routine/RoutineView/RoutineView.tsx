@@ -3,14 +3,13 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
+import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
-import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
 import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
@@ -19,6 +18,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { setDotNotationValue } from "@shared/utils";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion";
+import { useTranslation } from "react-i18next";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.`
@@ -40,6 +40,7 @@ export const RoutineView = ({
 }: RoutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { id, isLoading, object: routineVersion, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
@@ -304,17 +305,17 @@ export const RoutineView = ({
                     title="Inputs"
                 >
                     {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                        generateInputWithLabel({
-                            copyInput,
-                            disabled: false,
-                            fieldData,
-                            formik: formik,
-                            index,
-                            session,
-                            textPrimary: palette.background.textPrimary,
-                            onUpload: () => { },
-                            zIndex,
-                        })
+                        <GeneratedInputComponentWithLabel
+                            copyInput={copyInput}
+                            disabled={false}
+                            fieldData={fieldData}
+                            formik={formik}
+                            index={index}
+                            session={session}
+                            textPrimary={palette.background.textPrimary}
+                            onUpload={() => { }}
+                            zIndex={zIndex}
+                        />
                     ))}
                     {getCurrentUser(session).id && <Button
                         startIcon={<SuccessIcon />}
@@ -322,7 +323,7 @@ export const RoutineView = ({
                         onClick={markAsComplete}
                         color="secondary"
                         sx={{ marginTop: 2 }}
-                    >Mark as Complete</Button>}
+                    >{t(`common:MarkAsComplete`, { lng: getUserLanguages(session)[0] })}</Button>}
                 </ContentCollapse>
             </Box>}
             {/* "View Graph" button if this is a multi-step routine */}
