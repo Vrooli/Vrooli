@@ -16,24 +16,21 @@ fi
 remote_server="root@${SITE_IP}"
 info "Remote server: ${remote_server}"
 
-# Set file name for SSH key pair
-public_key_file="id_rsa_${SITE_IP}"
-
 # Remove local key pair if it was just generated within the last 5 minutes
 # This allows us to try again without having to manually delete the key pair,
 # while also keeping the key pair around if it was successful before
 remove_key_file() {
-    if [ -f ~/.ssh/${public_key_file} ] && [ $(find ~/.ssh/${public_key_file} -mmin -5 | wc -l) -gt 0 ]; then
-        rm ~/.ssh/${public_key_file}*
+    if [ -f ~/.ssh/id_rsa ] && [ $(find ~/.ssh/id_rsa -mmin -5 | wc -l) -gt 0 ]; then
+        rm ~/.ssh/id_rsa*
     fi
 }
 
 # Check if there is already a public key on the local machine
-if [ ! -f ~/.ssh/${public_key_file} ]; then
+if [ ! -f ~/.ssh/id_rsa ]; then
     # Generate a new SSH key pair
-    ssh-keygen -t rsa -f ~/.ssh/${public_key_file} -N ""
+    ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ""
     # Copy the public key to the remote host
-    cat ~/.ssh/${public_key_file}.pub | ssh ${remote_server} 'chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys; cat >> ~/.ssh/authorized_keys'
+    cat ~/.ssh/id_rsa.pub | ssh ${remote_server} 'chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys; cat >> ~/.ssh/authorized_keys'
     if [ $? -ne 0 ]; then
         error "Failed to copy public key to remote host. Exiting..."
         remove_key_file

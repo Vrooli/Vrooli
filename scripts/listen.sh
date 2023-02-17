@@ -95,6 +95,10 @@ if [ -z "$INTERVAL" ]; then
     INTERVAL=1800 # default to 30 minutes
 fi
 
+if [ -z "$WILL_LOOP" ]; then
+    WILL_LOOP=true
+fi
+
 while true; do
     # Fetch all log files from the remote directory that have been modified since the last fetch
     rsync -avz --update --exclude ".*" $remote_server:$remote_log_dir $local_dir

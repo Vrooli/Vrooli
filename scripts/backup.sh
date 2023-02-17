@@ -53,6 +53,10 @@ if [ -z "$BACKUP_COUNT" ]; then
     BACKUP_COUNT=5
 fi
 
+if [ -z "$WILL_LOOP" ]; then
+    WILL_LOOP=true
+fi
+
 # Set the remote server location, using SITE_IP from .env
 remote_server="root@${SITE_IP}"
 info "Remote server: ${remote_server}"
@@ -63,9 +67,6 @@ if [ -z "$VERSION" ]; then
     VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
     info "Version number found in package.json files: ${VERSION}"
 fi
-
-# Set the remote server's database directory path using the version number
-remote_db_dir="${SITE_IP}:/var/tmp/${VERSION}/data/postgres"
 
 # Set the local directory to save the database files to
 local_dir="${HERE}/../data/db-remote-${SITE_IP}-${VERSION}"
@@ -83,7 +84,8 @@ while true; do
     backup_filename="db-backup-$now.sql"
 
     # Create the backup file using the mysqldump command
-    ssh $remote_server "pg_dump -Fc -U ${DB_USER} -h ${DB_NAME}" >"$local_dir/$backup_filename"
+    # ssh $remote_server "pg_dump -Fc -U ${DB_USER} -h ${DB_NAME}" >"$local_dir/$backup_filename"
+    ssh $remote_server "cd /var/tmp/${VERSION}/data && tar -czf - postgres" > "$local_dir/$backup_filename"
 
     # Compress the backup file to save disk space
     gzip "$local_dir/$backup_filename"
