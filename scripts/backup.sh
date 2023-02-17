@@ -3,6 +3,7 @@
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
+source "${HERE}/keylessSsh.sh"
 
 # Read arguments
 while getopts ":c:h:i:l:v" opt; do
@@ -20,7 +21,7 @@ while getopts ":c:h:i:l:v" opt; do
         VERSION=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-c COUNT] [-l LOOP] [-h]"
+        echo "Usage: $0 [-c COUNT] [-h HELP] [-i INTERVAL] [-l LOOP] [-v VERSION]"
         echo "  -c --count: The number of most recent backup files to keep"
         echo "  -h --help: Show this help message"
         echo "  -i --interval: The interval in seconds for fetching the logs, if running on a loop"
@@ -52,8 +53,8 @@ if [ -z "$BACKUP_COUNT" ]; then
     BACKUP_COUNT=5
 fi
 
-# Set the remote server location, using DB_IP from .env
-remote_server="root@${DB_IP}"
+# Set the remote server location, using SITE_IP from .env
+remote_server="root@${SITE_IP}"
 info "Remote server: ${remote_server}"
 
 # If no version number is defined, use the version number found in the package.json files

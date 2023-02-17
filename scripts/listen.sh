@@ -4,6 +4,7 @@
 # for catching errors in production
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
+source "${HERE}/keylessSsh.sh"
 
 # The error codes you want to track
 error_codes=("0000" "0001" "0002")
@@ -21,7 +22,7 @@ while getopts ":h:i:l:v" opt; do
         VERSION=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-c COUNT] [-l LOOP] [-h]"
+        echo "Usage: $0 [-h HELP] [-i INTERVAL] [-l LOOP] [-v VERSION]"
         echo "  -h --help: Show this help message"
         echo "  -i --interval: The interval in seconds for fetching the logs, if running on a loop"
         echo "  -l --loop: Whether to run this script on a loop, or to exit after one run"
