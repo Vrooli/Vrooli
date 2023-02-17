@@ -80,7 +80,7 @@ const main = async () => {
         introspection: debug,
         schema: schema,
         context: (c) => context(c), // Allows request and response to be included in the context
-        validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
+        validationRules: [depthLimit(11)] // Prevents DoS attack from arbitrarily-nested query
     });
     // Start server
     await apollo_options_latest.start();

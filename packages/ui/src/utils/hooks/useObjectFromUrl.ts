@@ -51,7 +51,7 @@ export function useObjectFromUrl<
     const urlParams = useMemo(() => parseSingleItemUrl(), []);
 
     // Fetch data
-    const [getData, { data, loading: isLoading }] = useLazyQuery<TData, TVariables>(query, endpoint, { errorPolicy: 'all' });
+    const [getData, { data, error, loading: isLoading }] = useLazyQuery<TData, TVariables>(query, endpoint, { errorPolicy: 'all' });
     const [object, setObject] = useState<TData | null | undefined>(null);
     useEffect(() => {
         // Objects can be found using a few different unique identifiers
@@ -67,6 +67,10 @@ export function useObjectFromUrl<
     useEffect(() => {
         setObject(data?.[endpoint] ?? partialData as any);
     }, [data, endpoint, partialData]);
+
+    useEffect(() => {
+        if (error) PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+    }, [error]);
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);

@@ -16,6 +16,10 @@ export interface StartPageProps {
     session: Session;
 }
 
+export interface StatsPageProps {
+    session: Session;
+}
+
 export interface WelcomePageProps {
     session: Session;
 }

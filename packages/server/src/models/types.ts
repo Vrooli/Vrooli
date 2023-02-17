@@ -224,6 +224,11 @@ export type Searcher<
         : never
         : never)[]>;
     /**
+     * The maximum number of results allowed to search for at once. 
+     * Defaults to 100
+     */
+    takeLimit?: number;
+    /**
      * Query for searching by a string. To reduce code duplication, 
      * pieces of the query can be replaced with keys of the SearchStringMap object. 
      * This works for both arrays and objects

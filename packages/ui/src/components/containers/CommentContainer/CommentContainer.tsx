@@ -273,6 +273,7 @@ export function CommentContainer({
             <TimeMenu
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
+                session={session}
             />
             {/* Add comment */}
             {

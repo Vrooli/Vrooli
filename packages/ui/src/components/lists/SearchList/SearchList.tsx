@@ -338,6 +338,7 @@ export function SearchList<
             <TimeMenu
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
+                session={session}
             />
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
                 <SiteSearchBar

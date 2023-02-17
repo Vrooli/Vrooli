@@ -41,7 +41,7 @@ const Fallback = <Box sx={{
 </Box>
 
 export const Routes = (props: CommonProps) => {
-
+    // Tab title for static (non-dynamic) pages (e.g. Home, Search, Create, Notifications).
     const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
 
     return (
@@ -273,7 +273,7 @@ export const Routes = (props: CommonProps) => {
                     sitemapIndex={false}
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Settings')} {...props} mustBeLoggedIn={true} >
+                        <Page title={title('Settings⚙️')} {...props} mustBeLoggedIn={true} >
                             <SettingsPage session={props.session} />
                         </Page>
                     </Suspense>
@@ -285,7 +285,7 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="monthly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Tutorial')} {...props}>
+                        <Page title={title('Tutorial🤔')} {...props}>
                             <TutorialPage />
                         </Page>
                     </Suspense>
@@ -297,7 +297,7 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="monthly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Welcome')} {...props}>
+                        <Page title={title('Welcome!💙')} {...props}>
                             <WelcomePage {...props} />
                         </Page>
                     </Suspense>
@@ -310,13 +310,13 @@ export const Routes = (props: CommonProps) => {
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Stats📊')} {...props}>
-                            <StatsPage />
+                            <StatsPage {...props} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('404')} {...props}>
+                        <Page title={title('404🥺')} {...props}>
                             <NotFoundPage />
                         </Page>
                     </Suspense>

@@ -45,12 +45,22 @@ export interface SortMenuProps {
 export interface TimeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (label?: string, timeFrame?: { after?: Date, before?: Date }) => void;
+    session: Session;
 }
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: () => void;
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
+    minDate?: Date;
+    maxDate?: Date;
+    resetDateRange?: boolean;
+    session: Session;
+    /**
+     * If set, the date range will ensure that the difference between the two dates exact
+     * matches.
+     */
+    strictIntervalRange?: number;
 }
 
 /**
