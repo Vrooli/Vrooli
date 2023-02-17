@@ -219,6 +219,43 @@ export async function init(prisma: PrismaType) {
             }
         })
     }
+
+    // TODO temporary
+    // Add 100 dummy projects
+    let dummy1 = await prisma.project_version.findFirst({
+        where: {
+            AND: [
+                { root: { ownedByOrganizationId: vrooli.id } },
+                { translations: { some: { language: EN, name: 'DUMMY 1' } } },
+            ]
+        }
+    })
+    if (!dummy1) {
+        for (let i = 0; i < 100; i++) {
+            logger.info('📚 Creating DUMMY project' + i);
+            await prisma.project_version.create({
+                data: {
+                    translations: {
+                        create: [
+                            {
+                                language: EN,
+                                description: `This is the description for DUMMY ${i}`,
+                                name: `DUMMY ${i}`,
+                            }
+                        ]
+                    },
+                    root: {
+                        create: {
+                            permissions: JSON.stringify({}),
+                            createdBy: { connect: { id: admin.id } },
+                            ownedByOrganization: { connect: { id: vrooli.id } },
+                        }
+                    }
+                }
+            })
+        }
+    }
+
     //==============================================================
     /* #endregion Create Projects */
     //==============================================================

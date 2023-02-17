@@ -25,7 +25,6 @@ export function TimeMenu({
     const open = Boolean(anchorEl);
 
     const [customRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-
     const handleTimeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
     const handleTimeClose = () => {
         setCustomRangeAnchorEl(null)

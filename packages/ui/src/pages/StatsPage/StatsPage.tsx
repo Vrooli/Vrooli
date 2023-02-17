@@ -47,35 +47,34 @@ export const StatsPage = ({
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Period time frame. Defaults to past 24 hours.
-    const [fromDate, setFromDate] = useState(new Date(Date.now() - 24 * 60 * 60 * 1000));
-    const [toDate, setToDate] = useState(new Date());
-    const [resetDateRange, setResetDateRange] = useState(false);
+    const [period, setPeriod] = useState<{ after: Date, before: Date }>({
+        after: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        before: new Date()
+    });
     // Menu for picking date range.
     const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
     const handleDateRangeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
     const handleDateRangeClose = () => {
         setCustomRangeAnchorEl(null)
     };
-    const handleDateRangeSubmit = (after?: Date | undefined, before?: Date | undefined) => {
-        if (after) setFromDate(after);
-        if (before) setToDate(before);
+    const handleDateRangeSubmit = useCallback((newAfter?: Date | undefined, newBefore?: Date | undefined) => {
+        setPeriod({
+            after: newAfter || period.after,
+            before: newBefore || period.before,
+        })
         handleDateRangeClose();
-    };
+    }, [period.after, period.before]);
 
     // Handle tabs. Defaults to "Daily" tab.
     const [tabIndex, setTabIndex] = useState(0);
     const handleTabChange = useCallback((event, newValue) => {
         setTabIndex(newValue);
-        // Set date range based on tab selection.
+        // Reset date range based on tab selection.
         const period = tabPeriods[TabOptions[newValue]];
-        let newFromDate = new Date(Date.now() - period);
-        if (newFromDate < MIN_DATE) newFromDate = MIN_DATE;
-        const newToDate = new Date(newFromDate.getTime() + period);
-        setFromDate(newFromDate);
-        setToDate(newToDate);
-        // Toggle resetDateRange to force DateRangeMenu to reset its date range.
-        setResetDateRange(true);
-        setResetDateRange(false);
+        const newAfter = new Date(Math.max(Date.now() - period, MIN_DATE.getTime()));
+        const newBefore = new Date(Math.min(Date.now(), newAfter.getTime() + period));
+        console.log('yeeties', newAfter, newBefore)
+        setPeriod({ after: newAfter, before: newBefore });
     }, []);
 
     return (
@@ -109,7 +108,7 @@ export const StatsPage = ({
                 maxDate={new Date()}
                 onClose={handleDateRangeClose}
                 onSubmit={handleDateRangeSubmit}
-                resetDateRange={resetDateRange}
+                range={period}
                 session={session}
                 strictIntervalRange={tabPeriods[TabOptions[tabIndex]]}
             />
@@ -120,7 +119,7 @@ export const StatsPage = ({
                 textAlign="center"
                 onClick={handleDateRangeOpen}
                 sx={{ cursor: 'pointer' }}
-            >{displayDate(fromDate.getTime(), false) + " - " + displayDate(toDate.getTime(), false)}</Typography>
+            >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
             {/* Aggregate stats for the time period */}
             <Typography component="h1" variant="h4" textAlign="center">Quick Overview</Typography>
             {/* Stats as bar graphs */}

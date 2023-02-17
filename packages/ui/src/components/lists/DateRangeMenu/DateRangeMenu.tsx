@@ -12,7 +12,7 @@ export const DateRangeMenu = ({
     maxDate,
     onClose,
     onSubmit,
-    resetDateRange,
+    range,
     session,
     strictIntervalRange
 }: DateRangeMenuProps) => {
@@ -22,10 +22,16 @@ export const DateRangeMenu = ({
 
     const open = Boolean(anchorEl);
 
-    const [after, setAfter] = useState<Date | undefined>(minDate);
-    const [before, setBefore] = useState<Date | undefined>(maxDate)
+    // Internal state for range.after and range.before
+    const [after, setAfter] = useState<Date | undefined>(range?.after ?? minDate);
+    const [before, setBefore] = useState<Date | undefined>(range?.before ?? maxDate)
     const handleAfterChange = useCallback((date: Date | null) => { setAfter(date ?? minDate) }, [minDate]);
     const handleBeforeChange = useCallback((date: Date | null) => { setBefore(date ?? maxDate) }, [maxDate]);
+
+    useEffect(() => {
+        setAfter(range?.after ?? minDate);
+        setBefore(range?.before ?? maxDate);
+    }, [range, minDate, maxDate]);
 
     useEffect(() => {
         console.log('in drm 1', after, minDate, new Date());
@@ -71,13 +77,6 @@ export const DateRangeMenu = ({
             setBefore(changedBefore);
         }
     }, [after, before, maxDate]);
-
-    useEffect(() => {
-        if (resetDateRange) {
-            setAfter(minDate);
-            setBefore(maxDate);
-        }
-    }, [resetDateRange, minDate, maxDate]);
 
     return (
         <Popover

@@ -54,7 +54,7 @@ export interface DateRangeMenuProps {
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
     minDate?: Date;
     maxDate?: Date;
-    resetDateRange?: boolean;
+    range?: { after: Date | undefined, before: Date | undefined };
     session: Session;
     /**
      * If set, the date range will ensure that the difference between the two dates exact
