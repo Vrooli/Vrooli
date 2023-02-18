@@ -100,23 +100,45 @@ To achieve this grand vision, we must think from first principles. What properti
 
 ## 🔮 Roadmap
  - Q1 2022 
-    - ✅ Website launch. Users can create, comment, and vote on basic routines. 
+    - ✅ Alpha launch. Users can create, comment, and vote on basic routines. 
     - ✅ Routines consist of a flowchart of steps. Each step can have a description and a list of useful resources.
  - Q2 2022
     - ✅ Routine visualizer improved.
     - ✅ Routines have the ability to reference other routines.
     - ✅ Routines can be created using the template of any existing routine.
-    - "Request a Routine" section added.
+    - ✅ Support for multiple wallets and emails for authentication
  - Q3 2022
-    - API fully defined for routine metadata. Supports all existing features, plus information required for data storage and automation.
-    - Development started for connecting routines to specific user interfaces. This functionality allows for users to step through routines much easier, and is an important precursor for automation.
-    - Integration with DIDs, to act as a reputation system.
+    - ✅ Improved UX for running routines
+    - ✅ Server and API improvements
+    - ✅ Increased TypeScript type safety
 - Q4 2022
-    - Routines can connect to IPNS (similar to IPFS, but updatable) for data storage.
-    - Ability for routines to trigger a smart contract.
-    - Release of routine interface functionality.
-- 2023 and beyond
-    - Ability for users to create their own routine interfaces.
+    - ✅ Website navigation improvements, including a command palette
+    - ⚠️ Website shut down to work on fundamental rewrite
+    - ✅ More than doubled the database schema size, to support most features coming in 2023
+- Q1 2023
+    - ✅ Server rewritten to standardize model logic across all objects
+    - ✅ UX redesigned to focus on personal productivity first
+- Q2 2023
+    - 2.0 website launch🚀
+    - Create reminders, schedules, and notes
+    - Push notification support
+    - Transfer objects
+    - Invite members to your organization
+    - Schedule routines
+    - Premium subscription which supports higher limits for various actions
+- Q3 2023
+    - Run routines automatically
+    - Pull request functionality for improving routines
+    - Define APIs and call them from routines 
+    - Define smart contracts
+    - API spec finished for calling smart contracts, storing an retrieving data, attaching custom interfaces to routines, and remaining automation features
+- Q4 2023
+    - Create custom routine interfaces
+    - Call Cardano smart contracts. More to be supported in the future
+    - Microtransactions implemented to pay for API calls, smart contract calls, and running custom interfaces. 
+- 2024 and beyond
+    - Integration with DIDs, to act as a reputation system.
+    - Routines can connect to IPNS (similar to IPFS, but updatable) for data storage. Other options to also be supported
     - Decentralize all the things!
     - Continual improvements and bug fixes, to ensure Vrooli is as best as can be.
 
