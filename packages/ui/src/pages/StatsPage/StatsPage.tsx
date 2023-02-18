@@ -1,9 +1,12 @@
 import { Box, Tab, Tabs, Typography } from '@mui/material';
-import { useCallback, useMemo, useState } from 'react';
-import { DateRangeMenu, PageContainer, StatsList } from 'components';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LineGraphCard, DateRangeMenu, PageContainer } from 'components';
 import { useTranslation } from 'react-i18next';
-import { displayDate, getUserLanguages } from 'utils';
+import { displayDate, getUserLanguages, statsDisplay } from 'utils';
 import { StatsPageProps } from 'pages/types';
+import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
+import { useLazyQuery } from 'api';
+import { statsSiteFindMany } from 'api/generated/endpoints/statsSite';
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 
@@ -27,6 +30,17 @@ const tabPeriods: { [key in typeof TabOptions[number]]: number } = {
     Monthly: 30 * 24 * 60 * 60 * 1000, // Past 30 days
     Yearly: 365 * 24 * 60 * 60 * 1000, // Past 365 days
     AllTime: Number.MAX_SAFE_INTEGER, // All time
+};
+
+/**
+ * Maps tab options to PeriodType.
+ */
+const tabPeriodTypes: { [key in typeof TabOptions[number]]: `${StatPeriodType}` } = {
+    Daily: 'Hourly',
+    Weekly: 'Daily',
+    Monthly: 'Weekly',
+    Yearly: 'Monthly',
+    AllTime: 'Yearly',
 };
 
 // Stats should not be earlier than February 2023.
@@ -77,6 +91,55 @@ export const StatsPage = ({
         setPeriod({ after: newAfter, before: newBefore });
     }, []);
 
+    // Handle querying stats data.
+    const [getStats, { data: statsData, loading }] = useLazyQuery<StatsSiteSearchResult, StatsSiteSearchInput, 'statsSite'>(statsSiteFindMany, 'statsSite', {
+        variables: ({
+            periodType: tabPeriodTypes[TabOptions[tabIndex]] as StatPeriodType,
+            periodTimeFrame: {
+                after: period.after.toISOString(),
+                before: period.before.toISOString(),
+            },
+        }),
+        errorPolicy: 'all',
+    });
+    const [stats, setStats] = useState<StatsSite[]>([]);
+    useEffect(() => {
+        if (statsData) {
+            setStats(statsData.statsSite.edges.map(edge => edge.node));
+        }
+    }, [statsData]);
+    useEffect(() => {
+        getStats();
+    }, [tabIndex, period, getStats]);
+
+    // Shape stats data for display.
+    const { aggregate, visual } = useMemo(() => statsDisplay(stats), [stats]);
+
+    // Create a line graph card for each visual stat
+    const cards = useMemo(() => (
+        Object.entries(visual).map(([field, data], index) => {
+            if (data.length === 0) return null;
+            return (
+                <Box
+                    key={index}
+                    sx={{
+                        margin: 2,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}
+                >
+                    <LineGraphCard
+                        data={data}
+                        index={index}
+                        lineColor='white'
+                        title={field}
+                    />
+                </Box>
+            )
+        })
+    ), [visual]);
+
     return (
         <PageContainer>
             {/* Tabs to switch time frame size */}
@@ -121,10 +184,19 @@ export const StatsPage = ({
                 sx={{ cursor: 'pointer' }}
             >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
             {/* Aggregate stats for the time period */}
-            <Typography component="h1" variant="h4" textAlign="center">Quick Overview</Typography>
-            {/* Stats as bar graphs */}
-            <Typography component="h1" variant="h4" textAlign="center">The Pretty Pictures</Typography>
-            <StatsList data={[{}, {}, {}, {}, {}, {}]} />
+            <Typography component="h1" variant="h4" textAlign="center">{t(`common:Overview`, { lng })}</Typography>
+            {/* Line graph cards */}
+            <Typography component="h1" variant="h4" textAlign="center">Visual</Typography>
+            <Box
+                sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(275px, 1fr))',
+                    gridAutoRows: '275px',
+                    alignItems: 'stretch',
+                }}
+            >
+                {cards}
+            </Box>
         </PageContainer>
     )
 };

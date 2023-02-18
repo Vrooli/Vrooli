@@ -102,10 +102,6 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
-export interface StatsListProps {
-    data: Array<any>;
-}
-
 export interface TagListProps {
     /**
      * Maximum characters to display before tags are truncated

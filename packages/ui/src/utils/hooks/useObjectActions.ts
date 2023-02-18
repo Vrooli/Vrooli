@@ -35,6 +35,7 @@ export type UseObjectActionsReturn = {
     hasDeletingSupport: boolean;
     hasReportingSupport: boolean;
     hasSharingSupport: boolean;
+    hasStatsSupport: boolean;
     hasVotingSupport: boolean;
     isDeleteDialogOpen: boolean;
     isDonateDialogOpen: boolean;
@@ -120,6 +121,7 @@ export const useObjectActions = ({
     const hasDeletingSupport = exists(DeleteType[objectType]);
     const hasReportingSupport = exists(ReportFor[objectType]);
     const hasSharingSupport = useMemo(() => getYou(object).canShare, [object]);
+    const hasStatsSupport = useMemo(() => ['Api', 'Organization', 'Project', 'Quiz', 'Routine', 'SmartContract', 'Standard', 'User'].includes(objectType), [objectType]);
     const availableActions = useMemo(() => getAvailableActions(object, session), [object, session]);
 
     // Dialog states
@@ -200,6 +202,7 @@ export const useObjectActions = ({
         hasDeletingSupport,
         hasReportingSupport,
         hasSharingSupport,
+        hasStatsSupport,
         hasVotingSupport,
         isDeleteDialogOpen,
         isDonateDialogOpen,

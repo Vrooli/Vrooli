@@ -1,4 +1,5 @@
 import { Resource, Session } from "@shared/consts";
+import { LineGraphProps } from "components/graphs/types";
 
 export interface ResourceCardProps {
     canUpdate: boolean;
@@ -10,8 +11,7 @@ export interface ResourceCardProps {
     session: Session;
 }
 
-export interface StatCardProps {
+export interface LineGraphCardProps extends Omit<LineGraphProps, 'dims'> {
     title?: string;
-    data: any;
     index: number;
 }

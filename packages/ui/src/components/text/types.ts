@@ -47,7 +47,7 @@ export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Rout
 export interface StatsCompactProps<T extends StatsCompactPropsObject> {
     handleObjectUpdate: (object: T) => void;
     loading: boolean;
-    object: T | null;
+    object: T | null | undefined;
     session: Session;
 }
 

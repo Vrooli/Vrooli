@@ -25,6 +25,7 @@ export * from './SubroutineInfoDialog/SubroutineInfoDialog';
 export * from './ShareObjectDialog/ShareObjectDialog';
 export * from './ShareSiteDialog/ShareSiteDialog';
 export * from './snacks';
+export * from './StatsDialog/StatsDialog';
 export * from './TranscriptDialog/TranscriptDialog';
 export * from './UnlinkedNodesDialog/UnlinkedNodesDialog';
 export * from './WalletInstallDialog/WalletInstallDialog';

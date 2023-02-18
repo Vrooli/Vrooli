@@ -4,7 +4,7 @@ import { ReportsLink } from "components/buttons";
 import { UpvoteDownvote } from "components/lists";
 import { useMemo } from "react";
 import { getCounts, getYou } from "utils";
-import { StatsCompactProps, StatsCompactPropsObject } from "../types"
+import { StatsCompactProps, StatsCompactPropsObject } from "../types";
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
 
 /**
