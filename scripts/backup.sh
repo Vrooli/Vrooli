@@ -101,5 +101,6 @@ while true; do
         exit 0
     fi
     # Otherwise, wait for the specified interval before creating the next backup
+    info "Waiting $INTERVAL seconds before creating the next backup..."
     sleep $INTERVAL
 done
