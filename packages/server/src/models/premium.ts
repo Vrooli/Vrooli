@@ -32,7 +32,17 @@ export const PremiumModel: ModelLogic<{
             return i18next.t(`common:PaymentPlanBasic`, { lng });
         }
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+        },
+        prismaRelMap: {
+            __typename,
+            organization: 'Organization',
+            user: 'User',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

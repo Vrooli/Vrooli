@@ -1,5 +1,5 @@
 import { CustomError } from "../events";
-import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, Vote } from '@shared/consts';
+import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, Vote } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
@@ -8,48 +8,12 @@ import { selPad, permissionsSelectHelper } from "../builders";
 import { Prisma } from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { getLogic } from "../getters";
-import { isOwnerAdminCheck } from "../validators";
+import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
 import { Notify } from "../notify";
 
-type Model = {
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: Transfer,
-    GqlSearch: TransferSearchInput,
-    GqlSort: TransferSortBy,
-    GqlPermission: {},
-    PrismaCreate: Prisma.transferUpsertArgs['create'],
-    PrismaUpdate: Prisma.transferUpsertArgs['update'],
-    PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,
-    PrismaSelect: Prisma.transferSelect,
-    PrismaWhere: Prisma.transferWhereInput,
-}
-
 const __typename = 'Transfer' as const;
+type Permissions = Pick<TransferYou, 'canDelete' | 'canUpdate'>;
 const suppFields = [] as const;
-// const formatter = (): Formatter<Model, typeof suppFields> => ({
-//     gqlRelMap: {
-//         __typename,
-//         fromOwner: {
-//             fromUser: 'User',
-//             fromOrganization: 'Organization',
-//         },
-//         toOwner: {
-//             toUser: 'User',
-//             toOrganization: 'Organization',
-//         },
-//         object: {
-//             api: 'Api',
-//             note: 'Note',
-//             project: 'Project',
-//             routine: 'Routine',
-//             smartContract: 'SmartContract',
-//             standard: 'Standard',
-//         }
-//     },
-// })
 
 /**
  * Maps a transferable object type to its field name in the database
@@ -285,7 +249,21 @@ const transfer = (prisma: PrismaType) => ({
 //     yup: { update: {} as any },
 // })
 
-export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
+export const TransferModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: undefined,
+    GqlUpdate: undefined,
+    GqlModel: Transfer,
+    GqlSearch: TransferSearchInput,
+    GqlSort: TransferSortBy,
+    GqlPermission: Permissions,
+    PrismaCreate: Prisma.transferUpsertArgs['create'],
+    PrismaUpdate: Prisma.transferUpsertArgs['update'],
+    PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,
+    PrismaSelect: Prisma.transferSelect,
+    PrismaWhere: Prisma.transferWhereInput,
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.transfer,
     display: {
@@ -308,7 +286,51 @@ export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
             return '';
         }
     },
-    format: {} as any,// formatter(),
+    format: {
+        gqlRelMap: {
+            __typename,
+            fromOwner: {
+                fromUser: 'User',
+                fromOrganization: 'Organization',
+            },
+            object: {
+                api: 'Api',
+                note: 'Note',
+                project: 'Project',
+                routine: 'Routine',
+                smartContract: 'SmartContract',
+                standard: 'Standard',
+            },
+            toOwner: {
+                toUser: 'User',
+                toOrganization: 'Organization',
+            },
+        },
+        prismaRelMap: {
+            __typename,
+            fromUser: 'User',
+            fromOrganization: 'Organization',
+            toUser: 'User',
+            toOrganization: 'Organization',
+            api: 'Api',
+            note: 'Note',
+            project: 'Project',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+        },
+        countFields: {},
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
+            },
+        },
+    },
     mutate: {} as any,//mutater(),
     transfer,
     validate: {} as any,

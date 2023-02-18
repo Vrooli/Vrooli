@@ -29,7 +29,19 @@ export const ReminderListModel: ModelLogic<{
         // Label is schedule's label
         label: (select, languages) =>  UserScheduleModel.display.label(select.userSchedule as any, languages),
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            reminders: 'Reminder',
+        },
+        prismaRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            reminders: 'Reminder',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

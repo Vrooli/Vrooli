@@ -6,6 +6,7 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { QuizQuestionModel } from "./quizQuestion";
 import { selPad } from "../builders";
+import i18next from "i18next";
 
 const __typename = 'QuizQuestionResponse' as const;
 type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canUpdate'>;

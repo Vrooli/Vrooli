@@ -28,7 +28,20 @@ export const RunProjectScheduleModel: ModelLogic<{
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            labels: 'Label',
+            runProject: 'RunProject',
+        },
+        prismaRelMap: {
+            __typename,
+            labels: 'Label',
+            runProject: 'RunProject',
+        },
+        countFields: {},
+        joinMap: { labels: 'label' },
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

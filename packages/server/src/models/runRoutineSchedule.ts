@@ -28,7 +28,20 @@ export const RunRoutineScheduleModel: ModelLogic<{
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            labels: 'Label',
+            runRoutine: 'RunRoutine',
+        },
+        prismaRelMap: {
+            __typename,
+            labels: 'Label',
+            runRoutine: 'RunRoutine',
+        },
+        countFields: {},
+        joinMap: { labels: 'label' },
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

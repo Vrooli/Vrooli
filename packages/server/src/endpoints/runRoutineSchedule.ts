@@ -59,8 +59,8 @@ export const typeDef = gql`
         recurring: Boolean!
         recurrStart: Date
         recurrEnd: Date
-        runRoutine: RunRoutine!
         labels: [Label!]!
+        runRoutine: RunRoutine!
         translations: [RunRoutineScheduleTranslation!]!
     }
 

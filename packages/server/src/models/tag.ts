@@ -74,7 +74,7 @@ export const TagModel: ModelLogic<{
             smartContracts: 'SmartContract',
             standards: 'Standard',
             bookmarkedBy: 'User',
-            // scheduleFilters: 'ScheduleFilter',
+            scheduleFilters: 'UserScheduleFilter',
         },
         joinMap: {
             apis: 'tagged',

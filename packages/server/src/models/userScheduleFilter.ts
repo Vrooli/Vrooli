@@ -30,7 +30,19 @@ export const UserScheduleFilterModel: ModelLogic<{
         select: () => ({ id: true, tag: { select: TagModel.display.select() } }),
         label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : '',
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            tag: 'Tag',
+        },
+        prismaRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            tag: 'Tag',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {

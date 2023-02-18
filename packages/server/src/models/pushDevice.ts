@@ -33,7 +33,16 @@ export const PushDeviceModel: ModelLogic<{
             return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`
         }
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+        },
+        prismaRelMap: {
+            __typename,
+            user: 'User',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {

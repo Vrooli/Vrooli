@@ -27,7 +27,19 @@ export const ReminderModel: ModelLogic<{
         select: () => ({ id: true, name: true }),
         label: (select) => select.name
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            reminderItems: 'ReminderItem',
+            reminderList: 'ReminderList',
+        },
+        prismaRelMap: {
+            __typename,
+            reminderItems: 'ReminderItem',
+            reminderList: 'ReminderList',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,
