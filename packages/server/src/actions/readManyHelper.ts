@@ -31,6 +31,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
+    console.log('readmanyhelper before toPartialGraphQLInfo', objectType, model.__typename, JSON.stringify(model.format.gqlRelMap), '\n\n');
     let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
     console.log('readmanyhelper after toPartialGraphQLInfo', objectType, JSON.stringify(partialInfo), '\n\n')
     // Make sure ID is in partialInfo, since this is required for cursor-based search

@@ -13,6 +13,7 @@ import { SelectWrap } from "../builders/types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -241,19 +242,7 @@ export const RoutineModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                where: { isPrivate: false },
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: RoutineVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            RoutineVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(RoutineVersionModel),
     format: {
         gqlRelMap: {
             __typename,

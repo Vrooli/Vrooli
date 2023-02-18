@@ -4,7 +4,7 @@ import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { padSelect, permissionsSelectHelper } from "../builders";
+import { selPad, permissionsSelectHelper } from "../builders";
 import { Prisma } from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { getLogic } from "../getters";
@@ -291,12 +291,12 @@ export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
     display: {
         select: () => ({
             id: true,
-            api: padSelect(ApiModel.display.select),
-            note: padSelect(NoteModel.display.select),
-            project: padSelect(ProjectModel.display.select),
-            routine: padSelect(RoutineModel.display.select),
-            smartContract: padSelect(SmartContractModel.display.select),
-            standard: padSelect(StandardModel.display.select),
+            api: selPad(ApiModel.display.select),
+            note: selPad(NoteModel.display.select),
+            project: selPad(ProjectModel.display.select),
+            routine: selPad(RoutineModel.display.select),
+            smartContract: selPad(SmartContractModel.display.select),
+            standard: selPad(StandardModel.display.select),
         }),
         label: (select, languages) => {
             if (select.api) return ApiModel.display.label(select.api as any, languages);

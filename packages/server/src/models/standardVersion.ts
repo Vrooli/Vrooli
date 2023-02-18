@@ -6,7 +6,7 @@ import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -56,7 +56,7 @@ import { StandardModel } from "./standard";
 //         isPrivate: true,
 //         isDeleted: true,
 //         permissions: true,
-//         createdBy: padSelect({ id: true }),
+//         createdBy: selPad({ id: true }),
 //         ...permissionsSelectHelper([
 //             ['ownedByOrganization', 'Organization'],
 //             ['ownedByUser', 'User'],

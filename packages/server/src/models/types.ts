@@ -6,7 +6,7 @@ import { SortMap } from "../utils/sortMap";
 import { SearchMap, SearchStringMap } from "../utils";
 import { QueryAction } from "../utils/types";
 
-type ModelLogicType = {
+export type ModelLogicType = {
     GqlCreate: Record<string, any> | undefined,
     GqlUpdate: Record<string, any> | undefined,
     GqlSearch: Record<string, any> | undefined,

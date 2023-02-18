@@ -8,6 +8,7 @@ import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const __typename = 'Note' as const;
 type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -29,18 +30,7 @@ export const NoteModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.note,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: NoteVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            NoteVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(NoteVersionModel),
     format: {
         gqlRelMap: {
             __typename,

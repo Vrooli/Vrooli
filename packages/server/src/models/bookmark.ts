@@ -11,7 +11,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ApiModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { SelectWrap } from "../builders/types";
-import { onlyValidIds, padSelect } from "../builders";
+import { onlyValidIds, selPad } from "../builders";
 import { NoteModel } from "./note";
 import { exists } from "@shared/utils";
 
@@ -55,21 +55,21 @@ export const BookmarkModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            api: padSelect(ApiModel.display.select),
-            comment: padSelect(CommentModel.display.select),
-            issue: padSelect(IssueModel.display.select),
-            note: padSelect(NoteModel.display.select),
-            organization: padSelect(OrganizationModel.display.select),
-            post: padSelect(PostModel.display.select),
-            project: padSelect(ProjectModel.display.select),
-            question: padSelect(QuestionModel.display.select),
-            questionAnswer: padSelect(QuestionAnswerModel.display.select),
-            quiz: padSelect(QuizModel.display.select),
-            routine: padSelect(RoutineModel.display.select),
-            smartContract: padSelect(SmartContractModel.display.select),
-            standard: padSelect(StandardModel.display.select),
-            tag: padSelect(TagModel.display.select),
-            user: padSelect(UserModel.display.select),
+            api: selPad(ApiModel.display.select),
+            comment: selPad(CommentModel.display.select),
+            issue: selPad(IssueModel.display.select),
+            note: selPad(NoteModel.display.select),
+            organization: selPad(OrganizationModel.display.select),
+            post: selPad(PostModel.display.select),
+            project: selPad(ProjectModel.display.select),
+            question: selPad(QuestionModel.display.select),
+            questionAnswer: selPad(QuestionAnswerModel.display.select),
+            quiz: selPad(QuizModel.display.select),
+            routine: selPad(RoutineModel.display.select),
+            smartContract: selPad(SmartContractModel.display.select),
+            standard: selPad(StandardModel.display.select),
+            tag: selPad(TagModel.display.select),
+            user: selPad(UserModel.display.select),
         }),
         label: (select, languages) => {
             if (select.api) return ApiModel.display.label(select.api as any, languages);

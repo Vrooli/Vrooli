@@ -3,7 +3,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInputModel } from ".";
 import { defaultPermissions } from '../utils';
@@ -30,8 +30,8 @@ export const RunRoutineInputModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            input: padSelect(RoutineVersionInputModel.display.select),
-            runRoutine: padSelect(RunRoutineModel.display.select),
+            input: selPad(RoutineVersionInputModel.display.select),
+            runRoutine: selPad(RunRoutineModel.display.select),
         }),
         // Label combines runRoutine's label and input's label
         label: (select, languages) => {

@@ -11,6 +11,7 @@ import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const __typename = 'SmartContract' as const;
 type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -32,18 +33,7 @@ export const SmartContractModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: SmartContractVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            SmartContractVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(SmartContractVersionModel),
     format: {
         gqlRelMap: {
             __typename,

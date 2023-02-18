@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { RoutineModel } from "./routine";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput } from '@shared/consts';
 
@@ -50,7 +50,7 @@ export const RoutineVersionInputModel: ModelLogic<{
         select: () => ({
             id: true,
             name: true,
-            routineVersion: padSelect(RoutineModel.display.select),
+            routineVersion: selPad(RoutineModel.display.select),
         }),
         label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
     },

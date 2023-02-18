@@ -2,7 +2,7 @@ import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from '@shared/cons
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { noNull, padSelect, shapeHelper } from "../builders";
+import { noNull, selPad, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 import { nodeLinkValidation } from '@shared/validation';
@@ -29,8 +29,8 @@ export const NodeLinkModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            from: padSelect(NodeModel.display.select),
-            to: padSelect(NodeModel.display.select),
+            from: selPad(NodeModel.display.select),
+            to: selPad(NodeModel.display.select),
         }),
         // Label combines from and to labels
         label: (select, languages) => {

@@ -2,7 +2,7 @@ import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { noNull, padSelect, shapeHelper } from "../builders";
+import { noNull, selPad, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 import { nodeRoutineListValidation } from '@shared/validation';
@@ -29,7 +29,7 @@ export const NodeRoutineListModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_routine_list,
     display: {
-        select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
+        select: () => ({ id: true, node: selPad(NodeModel.display.select) }),
         label: (select, languages) => NodeModel.display.label(select.node as any, languages),
     },
     format: {

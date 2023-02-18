@@ -4,6 +4,8 @@ import { PrependString, QuizQuestionResponse, QuizQuestionResponseCreateInput, Q
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { QuizQuestionModel } from "./quizQuestion";
+import { selPad } from "../builders";
 
 const __typename = 'QuizQuestionResponse' as const;
 type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canUpdate'>;
@@ -25,7 +27,13 @@ export const QuizQuestionResponseModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
-    display: {} as any,
+    display: {
+        select: () => ({ id: true, quizQuestion: selPad(QuizQuestionModel.display.select) }),
+        label: (select, languages) => i18next.t(`common:QuizQuestionResponseLabel`, {
+            lng: languages.length > 0 ? languages[0] : 'en',
+            questionLabel: QuizQuestionModel.display.label(select.quizQuestion as any, languages),
+        }),
+    },
     format: {
         gqlRelMap: {
             __typename,

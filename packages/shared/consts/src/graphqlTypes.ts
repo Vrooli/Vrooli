@@ -7810,6 +7810,7 @@ export type StandardYou = {
 
 export enum StatPeriodType {
   Daily = 'Daily',
+  Hourly = 'Hourly',
   Monthly = 'Monthly',
   Weekly = 'Weekly',
   Yearly = 'Yearly'

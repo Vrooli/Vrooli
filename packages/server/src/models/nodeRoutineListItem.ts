@@ -3,7 +3,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
-import { noNull, padSelect, shapeHelper } from "../builders";
+import { noNull, selPad, shapeHelper } from "../builders";
 import { RoutineModel } from "./routine";
 import { SelectWrap } from "../builders/types";
 import { nodeRoutineListItemValidation } from '@shared/validation';
@@ -32,8 +32,8 @@ export const NodeRoutineListItemModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            translations: padSelect({ id: true, name: true }),
-            routineVersion: padSelect(RoutineModel.display.select),
+            translations: selPad({ id: true, name: true }),
+            routineVersion: selPad(RoutineModel.display.select),
         }),
         label: (select, languages) => {
             // Prefer item translations over routineVersion's

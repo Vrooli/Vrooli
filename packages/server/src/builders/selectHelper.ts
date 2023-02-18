@@ -1,5 +1,5 @@
 import { isObject } from "@shared/utils";
-import { padSelect } from "./padSelect";
+import { selPad } from "./selPad";
 import { removeTypenames } from "./removeTypenames";
 import { toPartialPrismaSelect } from "./toPartialPrismaSelect";
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect } from "./types";
@@ -17,8 +17,8 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
     modified = removeTypenames(modified);
     console.log('selecthelper after removeTypenames', JSON.stringify(modified));
     // Pad every relationship with "select"
-    console.log('selecthelper before padSelect', JSON.stringify(modified));
-    modified = padSelect(modified);
+    console.log('selecthelper before selify', JSON.stringify(modified));
+    modified = selPad(modified);
     console.log('selectHelper end', JSON.stringify(modified), '\n\n');
     return modified as PrismaSelect;
 }

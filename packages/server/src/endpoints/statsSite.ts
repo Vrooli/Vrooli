@@ -15,7 +15,7 @@ export const typeDef = gql`
         ids: [ID!]
         periodType: StatPeriodType!
         periodTimeFrame: TimeFrame
-        searchString: String
+        searchString: String # Needed to satisfy SearchStringQueryParams, but not used
         sortBy: StatsSiteSortBy
         take: Int
     }

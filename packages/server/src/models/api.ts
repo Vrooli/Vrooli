@@ -12,6 +12,7 @@ import { defaultPermissions, labelShapeHelper, tagShapeHelper } from "../utils";
 import { noNull, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const __typename = 'Api' as const;
 type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -33,18 +34,7 @@ export const ApiModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: ApiVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            ApiVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(ApiVersionModel),
     format: {
         gqlRelMap: {
             __typename,

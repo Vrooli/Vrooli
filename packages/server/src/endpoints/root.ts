@@ -167,6 +167,7 @@ export const typeDef = gql`
     }
 
     enum StatPeriodType {
+        Hourly
         Daily
         Weekly
         Monthly

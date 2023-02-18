@@ -4,7 +4,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
-import { addSupplementalFields, modelToGraphQL, padSelect, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";

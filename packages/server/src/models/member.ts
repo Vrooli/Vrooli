@@ -3,7 +3,7 @@ import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from '@sha
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 
 const __typename = 'Member' as const;
@@ -29,7 +29,7 @@ export const MemberModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            user: padSelect(UserModel.display.select),
+            user: selPad(UserModel.display.select),
         }),
         label: (select, languages) => UserModel.display.label(select.user as any, languages),
     },

@@ -1,5 +1,6 @@
 import { timeFrameToPrisma, visibilityBuilder } from "../builders";
 import { GqlModelType, InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
+import { PeriodType } from "@prisma/client";
 
 type Maybe<T> = InputMaybe<T> | undefined
 
@@ -159,6 +160,8 @@ export const SearchMap = {
     ownedByOrganizationId: (id: Maybe<string>) => oneToOneId(id, 'ownedByOrganization'),
     ownedByUserId: (id: Maybe<string>) => oneToOneId(id, 'ownedByUser'),
     parentId: (id: Maybe<string>) => oneToOneId(id, 'parent'),
+    periodTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('periodEnd', time),
+    periodType: (periodType: Maybe<PeriodType>) => ({ periodType }),
     postId: (id: Maybe<string>) => oneToOneId(id, 'post'),
     postsId: (id: Maybe<string>) => oneToManyId(id, 'posts'),
     projectId: (id: Maybe<string>) => oneToOneId(id, 'project'),

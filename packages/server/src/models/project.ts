@@ -13,6 +13,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
     return {
@@ -47,19 +48,7 @@ export const ProjectModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.project,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                where: { isPrivate: false },
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: ProjectVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            ProjectVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(ProjectVersionModel),
     format: {
         gqlRelMap: {
             __typename,
