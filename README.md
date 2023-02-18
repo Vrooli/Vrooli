@@ -30,6 +30,12 @@ Each building block is called a *routine*, and they can be combined together wit
 
 Routines can be used for rapid prototyping, reusable productivity workflows, and the automation of complex tasks.
 
+## What happened here?
+
+Originally focused on building with blockchain technology, I have decided to shift the project's implementation to traditional technologies first, then integrate blockchain later. This decision prioritizes user experience and accessibility.
+
+While this project aims for profitability, Vrooli is not structured as a traditional business. The founder does not want to manage employees and is not interested in being obligated to respond to comments on a regular basis. Collaborators are welcome to suggest and complete tasks on (our project board)[https://github.com/orgs/Vrooli/projects/1]. The best way to help this project, however, is to use it! Creating public routines and being an active participant on the app is ideal. Thank you for your interest in Vrooli!
+
 ## 👀 The Vision
 
 While Artificial Intelligence will excel at generating text, driving, and other general tasks, it is not enough to maximize human productivity. Someone who doesn't know how to work on cars could be given an entire garage full of tools, and still not be able to fix their engine. What we need to reach the next level of productivity is a platform that minimizes the friction between our wants and how to achieve them.
