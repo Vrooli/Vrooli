@@ -3,7 +3,7 @@ import { useMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { NoteCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
@@ -12,6 +12,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
 import { noteVersionCreate } from "api/generated/endpoints/noteVersion";
+import { parseSearchParams } from "@shared/route";
 
 export const NoteCreate = ({
     onCreated,

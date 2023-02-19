@@ -47,7 +47,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, prisma, userData ?? null);
     // Check permissions
-    permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
+    await permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
     // Get the Prisma object
     const object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
     if (!object)

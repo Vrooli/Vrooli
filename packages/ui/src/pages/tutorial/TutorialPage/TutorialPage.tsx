@@ -1,9 +1,8 @@
 import { Box, IconButton, Palette, Stack, useTheme } from '@mui/material';
 import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
+import { SetLocation, useLocation } from '@shared/route';
 import { PageContainer, PageTitle } from 'components';
 import { useCallback, useMemo, useState } from 'react';
-import { SetLocation } from 'types';
 
 type PageProps = {
     palette: Palette;

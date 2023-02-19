@@ -1,6 +1,7 @@
 import locationHook, { BaseLocationHook, HookNavigationOptions, LocationHook, Path } from "./useLocation";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
 import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, useRef, useLayoutEffect, useContext, useCallback, ReactElement, ReactNode, useEffect } from "react";
+import { parseSearchParams } from "./searchParams";
 
 export type ExtractRouteOptionalParam<PathType extends Path> =
     PathType extends `${infer Param}?`
@@ -131,15 +132,22 @@ export type RouteProps = {
 export const Route = ({ path, match, component, children }: RouteProps) => {
     const useRouteMatch = useRoute(path as any);
 
-    // Store last and current path in session storage, so we can handle 
+    // Store last and current url data in session storage, so we can handle 
     // dialogs better
     useEffect(() => {
-        // Get last stored path in sessionStorage
+        // Get last stored data in sessionStorage
         const lastPath = sessionStorage.getItem("currentPath");
-        // Store last path in sessionStorage
+        const lastSearchParams = sessionStorage.getItem("currentSearchParams");
+        console.log("LAST PATH", lastPath);
+        console.log("LAST SEARCH PARAMS", lastSearchParams);
+        console.log('CURRENT PATH', location.pathname)
+        console.log('CURRENT SEARCH PARAMS', parseSearchParams())
+        // Store last data in sessionStorage
         if (lastPath) sessionStorage.setItem("lastPath", lastPath);
-        // Store current path in sessionStorage
+        if (lastSearchParams) sessionStorage.setItem("lastSearchParams", lastSearchParams);
+        // Store current data in sessionStorage
         sessionStorage.setItem("currentPath", location.pathname);
+        sessionStorage.setItem("currentSearchParams", JSON.stringify(parseSearchParams()));
     } , [path]);
 
     // `props.match` is present - Route is controlled by the Switch

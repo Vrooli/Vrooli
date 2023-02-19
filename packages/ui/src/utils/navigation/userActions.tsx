@@ -6,10 +6,9 @@ import {
     Button,
     IconButton,
 } from '@mui/material';
-import { openLink } from 'utils';
-import { SetLocation } from 'types';
 import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
 import { getCurrentUser, guestSession } from 'utils/authentication';
+import { openLink, SetLocation } from '@shared/route';
 
 export enum ACTION_TAGS {
     Home = 'Home',

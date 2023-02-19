@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { useLocation } from '@shared/route';
+import { parseSearchParams, useLocation } from '@shared/route';
 import { Api, APP_LINKS, GqlModelType, Note, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, User } from "@shared/consts";
 import { lazily } from "react-lazily";
-import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
+import { ObjectType, PubSub, uuidToBase36 } from "utils";
 import { PageContainer, ReportsView } from "components";
 import { useTranslation } from "react-i18next";
 

@@ -1,7 +1,6 @@
 // Defines common props
 import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
-import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
 import { GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
 
@@ -167,9 +166,6 @@ export type ApolloError = {
 // Translations
 export type ErrorKey = TFuncKey<'error', undefined>
 export type CommonKey = TFuncKey<'common', undefined>
-
-// Miscellaneous types
-export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;
 
 /**
  * Makes a value nullable. Mimics the Maybe type in GraphQL.

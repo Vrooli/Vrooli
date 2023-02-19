@@ -13,10 +13,11 @@ import { AdvancedSearchDialogProps } from '../types';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, convertSearchForFormik, getUserLanguages, parseSearchParams, searchTypeToParams } from 'utils';
+import { convertFormikForSearch, convertSearchForFormik, getUserLanguages, searchTypeToParams } from 'utils';
 import { DialogTitle, GeneratedGrid } from 'components';
 import { CancelIcon, SearchIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
+import { parseSearchParams } from '@shared/route';
 
 const titleAria = 'advanced-search-dialog-title';
 

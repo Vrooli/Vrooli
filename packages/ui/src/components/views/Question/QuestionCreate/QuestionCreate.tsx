@@ -3,7 +3,7 @@ import { useMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeQuestion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeQuestion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { QuestionCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
@@ -12,6 +12,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { Question, QuestionCreateInput, ResourceList } from "@shared/consts";
 import { questionCreate } from "api/generated/endpoints/question";
+import { parseSearchParams } from "@shared/route";
 
 export const QuestionCreate = ({
     onCreated,

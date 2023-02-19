@@ -1,7 +1,7 @@
-import { exists } from "@shared/utils/src";
+import { SetLocation } from "@shared/route";
 
 type Primitive = string | number | boolean;
-type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
+export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
 
 /**
  * Converts url search params to object
@@ -61,7 +61,56 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
     const keys = Object.keys(params);
     if (keys.length === 0) return '';
     // Filter out any keys which are associated with undefined or null values
-    const filteredKeys = keys.filter(key => exists(params[key]));
+    const filteredKeys = keys.filter(key => params[key] !== null && params[key] !== undefined);
     const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + '=' + encodeURIComponent(JSON.stringify(params[key]))).join('&');
     return '?' + encodedParams;
 }
+
+/**
+ * Adds values to the current search params, without removing any existing values. 
+ * If a key already exists, it will be overwritten.
+ * @param setLocation Function to set the location
+ * @param params Object with key/value pairs, representing search params
+ */
+export const addSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
+    const currentParams = parseSearchParams();
+    const newParams = { ...currentParams, ...params };
+    setLocation(`${window.location.pathname}${stringifySearchParams(newParams)}`, { replace: true });
+};
+
+/**
+ * Sets the search params, removing any existing values
+ * @param setLocation Function to set the location
+ * @param params Object with key/value pairs, representing search params
+ */
+export const setSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
+    setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
+};
+
+/**
+ * Keeps only the search params specified in the keys array, removing any others
+ * @param setLocation Function to set the location
+ * @param keep Array of keys to keep
+ */
+export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
+    const keepResult: { [key: string]: any } = {};
+    const searchParams = parseSearchParams();
+    keep.forEach(key => {
+        if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
+    });
+    setLocation(`${window.location.pathname}${stringifySearchParams(keepResult)}`, { replace: true });
+};
+
+/**
+ * Removes the search params specified in the keys array, keeping any others
+ * @param setLocation Function to set the location
+ * @param remove Array of keys to remove
+ */
+export const removeSearchParams = (setLocation: SetLocation, remove: string[]) => {
+    const removeResult: { [key: string]: any } = {};
+    const searchParams = parseSearchParams();
+    Object.keys(searchParams).forEach(key => {
+        if (!remove.includes(key)) removeResult[key] = searchParams[key];
+    });
+    setLocation(`${window.location.pathname}${stringifySearchParams(removeResult)}`, { replace: true });
+};

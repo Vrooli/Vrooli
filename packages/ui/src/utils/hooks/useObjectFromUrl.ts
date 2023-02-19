@@ -1,11 +1,12 @@
 import { OperationVariables, TypedDocumentNode } from "@apollo/client";
 import { Session } from "@shared/consts";
+import { ParseSearchParamsResult } from "@shared/route";
 import { exists } from "@shared/utils";
 import { useLazyQuery } from "api";
 import { DocumentNode } from "graphql";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display";
-import { ParseSearchParamsResult, parseSingleItemUrl } from "utils/navigation";
+import { parseSingleItemUrl } from "utils/navigation";
 import { PubSub } from "utils/pubsub";
 
 type UseObjectFromUrlProps<

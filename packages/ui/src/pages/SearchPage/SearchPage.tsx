@@ -5,9 +5,9 @@ import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@
 import { PageContainer, PageTabs, SearchList, ShareSiteDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
-import { useLocation } from '@shared/route';
+import { addSearchParams, parseSearchParams, stringifySearchParams, useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, SearchType, SearchPageTabOption as TabOptions, addSearchParams, getUserLanguages } from "utils";
+import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions, getUserLanguages } from "utils";
 import { APP_LINKS, GqlModelType } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";

@@ -7,8 +7,8 @@ import { AdvancedSearchDialog, SiteSearchBar, SortMenu, TimeMenu } from "compone
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { addSearchParams, getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, searchTypeToParams } from "utils";
-import { useLocation } from '@shared/route';
+import { getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, searchTypeToParams } from "utils";
+import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 import { SearchParams } from "utils/search/schemas/base";
 import { routineFindMany } from "api/generated/endpoints/routine";
@@ -142,7 +142,16 @@ export function SearchList<
         } as any),
         errorPolicy: 'all',
     });
-    const [allData, setAllData] = useState<DataType[]>([]);
+    const [allData, setAllData] = useState<DataType[]>(() => {
+        // Check if we just navigated back to this page from an object page
+        const lastPath = sessionStorage.getItem("lastPath");
+        const lastSearchParams = sessionStorage.getItem("lastSearchParams");
+        console.log('lastPath', lastPath)
+        console.log('lastSearchParams', lastSearchParams)
+        return []
+    });
+
+    console.log('allData', allData.length, allData)
 
     // On search filters/sort change, reset the page
     useEffect(() => {
@@ -153,6 +162,7 @@ export function SearchList<
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
         if (!pageData) return;
+        console.log('in load more')
         const queryData: any = Object.values(pageData)[0];
         if (!queryData || !queryData.pageInfo) return [];
         if (queryData.pageInfo?.hasNextPage) {
@@ -201,6 +211,7 @@ export function SearchList<
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
         const parsedData = parseData(pageData);
+        console.log('parsing data', parsedData, after.current)
         if (!parsedData) {
             setAllData([]);
             return;

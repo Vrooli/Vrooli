@@ -11,8 +11,8 @@ import {
 } from '@mui/material';
 import { InfoIcon, DiscordIcon, GitHubIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
 import { CopyrightBreadcrumbs } from 'components';
-import { useLocation } from '@shared/route';
-import { getDeviceInfo, getUserLanguages, openLink } from 'utils';
+import { openLink, useLocation } from '@shared/route';
+import { getDeviceInfo, getUserLanguages } from 'utils';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FooterProps } from '../types';

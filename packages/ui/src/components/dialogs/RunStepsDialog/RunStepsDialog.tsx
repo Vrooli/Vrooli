@@ -16,8 +16,8 @@ import {
 import { RunStepsDialogProps } from '../types';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
-import { addSearchParams, locationArraysMatch, routineVersionHasSubroutines, RoutineStepType } from 'utils';
-import { useLocation } from '@shared/route';
+import { locationArraysMatch, routineVersionHasSubroutines, RoutineStepType } from 'utils';
+import { addSearchParams, useLocation } from '@shared/route';
 import { MenuTitle } from '../MenuTitle/MenuTitle';
 import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from '@shared/icons';
 

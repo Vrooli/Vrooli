@@ -45,6 +45,8 @@ export const typeDef = gql`
     }
     type Bookmark {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         label: String!
         by: User!
         to: BookmarkTo!

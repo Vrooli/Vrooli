@@ -6,7 +6,7 @@ import { mutationWrapper } from "api/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
-import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
+import { base36ToUuid, getRunPercentComplete, PubSub } from "utils";
 import { useMutation } from "api/hooks";
 import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
 import { uuid } from '@shared/uuid';
@@ -15,6 +15,7 @@ import { DeleteIcon } from "@shared/icons";
 import { runProjectCreate } from "api/generated/endpoints/runProject";
 import { runRoutineCreate } from "api/generated/endpoints/runRoutine";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany";
+import { parseSearchParams } from "@shared/route";
 
 const titleAria = 'run-picker-dialog-title';
 

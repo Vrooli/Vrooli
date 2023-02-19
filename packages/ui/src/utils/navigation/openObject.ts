@@ -3,11 +3,12 @@
  */
 
 import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Bookmark, View, Vote } from "@shared/consts";
+import { SetLocation, stringifySearchParams } from "@shared/route";
 import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
-import { NavigableObject, SetLocation } from "types";
+import { NavigableObject } from "types";
 import { ResourceType } from "utils/consts";
-import { stringifySearchParams, uuidToBase36 } from "./urlTools";
+import { uuidToBase36 } from "./urlTools";
 
 export type ObjectType = 'Api' | 
     'Bookmark' |

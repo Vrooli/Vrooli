@@ -66,7 +66,7 @@ export async function cudHelper<
     // Query for all authentication data
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
     // Validate permissions
-    permissionsCheck(authDataById, idsByAction, userData);
+    await permissionsCheck(authDataById, idsByAction, userData);
     console.log("finished permissions check");
     // Max objects check
     maxObjectsCheck(authDataById, idsByAction, prisma, userData);

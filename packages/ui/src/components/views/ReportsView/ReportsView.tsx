@@ -1,12 +1,13 @@
 import { useQuery } from "@apollo/client";
 import { useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
-import { getLastUrlPart, parseSingleItemUrl } from "utils";
+import { parseSingleItemUrl } from "utils";
 import { PageTitle } from "components/text";
 import { ReportsViewPageProps } from "pages/view/types";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { Wrap } from "types";
 import { reportFindMany } from "api/generated/endpoints/report";
+import { getLastUrlPart } from "@shared/route";
 
 /**
  * Maps object types to the correct id fields

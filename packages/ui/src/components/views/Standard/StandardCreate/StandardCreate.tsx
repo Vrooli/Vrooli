@@ -2,7 +2,7 @@ import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
@@ -15,6 +15,7 @@ import { getCurrentUser } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
 import { standardVersionCreate } from "api/generated/endpoints/standardVersion";
+import { parseSearchParams } from "@shared/route";
 
 export const StandardCreate = ({
     onCreated,

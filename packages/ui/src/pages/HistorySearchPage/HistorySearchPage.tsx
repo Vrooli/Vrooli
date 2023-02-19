@@ -4,9 +4,9 @@
 import { Stack, Typography } from "@mui/material";
 import { PageContainer, PageTabs, SearchList } from "components";
 import { useCallback, useMemo, useState } from "react";
-import { useLocation } from '@shared/route';
+import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { HistorySearchPageProps } from "../types";
-import { parseSearchParams, SearchType, HistorySearchPageTabOption as TabOptions, addSearchParams, getUserLanguages } from "utils";
+import { SearchType, HistorySearchPageTabOption as TabOptions, getUserLanguages } from "utils";
 import { CommonKey } from "types";
 import { PageTab } from "components/types";
 import { useTranslation } from "react-i18next";

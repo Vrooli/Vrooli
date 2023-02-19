@@ -12,8 +12,8 @@ import { ContactInfoProps } from '../types';
 import { ColorIconButton } from 'components/buttons';
 import { CopyrightBreadcrumbs } from 'components/breadcrumbs';
 import { noSelect } from 'styles';
-import { getUserLanguages, openLink } from 'utils';
-import { useLocation } from '@shared/route';
+import { getUserLanguages } from 'utils';
+import { openLink, useLocation } from '@shared/route';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 

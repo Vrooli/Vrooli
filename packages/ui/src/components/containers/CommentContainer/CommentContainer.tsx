@@ -5,9 +5,9 @@ import { Box, Button, Palette, Stack, Tooltip, Typography, useTheme } from '@mui
 import { CommentContainerProps } from '../types';
 import { useLazyQuery } from 'api/hooks';
 import { CommentCreateInput } from 'components/inputs';
-import { addSearchParams, getUserLanguages, labelledSortOptions, parseSearchParams, removeSearchParams, SearchType, searchTypeToParams, useWindowSize } from 'utils';
+import { getUserLanguages, labelledSortOptions, SearchType, searchTypeToParams, useWindowSize } from 'utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from '@shared/route';
+import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from '@shared/route';
 import { Wrap } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { uuidValidate } from '@shared/uuid';
@@ -85,7 +85,7 @@ export function CommentContainer({
                 before: new Date((searchParams.time as any).before),
             });
         }
-    }, []);
+    }, [defaultSortBy, sortByOptions]);
 
     const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
