@@ -21,11 +21,13 @@ const {
     SettingsPage,
 } = lazily(() => import('./pages/main'));
 const { TutorialPage, WelcomePage } = lazily(() => import('./pages/tutorial'));
+const { AwardsPage } = lazily(() => import('./pages/AwardsPage/AwardsPage'));
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
 const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
 const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
 const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
+const { PremiumPage } = lazily(() => import('./pages/PremiumPage/PremiumPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
@@ -311,6 +313,30 @@ export const Routes = (props: CommonProps) => {
                     <Suspense fallback={Fallback}>
                         <Page title={title('Stats📊')} {...props}>
                             <StatsPage {...props} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Awards}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="weekly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Awards🏆')} {...props}>
+                            <AwardsPage {...props} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Premium}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="weekly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Premium😎')} {...props}>
+                            <PremiumPage {...props} />
                         </Page>
                     </Suspense>
                 </Route>

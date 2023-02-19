@@ -9,6 +9,8 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { defaultPermissions } from "../utils";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Note' as const;
 type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -88,5 +90,58 @@ export const NoteModel: ModelLogic<{
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        hasCompleteVersion: () => true,
+        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
+        isDeleted: () => false,
+        isPublic: (data) => data.isPrivate === false,
+        isTransferable: true,
+        maxObjects: {
+            User: {
+                private: {
+                    noPremium: 25,
+                    premium: 1000,
+                },
+                public: {
+                    noPremium: 50,
+                    premium: 2000,
+                }
+            },
+            Organization: {
+                private: {
+                    noPremium: 25,
+                    premium: 1000,
+                },
+                public: {
+                    noPremium: 50,
+                    premium: 2000,
+                }
+            },
+        },
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            permissions: true,
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: ['NoteVersion', ['root']],
+        }),
+        visibility: {
+            private: { isPrivate: true },
+            public: { isPrivate: false },
+            owner: (userId) => ({
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })
