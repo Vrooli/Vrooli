@@ -1,8 +1,8 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
+import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
@@ -10,10 +10,9 @@ import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
 import { useTranslation } from "react-i18next";
-import { exists } from "@shared/utils";
+import { PageTab } from "components/types";
 
 enum TabOptions {
-    Resource = "Resource",
     Routine = "Routine",
     Standard = "Standard",
 }
@@ -56,23 +55,18 @@ export const ProjectView = ({
     }, [handle, name]);
 
     // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(0);
-    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
-
-    /**
-     * Calculate which tabs to display
-     */
-    const availableTabs = useMemo(() => {
-        const tabs: TabOptions[] = [];
-        // Only display resources if there are any
-        // if (resources || canUpdate) tabs.push(TabOptions.Resource);
-        // Always display others (for now)
-        tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource));
-        return tabs;
-    }, []);
-
-    const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
-
+    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
+        let tabs: TabOptions[] = Object.values(TabOptions);
+        // Return tabs shaped for the tab component
+        return tabs.map((tab, i) => ({
+            index: i,
+            label: t(`common:${tab}`, { lng: getUserLanguages(session)[0], count: 2 }),
+            value: tab,
+        }));
+    }, [session, t]);
+    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
+    const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
+    
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -91,10 +85,10 @@ export const ProjectView = ({
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        if (currTabType === TabOptions.Routine)
+        if (currTab.value === TabOptions.Routine)
             return toSearchListData('Routine', 'SearchRoutine', { projectId: projectVersion?.id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
         return toSearchListData('Standard', 'SearchStandard', { projectId: projectVersion?.id, visibility: VisibilityType.All });
-    }, [permissions.canUpdate, currTabType, projectVersion?.id]);
+    }, [currTab.value, projectVersion?.id, permissions.canUpdate]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -209,9 +203,8 @@ export const ProjectView = ({
     * Opens add new page
     */
     const toAddNew = useCallback((event: any) => {
-        if (!exists(currTabType)) return;
-        setLocation(`${APP_LINKS[currTabType]}/add`);
-    }, [currTabType, setLocation]);
+        setLocation(`${APP_LINKS[currTab.value]}/add`);
+    }, [currTab.value, setLocation]);
 
     return (
         <>
@@ -250,34 +243,12 @@ export const ProjectView = ({
             </Box>
             {/* View routines and standards associated with this project */}
             <Box>
-                <Box display="flex" justifyContent="center" width="100%">
-                    <Tabs
-                        value={tabIndex}
-                        onChange={handleTabChange}
-                        indicatorColor="secondary"
-                        textColor="inherit"
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        allowScrollButtonsMobile
-                        aria-label="site-statistics-tabs"
-                        sx={{
-                            marginBottom: 1,
-                            paddingLeft: '1em',
-                            paddingRight: '1em',
-                        }}
-                    >
-                        {availableTabs.map((tabType, index) => (
-                            <Tab
-                                key={index}
-                                id={`profile-tab-${index}`}
-                                {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                                label={<span
-                                    style={{ color: tabType === TabOptions.Resource ? '#8e6b00' : 'default' }}
-                                >{t(`common:${tabType}`, { lng: getUserLanguages(session)[0], count: 2 })}</span>}
-                            />
-                        ))}
-                    </Tabs>
-                </Box>
+                <PageTabs
+                    ariaLabel="project-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />
                 <Box p={2}>
                     <SearchList
                         canSearch={Boolean(projectVersion?.id)}

@@ -1,8 +1,8 @@
-import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
+import { Box, Button, Grid, Stack, Typography, useTheme } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv, linkColors } from 'styles';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
+import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer, PageTabs } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { HomePageProps } from '../types';
@@ -13,6 +13,13 @@ import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { feedPopular } from 'api/generated/endpoints/feed';
+import { PageTab } from 'components/types';
+import { useTranslation } from 'react-i18next';
+
+enum TabOptions {
+    ForYou = "ForYou",
+    History = "History",
+}
 
 const faqText =
     `## What is This?
@@ -75,11 +82,6 @@ const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Standard}/add` },
 ]
 
-const tabOptions = [
-    ['For You', APP_LINKS.Home],
-    ['History', APP_LINKS.History],
-];
-
 const zIndex = 200;
 
 /**
@@ -93,7 +95,10 @@ export const HomePage = ({
     session
 }: HomePageProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const [, setLocation] = useLocation();
+
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
     useEffect(() => {
@@ -102,17 +107,25 @@ export const HomePage = ({
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(feedPopular, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
-    const showHistoryTab = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     // Handle tabs
-    const tabIndex = useMemo(() => {
-        if (window.location.pathname === APP_LINKS.History) return 1;
-        return 0;
-    }, []);
-    const handleTabChange = (e, newIndex) => {
+    const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
+        index: 0,
+        href: APP_LINKS.Home,
+        label: t('common:ForYou', { lng }),
+        value: TabOptions.ForYou,
+    }, {
+        index: 1,
+        href: APP_LINKS.History,
+        label: t('common:History', { lng }),
+        value: TabOptions.History,
+    }]), [t, lng]);
+    const currTab = useMemo(() => tabs[0], [tabs])
+    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
-        setLocation(tabOptions[newIndex][1], { replace: true });
-    };
+        setLocation(tab.href, { replace: true });
+    }, [setLocation]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -291,39 +304,13 @@ export const HomePage = ({
     return (
         <PageContainer>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
-            {showHistoryTab && (
-                <Box display="flex" justifyContent="center" width="100%">
-                    <Tabs
-                        value={tabIndex}
-                        onChange={handleTabChange}
-                        indicatorColor="secondary"
-                        textColor="inherit"
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        allowScrollButtonsMobile
-                        aria-label="home-pages"
-                        sx={{
-                            marginBottom: 1,
-                            paddingLeft: '1em',
-                            paddingRight: '1em',
-                        }}
-                    >
-                        {tabOptions.map((option, index) => (
-                            <Tab
-                                key={index}
-                                id={`home-tab-${index}`}
-                                {...{
-                                    'aria-labelledby': `home-pages`,
-                                    'aria-label': `home page ${option[0]}`,
-                                }}
-                                label={option[0]}
-                                color={index === 0 ? '#ce6c12' : 'default'}
-                                component='a'
-                                href={option[1]}
-                            />
-                        ))}
-                    </Tabs>
-                </Box>
+            {showTabs && (
+                <PageTabs
+                    ariaLabel="home-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />
             )}
             {/* Advanced search dialog */}
             <ListMenu

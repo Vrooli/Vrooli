@@ -1,106 +1,88 @@
 /**
  * Search page for personal objects (active runs, completed runs, views, bookmarks)
  */
-import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
-import { PageContainer, SearchList } from "components";
-import { useMemo, useState } from "react";
+import { Stack, Typography } from "@mui/material";
+import { PageContainer, PageTabs, SearchList } from "components";
+import { useCallback, useMemo, useState } from "react";
 import { useLocation } from '@shared/route';
 import { HistorySearchPageProps } from "../types";
-import { parseSearchParams, SearchType, HistorySearchPageTabOption as TabOption, addSearchParams } from "utils";
+import { parseSearchParams, SearchType, HistorySearchPageTabOption as TabOptions, addSearchParams, getUserLanguages } from "utils";
+import { CommonKey } from "types";
+import { PageTab } from "components/types";
+import { useTranslation } from "react-i18next";
 
 // Tab data type
 type BaseParams = {
     searchType: SearchType;
-    title: string;
+    tabType: TabOptions;
+    titleKey: CommonKey;
     where: { [x: string]: any };
 }
 
 // Data for each tab
-const tabParams: { [key in TabOption]: BaseParams } = {
-    [TabOption.Runs]: {
-        searchType: SearchType.RunProjectOrRunRoutine,
-        title: 'Runs',
-        where: {},
-    },
-    [TabOption.Viewed]: {
-        searchType: SearchType.View,
-        title: 'Views',
-        where: {},
-    },
-    [TabOption.Bookmarked]: {
-        searchType: SearchType.Bookmark,
-        title: 'Bookmarks',
-        where: {},
-    },
-}
-
-// [title, searchType] for each tab
-const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
+const tabParams: BaseParams[] = [{
+    searchType: SearchType.RunProjectOrRunRoutine,
+    tabType: TabOptions.Runs,
+    titleKey: 'Run',
+    where: {},
+}, {
+    searchType: SearchType.View,
+    tabType: TabOptions.Viewed,
+    titleKey: 'View',
+    where: {},
+}, {
+    searchType: SearchType.Bookmark,
+    tabType: TabOptions.Bookmarked,
+    titleKey: 'Bookmark',
+    where: {},
+}]
 
 export function HistorySearchPage({
     session,
 }: HistorySearchPageProps) {
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(() => {
+    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
+        return tabParams.map((tab, i) => ({
+            index: i,
+            label: t(`common:${tab.titleKey}`, { lng: getUserLanguages(session)[0], count: 2 }),
+            value: tab.tabType,
+        }));
+    }, [session, t]);
+    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(() => {
         const searchParams = parseSearchParams();
-        const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
-        const index = availableTypes.indexOf(searchParams.type as TabOption);
-        return Math.max(0, index);
+        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
+        return tabs[Math.max(0, index)];
     });
-    const handleTabChange = (e, newIndex: number) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
         // Update search params
-        addSearchParams(setLocation, {
-            type: tabOptions[newIndex][1],
-        });
-        // Update tab index
-        setTabIndex(newIndex)
-    };
+        addSearchParams(setLocation, { type: tab.value });
+        // Update curr tab
+        setCurrTab(tab)
+    }, [setLocation]);
 
     // On tab change, update BaseParams, document title, where, and URL
-    const { searchType, title, where } = useMemo<BaseParams>(() => {
+    const { searchType, title, where } = useMemo(() => {
         // Update tab title
-        document.title = `Search ${tabOptions[tabIndex][0]}`;
-        // Get object type
-        const searchType: TabOption = tabOptions[tabIndex][1];
-        // Return base params
-        return tabParams[searchType]
-    }, [tabIndex]);
+        document.title = `${t(`common:Search`, { lng })} | ${currTab.label}`;
+        return {
+            ...tabParams[currTab.index],
+            title: currTab.label,
+        }
+    }, [currTab.index, currTab.label, lng, t]);
 
     return (
         <PageContainer>
-            {/* Navigate between search pages */}
-            <Box display="flex" justifyContent="center" width="100%">
-                <Tabs
-                    value={tabIndex}
-                    onChange={handleTabChange}
-                    indicatorColor="secondary"
-                    textColor="inherit"
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    allowScrollButtonsMobile
-                    aria-label="search-type-tabs"
-                    sx={{
-                        marginBottom: 1,
-                        paddingLeft: '1em',
-                        paddingRight: '1em',
-                    }}
-                >
-                    {tabOptions.map((option, index) => (
-                        <Tab
-                            key={index}
-                            id={`search-tab-${index}`}
-                            {...{ 'aria-controls': `search-tabpanel-${index}` }}
-                            label={option[0]}
-                            color={index === 0 ? '#ce6c12' : 'default'}
-                            component="a"
-                            href={option[1]}
-                        />
-                    ))}
-                </Tabs>
-            </Box>
+            <PageTabs
+                ariaLabel="history-search-tabs"
+                currTab={currTab}
+                onChange={handleTabChange}
+                tabs={tabs}
+            />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{title}</Typography>
             </Stack>

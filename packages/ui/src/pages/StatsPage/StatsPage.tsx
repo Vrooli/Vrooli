@@ -1,12 +1,13 @@
-import { Box, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LineGraphCard, DateRangeMenu, PageContainer } from 'components';
+import { LineGraphCard, DateRangeMenu, PageContainer, PageTabs } from 'components';
 import { useTranslation } from 'react-i18next';
 import { displayDate, getUserLanguages, statsDisplay } from 'utils';
 import { StatsPageProps } from 'pages/types';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useLazyQuery } from 'api';
 import { statsSiteFindMany } from 'api/generated/endpoints/statsSite';
+import { PageTab } from 'components/types';
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 
@@ -35,21 +36,16 @@ const tabPeriods: { [key in typeof TabOptions[number]]: number } = {
 /**
  * Maps tab options to PeriodType.
  */
-const tabPeriodTypes: { [key in typeof TabOptions[number]]: `${StatPeriodType}` } = {
+const tabPeriodTypes = {
     Daily: 'Hourly',
     Weekly: 'Daily',
     Monthly: 'Weekly',
     Yearly: 'Monthly',
     AllTime: 'Yearly',
-};
+} as const;
 
 // Stats should not be earlier than February 2023.
 const MIN_DATE = new Date(2023, 1, 1);
-
-const tabProps = (index: number) => ({
-    id: `stats-tab-${index}`,
-    'aria-controls': `full-width-tabpanel-${index}`,
-});
 
 /**
  * Displays site-wide statistics, organized by time period.
@@ -79,12 +75,21 @@ export const StatsPage = ({
         handleDateRangeClose();
     }, [period.after, period.before]);
 
-    // Handle tabs. Defaults to "Daily" tab.
-    const [tabIndex, setTabIndex] = useState(0);
-    const handleTabChange = useCallback((event, newValue) => {
-        setTabIndex(newValue);
+    // Handle tabs
+    const tabs = useMemo<PageTab<typeof TabOptions[number]>[]>(() => {
+        let tabs = TabOptions;
+        // Return tabs shaped for the tab component
+        return tabs.map((tab, i) => ({
+            index: i,
+            label: t(`common:${tab}`, { lng, count: 2 }),
+            value: tab,
+        }));
+    }, [lng, t]);
+    const [currTab, setCurrTab] = useState<PageTab<typeof TabOptions[number]>>(tabs[0]);
+    const handleTabChange = useCallback((e: any, tab: PageTab<typeof TabOptions[number]>) => {
+        setCurrTab(tab);
         // Reset date range based on tab selection.
-        const period = tabPeriods[TabOptions[newValue]];
+        const period = tabPeriods[tab.value];
         const newAfter = new Date(Math.max(Date.now() - period, MIN_DATE.getTime()));
         const newBefore = new Date(Math.min(Date.now(), newAfter.getTime() + period));
         console.log('yeeties', newAfter, newBefore)
@@ -94,7 +99,7 @@ export const StatsPage = ({
     // Handle querying stats data.
     const [getStats, { data: statsData, loading }] = useLazyQuery<StatsSiteSearchResult, StatsSiteSearchInput, 'statsSite'>(statsSiteFindMany, 'statsSite', {
         variables: ({
-            periodType: tabPeriodTypes[TabOptions[tabIndex]] as StatPeriodType,
+            periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
             periodTimeFrame: {
                 after: period.after.toISOString(),
                 before: period.before.toISOString(),
@@ -110,7 +115,7 @@ export const StatsPage = ({
     }, [statsData]);
     useEffect(() => {
         getStats();
-    }, [tabIndex, period, getStats]);
+    }, [currTab, period, getStats]);
 
     // Shape stats data for display.
     const { aggregate, visual } = useMemo(() => statsDisplay(stats), [stats]);
@@ -142,28 +147,12 @@ export const StatsPage = ({
 
     return (
         <PageContainer>
-            {/* Tabs to switch time frame size */}
-            <Box display="flex" justifyContent="center" width="100%">
-                <Tabs
-                    value={tabIndex}
-                    onChange={handleTabChange}
-                    indicatorColor="secondary"
-                    textColor="inherit"
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    allowScrollButtonsMobile
-                    aria-label="site-statistics-tabs"
-                    sx={{
-                        marginBottom: 1,
-                        paddingLeft: '1em',
-                        paddingRight: '1em',
-                    }}
-                >
-                    {TabOptions.map((label, index) => (
-                        <Tab key={index} label={t(`common:${label}`, { lng })} {...tabProps(index)} />
-                    ))}
-                </Tabs>
-            </Box>
+            <PageTabs
+                ariaLabel="stats-period-tabs"
+                currTab={currTab}
+                onChange={handleTabChange}
+                tabs={tabs}
+            />
             {/* Date range picker */}
             <DateRangeMenu
                 anchorEl={dateRangeAnchorEl}
@@ -173,7 +162,7 @@ export const StatsPage = ({
                 onSubmit={handleDateRangeSubmit}
                 range={period}
                 session={session}
-                strictIntervalRange={tabPeriods[TabOptions[tabIndex]]}
+                strictIntervalRange={tabPeriods[currTab.value]}
             />
             {/* Date range diplay */}
             <Typography

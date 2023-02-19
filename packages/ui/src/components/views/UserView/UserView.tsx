@@ -1,8 +1,8 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, VisibilityType } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs } from "components";
 import { UserViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { SearchListGenerator } from "components/lists/types";
@@ -12,7 +12,7 @@ import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
 import { userFindOne } from "api/generated/endpoints/user";
 import { useTranslation } from "react-i18next";
-import { exists } from "@shared/utils";
+import { PageTab } from "components/types";
 
 enum TabOptions {
     Resource = "Resource",
@@ -81,23 +81,22 @@ export const UserView = ({
         />
     ) : null, [isLoading, permissions.canUpdate, resourceList, session, setUser, user, zIndex]);
 
+
     // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(0);
-    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
-
-    /**
-     * Calculate which tabs to display
-     */
-    const availableTabs = useMemo(() => {
-        const tabs: TabOptions[] = [];
-        // Only display resources if there are any
-        if (resources || permissions.canUpdate) tabs.push(TabOptions.Resource);
-        // Always display others (for now)
-        tabs.push(...Object.values(TabOptions).filter(t => t !== TabOptions.Resource))
-        return tabs;
-    }, [permissions.canUpdate, resources]);
-
-    const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
+    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
+        let tabs: TabOptions[] = Object.values(TabOptions);
+        // Remove resources if there are none, and you cannot add them
+        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t !== TabOptions.Resource);
+        // Return tabs shaped for the tab component
+        return tabs.map((tab, i) => ({
+            color: tab === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
+            index: i,
+            label: t(`common:${tab}`, { lng: getUserLanguages(session)[0], count: 2 }),
+            value: tab,
+        }));
+    }, [permissions.canUpdate, resources, session, t]);
+    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
+    const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
     const onEdit = useCallback(() => {
         setLocation(`${APP_LINKS.Settings}?page="profile"`);
@@ -106,14 +105,14 @@ export const UserView = ({
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         // NOTE: The first tab doesn't have search results, as it is the user's set resources
-        if (currTabType === TabOptions.Organization)
+        if (currTab.value === TabOptions.Organization)
             return toSearchListData('Organization', 'SearchOrganization', { userId: id, visibility: VisibilityType.All });
-        else if (currTabType === TabOptions.Project)
+        else if (currTab.value === TabOptions.Project)
             return toSearchListData('Project', 'SearchProject', { userId: id, isComplete: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-        else if (currTabType === TabOptions.Routine)
+        else if (currTab.value === TabOptions.Routine)
             return toSearchListData('Routine', 'SearchRoutine', { userId: id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
         return toSearchListData('Standard', 'SearchStandard', { userId: id, visibility: VisibilityType.All });
-    }, [currTabType, id, permissions.canUpdate]);
+    }, [currTab.value, id, permissions.canUpdate]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -263,9 +262,8 @@ export const UserView = ({
      * Opens add new page
      */
     const toAddNew = useCallback((event: any) => {
-        if (!exists(currTabType)) return;
-        setLocation(`${APP_LINKS[currTabType]}/add`);
-    }, [currTabType, setLocation]);
+        setLocation(`${APP_LINKS[currTab.value]}/add`);
+    }, [currTab.value, setLocation]);
 
     return (
         <>
@@ -304,37 +302,15 @@ export const UserView = ({
             </Box>
             {/* View routines, organizations, standards, and projects associated with this user */}
             <Box>
-                <Box display="flex" justifyContent="center" width="100%">
-                    <Tabs
-                        value={tabIndex}
-                        onChange={handleTabChange}
-                        indicatorColor="secondary"
-                        textColor="inherit"
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        allowScrollButtonsMobile
-                        aria-label="site-statistics-tabs"
-                        sx={{
-                            marginBottom: 1,
-                            paddingLeft: '1em',
-                            paddingRight: '1em',
-                        }}
-                    >
-                        {availableTabs.map((tabType, index) => (
-                            <Tab
-                                key={index}
-                                id={`profile-tab-${index}`}
-                                {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                                label={<span
-                                    style={{ color: tabType === TabOptions.Resource ? '#8e6b00' : 'default' }}
-                                >{t(`common:${tabType}`, { lng: getUserLanguages(session)[0], count: 2 })}</span>}
-                            />
-                        ))}
-                    </Tabs>
-                </Box>
+                <PageTabs
+                    ariaLabel="user-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />
                 <Box p={2}>
                     {
-                        currTabType === TabOptions.Resource ? resources : (
+                        currTab.value === TabOptions.Resource ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
