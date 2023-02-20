@@ -1,7 +1,7 @@
 import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput, VersionYou, PrependString } from '@shared/consts';
+import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput, VersionYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
@@ -471,7 +471,7 @@ export const StandardVersionModel: ModelLogic<{
             data.isDeleted === false &&
             StandardModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => StandardModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,

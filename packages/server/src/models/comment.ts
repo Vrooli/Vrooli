@@ -1,4 +1,4 @@
-import { CommentSortBy, CommentYou, PrependString } from "@shared/consts";
+import { CommentSortBy, CommentYou, MaxObjects, PrependString } from "@shared/consts";
 import { commentValidation } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
@@ -324,13 +324,7 @@ export const CommentModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 0,
-                public: 10000,
-            },
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             apiVersion: 'Api',

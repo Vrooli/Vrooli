@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { FindByIdInput, PaymentSortBy, PaymentStatus } from '@shared/consts';
+import { FindByIdInput, Payment, PaymentSearchInput, PaymentSortBy, PaymentStatus } from '@shared/consts';
 import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { readManyHelper, readOneHelper } from '../actions';
@@ -38,8 +38,6 @@ export const typeDef = gql`
 
     input PaymentSearchInput {
         after: String
-        cardType: String
-        cardExpDate: String
         cardLast4: String
         createdTimeFrame: TimeFrame
         currency: String
@@ -50,7 +48,6 @@ export const typeDef = gql`
         status: PaymentStatus
         take: Int
         updatedTimeFrame: TimeFrame
-        visibility: VisibilityType
     }
 
     type PaymentSearchResult {
@@ -74,8 +71,8 @@ export const resolvers: {
     PaymentSortBy: typeof PaymentSortBy;
     PaymentStatus: typeof PaymentStatus;
     Query: {
-        payment: GQLEndpoint<FindByIdInput, FindOneResult<any>>;
-        payments: GQLEndpoint<any, FindManyResult<any>>;
+        payment: GQLEndpoint<FindByIdInput, FindOneResult<Payment>>;
+        payments: GQLEndpoint<PaymentSearchInput, FindManyResult<Payment>>;
     },
 } = {
     PaymentSortBy,

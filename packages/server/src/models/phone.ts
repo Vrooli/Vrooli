@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Phone, PhoneCreateInput } from '@shared/consts';
+import { MaxObjects, Phone, PhoneCreateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
@@ -49,28 +49,7 @@ export const PhoneModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 1,
-                    premium: 5,
-                },
-                public: {
-                    noPremium: 1,
-                    premium: 5,
-                }
-            },
-            Organization: {
-                private: {
-                    noPremium: 1,
-                    premium: 5,
-                },
-                public: {
-                    noPremium: 1,
-                    premium: 5,
-                }
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.organization,
             User: data.user,
@@ -82,8 +61,8 @@ export const PhoneModel: ModelLogic<{
             user: 'User',
         }),
         visibility: {
-            private: { },
-            public: { },
+            private: {},
+            public: {},
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },

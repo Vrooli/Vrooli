@@ -1,4 +1,4 @@
-import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from '@shared/consts';
+import { MaxObjects, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -63,7 +63,7 @@ export const NodeRoutineListModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: 100000,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ node: 'Node' }),
         permissionResolvers: defaultPermissions,
         owner: (data) => NodeModel.validate!.owner(data.node as any),

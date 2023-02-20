@@ -3192,9 +3192,7 @@ export type PaymentEdge = {
 
 export type PaymentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  cardExpDate?: InputMaybe<Scalars['String']>;
   cardLast4?: InputMaybe<Scalars['String']>;
-  cardType?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   currency?: InputMaybe<Scalars['String']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -3204,7 +3202,6 @@ export type PaymentSearchInput = {
   status?: InputMaybe<PaymentStatus>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type PaymentSearchResult = {

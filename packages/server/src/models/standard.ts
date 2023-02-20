@@ -1,4 +1,4 @@
-import { StandardSortBy, StandardYou } from "@shared/consts";
+import { MaxObjects, StandardSortBy, StandardYou } from "@shared/consts";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
@@ -359,28 +359,7 @@ export const StandardModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 5,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 1000,
-                },
-            },
-            Organization: {
-                private: {
-                    noPremium: 5,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 1000,
-                },
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

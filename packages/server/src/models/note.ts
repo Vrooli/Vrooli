@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou, PrependString } from '@shared/consts';
+import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";
@@ -121,28 +121,7 @@ export const NoteModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 25,
-                    premium: 1000,
-                },
-                public: {
-                    noPremium: 50,
-                    premium: 2000,
-                }
-            },
-            Organization: {
-                private: {
-                    noPremium: 25,
-                    premium: 1000,
-                },
-                public: {
-                    noPremium: 50,
-                    premium: 2000,
-                }
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,

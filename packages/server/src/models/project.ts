@@ -2,7 +2,7 @@ import { projectValidation } from "@shared/validation";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, ProjectYou, PrependString } from '@shared/consts';
+import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, ProjectYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -176,28 +176,7 @@ export const ProjectModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 3,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-            },
-            Organization: {
-                private: {
-                    noPremium: 3,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,

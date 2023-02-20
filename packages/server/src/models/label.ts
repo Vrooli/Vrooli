@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, PrependString } from '@shared/consts';
+import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, MaxObjects, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
@@ -119,28 +119,7 @@ export const LabelModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 20,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 20,
-                    premium: 100,
-                }
-            },
-            Organization: {
-                private: {
-                    noPremium: 20,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 20,
-                    premium: 100,
-                },
-            }
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             ownedByOrganization: 'Organization',

@@ -13,62 +13,77 @@
  */
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { ObjectLimit, ObjectLimitOwner, ObjectLimitVisibility } from "../models/types";
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 
 /**
- * Helper function to check if a count exceeds a public/private limit
+ * Helper function to check if a count exceeds a number
  */
- const checkObjectLimitVisibility = (
+const checkObjectLimitNumber = (
     count: number,
-    hasPremium: boolean,
-    limit: ObjectLimitVisibility,
+    limit: number,
     languages: string[]
 ): void => {
-    // If limit is a number, just check if count exceeds limit
-    if (typeof limit === 'number') {
-        if (count > limit) {
-            throw new CustomError('0353', 'MaxObjectsReached', languages);
-        }
+    if (count > limit) {
+        throw new CustomError('0352', 'MaxObjectsReached', languages);
     }
-    // If limit is an object, check if count exceeds limit for the given premium status
+}
+
+
+/**
+ * Helper function to check if a count exceeds a premium/noPremium limit
+ */
+const checkObjectLimitPremium = (
+    count: number,
+    hasPremium: boolean,
+    limit: ObjectLimitPremium,
+    languages: string[]
+): void => {
+    if (hasPremium) checkObjectLimitNumber(count, limit.premium, languages);
+    else checkObjectLimitNumber(count, limit.noPremium, languages);
+}
+
+/**
+ * Helper function to check if a count exceeds a public/private limit
+ */
+const checkObjectLimitPrivacy = (
+    count: number,
+    hasPremium: boolean,
+    isPrivate: boolean,
+    limit: ObjectLimitPrivacy,
+    languages: string[]
+): void => {
+    if (isPrivate) {
+        if (typeof limit.private === 'number') checkObjectLimitNumber(count, limit.private, languages);
+        else checkObjectLimitPremium(count, hasPremium, limit.private as ObjectLimitPremium, languages);
+    }
     else {
-        if (hasPremium) {
-            if (count > limit.premium) {
-                throw new CustomError('0354', 'MaxObjectsReached', languages);
-            }
-        }
-        else {
-            if (count > limit.noPremium) {
-                throw new CustomError('0355', 'MaxObjectsReached', languages);
-            }
-        }
+        if (typeof limit.public === 'number') checkObjectLimitNumber(count, limit.public, languages);
+        else checkObjectLimitPremium(count, hasPremium, limit.public as ObjectLimitPremium, languages);
     }
 }
 
 /**
- * Helper function to check if a count exceeds an owner type's limit
+ * Helper function to check if a count exceeds an Organization/User limit
  */
 const checkObjectLimitOwner = (
     count: number,
+    ownerType: 'User' | 'Organization',
     hasPremium: boolean,
     isPrivate: boolean,
     limit: ObjectLimitOwner,
     languages: string[]
 ): void => {
-    // If limit is a number, just check if count exceeds limit
-    if (typeof limit === 'number') {
-        if (count > limit) {
-            throw new CustomError('0352', 'MaxObjectsReached', languages);
-        }
+    if (ownerType === 'User') {
+        if (typeof limit.User === 'number') checkObjectLimitNumber(count, limit.User, languages);
+        else if (typeof (limit.User as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.User as ObjectLimitPremium, languages);
+        else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.User as ObjectLimitPrivacy, languages);
     }
-    // If limit is an object, check if count exceeds limit for the given privacy status
     else {
-        if (isPrivate)
-            return checkObjectLimitVisibility(count, hasPremium, limit.private, languages);
-        return checkObjectLimitVisibility(count, hasPremium, limit.public, languages);
+        if (typeof limit.Organization === 'number') checkObjectLimitNumber(count, limit.Organization, languages);
+        else if (typeof (limit.Organization as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.Organization as ObjectLimitPremium, languages);
+        else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.Organization as ObjectLimitPrivacy, languages);
     }
 }
 
@@ -90,18 +105,10 @@ const checkObjectLimit = (
     limit: ObjectLimit,
     languages: string[],
 ): void => {
-    // If limit is a number, just check if count exceeds limit
-    if (typeof limit === 'number') {
-        if (count > limit) {
-            throw new CustomError('0351', 'MaxObjectsReached', languages);
-        }
-    }
-    // If limit is an object, check if count exceeds limit for the given owner type
-    else {
-        if (ownerType === 'User')
-            return checkObjectLimitOwner(count, hasPremium, isPrivate, limit.User, languages);
-        return checkObjectLimitOwner(count, hasPremium, isPrivate, limit.Organization, languages);
-    }
+    if (typeof limit === 'number') checkObjectLimitNumber(count, limit, languages);
+    else if (typeof (limit as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit as ObjectLimitPremium, languages);
+    else if (typeof (limit as ObjectLimitPrivacy).private !== undefined) checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit as ObjectLimitPrivacy, languages);
+    else checkObjectLimitOwner(count, ownerType, hasPremium, isPrivate, limit as ObjectLimitOwner, languages);
 }
 
 // TODO Would be nice if we could check max number of relations for an object, not just the absolute number of the object. 

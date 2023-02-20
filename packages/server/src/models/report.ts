@@ -1,5 +1,5 @@
 import { reportValidation } from "@shared/validation";
-import { PrependString, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
+import { MaxObjects, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -171,14 +171,8 @@ export const ReportModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 0,
-                public: 10000,
-            },
-            Organization: 0,
-        },
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             createdBy: 'User',
         }),

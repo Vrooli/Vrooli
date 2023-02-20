@@ -1,4 +1,4 @@
-import { Count, DotNotation, GqlModelType, SessionUser } from "@shared/consts";
+import { Count, DotNotation, GqlModelType, ObjectLimit, SessionUser } from "@shared/consts";
 import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
@@ -238,21 +238,6 @@ export type Searcher<
      * Any additional data to add to the Prisma query. Not usually needed
      */
     customQueryData?: (input: Model['GqlSearch'], userData: SessionUser | null) => Model['PrismaWhere'];
-}
-
-export type ObjectLimitVisibility = number | {
-    noPremium: number,
-    premium: number,
-}
-
-export type ObjectLimitOwner = number | {
-    public: ObjectLimitVisibility,
-    private: ObjectLimitVisibility,
-}
-
-export type ObjectLimit = number | {
-    User: ObjectLimitOwner,
-    Organization: ObjectLimitOwner,
 }
 
 /**

@@ -180,16 +180,18 @@ model comment_translation {
 }
 
 model email {
-    id                                 String    @id @default(uuid()) @db.Uuid
-    created_at                         DateTime  @default(now()) @db.Timestamptz(6)
-    updated_at                         DateTime  @default(now()) @db.Timestamptz(6)
-    emailAddress                       String    @unique @db.Citext
-    verified                           Boolean   @default(false)
-    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
-    verificationCode                   String?   @unique @db.VarChar(256)
-    lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    userId                             String?   @db.Uuid
-    user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                                 String        @id @default(uuid()) @db.Uuid
+    created_at                         DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at                         DateTime      @default(now()) @db.Timestamptz(6)
+    emailAddress                       String        @unique @db.Citext
+    verified                           Boolean       @default(false)
+    lastVerifiedTime                   DateTime?     @db.Timestamptz(6)
+    verificationCode                   String?       @unique @db.VarChar(256)
+    lastVerificationCodeRequestAttempt DateTime?     @db.Timestamptz(6)
+    organizationId                     String?       @db.Uuid
+    userId                             String?       @db.Uuid
+    organization                       organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user                               user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model handle {
@@ -592,6 +594,7 @@ model organization {
     resourceListId     String?                     @unique @db.Uuid
     createdById        String?                     @db.Uuid
     createdBy          user?                       @relation("organization_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    emails             email[]
     issues             issue[]
     labels             label[]
     notes              note[]                      @relation("note_ownedByOrganization")
@@ -1005,6 +1008,7 @@ model project_labels {
 
     @@unique([labelledId, labelId], name: "project_labels_labelledid_labelid_unique")
 }
+
 model pull_request {
     id                       String                      @id @default(uuid()) @db.Uuid
     created_at               DateTime                    @default(now()) @db.Timestamptz(6)
@@ -1034,6 +1038,7 @@ model pull_request {
     comments                 comment[]
     subscriptions            notification_subscription[]
 }
+
 model question {
     id                String                      @id @default(uuid()) @db.Uuid
     created_at        DateTime                    @default(now()) @db.Timestamptz(6)
@@ -2235,7 +2240,7 @@ model user {
     isPrivateSmartContractsCreated Boolean                     @default(false)
     isPrivateStandards             Boolean                     @default(false)
     isPrivateStandardsCreated      Boolean                     @default(false)
-    isPrivateBookmarks                 Boolean                     @default(false)
+    isPrivateBookmarks             Boolean                     @default(false)
     isPrivateVotes                 Boolean                     @default(false)
     lastExport                     DateTime?                   @db.Timestamptz(6)
     lastLoginAttempt               DateTime                    @default(now()) @db.Timestamptz(6)

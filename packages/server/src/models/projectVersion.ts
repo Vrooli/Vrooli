@@ -1,5 +1,5 @@
 import { projectVersionValidation } from "@shared/validation";
-import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString } from '@shared/consts';
+import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -202,7 +202,7 @@ export const ProjectVersionModel: ModelLogic<{
             data.isDeleted === false &&
             ProjectModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ProjectModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,

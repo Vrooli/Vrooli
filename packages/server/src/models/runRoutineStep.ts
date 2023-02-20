@@ -1,4 +1,4 @@
-import { RunRoutineStepStatus } from "@shared/consts";
+import { MaxObjects, RunRoutineStepStatus } from "@shared/consts";
 import { RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -77,7 +77,7 @@ export const RunRoutineStepModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: 100000,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             runRoutine: 'RunRoutine',

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionYou } from '@shared/consts';
+import { MaxObjects, PrependString, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
@@ -107,7 +107,7 @@ export const SmartContractVersionModel: ModelLogic<{
             data.isDeleted === false &&
             SmartContractModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => SmartContractModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,

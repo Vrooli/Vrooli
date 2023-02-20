@@ -1,6 +1,6 @@
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
-import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString } from '@shared/consts';
+import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
@@ -306,10 +306,7 @@ export const RunRoutineModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 5000,
-            Organization: 50000,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,

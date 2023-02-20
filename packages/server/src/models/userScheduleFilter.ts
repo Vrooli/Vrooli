@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { UserScheduleFilter, UserScheduleFilterCreateInput, UserScheduleSearchInput, UserScheduleSortBy } from '@shared/consts';
+import { MaxObjects, UserScheduleFilter, UserScheduleFilterCreateInput, UserScheduleSearchInput, UserScheduleSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
@@ -49,16 +49,7 @@ export const UserScheduleFilterModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 25,
-                    premium: 100,
-                },
-                public: 0,
-            },
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => UserScheduleModel.validate!.owner(data.userSchedule as any),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

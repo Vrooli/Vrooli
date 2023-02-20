@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
+import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { ModelLogic } from "./types";
@@ -81,7 +81,7 @@ export const QuizModel: ModelLogic<{
             ['routine', 'Routine'],
         ], languages),
         isTransferable: false,
-        maxObjects: 2000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             User: data.createdBy,
         }),

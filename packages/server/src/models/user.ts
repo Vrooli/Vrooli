@@ -1,6 +1,6 @@
 import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
-import { UserSortBy, UserYou } from "@shared/consts";
+import { MaxObjects, UserSortBy, UserYou } from "@shared/consts";
 import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -154,7 +154,7 @@ export const UserModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,

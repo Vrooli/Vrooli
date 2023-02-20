@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput } from '@shared/consts';
+import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
@@ -172,7 +172,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: 500,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             User: data.subscriber,
         }),

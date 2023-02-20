@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { walletValidation } from '@shared/validation';
 import { CustomError } from "../events";
-import { Wallet, WalletUpdateInput } from '@shared/consts';
+import { MaxObjects, Wallet, WalletUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
@@ -54,19 +54,7 @@ export const WalletModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 5,
-                public: 0,
-            },
-            Organization: {
-                private: {
-                    noPremium: 1,
-                    premium: 5,
-                },
-                public: 0,
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: (...params) => ({
             id: true,
             organization: 'Organization',

@@ -1,6 +1,6 @@
 import { routineVersionValidation } from "@shared/validation";
 import { Trigger } from "../events";
-import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou } from '@shared/consts';
+import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -246,7 +246,7 @@ export const RoutineVersionModel: ModelLogic<{
             data.isDeleted === false &&
             RoutineModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => RoutineModel.validate!.owner(data.root as any),
         permissionsSelect: () => ({
             id: true,

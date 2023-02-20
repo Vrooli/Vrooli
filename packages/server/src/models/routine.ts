@@ -3,7 +3,7 @@ import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Trigger } from "../events";
-import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, SessionUser, RoutineYou, PrependString } from '@shared/consts';
+import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, SessionUser, RoutineYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -461,28 +461,7 @@ export const RoutineModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 2000,
-                },
-            },
-            Organization: {
-                private: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 2000,
-                },
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,

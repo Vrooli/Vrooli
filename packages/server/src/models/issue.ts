@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, PrependString } from '@shared/consts';
+import { Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
@@ -126,13 +126,7 @@ export const IssueModel: ModelLogic<{
             ['standard', 'Standard'],
         ], languages),
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 0,
-                public: 10000,
-            },
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             User: data.createdBy,
         }),

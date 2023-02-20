@@ -13,6 +13,8 @@ const Order = {
  * consistent across all objects.
  */
 export const SortMap = {
+    AmountAsc: { amount: Order.Asc },
+    AmountDesc: { amount: Order.Desc },
     AttendeesAsc: { attendees: { _count: Order.Asc } },
     AttendeesDesc: { attendees: { _count: Order.Desc } },
     CalledByRoutinesAsc: { calledByRoutines: { _count: Order.Asc } },

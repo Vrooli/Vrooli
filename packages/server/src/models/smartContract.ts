@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
+import { MaxObjects, PrependString, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { ModelLogic } from "./types";
@@ -136,28 +136,7 @@ export const SmartContractModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 2,
-                    premium: 20,
-                },
-                public: {
-                    noPremium: 6,
-                    premium: 200,
-                }
-            },
-            Organization: {
-                private: {
-                    noPremium: 6,
-                    premium: 50,
-                },
-                public: {
-                    noPremium: 10,
-                    premium: 200,
-                }
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,

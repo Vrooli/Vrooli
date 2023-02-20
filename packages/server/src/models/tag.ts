@@ -1,5 +1,5 @@
 import { tagValidation } from "@shared/validation";
-import { TagSortBy } from "@shared/consts";
+import { MaxObjects, TagSortBy } from "@shared/consts";
 import { BookmarkModel } from "./bookmark";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
@@ -122,10 +122,7 @@ export const TagModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 10000,
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true }),
         permissionResolvers: defaultPermissions,
         owner: () => ({}),

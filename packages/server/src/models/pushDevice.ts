@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
+import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
@@ -49,7 +49,7 @@ export const PushDeviceModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: 5,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             User: data.user,
         }),

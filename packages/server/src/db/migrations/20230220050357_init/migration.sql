@@ -195,6 +195,7 @@ CREATE TABLE "email" (
     "lastVerifiedTime" TIMESTAMPTZ(6),
     "verificationCode" VARCHAR(256),
     "lastVerificationCodeRequestAttempt" TIMESTAMPTZ(6),
+    "organizationId" UUID,
     "userId" UUID,
 
     CONSTRAINT "email_pkey" PRIMARY KEY ("id")
@@ -2600,6 +2601,9 @@ ALTER TABLE "comment" ADD CONSTRAINT "comment_ownedByUserId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "comment_translation" ADD CONSTRAINT "comment_translation_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "email" ADD CONSTRAINT "email_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "email" ADD CONSTRAINT "email_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
