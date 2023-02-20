@@ -89,7 +89,32 @@ export const NoteModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: NoteSortBy.DateUpdatedDesc,
+        sortBy: NoteSortBy,
+        searchFields: {
+            createdById: true,
+            createdTimeFrame: true,
+            maxBookmarks: true,
+            maxScore: true,
+            minBookmarks: true,
+            minScore: true,
+            ownedByOrganizationId: true,
+            ownedByUserId: true,
+            parentId: true,
+            tags: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'tagsWrapped',
+                'labelsWrapped',
+                { versions: { some: 'transDescriptionWrapped' } },
+                { versions: { some: 'transNameWrapped' } },
+            ]
+        })
+    },
     validate: {
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,

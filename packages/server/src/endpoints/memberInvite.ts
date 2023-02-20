@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, MeetingInviteSortBy, MeetingInviteStatus, MeetingInvite, MeetingInviteSearchInput, MeetingInviteCreateInput, MeetingInviteUpdateInput } from '@shared/consts';
+import { FindByIdInput, MemberInviteSortBy, MemberInviteStatus, MemberInvite, MemberInviteSearchInput, MemberInviteCreateInput, MemberInviteUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { CustomError } from '../events';
@@ -11,10 +11,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        MemberNameAsc
-        MemberNameDesc
-        StatusAsc
-        StatusDesc
+        UserNameAsc
+        UserNameDesc
     }
 
     enum MemberInviteStatus {
@@ -94,21 +92,21 @@ export const typeDef = gql`
 
 const objectType = 'MemberInvite';
 export const resolvers: {
-    MemberInviteSortBy: typeof MeetingInviteSortBy;
-    MemberInviteStatus: typeof MeetingInviteStatus;
+    MemberInviteSortBy: typeof MemberInviteSortBy;
+    MemberInviteStatus: typeof MemberInviteStatus;
     Query: {
-        memberInvite: GQLEndpoint<FindByIdInput, FindOneResult<MeetingInvite>>;
-        memberInvites: GQLEndpoint<MeetingInviteSearchInput, FindManyResult<MeetingInvite>>;
+        memberInvite: GQLEndpoint<FindByIdInput, FindOneResult<MemberInvite>>;
+        memberInvites: GQLEndpoint<MemberInviteSearchInput, FindManyResult<MemberInvite>>;
     },
     Mutation: {
-        memberInviteCreate: GQLEndpoint<MeetingInviteCreateInput, CreateOneResult<MeetingInvite>>;
-        memberInviteUpdate: GQLEndpoint<MeetingInviteUpdateInput, UpdateOneResult<MeetingInvite>>;
-        memberInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
-        memberInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
+        memberInviteCreate: GQLEndpoint<MemberInviteCreateInput, CreateOneResult<MemberInvite>>;
+        memberInviteUpdate: GQLEndpoint<MemberInviteUpdateInput, UpdateOneResult<MemberInvite>>;
+        memberInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<MemberInvite>>;
+        memberInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<MemberInvite>>;
     }
 } = {
-    MemberInviteSortBy: MeetingInviteSortBy,
-    MemberInviteStatus: MeetingInviteStatus,
+    MemberInviteSortBy: MemberInviteSortBy,
+    MemberInviteStatus: MemberInviteStatus,
     Query: {
         memberInvite: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

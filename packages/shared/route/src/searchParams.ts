@@ -75,7 +75,7 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
 export const addSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
     const currentParams = parseSearchParams();
     const newParams = { ...currentParams, ...params };
-    setLocation(`${window.location.pathname}${stringifySearchParams(newParams)}`, { replace: true });
+    setLocation(window.location.pathname, { replace: true, searchParams: newParams });
 };
 
 /**
@@ -84,7 +84,7 @@ export const addSearchParams = (setLocation: SetLocation, params: { [key: string
  * @param params Object with key/value pairs, representing search params
  */
 export const setSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
-    setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
+    setLocation(window.location.pathname, { replace: true, searchParams: params });
 };
 
 /**
@@ -98,7 +98,7 @@ export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
     keep.forEach(key => {
         if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
     });
-    setLocation(`${window.location.pathname}${stringifySearchParams(keepResult)}`, { replace: true });
+    setLocation(window.location.pathname, { replace: true, searchParams: keepResult });
 };
 
 /**
@@ -112,5 +112,5 @@ export const removeSearchParams = (setLocation: SetLocation, remove: string[]) =
     Object.keys(searchParams).forEach(key => {
         if (!remove.includes(key)) removeResult[key] = searchParams[key];
     });
-    setLocation(`${window.location.pathname}${stringifySearchParams(removeResult)}`, { replace: true });
+    setLocation(window.location.pathname, { replace: true, searchParams: removeResult });
 };

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Role, RoleCreateInput, RoleUpdateInput } from '@shared/consts';
+import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
@@ -14,8 +14,8 @@ export const RoleModel: ModelLogic<{
     GqlUpdate: RoleUpdateInput,
     GqlModel: Role,
     GqlPermission: {},
-    GqlSearch: undefined,
-    GqlSort: undefined,
+    GqlSearch: RoleSearchInput,
+    GqlSort: RoleSortBy,
     PrismaCreate: Prisma.roleUpsertArgs['create'],
     PrismaUpdate: Prisma.roleUpsertArgs['update'],
     PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
@@ -53,4 +53,5 @@ export const RoleModel: ModelLogic<{
             membersCount: true,
         },
     },
+    search: {} as any,
 })

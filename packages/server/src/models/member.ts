@@ -5,6 +5,8 @@ import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
+import { OrganizationModel } from "./organization";
+import { RoleModel } from "./role";
 
 const __typename = 'Member' as const;
 
@@ -47,5 +49,22 @@ export const MemberModel: ModelLogic<{
         },
         countFields: {},
     },
-    search: {} as any,
+    search: {
+        defaultSort: MemberSortBy.DateCreatedDesc,
+        sortBy: MemberSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            organizationId: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                { organization: OrganizationModel.search!.searchStringQuery() },
+                { role: RoleModel.search!.searchStringQuery() },
+                { user: UserModel.search!.searchStringQuery() },
+            ]
+        })
+    },
 })

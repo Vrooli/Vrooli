@@ -116,9 +116,9 @@ export const typeDef = gql`
         minBookmarksRoot: Int
         minScoreRoot: Int
         minViewsRoot: Int
-        createdById: ID
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         searchString: String
         sortBy: ApiVersionSortBy
         tagsRoot: [String!]

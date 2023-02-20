@@ -57,9 +57,9 @@ export function useObjectFromUrl<
     useEffect(() => {
         // Objects can be found using a few different unique identifiers
         if (exists(urlParams.handle)) getData({ variables: { handle: urlParams.handle } as any })
-        else if (exists(urlParams.handleRoot)) getData({ variables: { handle: urlParams.handleRoot } as any })
+        else if (exists(urlParams.handleRoot)) getData({ variables: { handleRoot: urlParams.handleRoot } as any })
         else if (exists(urlParams.id)) getData({ variables: { id: urlParams.id } as any })
-        else if (exists(urlParams.idRoot)) getData({ variables: { id: urlParams.idRoot } as any })
+        else if (exists(urlParams.idRoot)) getData({ variables: { idRoot: urlParams.idRoot } as any })
         else if (exists(idFallback)) getData({ variables: { id: idFallback } as any })
         // If no valid identifier found, show error or call onInvalidUrlParams
         else if (exists(onInvalidUrlParams)) onInvalidUrlParams(urlParams);

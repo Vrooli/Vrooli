@@ -5,7 +5,7 @@ import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@
 import { PageContainer, PageTabs, SearchList, ShareSiteDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
-import { addSearchParams, parseSearchParams, stringifySearchParams, useLocation } from '@shared/route';
+import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
 import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions, getUserLanguages } from "utils";
 import { APP_LINKS, GqlModelType } from "@shared/consts";
@@ -128,9 +128,7 @@ export function SearchPage({
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
             PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: 'Error' });
-            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
-                redirect: addUrl
-            })}`);
+            setLocation(APP_LINKS.Start, { searchParams: { redirect: addUrl } });
             return;
         }
         // If search type is a routine, open create routine page

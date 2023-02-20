@@ -23,7 +23,7 @@ export const getAuthenticatedData = async (
             where: { id: { in: idsByType[type] } },
             select: permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ['en']),
         });
-        console.log('getAuthenticatedData prisma data', JSON.stringify(data), '\n\n');
+        console.log('getAuthenticatedData prisma data', JSON.stringify(data), type, idsByType[type], '\n\n');
         // Add data to return object
         for (const datum of data) {
             authDataById[datum.id] = { __typename: type, ...datum }

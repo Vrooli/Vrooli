@@ -1,5 +1,5 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor } from '@shared/consts';
+import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor, VoteFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import React from 'react';
 import { NavigableObject} from 'types';
@@ -131,4 +131,15 @@ export interface StatusMessageArray {
 export interface StatusButtonProps extends ButtonProps {
     status: Status;
     messages: string[];
+}
+
+export interface VoteButtonProps {
+    direction?: 'row' | 'column';
+    disabled?: boolean;
+    session: Session;
+    score?: number; // Net score - can be negative
+    isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
+    objectId: string;
+    voteFor: VoteFor;
+    onChange: (isUpvote: boolean | null, newScore: number) => void;
 }

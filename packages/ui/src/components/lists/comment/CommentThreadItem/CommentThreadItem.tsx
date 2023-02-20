@@ -1,7 +1,7 @@
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { TextLoading, UpvoteDownvote } from '../..';
+import { TextLoading } from '../..';
 import { displayDate, getTranslation, getUserLanguages, getYou, ObjectType, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
 import { useMutation } from 'api/hooks';
@@ -9,7 +9,7 @@ import { mutationWrapper } from 'api/utils';
 import { CommentFor, DeleteOneInput, DeleteType, ReportFor, BookmarkFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { ReportButton, BookmarkButton } from 'components/buttons';
+import { ReportButton, BookmarkButton, VoteButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
@@ -144,7 +144,7 @@ export function CommentThreadItem({
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
-                        <UpvoteDownvote
+                        <VoteButton
                             direction="row"
                             disabled={!canVote}
                             session={session}

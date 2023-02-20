@@ -176,9 +176,9 @@ export const VoteModel: ModelLogic<{
                 // Handle trigger
                 await Trigger(prisma, userData.languages).objectVote(input.isUpvote ?? null, input.voteFor, input.forConnect, userData.id);
             }
-            // Update the score
-            const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1;
-            const newVoteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
+            // Update the score.
+            const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1; // +1 if upvote, -1 if downvote, 0 if null
+            const newVoteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1; // +1 if upvote, -1 if downvote, 0 if null
             const deltaVoteCount = newVoteCount - oldVoteCount;
             await prismaFor.update({
                 where: { id: input.forConnect },
@@ -189,7 +189,7 @@ export const VoteModel: ModelLogic<{
         // If vote did not already exist
         else {
             // If setting to null, skip
-            if (input.isUpvote === null || input.isUpvote === undefined) return true;
+            if (!exists(input.isUpvote)) return true;
             // Create the vote
             await prisma.vote.create({
                 data: {
@@ -200,11 +200,10 @@ export const VoteModel: ModelLogic<{
             })
             // Handle trigger
             await Trigger(prisma, userData.languages).objectVote(input.isUpvote, input.voteFor, input.forConnect, userData.id);
-            // Update the score
-            const voteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
+            // Update the score. +1 if upvote, -1 if downvote
             await prismaFor.update({
                 where: { id: input.forConnect },
-                data: { score: votingFor.score + voteCount }
+                data: { score: votingFor.score + (input.isUpvote ? 1 : -1) }
             })
             return true;
         }

@@ -170,7 +170,7 @@ export const typeDef = gql`
 
     input RoutineVersionSearchInput {
         after: String
-        createdById: ID
+        createdByIdRoot: ID
         createdTimeFrame: TimeFrame
         directoryListingsId: ID
         excludeIds: [ID!]
@@ -194,8 +194,8 @@ export const typeDef = gql`
         minBookmarksRoot: Int
         minScoreRoot: Int
         minViewsRoot: Int
-        ownedByOrganizationId: ID
-        ownedByUserId: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         reportId: ID
         rootId: ID
         searchString: String

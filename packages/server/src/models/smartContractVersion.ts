@@ -69,7 +69,38 @@ export const SmartContractVersionModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: SmartContractVersionSortBy.DateUpdatedDesc,
+        sortBy: SmartContractVersionSortBy,
+        searchFields: {
+            completedTimeFrame: true,
+            createdByIdRoot: true,
+            createdTimeFrame: true,
+            isCompleteWithRoot: true,
+            maxBookmarksRoot: true,
+            maxScoreRoot: true,
+            maxViewsRoot: true,
+            minBookmarksRoot: true,
+            minScoreRoot: true,
+            minViewsRoot: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
+            reportId: true,
+            rootId: true,
+            tagsRoot: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                'transNameWrapped',
+                { root: 'tagsWrapped' },
+                { root: 'labelsWrapped' },
+            ]
+        }),
+    },
     validate: {
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&

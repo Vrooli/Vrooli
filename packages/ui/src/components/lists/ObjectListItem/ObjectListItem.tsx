@@ -4,11 +4,11 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { TagList, TextLoading, UpvoteDownvote } from '..';
+import { TagList, TextLoading } from '..';
 import { getYou, getDisplay, getUserLanguages, ObjectAction, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, ListObjectType, useObjectActions } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
-import { CommentsButton, ReportsButton, BookmarkButton } from 'components/buttons';
+import { CommentsButton, ReportsButton, BookmarkButton, VoteButton } from 'components/buttons';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
 import { isOfType } from '@shared/utils';
@@ -62,6 +62,7 @@ export function ObjectListItem<T extends ListObjectType>({
 
     const link = useMemo(() => data ? getObjectUrl(data) : '', [data]);
     const handleClick = useCallback((target: EventTarget) => {
+        console.log('listitem click', target.id, data)
         if (!target.id || !target.id.startsWith('list-item-')) return;
         // If data not supplied, don't open
         if (data === null || link.length === 0) return;
@@ -133,7 +134,7 @@ export function ObjectListItem<T extends ListObjectType>({
             case 'Routine':
             case 'Standard':
                 return (
-                    <UpvoteDownvote
+                    <VoteButton
                         disabled={!canVote}
                         session={session}
                         objectId={object?.id ?? ''}
@@ -203,7 +204,7 @@ export function ObjectListItem<T extends ListObjectType>({
                     'SmartContractVersion',
                     'Standard',
                     'StandardVersion') && (
-                        <UpvoteDownvote
+                        <VoteButton
                             direction='row'
                             disabled={!canVote}
                             session={session}

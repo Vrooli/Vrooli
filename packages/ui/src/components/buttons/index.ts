@@ -12,3 +12,4 @@ export * from './ReportsButton/ReportsButton';
 export * from './ReportsLink/ReportsLink';
 export * from './RunButton/RunButton';
 export * from './StatusButton/StatusButton';
+export * from './VoteButton/VoteButton';

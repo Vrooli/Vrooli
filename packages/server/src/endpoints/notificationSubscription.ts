@@ -8,8 +8,6 @@ export const typeDef = gql`
     enum NotificationSubscriptionSortBy {
         DateCreatedAsc
         DateCreatedDesc
-        ObjectTypeAsc
-        ObjectTypeDesc
     }
 
     enum SubscribableObject {

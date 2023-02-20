@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv, linkColors } from 'styles';
 import { useQuery } from '@apollo/client';
 import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer, PageTabs } from 'components';
-import { stringifySearchParams, useLocation } from '@shared/route';
+import { useLocation } from '@shared/route';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
@@ -124,7 +124,7 @@ export const HomePage = ({
     const currTab = useMemo(() => tabs[0], [tabs])
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
-        setLocation(tab.href, { replace: true });
+        setLocation(tab.href!, { replace: true });
     }, [setLocation]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
@@ -187,9 +187,9 @@ export const HomePage = ({
     const toSearchPage = useCallback((event: any, tab: SearchPageTabOption) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
+        if (searchString) setLocation(APP_LINKS.Home, { replace: true, searchParams: { search: searchString } });
         // Navigate to search page
-        setLocation(`${APP_LINKS.Search}?type=${tab}`);
+        setLocation(APP_LINKS.Search, { searchParams: { type: tab } });
     }, [searchString, setLocation]);
 
     /**
@@ -197,7 +197,7 @@ export const HomePage = ({
      */
     const beforeNavigation = useCallback((item: NavigableObject) => {
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        if (searchString) setLocation(APP_LINKS.Home, { replace: true, searchParams: { search: searchString } });
     }, [searchString, setLocation]);
 
     /**
@@ -293,9 +293,7 @@ export const HomePage = ({
     const handleCreateNewSelect = useCallback((path: string) => {
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
-            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
-                redirect: path
-            })}`);
+            setLocation(APP_LINKS.Start, { searchParams: { redirect: path } });
         }
         // Otherwise, navigate to create page
         else setLocation(path);

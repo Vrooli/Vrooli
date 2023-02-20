@@ -10,4 +10,3 @@ export * from './SortMenu/SortMenu';
 export * from './TagList/TagList';
 export * from './TextLoading/TextLoading';
 export * from './TimeMenu/TimeMenu';
-export * from './UpvoteDownvote/UpvoteDownvote';

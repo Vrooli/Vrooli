@@ -56,7 +56,25 @@ export const MeetingInviteModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: MeetingInviteSortBy.DateUpdatedDesc,
+        sortBy: MeetingInviteSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            status: true,
+            meetingId: true,
+            userId: true,
+            organizationId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'messageWrapped',
+                { meeting: MeetingModel.search!.searchStringQuery() },
+            ]
+        })
+    },
     validate: {
         isTransferable: false,
         maxObjects: {

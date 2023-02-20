@@ -2,7 +2,7 @@ import { Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
 import { SiteSearchBar, ListTitleContainer, PageContainer, PageTabs } from 'components';
-import { stringifySearchParams, useLocation } from '@shared/route';
+import { useLocation } from '@shared/route';
 import { APP_LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
 import { HistoryPageProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
@@ -67,7 +67,7 @@ export const HistoryPage = ({
     const currTab = useMemo(() => tabs[1], [tabs])
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
-        setLocation(tab.href, { replace: true });
+        setLocation(tab.href!, { replace: true });
     }, [setLocation]);
 
     const activeRuns = useMemo(() => listToListItems({
@@ -127,32 +127,32 @@ export const HistoryPage = ({
 
     const toSeeAllActiveRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Runs,
-            status: RunStatus.InProgress
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, {
+            searchParams: {
+                type: HistorySearchPageTabOption.Runs,
+                status: RunStatus.InProgress
+            }
+        });
     }, [setLocation]);
 
     const toSeeAllCompletedRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Runs,
-            status: RunStatus.Completed
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, {
+            searchParams: {
+                type: HistorySearchPageTabOption.Runs,
+                status: RunStatus.Completed
+            }
+        });
     }, [setLocation]);
 
     const toSeeAllViewed = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Viewed,
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Viewed } });
     }, [setLocation]);
 
     const toSeeAllBookmarked = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Bookmarked,
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Bookmarked } });
     }, [setLocation]);
 
     return (

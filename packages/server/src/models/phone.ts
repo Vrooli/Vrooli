@@ -45,7 +45,6 @@ export const PhoneModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

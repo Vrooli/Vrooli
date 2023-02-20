@@ -117,6 +117,9 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         ids: [ID!]
         isCompleteWithRoot: Boolean
         isLatest: Boolean

@@ -57,7 +57,25 @@ export const MemberInviteModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: MemberInviteSortBy.DateUpdatedDesc,
+        sortBy: MemberInviteSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            organizationId: true,
+            status: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'messageWrapped',
+                { organization: OrganizationModel.search!.searchStringQuery() },
+                { user: UserModel.search!.searchStringQuery() },
+            ]
+        })
+    },
     validate: {
         isTransferable: false,
         maxObjects: {

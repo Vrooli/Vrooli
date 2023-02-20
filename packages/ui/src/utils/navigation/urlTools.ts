@@ -1,3 +1,4 @@
+import { APP_LINKS } from "@shared/consts";
 import { getLastUrlPart, parseSearchParams } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { adaHandleRegex } from "@shared/validation";
@@ -50,6 +51,13 @@ export const base36ToUuid = (base36: string, showError = true): string => {
     }
 }
 
+export type SingleItemUrl = {
+    handleRoot?: string,
+    handle?: string,
+    idRoot?: string,
+    id?: string,
+}
+
 /**
  * Finds information in the URL to query for a specific item. 
  * There are multiple ways to specify an item in the URL. 
@@ -58,25 +66,45 @@ export const base36ToUuid = (base36: string, showError = true): string => {
  * This is specified as site.com/item/id or site.com/item/handle.
  * 
  * For versioned items, they can be queried by ID, ID of the root item, or handle of the root item.
- * This is specified as site.com/item/id, site.com/item?id=id, site.com/item?root=id, or site.com/item?handle=handle.
+ * This is specified as site.com/item/rootId, site.com/item/rootId/id, site.com/handle, or site.com/handle/id.
+ * 
+ * NOTE: This function may sometimes be used for deeper navigation within a single item, 
+ * such as site.com/reports/id or site.com/comments/id. In this case, the logic is still the same.
  */
-export const parseSingleItemUrl = (): { 
-    handleRoot?: string,
-    handle?: string,
-    idRoot?: string,
-    id?: string,
-} => {
-    // Get the last part of the URL
+export const parseSingleItemUrl = (): SingleItemUrl => {
+    // Initialize the return object
+    const returnObject: SingleItemUrl = {};
+    // Get the last 2 parts of the URL
     const lastPart = getLastUrlPart();
-    // If this matches the handle or ID regex, return it
-    if (adaHandleRegex.test(lastPart)) return { handle: lastPart };
-    if (uuidValidate(base36ToUuid(lastPart, false))) return { id: base36ToUuid(lastPart) };
-    // Otherwise, parse the search params
-    const searchParams = parseSearchParams();
-    // If there is a handle, return it
-    if (typeof searchParams.handle === 'string' && adaHandleRegex.test(searchParams.handle)) return { handleRoot: searchParams.handle };
-    // If there is an ID, return it
-    if (searchParams.id && uuidValidate(base36ToUuid(searchParams.id as any, false))) return { idRoot: base36ToUuid(searchParams.id as any, false) };
-    // Otherwise, return nothing
-    return {};
+    const secondLastPart = getLastUrlPart(1);
+    // First check the second last part. If it matches the handle or ID regex, then 
+    // we know this is a versioned item
+    if (adaHandleRegex.test(secondLastPart)) {
+        returnObject.handleRoot = secondLastPart;
+    } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
+        returnObject.idRoot = base36ToUuid(secondLastPart);
+    }
+    // Otherwise, this still might be a versioned item. Just with only the 
+    // root ID or handle defined. To check, we must see if any part of the url 
+    // contains the name of a versioned object
+    const objectsWithVersions = [
+        APP_LINKS.Api, 
+        APP_LINKS.Note, 
+        APP_LINKS.Project, 
+        APP_LINKS.Routine, 
+        APP_LINKS.SmartContract, 
+        APP_LINKS.Standard
+    ].map(link => link.split('/').pop());
+    const allUrlParts = window.location.pathname.split('/');
+    const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));
+    // Now check the last part
+    if (adaHandleRegex.test(lastPart)) {
+        if (isVersioned) returnObject.handleRoot = lastPart;
+        else returnObject.handle = lastPart;
+    } else if (uuidValidate(base36ToUuid(lastPart, false))) {
+        if (isVersioned) returnObject.idRoot = base36ToUuid(lastPart, false);
+        else returnObject.id = base36ToUuid(lastPart, false);
+    }
+    // Return the object
+    return returnObject;
 }

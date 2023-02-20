@@ -67,7 +67,33 @@ export const NoteVersionModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: NoteVersionSortBy.DateUpdatedDesc,
+        sortBy: NoteVersionSortBy,
+        searchFields: {
+            createdByIdRoot: true,
+            createdTimeFrame: true,
+            maxBookmarksRoot: true,
+            maxScoreRoot: true,
+            maxViewsRoot: true,
+            minBookmarksRoot: true,
+            minScoreRoot: true,
+            minViewsRoot: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
+            tagsRoot: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                'transNameWrapped',
+                { root: 'tagsWrapped' },
+                { root: 'labelsWrapped' },
+            ]
+        }),
+    },
     validate: {
         isDeleted: (data) => false,
         isPublic: (data, languages) => data.isPrivate === false &&

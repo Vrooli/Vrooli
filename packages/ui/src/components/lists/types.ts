@@ -1,4 +1,4 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
 import { CommonKey, NavigableObject } from 'types';
 import { ListObjectType, ObjectAction, SearchType, UseObjectActionsReturn } from 'utils';
 
@@ -111,15 +111,4 @@ export interface TagListProps {
     parentId: string;
     sx?: { [x: string]: any };
     tags: Partial<Tag>[];
-}
-
-export interface UpvoteDownvoteProps {
-    direction?: 'row' | 'column';
-    disabled?: boolean;
-    session: Session;
-    score?: number; // Net score - can be negative
-    isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
-    objectId: string;
-    voteFor: VoteFor;
-    onChange: (isUpvote: boolean | null, newScore: number) => void;
 }

@@ -33,6 +33,11 @@ export type NavigableObject = {
         __typename: 'ProjectVersion',
         id: string
     } | null,
+    root?: {
+        __typename: `${GqlModelType}`,
+        handle?: string | null,
+        id: string,
+    } | null,
     routineVersion?: {
         __typename: 'RoutineVersion',
         id: string
@@ -101,7 +106,11 @@ export interface ObjectOption {
     __typename: `${GqlModelType}`;
     handle?: string | null;
     id: string;
-    root?: { id: string } | null;
+    root?: {
+        __typename: `${GqlModelType}`,
+        handle?: string | null,
+        id: string
+    } | null;
     versions?: { id: string }[] | null;
     isFromHistory?: boolean;
     isBookmarked?: boolean;

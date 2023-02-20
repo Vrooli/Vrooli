@@ -235,7 +235,7 @@ export type ApiVersionEdge = {
 
 export type ApiVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
@@ -246,8 +246,8 @@ export type ApiVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ApiVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
@@ -380,9 +380,11 @@ export enum AwardCategory {
 export type Bookmark = {
   __typename: 'Bookmark';
   by: User;
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   label: Scalars['String'];
   to: BookmarkTo;
+  updated_at: Scalars['Date'];
 };
 
 export type BookmarkCreateInput = {
@@ -1229,10 +1231,12 @@ export enum MeetingInviteSortBy {
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
-  MemberNameAsc = 'MemberNameAsc',
-  MemberNameDesc = 'MemberNameDesc',
-  StatusAsc = 'StatusAsc',
-  StatusDesc = 'StatusDesc'
+  MeetingEndAsc = 'MeetingEndAsc',
+  MeetingEndDesc = 'MeetingEndDesc',
+  MeetingStartAsc = 'MeetingStartAsc',
+  MeetingStartDesc = 'MeetingStartDesc',
+  UserNameAsc = 'UserNameAsc',
+  UserNameDesc = 'UserNameDesc'
 }
 
 export enum MeetingInviteStatus {
@@ -1422,10 +1426,8 @@ export enum MemberInviteSortBy {
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
-  MemberNameAsc = 'MemberNameAsc',
-  MemberNameDesc = 'MemberNameDesc',
-  StatusAsc = 'StatusAsc',
-  StatusDesc = 'StatusDesc'
+  UserNameAsc = 'UserNameAsc',
+  UserNameDesc = 'UserNameDesc'
 }
 
 export enum MemberInviteStatus {
@@ -2754,7 +2756,7 @@ export type NoteVersionEdge = {
 
 export type NoteVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
@@ -2765,8 +2767,8 @@ export type NoteVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
@@ -2927,14 +2929,10 @@ export type NotificationSettingsUpdateInput = {
 };
 
 export enum NotificationSortBy {
-  CategoryAsc = 'CategoryAsc',
-  CategoryDesc = 'CategoryDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  TitleAsc = 'TitleAsc',
-  TitleDesc = 'TitleDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type NotificationSubscription = {
@@ -2979,9 +2977,7 @@ export type NotificationSubscriptionSearchResult = {
 
 export enum NotificationSubscriptionSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  ObjectTypeAsc = 'ObjectTypeAsc',
-  ObjectTypeDesc = 'ObjectTypeDesc'
+  DateCreatedDesc = 'DateCreatedDesc'
 }
 
 export type NotificationSubscriptionUpdateInput = {
@@ -3187,6 +3183,44 @@ export type Payment = {
   updated_at: Scalars['Date'];
   user: User;
 };
+
+export type PaymentEdge = {
+  __typename: 'PaymentEdge';
+  cursor: Scalars['String'];
+  node: Payment;
+};
+
+export type PaymentSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  cardExpDate?: InputMaybe<Scalars['String']>;
+  cardLast4?: InputMaybe<Scalars['String']>;
+  cardType?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  currency?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  maxAmount?: InputMaybe<Scalars['Int']>;
+  minAmount?: InputMaybe<Scalars['Int']>;
+  sortBy?: InputMaybe<PaymentSortBy>;
+  status?: InputMaybe<PaymentStatus>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type PaymentSearchResult = {
+  __typename: 'PaymentSearchResult';
+  edges: Array<PaymentEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum PaymentSortBy {
+  AmountAsc = 'AmountAsc',
+  AmountDesc = 'AmountDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export enum PaymentStatus {
   Failed = 'Failed',
@@ -3780,7 +3814,7 @@ export type ProjectVersionEdge = {
 
 export type ProjectVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   directoryListingsId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -3800,8 +3834,8 @@ export type ProjectVersionSearchInput = {
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectVersionSortBy>;
@@ -4056,6 +4090,8 @@ export type Query = {
   notifications: NotificationSearchResult;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
+  payment?: Maybe<Payment>;
+  payments: PaymentSearchResult;
   popular: PopularResult;
   post?: Maybe<Post>;
   posts: PostSearchResult;
@@ -4301,6 +4337,16 @@ export type QueryOrganizationArgs = {
 
 export type QueryOrganizationsArgs = {
   input: OrganizationSearchInput;
+};
+
+
+export type QueryPaymentArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryPaymentsArgs = {
+  input: PaymentSearchInput;
 };
 
 
@@ -6355,7 +6401,7 @@ export type RoutineVersionOutputUpdateInput = {
 
 export type RoutineVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   directoryListingsId?: InputMaybe<Scalars['ID']>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
@@ -6379,8 +6425,8 @@ export type RoutineVersionSearchInput = {
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -7404,6 +7450,7 @@ export type SmartContractVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
   contractType?: InputMaybe<Scalars['String']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
@@ -7415,6 +7462,8 @@ export type SmartContractVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -7705,6 +7754,7 @@ export type StandardVersionEdge = {
 export type StandardVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
@@ -7716,6 +7766,8 @@ export type StandardVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -9198,6 +9250,10 @@ export type ResolversTypes = {
   Owner: ResolversTypes['Organization'] | ResolversTypes['User'];
   PageInfo: ResolverTypeWrapper<PageInfo>;
   Payment: ResolverTypeWrapper<Payment>;
+  PaymentEdge: ResolverTypeWrapper<PaymentEdge>;
+  PaymentSearchInput: PaymentSearchInput;
+  PaymentSearchResult: ResolverTypeWrapper<PaymentSearchResult>;
+  PaymentSortBy: PaymentSortBy;
   PaymentStatus: PaymentStatus;
   Phone: ResolverTypeWrapper<Phone>;
   PhoneCreateInput: PhoneCreateInput;
@@ -9868,6 +9924,9 @@ export type ResolversParentTypes = {
   Owner: ResolversParentTypes['Organization'] | ResolversParentTypes['User'];
   PageInfo: PageInfo;
   Payment: Payment;
+  PaymentEdge: PaymentEdge;
+  PaymentSearchInput: PaymentSearchInput;
+  PaymentSearchResult: PaymentSearchResult;
   Phone: Phone;
   PhoneCreateInput: PhoneCreateInput;
   PopularInput: PopularInput;
@@ -10405,9 +10464,11 @@ export type AwardResolvers<ContextType = any, ParentType extends ResolversParent
 
 export type BookmarkResolvers<ContextType = any, ParentType extends ResolversParentTypes['Bookmark'] = ResolversParentTypes['Bookmark']> = {
   by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   label?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['BookmarkTo'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11331,6 +11392,18 @@ export type PaymentResolvers<ContextType = any, ParentType extends ResolversPare
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type PaymentEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['PaymentEdge'] = ResolversParentTypes['PaymentEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Payment'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PaymentSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PaymentSearchResult'] = ResolversParentTypes['PaymentSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['PaymentEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type PhoneResolvers<ContextType = any, ParentType extends ResolversParentTypes['Phone'] = ResolversParentTypes['Phone']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   phoneNumber?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -11685,6 +11758,8 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   notifications?: Resolver<ResolversTypes['NotificationSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationsArgs, 'input'>>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType, RequireFields<QueryOrganizationArgs, 'input'>>;
   organizations?: Resolver<ResolversTypes['OrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryOrganizationsArgs, 'input'>>;
+  payment?: Resolver<Maybe<ResolversTypes['Payment']>, ParentType, ContextType, RequireFields<QueryPaymentArgs, 'input'>>;
+  payments?: Resolver<ResolversTypes['PaymentSearchResult'], ParentType, ContextType, RequireFields<QueryPaymentsArgs, 'input'>>;
   popular?: Resolver<ResolversTypes['PopularResult'], ParentType, ContextType, RequireFields<QueryPopularArgs, 'input'>>;
   post?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType, RequireFields<QueryPostArgs, 'input'>>;
   posts?: Resolver<ResolversTypes['PostSearchResult'], ParentType, ContextType, RequireFields<QueryPostsArgs, 'input'>>;
@@ -13658,6 +13733,8 @@ export type Resolvers<ContextType = any> = {
   Owner?: OwnerResolvers<ContextType>;
   PageInfo?: PageInfoResolvers<ContextType>;
   Payment?: PaymentResolvers<ContextType>;
+  PaymentEdge?: PaymentEdgeResolvers<ContextType>;
+  PaymentSearchResult?: PaymentSearchResultResolvers<ContextType>;
   Phone?: PhoneResolvers<ContextType>;
   PopularResult?: PopularResultResolvers<ContextType>;
   Post?: PostResolvers<ContextType>;

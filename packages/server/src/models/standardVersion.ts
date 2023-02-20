@@ -432,6 +432,7 @@ export const StandardVersionModel: ModelLogic<{
         sortBy: StandardVersionSortBy,
         searchFields: {
             completedTimeFrame: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,
             maxBookmarksRoot: true,
@@ -440,6 +441,8 @@ export const StandardVersionModel: ModelLogic<{
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
             standardType: true,

@@ -1,7 +1,6 @@
-import { Box, ListItemText, Stack, useTheme } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookmarkButtonProps } from '../types';
-import { multiLineEllipsis } from 'styles';
 import { uuidValidate } from '@shared/uuid';
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
@@ -27,14 +26,6 @@ export const BookmarkButton = ({
     const [internalIsBookmarked, setInternalIsBookmarked] = useState<boolean | null>(isBookmarked ?? null);
     useEffect(() => setInternalIsBookmarked(isBookmarked ?? false), [isBookmarked]);
 
-    const internalBookmarks: number | null = useMemo(() => {
-        if (bookmarks === null || bookmarks === undefined) return null;
-        const count = bookmarks;
-        if (internalIsBookmarked === true && isBookmarked === false) return count + 1;
-        if (internalIsBookmarked === false && isBookmarked === true) return count - 1;
-        return count;
-    }, [internalIsBookmarked, isBookmarked, bookmarks]);
-
     // const { handleBookmark } = useBookmarker({
     //     objectId: id,
     //     objectType: objectType as BookmarkFor,
@@ -42,11 +33,13 @@ export const BookmarkButton = ({
     // });
 
     const handleClick = useCallback((event: any) => {
+        console.log('bookmark button click', objectId, internalIsBookmarked, userId, bookmarkFor);
         if (!userId) return;
         const isBookmarked = !internalIsBookmarked;
         setInternalIsBookmarked(isBookmarked);
         // Prevent propagation of normal click event
         event.stopPropagation();
+        event.preventDefault();
         // If objectId is not valid, return
         if (!uuidValidate(objectId)) return;
         // If not isBookmarked, add to default bookmark
@@ -78,28 +71,18 @@ export const BookmarkButton = ({
     }, [userId, disabled, internalIsBookmarked, palette]);
 
     return (
-        <Stack
-            direction="row"
-            spacing={0.5}
+        <Box
+            onClick={handleClick}
             sx={{
                 marginRight: 0,
                 marginTop: 'auto !important',
                 marginBottom: 'auto !important',
-                pointerEvents: 'none',
+                pointerEvents: disabled ? 'none' : 'all',
+                cursor: userId ? 'pointer' : 'default',
                 ...(sxs?.root ?? {}),
             }}
         >
-            <Box onClick={handleClick} sx={{
-                display: 'contents',
-                cursor: userId ? 'pointer' : 'default',
-                pointerEvents: disabled ? 'none' : 'all',
-            }}>
-                <Icon fill={fill} />
-            </Box>
-            {showBookmarks && internalBookmarks !== null && <ListItemText
-                primary={internalBookmarks}
-                sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
-            />}
-        </Stack>
+            <Icon fill={fill} />
+        </Box>
     )
 }
