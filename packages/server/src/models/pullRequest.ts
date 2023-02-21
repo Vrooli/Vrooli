@@ -113,6 +113,7 @@ export const PullRequestModel: ModelLogic<{
         },
         countFields: {
             commentsCount: true,
+            translationsCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,
@@ -126,6 +127,25 @@ export const PullRequestModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: PullRequestSortBy.DateUpdatedDesc,
+        sortBy: PullRequestSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            isMergedOrRejected: true,
+            translationLanguages: true,
+            toId: true,
+            createdById: true,
+            tags: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transTextWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

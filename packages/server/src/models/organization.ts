@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationYou, PrependString } from '@shared/consts';
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationYou, PrependString, MaxObjects } from '@shared/consts';
 import { organizationValidation } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { BookmarkModel } from "./bookmark";
@@ -294,19 +294,7 @@ export const OrganizationModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 1,
-                    premium: 10,
-                },
-                public: {
-                    noPremium: 3,
-                    premium: 25,
-                }
-            },
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data,
         }),

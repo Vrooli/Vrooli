@@ -8,9 +8,9 @@ export const organizationSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchOrganization', lng),
     containers: [
         { totalItems: 1 },
-        bookmarksContainer,
-        languagesContainer,
-        tagsContainer,
+        bookmarksContainer(lng),
+        languagesContainer(lng),
+        tagsContainer(lng),
     ],
     fields: [
         {
@@ -27,9 +27,9 @@ export const organizationSearchSchema = (lng: string): FormSchema => ({
                 ]
             }
         },
-        ...bookmarksFields,
-        ...languagesFields,
-        ...tagsFields,
+        ...bookmarksFields(lng),
+        ...languagesFields(lng),
+        ...tagsFields(lng),
     ]
 })
 

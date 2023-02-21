@@ -1,4 +1,4 @@
-import { StandardSortBy, StandardYou } from "@shared/consts";
+import { MaxObjects, StandardSortBy, StandardYou } from "@shared/consts";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
@@ -11,11 +11,12 @@ import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { noNull, padSelect } from "../builders";
+import { noNull, selPad } from "../builders";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: StandardCreateInput | StandardUpdateInput, isAdd: boolean) => {
     return {
@@ -50,19 +51,7 @@ export const StandardModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                where: { isPrivate: false },
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: StandardVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            StandardVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(StandardVersionModel),
     format: {
         gqlRelMap: {
             __typename,
@@ -370,28 +359,7 @@ export const StandardModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 5,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 1000,
-                },
-            },
-            Organization: {
-                private: {
-                    noPremium: 5,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 1000,
-                },
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

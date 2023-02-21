@@ -19,8 +19,8 @@ query reminderList($input: FindByIdInput!) {
         name
         description
         dueDate
-        completed
         index
+        isComplete
         reminderItems {
             id
             created_at
@@ -28,8 +28,8 @@ query reminderList($input: FindByIdInput!) {
             name
             description
             dueDate
-            completed
             index
+            isComplete
         }
     }
     userSchedule {
@@ -68,8 +68,8 @@ query reminderLists($input: ReminderListSearchInput!) {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
                 reminderItems {
                     id
                     created_at
@@ -77,8 +77,8 @@ query reminderLists($input: ReminderListSearchInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                 }
             }
             userSchedule {
@@ -120,8 +120,8 @@ mutation reminderListCreate($input: ReminderListCreateInput!) {
         name
         description
         dueDate
-        completed
         index
+        isComplete
         reminderItems {
             id
             created_at
@@ -129,8 +129,8 @@ mutation reminderListCreate($input: ReminderListCreateInput!) {
             name
             description
             dueDate
-            completed
             index
+            isComplete
         }
     }
     userSchedule {
@@ -166,8 +166,8 @@ mutation reminderListUpdate($input: ReminderListUpdateInput!) {
         name
         description
         dueDate
-        completed
         index
+        isComplete
         reminderItems {
             id
             created_at
@@ -175,8 +175,8 @@ mutation reminderListUpdate($input: ReminderListUpdateInput!) {
             name
             description
             dueDate
-            completed
             index
+            isComplete
         }
     }
     userSchedule {

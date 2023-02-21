@@ -27,8 +27,19 @@ export const RunProjectStepModel: ModelLogic<{
         select: () => ({ id: true, name: true }),
         label: (select) => select.name,
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            directory: 'ProjectVersionDirectory',
+            run: 'RunProject',
+        },
+        prismaRelMap: {
+            __typename,
+            directory: 'ProjectVersionDirectory',
+            runProject: 'RunProject',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
-    search: {} as any,
     validate: {} as any,
 })

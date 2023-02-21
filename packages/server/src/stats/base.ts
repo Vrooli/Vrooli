@@ -2,7 +2,7 @@
  * Handles logging of object and site-wide statistics.
  * 
  * Statistics are stored by PeriodType (i.e. hourly, daily, weekly, monthly, yearly), which 
- * each have their own cron job. These are used to calculate bar graphs on the frontend, 
+ * each have their own cron job. These are used to calculate line graphs on the frontend, 
  * by combining all matching period rows within a periodStart and periodEnd.
  */
 import cron from 'node-cron';

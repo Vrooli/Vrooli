@@ -178,7 +178,7 @@ CREATE TABLE "comment" (
 -- CreateTable
 CREATE TABLE "comment_translation" (
     "id" UUID NOT NULL,
-    "text" VARCHAR(2048) NOT NULL,
+    "text" VARCHAR(32768) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "commentId" UUID NOT NULL,
 
@@ -195,6 +195,7 @@ CREATE TABLE "email" (
     "lastVerifiedTime" TIMESTAMPTZ(6),
     "verificationCode" VARCHAR(256),
     "lastVerificationCodeRequestAttempt" TIMESTAMPTZ(6),
+    "organizationId" UUID,
     "userId" UUID,
 
     CONSTRAINT "email_pkey" PRIMARY KEY ("id")
@@ -889,6 +890,16 @@ CREATE TABLE "pull_request" (
 );
 
 -- CreateTable
+CREATE TABLE "pull_request_translation" (
+    "id" UUID NOT NULL,
+    "text" VARCHAR(32768) NOT NULL,
+    "language" VARCHAR(3) NOT NULL,
+    "pullRequestId" UUID NOT NULL,
+
+    CONSTRAINT "pull_request_translation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "question" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -947,7 +958,7 @@ CREATE TABLE "question_answer" (
 -- CreateTable
 CREATE TABLE "question_answer_translation" (
     "id" UUID NOT NULL,
-    "description" VARCHAR(2048) NOT NULL,
+    "text" VARCHAR(32768) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "answerId" UUID NOT NULL,
 
@@ -1064,8 +1075,8 @@ CREATE TABLE "reminder" (
     "name" VARCHAR(128) NOT NULL,
     "description" VARCHAR(2048),
     "dueDate" TIMESTAMPTZ(6),
-    "completed" BOOLEAN NOT NULL DEFAULT false,
     "index" INTEGER NOT NULL,
+    "isComplete" BOOLEAN NOT NULL DEFAULT false,
     "reminderListId" UUID NOT NULL,
 
     CONSTRAINT "reminder_pkey" PRIMARY KEY ("id")
@@ -1080,8 +1091,8 @@ CREATE TABLE "reminder_item" (
     "description" VARCHAR(2048),
     "dueDate" TIMESTAMPTZ(6),
     "index" INTEGER NOT NULL,
+    "isComplete" BOOLEAN NOT NULL DEFAULT false,
     "reminderId" UUID NOT NULL,
-    "completed" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "reminder_item_pkey" PRIMARY KEY ("id")
 );
@@ -1382,6 +1393,8 @@ CREATE TABLE "run_project_step" (
 -- CreateTable
 CREATE TABLE "run_project_schedule" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "timeZone" VARCHAR(128),
     "windowStart" TIMESTAMPTZ(6),
     "windowEnd" TIMESTAMPTZ(6),
@@ -1468,6 +1481,8 @@ CREATE TABLE "run_routine_step" (
 -- CreateTable
 CREATE TABLE "run_routine_schedule" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "attemptAutomatic" BOOLEAN NOT NULL DEFAULT true,
     "maxAutomaticAttempts" INTEGER NOT NULL DEFAULT 2,
     "timeZone" VARCHAR(128),
@@ -1923,6 +1938,7 @@ CREATE TABLE "user" (
     "confirmationCode" VARCHAR(256),
     "confirmationCodeDate" TIMESTAMPTZ(6),
     "invitedByUserId" UUID,
+    "isBot" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "isPrivateApis" BOOLEAN NOT NULL DEFAULT false,
     "isPrivateApisCreated" BOOLEAN NOT NULL DEFAULT false,
@@ -2311,6 +2327,9 @@ CREATE UNIQUE INDEX "project_tags_taggedId_tagTag_key" ON "project_tags"("tagged
 CREATE UNIQUE INDEX "project_labels_labelledId_labelId_key" ON "project_labels"("labelledId", "labelId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "pull_request_translation_pullRequestId_language_key" ON "pull_request_translation"("pullRequestId", "language");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "question_translation_questionId_language_key" ON "question_translation"("questionId", "language");
 
 -- CreateIndex
@@ -2600,6 +2619,9 @@ ALTER TABLE "comment" ADD CONSTRAINT "comment_ownedByUserId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "comment_translation" ADD CONSTRAINT "comment_translation_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "email" ADD CONSTRAINT "email_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "email" ADD CONSTRAINT "email_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2957,6 +2979,9 @@ ALTER TABLE "pull_request" ADD CONSTRAINT "pull_request_toSmartContractId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "pull_request" ADD CONSTRAINT "pull_request_toStandardId_fkey" FOREIGN KEY ("toStandardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "pull_request_translation" ADD CONSTRAINT "pull_request_translation_pullRequestId_fkey" FOREIGN KEY ("pullRequestId") REFERENCES "pull_request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "question" ADD CONSTRAINT "question_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -3,7 +3,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { NodeModel } from "./node";
-import { noNull, padSelect, shapeHelper } from "../builders";
+import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { nodeEndValidation } from "@shared/validation";
 import { nodeEndNextShapeHelper } from "../utils";
@@ -28,7 +28,7 @@ export const NodeEndModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: {
-        select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
+        select: () => ({ id: true, node: selPad(NodeModel.display.select) }),
         label: (select, languages) => NodeModel.display.label(select.node as any, languages),
     },
     format: {

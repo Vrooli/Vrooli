@@ -9,7 +9,7 @@ import { getRunPercentComplete, getTranslation, getUserLanguages, locationArrays
 import { useLazyQuery, useMutation } from "api/hooks";
 import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
-import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigation/urlTools";
+import { base36ToUuid } from "utils/navigation/urlTools";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";

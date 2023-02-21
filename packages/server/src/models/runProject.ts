@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
+import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
@@ -63,13 +63,29 @@ export const RunProjectModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: RunProjectSortBy.DateUpdatedDesc,
+        sortBy: RunProjectSortBy,
+        searchFields: {
+            completedTimeFrame: true,
+            createdTimeFrame: true,
+            excludeIds: true,
+            projectVersionId: true,
+            startedTimeFrame: true,
+            status: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'nameWrapped',
+                { projectVersion: RunProjectModel.search!.searchStringQuery() },
+            ]
+        })
+    },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 5000,
-            Organization: 50000,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,

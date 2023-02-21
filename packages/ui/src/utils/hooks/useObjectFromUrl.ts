@@ -1,11 +1,12 @@
 import { OperationVariables, TypedDocumentNode } from "@apollo/client";
 import { Session } from "@shared/consts";
+import { ParseSearchParamsResult } from "@shared/route";
 import { exists } from "@shared/utils";
 import { useLazyQuery } from "api";
 import { DocumentNode } from "graphql";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display";
-import { ParseSearchParamsResult, parseSingleItemUrl } from "utils/navigation";
+import { parseSingleItemUrl } from "utils/navigation";
 import { PubSub } from "utils/pubsub";
 
 type UseObjectFromUrlProps<
@@ -51,14 +52,14 @@ export function useObjectFromUrl<
     const urlParams = useMemo(() => parseSingleItemUrl(), []);
 
     // Fetch data
-    const [getData, { data, loading: isLoading }] = useLazyQuery<TData, TVariables>(query, endpoint, { errorPolicy: 'all' });
+    const [getData, { data, error, loading: isLoading }] = useLazyQuery<TData, TVariables>(query, endpoint, { errorPolicy: 'all' });
     const [object, setObject] = useState<TData | null | undefined>(null);
     useEffect(() => {
         // Objects can be found using a few different unique identifiers
         if (exists(urlParams.handle)) getData({ variables: { handle: urlParams.handle } as any })
-        else if (exists(urlParams.handleRoot)) getData({ variables: { handle: urlParams.handleRoot } as any })
+        else if (exists(urlParams.handleRoot)) getData({ variables: { handleRoot: urlParams.handleRoot } as any })
         else if (exists(urlParams.id)) getData({ variables: { id: urlParams.id } as any })
-        else if (exists(urlParams.idRoot)) getData({ variables: { id: urlParams.idRoot } as any })
+        else if (exists(urlParams.idRoot)) getData({ variables: { idRoot: urlParams.idRoot } as any })
         else if (exists(idFallback)) getData({ variables: { id: idFallback } as any })
         // If no valid identifier found, show error or call onInvalidUrlParams
         else if (exists(onInvalidUrlParams)) onInvalidUrlParams(urlParams);
@@ -67,6 +68,10 @@ export function useObjectFromUrl<
     useEffect(() => {
         setObject(data?.[endpoint] ?? partialData as any);
     }, [data, endpoint, partialData]);
+
+    useEffect(() => {
+        if (error) PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+    }, [error]);
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);

@@ -10,6 +10,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        QuestionOrderAsc
+        QuestionOrderDesc
     }
 
     input QuizQuestionResponseCreateInput {

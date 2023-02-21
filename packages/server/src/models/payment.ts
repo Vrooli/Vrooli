@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Payment } from '@shared/consts';
+import { MaxObjects, Payment, PaymentSearchInput, PaymentSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
@@ -15,8 +15,8 @@ export const PaymentModel: ModelLogic<{
     GqlUpdate: undefined,
     GqlModel: Payment,
     GqlPermission: {},
-    GqlSearch: undefined,
-    GqlSort: undefined,
+    GqlSearch: PaymentSearchInput,
+    GqlSort: PaymentSortBy,
     PrismaCreate: Prisma.paymentUpsertArgs['create'],
     PrismaUpdate: Prisma.paymentUpsertArgs['update'],
     PrismaModel: Prisma.paymentGetPayload<SelectWrap<Prisma.paymentSelect>>,
@@ -44,12 +44,29 @@ export const PaymentModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: PaymentSortBy.DateCreatedDesc,
+        sortBy: PaymentSortBy,
+        searchFields: {
+            cardLast4: true,
+            createdTimeFrame: true,
+            currency: true,
+            maxAmount: true,
+            minAmount: true,
+            status: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+            ]
+        }),
+    },
     validate: {
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: 10000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.organization,
             User: data.user,

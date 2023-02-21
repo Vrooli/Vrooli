@@ -1,28 +1,21 @@
-import { Box, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, ListTitleContainer, PageContainer } from 'components';
+import { SiteSearchBar, ListTitleContainer, PageContainer, PageTabs } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
 import { HistoryPageProps } from '../types';
-import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
+import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
 import { historyHistory } from 'api/generated/endpoints/history';
 import { useTranslation } from 'react-i18next';
+import { PageTab } from 'components/types';
 
-const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
-
-const completedRoutinesText = `Routines that you've executed and completed`
-
-const recentText = `Organizations, projects, routines, standards, and users that you've recently viewed.`;
-
-const bookmarkedText = `Organizations, projects, routines, standards, and users that you've bookmarked.`;
-
-const tabOptions = [
-    ['For You', APP_LINKS.Home],
-    ['History', APP_LINKS.History],
-];
+enum TabOptions {
+    ForYou = "ForYou",
+    History = "History",
+}
 
 const zIndex = 200;
 
@@ -50,14 +43,24 @@ export const HistoryPage = ({
     const { data, refetch, loading } = useQuery<Wrap<HistoryResult, 'history'>, Wrap<HistoryInput, 'input'>>(historyHistory, { variables: { input: { searchString } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch]);
 
+
     // Handle tabs
-    const tabIndex = useMemo(() => {
-        if (window.location.pathname === APP_LINKS.History) return 1;
-        return 0;
-    }, []);
-    const handleTabChange = (_e, newIndex) => {
-        setLocation(tabOptions[newIndex][1], { replace: true });
-    };
+    const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
+        index: 0,
+        href: APP_LINKS.Home,
+        label: t('common:ForYou', { lng }),
+        value: TabOptions.ForYou,
+    }, {
+        index: 1,
+        href: APP_LINKS.History,
+        label: t('common:History', { lng }),
+        value: TabOptions.History,
+    }]), [t, lng]);
+    const currTab = useMemo(() => tabs[1], [tabs])
+    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
+        e.preventDefault();
+        setLocation(tab.href!, { replace: true });
+    }, [setLocation]);
 
     const activeRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
@@ -116,67 +119,42 @@ export const HistoryPage = ({
 
     const toSeeAllActiveRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Runs,
-            status: RunStatus.InProgress
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, {
+            searchParams: {
+                type: HistorySearchPageTabOption.Runs,
+                status: RunStatus.InProgress
+            }
+        });
     }, [setLocation]);
 
     const toSeeAllCompletedRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Runs,
-            status: RunStatus.Completed
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, {
+            searchParams: {
+                type: HistorySearchPageTabOption.Runs,
+                status: RunStatus.Completed
+            }
+        });
     }, [setLocation]);
 
     const toSeeAllViewed = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Viewed,
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Viewed } });
     }, [setLocation]);
 
     const toSeeAllBookmarked = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
-            type: HistorySearchPageTabOption.Bookmarked,
-        })}`);
+        setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Bookmarked } });
     }, [setLocation]);
 
     return (
         <PageContainer>
-            {/* Navigate between normal home page (shows popular results) and history page (shows personalized results) */}
-            <Box display="flex" justifyContent="center" width="100%">
-                <Tabs
-                    value={tabIndex}
-                    onChange={handleTabChange}
-                    indicatorColor="secondary"
-                    textColor="inherit"
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    allowScrollButtonsMobile
-                    aria-label="home-pages"
-                    sx={{
-                        marginBottom: 1,
-                        paddingLeft: '1em',
-                        paddingRight: '1em',
-                    }}
-                >
-                    {tabOptions.map((option, index) => (
-                        <Tab
-                            key={index}
-                            id={`for-you-tab-${index}`}
-                            {...{
-                                'aria-labelledby': `home-pages`,
-                                'aria-label': `home page ${option[0]}`,
-                            }}
-                            label={option[0]}
-                            color={index === 0 ? '#ce6c12' : 'default'}
-                        />
-                    ))}
-                </Tabs>
-            </Box>
+            <PageTabs
+                ariaLabel="history-tabs"
+                currTab={currTab}
+                onChange={handleTabChange}
+                tabs={tabs}
+            />
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Prompt stack */}
@@ -197,41 +175,41 @@ export const HistoryPage = ({
                 </Stack>
                 {/* Search results */}
                 <ListTitleContainer
-                    title={t(`common:RunsActive`, { lng })}
-                    helpText={activeRoutinesText}
+                    titleKey="RunsActive"
+                    helpKey="RunsActiveHelp"
                     isEmpty={activeRuns.length === 0}
                     onClick={toSeeAllActiveRuns}
-                    options={[['See all', toSeeAllActiveRuns]]}
+                    options={[['SeeAll', toSeeAllActiveRuns]]}
                     session={session}
                 >
                     {activeRuns}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={t(`common:RunsCompleted`, { lng })}
-                    helpText={completedRoutinesText}
+                    titleKey="RunsCompleted"
+                    helpKey="RunsCompletedHelp"
                     isEmpty={completedRuns.length === 0}
                     onClick={toSeeAllCompletedRuns}
-                    options={[['See all', toSeeAllCompletedRuns]]}
+                    options={[['SeeAll', toSeeAllCompletedRuns]]}
                     session={session}
                 >
                     {completedRuns}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={"Recently Viewed"}
-                    helpText={recentText}
+                    titleKey="RecentlyViewed"
+                    helpKey="RecentlyViewedHelp"
                     isEmpty={recent.length === 0}
                     onClick={toSeeAllViewed}
-                    options={[['See all', toSeeAllViewed]]}
+                    options={[['SeeAll', toSeeAllViewed]]}
                     session={session}
                 >
                     {recent}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={"Bookmarked"}
-                    helpText={bookmarkedText}
+                    titleKey="Bookmarked"
+                    helpKey="BookmarkedHelp"
                     isEmpty={bookmarked.length === 0}
                     onClick={toSeeAllBookmarked}
-                    options={[['See all', toSeeAllBookmarked]]}
+                    options={[['SeeAll', toSeeAllBookmarked]]}
                     session={session}
                 >
                     {bookmarked}

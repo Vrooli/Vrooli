@@ -261,13 +261,13 @@ export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
 }
 export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
 {
-    root: Pick<Project, 'id' | 'handle' | 'owner'>;
+    root: Pick<Project, '__typename' | 'id' | 'handle' | 'owner'>;
     translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
     __typename: 'ProjectVersion';
 };
 export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
 {
-    root: Pick<Routine, 'id' | 'owner'>;
+    root: Pick<Routine, '__typename' | 'id' | 'owner'>;
     translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
     __typename: 'RoutineVersion';
 };

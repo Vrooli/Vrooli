@@ -58,8 +58,8 @@ query userSchedule($input: FindByIdInput!) {
             name
             description
             dueDate
-            completed
             index
+            isComplete
             reminderItems {
                 id
                 created_at
@@ -67,8 +67,8 @@ query userSchedule($input: FindByIdInput!) {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
             }
         }
     }
@@ -168,8 +168,8 @@ mutation userScheduleCreate($input: UserScheduleCreateInput!) {
             name
             description
             dueDate
-            completed
             index
+            isComplete
             reminderItems {
                 id
                 created_at
@@ -177,8 +177,8 @@ mutation userScheduleCreate($input: UserScheduleCreateInput!) {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
             }
         }
     }
@@ -248,8 +248,8 @@ mutation userScheduleUpdate($input: UserScheduleUpdateInput!) {
             name
             description
             dueDate
-            completed
             index
+            isComplete
             reminderItems {
                 id
                 created_at
@@ -257,8 +257,8 @@ mutation userScheduleUpdate($input: UserScheduleUpdateInput!) {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
             }
         }
     }

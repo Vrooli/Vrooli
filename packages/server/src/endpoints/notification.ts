@@ -9,14 +9,10 @@ import { updateNotificationSettings } from '../notify';
 
 export const typeDef = gql`
     enum NotificationSortBy {
-        CategoryAsc
-        CategoryDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        TitleAsc
-        TitleDesc
     }
 
     type Notification {

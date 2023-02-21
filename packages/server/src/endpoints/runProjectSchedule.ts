@@ -47,6 +47,8 @@ export const typeDef = gql`
     }
     type RunProjectSchedule {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         timeZone: String
         windowStart: Date
         windowEnd: Date
@@ -89,8 +91,8 @@ export const typeDef = gql`
         minEventEnd: Date
         minRecurrStart: Date
         minRecurrEnd: Date
-        labelIds: [ID!]
-        organizationId: ID # If not provided, uses your user ID
+        labelsIds: [ID!]
+        runProjectOrganizationId: ID # If not provided, uses your user ID
         searchString: String
         sortBy: RunProjectScheduleSortBy
         take: Int

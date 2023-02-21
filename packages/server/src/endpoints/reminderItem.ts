@@ -14,6 +14,7 @@ export const typeDef = gql`
         description: String
         dueDate: Date
         index: Int
+        isComplete: Boolean
     }
     type ReminderItem {
         id: ID!
@@ -22,7 +23,7 @@ export const typeDef = gql`
         name: String!
         description: String
         dueDate: Date
-        completed: Boolean!
+        isComplete: Boolean!
         index: Int!
         reminder: Reminder!
     }

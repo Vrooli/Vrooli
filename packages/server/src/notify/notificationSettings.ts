@@ -6,7 +6,7 @@ import { NotificationCategory } from "./notify";
 
 type NotificationRecipients = {
     pushDevices: Prisma.push_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.push_deviceSelect, 'user'>>]: true } }>[],
-    emails: Prisma.emailGetPayload<{ select: { [K in keyof Required<Omit<Prisma.emailSelect, 'user'>>]: true } }>[],
+    emails: Prisma.emailGetPayload<{ select: { [K in keyof Required<Omit<Prisma.emailSelect, 'user' | 'organization'>>]: true } }>[],
     phoneNumbers: any,
 }
 

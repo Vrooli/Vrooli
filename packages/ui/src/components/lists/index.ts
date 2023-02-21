@@ -7,8 +7,6 @@ export * from './reminder';
 export * from './resource';
 export * from './SearchList/SearchList';
 export * from './SortMenu/SortMenu';
-export * from './StatsList/StatsList';
 export * from './TagList/TagList';
 export * from './TextLoading/TextLoading';
 export * from './TimeMenu/TimeMenu';
-export * from './UpvoteDownvote/UpvoteDownvote';

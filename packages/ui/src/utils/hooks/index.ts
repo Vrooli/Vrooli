@@ -1,6 +1,7 @@
 export * from './useBookmarker';
 export * from './useCopier';
 export * from './useDebounce';
+export * from './useDimensions';
 export * from './useHistoryState';
 export * from './useKeyboardOpen';
 export * from './useObjectActions';

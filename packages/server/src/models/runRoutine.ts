@@ -1,13 +1,13 @@
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
-import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString } from '@shared/consts';
+import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
-import { getSingleTypePermissions, profanityCheck } from "../validators";
+import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'RunRoutine' as const;
 type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
@@ -306,10 +306,7 @@ export const RunRoutineModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 5000,
-            Organization: 50000,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,

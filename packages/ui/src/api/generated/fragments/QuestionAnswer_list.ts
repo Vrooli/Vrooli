@@ -2,7 +2,7 @@ export const QuestionAnswer_list = `fragment QuestionAnswer_list on QuestionAnsw
 translations {
     id
     language
-    description
+    text
 }
 id
 created_at

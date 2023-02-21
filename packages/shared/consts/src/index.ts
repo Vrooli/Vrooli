@@ -4,5 +4,6 @@ export * from './api';
 export * from './businessData';
 export * from './commonTypes';
 export * from './graphqlTypes';
+export * from './maxObjects';
 export * from './model';
 export * from './ui';

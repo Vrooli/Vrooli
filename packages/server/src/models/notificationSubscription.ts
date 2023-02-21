@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput } from '@shared/consts';
+import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
@@ -132,12 +132,47 @@ export const NotificationSubscriptionModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: NotificationSubscriptionSortBy.DateCreatedDesc,
+        sortBy: NotificationSubscriptionSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            silent: true,
+            objectType: true,
+            objectId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'titleWrapped',
+                { api: ApiModel.search!.searchStringQuery() },
+                { comment: CommentModel.search!.searchStringQuery() },
+                { issue: IssueModel.search!.searchStringQuery() },
+                { meeting: MeetingModel.search!.searchStringQuery()},
+                { note: NoteModel.search!.searchStringQuery() },
+                { organization: OrganizationModel.search!.searchStringQuery() },
+                { project: ProjectModel.search!.searchStringQuery() },
+                { pullRequest: PullRequestModel.search!.searchStringQuery()},
+                { question: QuestionModel.search!.searchStringQuery() },
+                { quiz: QuizModel.search!.searchStringQuery() },
+                { report: ReportModel.search!.searchStringQuery()},
+                { routine: RoutineModel.search!.searchStringQuery() },
+                { smartContract: SmartContractModel.search!.searchStringQuery() },
+                { standard: StandardModel.search!.searchStringQuery() },
+            ]
+        }),
+        /**
+         * Extra protection to ensure only you can see your own subscriptions
+         */
+        customQueryData: (_, user) => ({ subscriber: { id: user!.id } }),
+    },
     validate: {
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: 500,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             User: data.subscriber,
         }),

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou } from '@shared/consts';
+import { QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { QuizModel } from "./quiz";
 import { ModelLogic } from "./types";
@@ -27,7 +27,7 @@ export const QuizAttemptModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_attempt,
     display: {
-        select: () => ({ 
+        select: () => ({
             id: true,
             created_at: true,
             quiz: { select: QuizModel.display.select() },
@@ -67,6 +67,21 @@ export const QuizAttemptModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: QuizAttemptSortBy.TimeTakenDesc,
+        sortBy: QuizAttemptSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            status: true,
+            languageIn: true,
+            maxPointsEarned: true,
+            minPointsEarned: true,
+            userId: true,
+            quizId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({}), // No strings to search
+    },
     validate: {} as any,
 })

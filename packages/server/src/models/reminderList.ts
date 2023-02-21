@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ReminderList, ReminderListCreateInput, ReminderListSearchInput, ReminderListSortBy, ReminderListUpdateInput } from '@shared/consts';
+import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
@@ -13,8 +13,8 @@ export const ReminderListModel: ModelLogic<{
     GqlCreate: ReminderListCreateInput,
     GqlUpdate: ReminderListUpdateInput,
     GqlModel: ReminderList,
-    GqlSearch: ReminderListSearchInput,
-    GqlSort: ReminderListSortBy,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     GqlPermission: {},
     PrismaCreate: Prisma.reminder_listUpsertArgs['create'],
     PrismaUpdate: Prisma.reminder_listUpsertArgs['update'],
@@ -29,8 +29,19 @@ export const ReminderListModel: ModelLogic<{
         // Label is schedule's label
         label: (select, languages) =>  UserScheduleModel.display.label(select.userSchedule as any, languages),
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            reminders: 'Reminder',
+        },
+        prismaRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            reminders: 'Reminder',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
-    search: {} as any,
     validate: {} as any,
 })

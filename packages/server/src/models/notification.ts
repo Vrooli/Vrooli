@@ -37,6 +37,20 @@ export const NotificationModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: NotificationSortBy.DateCreatedDesc,
+        sortBy: NotificationSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'linkWrapped',
+                'titleWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

@@ -327,6 +327,10 @@ export function SiteSearchBar({
                                 <HistoryIcon fill={optionColor(true, false)} />
                             </ListItemIcon>
                         )}
+                        {/* Object icon */}
+                        <ListItemIcon>
+                            {typeToIcon(option.__typename, optionColor(option.isFromHistory, true))}
+                        </ListItemIcon>
                         {/* Object title */}
                         <ListItemText sx={{
                             '& .MuiTypography-root': {
@@ -348,10 +352,6 @@ export function SiteSearchBar({
                             bookmarks={option.bookmarks}
                             sxs={{ root: { marginRight: 1 } }}
                         />}
-                        {/* Object icon */}
-                        <ListItemIcon>
-                            {typeToIcon(option.__typename, optionColor(option.isFromHistory, true))}
-                        </ListItemIcon>
                         {/* If history, show delete icon */}
                         {option.isFromHistory && <Tooltip placement='right' title='Remove'>
                             <IconButton size="small" onClick={(event) => {

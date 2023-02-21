@@ -3,7 +3,7 @@ import * as yup from 'yup';
 import { CommentFor } from '@shared/consts';
 
 const createdFor = enumToYup(CommentFor);
-const text = yup.string().transform(blankToUndefined).min(1, minStrErr).max(8192, maxStrErr)
+const text = yup.string().transform(blankToUndefined).min(1, minStrErr).max(32768, maxStrErr)
 
 export const commentTranslationValidation: YupModel = transRel({
     create: {

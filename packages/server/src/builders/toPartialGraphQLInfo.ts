@@ -22,6 +22,7 @@ export const toPartialGraphQLInfo = <
     languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
 ): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) => {
+    console.log('toPartialGraphQLInfo START', JSON.stringify(gqlRelMap), '\n\n');
     // Return undefined if info not set
     if (!info) {
         if (throwIfNotPartial)

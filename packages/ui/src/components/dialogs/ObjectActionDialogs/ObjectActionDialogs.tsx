@@ -1,5 +1,5 @@
 import { DeleteType, ReportFor } from "@shared/consts";
-import { DeleteDialog, ReportDialog } from "..";
+import { DeleteDialog, ReportDialog, StatsDialog } from "..";
 import { ObjectActionDialogsProps } from "../types";
 import { getDisplay, getUserLanguages } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
@@ -10,10 +10,12 @@ export const ObjectActionDialogs = ({
     hasDeletingSupport,
     hasReportingSupport,
     hasSharingSupport,
+    hasStatsSupport,
     hasVotingSupport,
     isDeleteDialogOpen,
     isDonateDialogOpen,
     isShareDialogOpen,
+    isStatsDialogOpen,
     isReportDialogOpen,
     onActionStart,
     onActionComplete,
@@ -23,6 +25,8 @@ export const ObjectActionDialogs = ({
     closeDonateDialog,
     openShareDialog,
     closeShareDialog,
+    openStatsDialog,
+    closeStatsDialog,
     openReportDialog,
     closeReportDialog,
     object,
@@ -32,7 +36,7 @@ export const ObjectActionDialogs = ({
 }: ObjectActionDialogsProps) => {
     return (
         <>
-        {/* openAddCommentDialog?: () => void; //TODO: implement
+            {/* openAddCommentDialog?: () => void; //TODO: implement
     openDonateDialog?: () => void; //TODO: implement
     */}
             {object?.id && hasDeletingSupport && <DeleteDialog
@@ -55,6 +59,14 @@ export const ObjectActionDialogs = ({
                 object={object}
                 open={isShareDialogOpen}
                 onClose={closeShareDialog}
+                zIndex={zIndex + 1}
+            />}
+            {hasStatsSupport && <StatsDialog
+                handleObjectUpdate={() => { }} //TODO
+                isOpen={isStatsDialogOpen}
+                object={object as any}
+                onClose={closeStatsDialog}
+                session={session}
                 zIndex={zIndex + 1}
             />}
         </>

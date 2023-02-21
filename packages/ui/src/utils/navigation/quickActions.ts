@@ -22,8 +22,7 @@ const searchKeywords = ['Search', 'Find', 'LookFor', 'LookUp'] as const;
 const searchAdvancedKeywords = ['AdvancedSearch', ...searchKeywords] as const;
 const viewKeywords = ['View', 'ViewPage', 'GoTo', 'Navigate'] as const;
 
-// TODO will replace shortcuts
-export const newShortcuts: PreSearchItem[] = [
+export const shortcuts: PreSearchItem[] = [
     {
         label: 'CreateApi',
         keywords: createKeywords,
@@ -243,158 +242,12 @@ export const newShortcuts: PreSearchItem[] = [
 ]
 
 /**
- * Navigation shortcuts that can appear in the main search bar or command palette.
- */
-export const shortcuts: ShortcutItem[] = [
-    {
-        label: 'Create new api',
-        link: `${APP_LINKS.Api}/add`,
-    },
-    {
-        label: 'Create new note',
-        link: `${APP_LINKS.Note}/add`,
-    },
-    {
-        label: 'Create new organization',
-        link: `${APP_LINKS.Organization}/add`,
-    },
-    {
-        label: 'Create new project',
-        link: `${APP_LINKS.Project}/add`,
-    },
-    {
-        label: 'Create new question',
-        link: `${APP_LINKS.Question}/add`,
-    },
-    {
-        label: 'Create new reminder',
-        link: `${APP_LINKS.Reminder}/add`,
-    },
-    {
-        label: 'Create new routine',
-        link: `${APP_LINKS.Routine}/add`,
-    },
-    {
-        label: 'Create new smart contract',
-        link: `${APP_LINKS.SmartContract}/add`,
-    },
-    {
-        label: 'Create new standard',
-        link: `${APP_LINKS.Standard}/add`,
-    },
-    {
-        label: 'View history page',
-        link: `${APP_LINKS.History}`,
-    },
-    {
-        label: 'View profile page',
-        link: `${APP_LINKS.Profile}`,
-    },
-    {
-        label: 'View settings page',
-        link: `${APP_LINKS.Settings}`,
-    },
-    {
-        label: 'Search organizations',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}`,
-    },
-    {
-        label: 'Search projects',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}`,
-    },
-    {
-        label: 'Search routines',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}`,
-    },
-    {
-        label: 'Search standards',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}`,
-    },
-    {
-        label: 'Search users',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}`,
-    },
-    {
-        label: 'Search organizations advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true`,
-    },
-    {
-        label: 'Search projects advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true`,
-    },
-    {
-        label: 'Search routines advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true`,
-    },
-    {
-        label: 'Search standards advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true`,
-    },
-    {
-        label: 'Search users advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true`,
-    },
-    {
-        label: 'Search runs',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Runs}`,
-    },
-    {
-        label: 'Search viewed',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
-    },
-    {
-        label: 'Search bookmarked',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`,
-    },
-    {
-        label: 'Search runs advanced',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Runs}&advanced=true`,
-    },
-    {
-        label: 'Search viewed advanced',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}&advanced=true`,
-    },
-    {
-        label: 'Search bookmarked advanced',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}&advanced=true`,
-    },
-    // { //TODO should be possible to replicate with normal advanced search
-    //     label: 'Search your actively developing projects and routines',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
-    // },
-    // {
-    //     label: 'Search your completed projects and routines',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}`,
-    // },
-    // {
-    //     label: 'Search your actively developing projects and routines advanced',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}&advanced=true`,
-    // },
-    // {
-    //     label: 'Search your completed projects and routines advanced',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
-    // },
-    {
-        label: `Beginner's Guide`,
-        link: `${APP_LINKS.Welcome}`,
-    },
-    {
-        label: 'FAQ',
-        link: `${APP_LINKS.FAQ}`,
-    },
-    {
-        label: 'Tutorial',
-        link: `${APP_LINKS.Tutorial}`,
-    },
-]
-
-/**
  * Shape shortcuts to match AutoCompleteListItem format.
  */
-export const shortcutsItems: ShortcutOption[] = shortcuts.map(({ label, link }) => ({
+export const shortcutsItems: ShortcutOption[] = shortcuts.map(({ label, value }) => ({
     __typename: "Shortcut",
     label,
-    id: link,
+    id: value,
 }))
 
 /**

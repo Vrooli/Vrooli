@@ -7,6 +7,7 @@ export * from './graphs';
 export * from './inputs';
 export * from './lists';
 export * from './navigation';
+export * from './PageTabs/PageTabs';
 export * from './PullToRefresh/PullToRefresh';
 export * from './views';
 export * from './ScrollToTop';

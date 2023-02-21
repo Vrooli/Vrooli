@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from '@shared/consts';
+import { MaxObjects, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
@@ -66,6 +66,14 @@ export const MeetingModel: ModelLogic<{
         searchFields: {
             createdTimeFrame: true,
             labelsIds: true,
+            maxEventEnd: true,
+            maxEventStart: true,
+            maxRecurrEnd: true,
+            maxRecurrStart: true,
+            minEventEnd: true,
+            minEventStart: true,
+            minRecurrEnd: true,
+            minRecurrStart: true,
             openToAnyoneWithInvite: true,
             organizationId: true,
             showOnOrganizationProfile: true,
@@ -83,13 +91,7 @@ export const MeetingModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 0,
-            Organization: {
-                private: 100,
-                public: 100,
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             showOnOrganizationProfile: true,

@@ -1,7 +1,7 @@
-import { ResourceSortBy } from "@shared/consts";
+import { MaxObjects, ResourceSortBy } from "@shared/consts";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { bestLabel } from "../utils";
@@ -86,8 +86,8 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
     },
     validate: {
         isTransferable: false,
-        maxObjects: 50000,
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             list: 'ResourceList',
         }),

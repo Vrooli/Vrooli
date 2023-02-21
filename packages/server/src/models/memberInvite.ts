@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, PrependString } from '@shared/consts';
+import { MaxObjects, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { UserModel } from "./user";
@@ -57,13 +57,28 @@ export const MemberInviteModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: MemberInviteSortBy.DateUpdatedDesc,
+        sortBy: MemberInviteSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            organizationId: true,
+            status: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'messageWrapped',
+                { organization: OrganizationModel.search!.searchStringQuery() },
+                { user: UserModel.search!.searchStringQuery() },
+            ]
+        })
+    },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 0,
-            Organization: 1000,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             isAdmin: true,

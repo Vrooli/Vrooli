@@ -3,7 +3,7 @@ import { useMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeApiVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeApiVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { ApiCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
@@ -12,6 +12,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ApiVersion, ApiVersionCreateInput, ResourceList } from "@shared/consts";
 import { apiVersionCreate } from "api/generated/endpoints/apiVersion";
+import { parseSearchParams } from "@shared/route";
 
 export const ApiCreate = ({
     onCreated,

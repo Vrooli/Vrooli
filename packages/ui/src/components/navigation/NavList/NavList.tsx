@@ -3,9 +3,9 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, getUserLanguages, openLink, useWindowSize } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions, getUserLanguages, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
-import { useLocation } from '@shared/route';
+import { openLink, useLocation } from '@shared/route';
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@shared/consts';

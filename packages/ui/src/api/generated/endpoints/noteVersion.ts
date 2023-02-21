@@ -12,6 +12,11 @@ ${User_nav}
 query noteVersion($input: FindVersionInput!) {
   noteVersion(input: $input) {
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -203,6 +208,11 @@ ${User_nav}
 mutation noteVersionCreate($input: NoteVersionCreateInput!) {
   noteVersionCreate(input: $input) {
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -313,6 +323,11 @@ ${User_nav}
 mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
   noteVersionUpdate(input: $input) {
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at

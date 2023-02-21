@@ -2,7 +2,7 @@ import { projectValidation } from "@shared/validation";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, ProjectYou, PrependString } from '@shared/consts';
+import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, ProjectYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -13,6 +13,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
     return {
@@ -47,19 +48,7 @@ export const ProjectModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.project,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                where: { isPrivate: false },
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: ProjectVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            ProjectVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(ProjectVersionModel),
     format: {
         gqlRelMap: {
             __typename,
@@ -187,28 +176,7 @@ export const ProjectModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 3,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-            },
-            Organization: {
-                private: {
-                    noPremium: 3,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,

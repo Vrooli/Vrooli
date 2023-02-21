@@ -1,11 +1,12 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { Comment, DeleteType, Node, NodeRoutineList, NodeRoutineListItem, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Session, Standard, User } from '@shared/consts';
+import { Api, Comment, DeleteType, Node, NodeRoutineList, NodeRoutineListItem, Organization, Project, ProjectVersion, Quiz, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Session, SmartContract, Standard, User } from '@shared/consts';
 import { NavigableObject, RoutineStep } from 'types';
 import { ListObjectType, NodeLinkShape, NodeShape, SearchType, UseObjectActionsReturn } from 'utils';
 import { SvgComponent } from '@shared/icons';
 import { ObjectAction } from 'utils/actions/objectActions';
 import { CookiePreferences } from 'utils/cookies';
+import { StatsCompactPropsObject } from 'components/text/types';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
@@ -67,7 +68,7 @@ export interface DialogTitleProps {
     ariaLabel: string;
     helpText?: string;
     onClose: () => void;
-    title: string;
+    title?: string;
 }
 
 export interface ListMenuItemData<T> {
@@ -123,20 +124,6 @@ export enum ObjectDialogAction {
     Save = 'Save',
 }
 
-export interface OrganizationDialogProps {
-    hasPrevious?: boolean;
-    partialData?: Partial<Organization>;
-    session: Session;
-    zIndex: number;
-};
-
-export interface ProjectDialogProps {
-    hasPrevious?: boolean;
-    partialData?: Partial<Project>;
-    session: Session;
-    zIndex: number;
-};
-
 export interface ReorderInputDialogProps {
     handleClose: (toIndex?: number) => void;
     isInput: boolean;
@@ -174,12 +161,6 @@ export interface ResourceDialogProps extends DialogProps {
     zIndex: number;
 }
 
-export interface RoutineDialogProps {
-    partialData?: Partial<Routine>;
-    session: Session;
-    zIndex: number;
-};
-
 export interface ShareObjectDialogProps extends DialogProps {
     object: NavigableObject | null | undefined;
     open: boolean;
@@ -193,24 +174,12 @@ export interface ShareSiteDialogProps extends DialogProps {
     zIndex: number;
 }
 
-export interface StandardDialogProps {
-    partialData?: Partial<Standard>;
-    session: Session;
-    zIndex: number;
-};
-
 export interface TranscriptDialogProps {
     handleClose: () => void;
     isListening: boolean;
     lng: string;
     transcript: string;
 }
-
-export interface UserDialogProps {
-    partialData?: Partial<User>;
-    session: Session;
-    zIndex: number;
-};
 
 export type ObjectActionDialogsProps = UseObjectActionsReturn & {
     object: ListObjectType | null | undefined;
@@ -300,6 +269,15 @@ export interface SelectLanguageMenuProps {
      */
     translations: { language: string }[];
     sxs?: { root: any };
+    zIndex: number;
+}
+
+export interface StatsDialogProps<T extends StatsCompactPropsObject> {
+    handleObjectUpdate: (object: T) => void;
+    isOpen: boolean;
+    object: T | null | undefined;
+    onClose: () => void;
+    session: Session;
     zIndex: number;
 }
 

@@ -1,10 +1,10 @@
 import { projectVersionValidation } from "@shared/validation";
-import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString } from '@shared/consts';
+import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
-import { addSupplementalFields, modelToGraphQL, padSelect, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
@@ -161,7 +161,7 @@ export const ProjectVersionModel: ModelLogic<{
         defaultSort: ProjectVersionSortBy.DateCompletedDesc,
         sortBy: ProjectVersionSortBy,
         searchFields: {
-            createdById: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
             directoryListingsId: true,
             isCompleteWithRoot: true,
@@ -179,8 +179,8 @@ export const ProjectVersionModel: ModelLogic<{
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationId: true,
-            ownedByUserId: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
             rootId: true,
             tagsRoot: true,
             translationLanguages: true,
@@ -202,7 +202,7 @@ export const ProjectVersionModel: ModelLogic<{
             data.isDeleted === false &&
             ProjectModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ProjectModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,

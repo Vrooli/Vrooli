@@ -3,7 +3,7 @@ import { useMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { smartContractVersionValidation, smartContractVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeSmartContractVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeSmartContractVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { SmartContractCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
@@ -12,6 +12,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { SmartContractVersion, SmartContractVersionCreateInput, ResourceList } from "@shared/consts";
 import { smartContractVersionCreate } from "api/generated/endpoints/smartContractVersion";
+import { parseSearchParams } from "@shared/route";
 
 export const SmartContractCreate = ({
     onCreated,

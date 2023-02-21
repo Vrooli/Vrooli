@@ -141,9 +141,9 @@ export const typeDef = gql`
         minScoreRoot: Int
         minTimesCompleted: Int
         minViewsRoot: Int
-        createdById: ID
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         rootId: ID
         searchString: String
         sortBy: ProjectVersionSortBy

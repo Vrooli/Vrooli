@@ -53,7 +53,8 @@ const searchItems: PreSearchItem[] = [
         value: 'display',
     },
     {
-        label: 'Notifications',
+        label: 'Notification',
+        labelArgs: { count: 2 },
         keywords: [{ key: 'Alert', count: 1 }, { key: 'Alert', count: 2 }, { key: 'PushNotification', count: 1 }, { key: 'PushNotification', count: 2 }],
         value: 'profile',
     },
@@ -67,7 +68,7 @@ const searchItems: PreSearchItem[] = [
 const pageDisplayData: { [key in SettingsForm]: [CommonKey, SvgComponent] } = {
     'profile': ['Profile', ProfileIcon],
     'display': ['Display', LightModeIcon],
-    'notifications': ['Notifications', NotificationsCustomizedIcon],
+    'notifications': ['Notification', NotificationsCustomizedIcon],
     'authentication': ['Authentication', LockIcon],
 }
 
@@ -135,7 +136,7 @@ export function SettingsPage({
                     <ListItemIcon>
                         <Icon fill={selected ? palette.primary.contrastText : palette.background.textSecondary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`common:${label}`, { lng })} />
+                    <ListItemText primary={t(`common:${label}`, { lng, count: 2 })} />
                 </ListItem>
             )
         });

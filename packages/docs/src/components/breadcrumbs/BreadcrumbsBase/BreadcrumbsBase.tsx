@@ -4,8 +4,7 @@ import {
 } from '@mui/material';
 import { BreadcrumbsBaseProps } from '../types';
 import { useMemo } from 'react';
-import { useLocation } from '@shared/route';
-import { openLink } from 'utils';
+import { openLink, useLocation } from '@shared/route';
 import { noSelect } from 'styles';
 
 export const BreadcrumbsBase = ({

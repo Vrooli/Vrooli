@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Role, RoleCreateInput, RoleUpdateInput } from '@shared/consts';
+import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
@@ -14,8 +14,8 @@ export const RoleModel: ModelLogic<{
     GqlUpdate: RoleUpdateInput,
     GqlModel: Role,
     GqlPermission: {},
-    GqlSearch: undefined,
-    GqlSort: undefined,
+    GqlSearch: RoleSearchInput,
+    GqlSort: RoleSortBy,
     PrismaCreate: Prisma.roleUpsertArgs['create'],
     PrismaUpdate: Prisma.roleUpsertArgs['update'],
     PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
@@ -25,10 +25,10 @@ export const RoleModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: {
-        select: () => ({ 
-            id: true, 
+        select: () => ({
+            id: true,
             name: true,
-            translations: { select: { language: true, name: true } } 
+            translations: { select: { language: true, name: true } }
         }),
         label: (select, languages) => {
             // Prefer translated name over default name
@@ -53,4 +53,24 @@ export const RoleModel: ModelLogic<{
             membersCount: true,
         },
     },
+    mutate: {} as any,
+    search: {
+        defaultSort: RoleSortBy.MembersDesc,
+        sortBy: RoleSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            translationLanguages: true,
+            organizationId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'nameWrapped',
+                'transDescriptionWrapped',
+                'transNameWrapped',
+            ]
+        }),
+    },
+    validate: {} as any,
 })

@@ -1,4 +1,4 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
 import { CommonKey, NavigableObject } from 'types';
 import { ListObjectType, ObjectAction, SearchType, UseObjectActionsReturn } from 'utils';
 
@@ -45,12 +45,22 @@ export interface SortMenuProps {
 export interface TimeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (label?: string, timeFrame?: { after?: Date, before?: Date }) => void;
+    session: Session;
 }
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: () => void;
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
+    minDate?: Date;
+    maxDate?: Date;
+    range?: { after: Date | undefined, before: Date | undefined };
+    session: Session;
+    /**
+     * If set, the date range will ensure that the difference between the two dates exact
+     * matches.
+     */
+    strictIntervalRange?: number;
 }
 
 /**
@@ -92,10 +102,6 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
-export interface StatsListProps {
-    data: Array<any>;
-}
-
 export interface TagListProps {
     /**
      * Maximum characters to display before tags are truncated
@@ -105,15 +111,4 @@ export interface TagListProps {
     parentId: string;
     sx?: { [x: string]: any };
     tags: Partial<Tag>[];
-}
-
-export interface UpvoteDownvoteProps {
-    direction?: 'row' | 'column';
-    disabled?: boolean;
-    session: Session;
-    score?: number; // Net score - can be negative
-    isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
-    objectId: string;
-    voteFor: VoteFor;
-    onChange: (isUpvote: boolean | null, newScore: number) => void;
 }

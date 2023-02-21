@@ -120,8 +120,8 @@ query profile {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
                 reminderItems {
                     id
                     created_at
@@ -129,8 +129,8 @@ query profile {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                 }
             }
         }
@@ -380,8 +380,8 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
                 reminderItems {
                     id
                     created_at
@@ -389,8 +389,8 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                 }
             }
         }
@@ -553,8 +553,8 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
                 reminderItems {
                     id
                     created_at
@@ -562,8 +562,8 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                 }
             }
         }

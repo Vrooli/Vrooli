@@ -1,4 +1,4 @@
-import { Count, DotNotation, GqlModelType, SessionUser } from "@shared/consts";
+import { Count, DotNotation, GqlModelType, ObjectLimit, SessionUser } from "@shared/consts";
 import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
@@ -6,7 +6,7 @@ import { SortMap } from "../utils/sortMap";
 import { SearchMap, SearchStringMap } from "../utils";
 import { QueryAction } from "../utils/types";
 
-type ModelLogicType = {
+export type ModelLogicType = {
     GqlCreate: Record<string, any> | undefined,
     GqlUpdate: Record<string, any> | undefined,
     GqlSearch: Record<string, any> | undefined,
@@ -224,6 +224,11 @@ export type Searcher<
         : never
         : never)[]>;
     /**
+     * The maximum number of results allowed to search for at once. 
+     * Defaults to 100
+     */
+    takeLimit?: number;
+    /**
      * Query for searching by a string. To reduce code duplication, 
      * pieces of the query can be replaced with keys of the SearchStringMap object. 
      * This works for both arrays and objects
@@ -233,21 +238,6 @@ export type Searcher<
      * Any additional data to add to the Prisma query. Not usually needed
      */
     customQueryData?: (input: Model['GqlSearch'], userData: SessionUser | null) => Model['PrismaWhere'];
-}
-
-export type ObjectLimitVisibility = number | {
-    noPremium: number,
-    premium: number,
-}
-
-export type ObjectLimitOwner = number | {
-    public: ObjectLimitVisibility,
-    private: ObjectLimitVisibility,
-}
-
-export type ObjectLimit = number | {
-    User: ObjectLimitOwner,
-    Organization: ObjectLimitOwner,
 }
 
 /**

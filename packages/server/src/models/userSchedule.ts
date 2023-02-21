@@ -66,8 +66,44 @@ export const UserScheduleModel: ModelLogic<{
         select: () => ({ id: true, name: true }),
         label: (select) => select.name,
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            filters: 'UserScheduleFilter',
+            labels: 'Label',
+            reminderList: 'ReminderList',
+        },
+        prismaRelMap: {
+            __typename,
+            reminderList: 'ReminderList',
+            resourceList: 'ResourceList',
+            user: 'User',
+            labels: 'Label',
+            filters: 'UserScheduleFilter',
+        },
+        countFields: {},
+        joinMap: { labels: 'label' },
+    },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: UserScheduleSortBy.TitleAsc,
+        sortBy: UserScheduleSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            eventStartTimeFrame: true,
+            eventEndTimeFrame: true,
+            recurrStartTimeFrame: true,
+            recurrEndTimeFrame: true,
+            labelsIds: true,
+            timeZone: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'nameWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

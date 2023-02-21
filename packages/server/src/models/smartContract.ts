@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
+import { MaxObjects, PrependString, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { ModelLogic } from "./types";
@@ -11,6 +11,7 @@ import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const __typename = 'SmartContract' as const;
 type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -32,18 +33,7 @@ export const SmartContractModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: SmartContractVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            SmartContractVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(SmartContractVersionModel),
     format: {
         gqlRelMap: {
             __typename,
@@ -146,28 +136,7 @@ export const SmartContractModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 2,
-                    premium: 20,
-                },
-                public: {
-                    noPremium: 6,
-                    premium: 200,
-                }
-            },
-            Organization: {
-                private: {
-                    noPremium: 6,
-                    premium: 50,
-                },
-                public: {
-                    noPremium: 10,
-                    premium: 200,
-                }
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,

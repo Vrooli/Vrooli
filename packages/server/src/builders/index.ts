@@ -20,7 +20,7 @@ export * from './modelToGraphQL';
 export * from './noNull';
 export * from './onlyValidHandles';
 export * from './onlyValidIds';
-export * from './padSelect';
+export * from './selPad';
 export * from './permissionsSelectHelper';
 export * from './pickObjectById';
 export * from './removeCountFields';

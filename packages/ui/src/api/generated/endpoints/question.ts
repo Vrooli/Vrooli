@@ -56,7 +56,7 @@ query question($input: FindByIdInput!) {
         translations {
             id
             language
-            description
+            text
         }
         id
         created_at
@@ -242,7 +242,7 @@ mutation questionCreate($input: QuestionCreateInput!) {
         translations {
             id
             language
-            description
+            text
         }
         id
         created_at
@@ -356,7 +356,7 @@ mutation questionUpdate($input: QuestionUpdateInput!) {
         translations {
             id
             language
-            description
+            text
         }
         id
         created_at

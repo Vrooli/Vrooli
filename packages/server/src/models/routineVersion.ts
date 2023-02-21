@@ -1,12 +1,12 @@
 import { routineVersionValidation } from "@shared/validation";
 import { Trigger } from "../events";
-import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou } from '@shared/consts';
+import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, modelToGraphQL, padSelect, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { RoutineModel } from "./routine";
@@ -200,7 +200,7 @@ export const RoutineVersionModel: ModelLogic<{
         defaultSort: RoutineVersionSortBy.DateCompletedDesc,
         sortBy: RoutineVersionSortBy,
         searchFields: {
-            createdById: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
             directoryListingsId: true,
             excludeIds: true,
@@ -222,8 +222,8 @@ export const RoutineVersionModel: ModelLogic<{
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationId: true,
-            ownedByUserId: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
             tagsRoot: true,
@@ -246,7 +246,7 @@ export const RoutineVersionModel: ModelLogic<{
             data.isDeleted === false &&
             RoutineModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => RoutineModel.validate!.owner(data.root as any),
         permissionsSelect: () => ({
             id: true,

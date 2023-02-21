@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -80,7 +80,7 @@ export const ApiVersionModel: ModelLogic<{
         defaultSort: ApiVersionSortBy.DateUpdatedDesc,
         sortBy: ApiVersionSortBy,
         searchFields: {
-            createdById: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,
             maxBookmarksRoot: true,
@@ -89,8 +89,8 @@ export const ApiVersionModel: ModelLogic<{
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationId: true,
-            ownedByUserId: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -111,7 +111,7 @@ export const ApiVersionModel: ModelLogic<{
             data.isDeleted === false &&
             ApiModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ApiModel.validate!.owner(data.root as any),
         permissionsSelect: () => ({
             id: true,

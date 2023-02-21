@@ -1,2 +1,2 @@
-export * from './BarGraph/BarGraph';
+export * from './LineGraph/LineGraph';
 export * from './NodeGraph';

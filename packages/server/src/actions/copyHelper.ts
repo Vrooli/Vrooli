@@ -32,7 +32,7 @@ export async function copyHelper({
     // // Query for all authentication data
     // const authDataById = await getAuthenticatedData({ [model.__typename]: [input.id] }, prisma, userData.id);
     // // Check permissions
-    // permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
+    // await permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
     // // Additional check for paywall
     // //TODO
     // // Check max objects

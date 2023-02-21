@@ -1,64 +1,24 @@
-import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
+import { Button, Grid, Stack, Typography, useTheme } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { centeredDiv, linkColors } from 'styles';
+import { centeredDiv } from 'styles';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
+import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer, PageTabs } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { HomePageProps } from '../types';
-import Markdown from 'markdown-to-jsx';
-import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, stringifySearchParams, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { feedPopular } from 'api/generated/endpoints/feed';
+import { PageTab } from 'components/types';
+import { useTranslation } from 'react-i18next';
 
-const faqText =
-    `## What is This?
-Vrooli is an automation platform built for the decentralized age. We are aiming to become the "missing piece" in the [Project Catalyst](https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e) ecosystem, which:  
-- guides proposers through the process of validating, creating, and developing projects  
-- helps developers discover and implement projects  
-- reduces the work required of voters to validate a project's utility and impact  
-
-
-## How does it work?
-Vrooli contains various *routines* that can be executed to perform a variety of tasks. Some are very specific (e.g. *How to create a Project Catalyst proposal*), and some are more general (e.g *Validate your business idea*).The more general routines are often constructed from a graph of *subroutines*. Each subroutine in turn can consist of multiple subroutines, and so on. This allows for routines to be built in a way that is flexible and scalable.
-
-When a proposer is looking for a new project to tackle, they can search for existing routines which are both *complex* (i.e. consist of many steps) and *popular* (e.g. number of votes, bookmarks, executions, and parent routines). This combination of complexity and popularity can be used to estimate the time and money that would be saved by the community as a whole if a simpler routine was created. Using the design of a simpler routine, you can also demonstrate to voters your project's user experience.
-
-
-## What are the limitations of Vrooli?
-Vrooli is a work in progress. This is the Minimum Viable product, which has been developed by a single person. While we have grand plans for Vrooli to become a robust and decentralized automation platform, this is not currently possible.
-
-As of now, all routines are text-based, which - not surprisingly - limits their ability to "automate". They can link to external resources, but it is up to the user to step through the routine, follow the instructions, and fill in the requested fields. 
-We have several important features in our [white paper](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4) that address these issues, such as smart contract execution, self-sovereign data storage, and more. Luckily, since routines are built on top of each other, automating one low-level routine can simplify the process of many other routines. 
-
-
-## Why is This Important?
-As more of our world is eaten by software, the opportunity to automate every aspect of our lives becomes increasingly tempting. Many optimists envision a future where they can spend most of their life pursuing what they love, and not have to worry about the drab of modern work and corporate bureaucracy. We can build this future together.
-
-
-## How are we unique?
-General-purpose automation platforms exist, but they are limited by their reliance on completely automated routines. Meaning, if *every* step in a task cannot be *100%* automated, then you are out of luck. We believe this is too restrictive, and prevents innovation from flourishing.
-
-Automations don't pop into existence. They must be though of, designed, validated, and implemented. By combining the execution of automated routines with the design of the routines themselves, **the average person can contribute their ideas to the community, and let the natural process of discovery and implementation transform their visions into reality.**
-
-
-## Who Created Vrooli?
-Vrooli is being developed by Matt Halloran. He is a software developer and decentralization advocate, who believes that a carefully designed collaboration and automation platform can produce a new paradigm in human productivity. Here are [his contact links](https://matthalloran.info).
-
-
-## What can I do?
-The simplest thing you can do right now is to participate! You can:  
-- [Execute a routine](https://app.vrooli.com/search/routine)  
-- [Create a routine](https://app.vrooli.com/create/routine)  
-- [Familiarize yourself with our vision](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4)  
-- [Join us on Discord](https://discord.gg/VyrDFzbmmF)  
-- [Follow us on Twitter](https://twitter.com/VrooliOfficial)  
-
-If you would like to contribute to the development of Vrooli, please contact us!
-`
+enum TabOptions {
+    ForYou = "ForYou",
+    History = "History",
+}
 
 const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true` },
@@ -75,11 +35,6 @@ const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Standard}/add` },
 ]
 
-const tabOptions = [
-    ['For You', APP_LINKS.Home],
-    ['History', APP_LINKS.History],
-];
-
 const zIndex = 200;
 
 /**
@@ -93,7 +48,14 @@ export const HomePage = ({
     session
 }: HomePageProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const [, setLocation] = useLocation();
+
+    // TODO create new endpoint to use instead of popular. Should return 
+    // resources, notes, scheduled projects/routines, and other personal 
+    // data. Users can use main search page to search for public content. 
+    // This should take the current user schedule into account somehow
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
     useEffect(() => {
@@ -102,17 +64,25 @@ export const HomePage = ({
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(feedPopular, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
-    const showHistoryTab = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     // Handle tabs
-    const tabIndex = useMemo(() => {
-        if (window.location.pathname === APP_LINKS.History) return 1;
-        return 0;
-    }, []);
-    const handleTabChange = (e, newIndex) => {
+    const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
+        index: 0,
+        href: APP_LINKS.Home,
+        label: t('common:ForYou', { lng }),
+        value: TabOptions.ForYou,
+    }, {
+        index: 1,
+        href: APP_LINKS.History,
+        label: t('common:History', { lng }),
+        value: TabOptions.History,
+    }]), [t, lng]);
+    const currTab = useMemo(() => tabs[0], [tabs])
+    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
-        setLocation(tabOptions[newIndex][1], { replace: true });
-    };
+        setLocation(tab.href!, { replace: true });
+    }, [setLocation]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -162,21 +132,15 @@ export const HomePage = ({
         }
     }, [searchString, setLocation]);
 
-    // Feed title is Popular when no search
-    const getFeedTitle = useCallback((objectName: string) => {
-        const prefix = !Boolean(searchString) ? 'Popular ' : '';
-        return `${prefix}${objectName}`;
-    }, [searchString]);
-
     /**
      * Opens search page for object type
      */
     const toSearchPage = useCallback((event: any, tab: SearchPageTabOption) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
+        if (searchString) setLocation(APP_LINKS.Home, { replace: true, searchParams: { search: searchString } });
         // Navigate to search page
-        setLocation(`${APP_LINKS.Search}?type=${tab}`);
+        setLocation(APP_LINKS.Search, { searchParams: { type: tab } });
     }, [searchString, setLocation]);
 
     /**
@@ -184,7 +148,7 @@ export const HomePage = ({
      */
     const beforeNavigation = useCallback((item: NavigableObject) => {
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        if (searchString) setLocation(APP_LINKS.Home, { replace: true, searchParams: { search: searchString } });
     }, [searchString, setLocation]);
 
     /**
@@ -207,60 +171,6 @@ export const HomePage = ({
         return defaultOrder;
     }, [searchString]);
 
-    const feeds = useMemo(() => {
-        let listFeeds: JSX.Element[] = [];
-        for (const tab of feedOrder) {
-            let currentList: any[] = [];
-            let dummyType: string = '';
-            switch (tab) {
-                case SearchPageTabOption.Organizations:
-                    currentList = data?.popular?.organizations ?? [];
-                    dummyType = 'Organization';
-                    break;
-                case SearchPageTabOption.Projects:
-                    currentList = data?.popular?.projects ?? [];
-                    dummyType = 'Project';
-                    break;
-                case SearchPageTabOption.Routines:
-                    currentList = data?.popular?.routines ?? [];
-                    dummyType = 'Routine';
-                    break;
-                case SearchPageTabOption.Standards:
-                    currentList = data?.popular?.standards ?? [];
-                    dummyType = 'Standard';
-                    break;
-                case SearchPageTabOption.Users:
-                    currentList = data?.popular?.users ?? [];
-                    dummyType = 'User';
-                    break;
-            }
-            const listFeedItems: JSX.Element[] = listToListItems({
-                dummyItems: new Array(5).fill(dummyType),
-                items: currentList,
-                keyPrefix: `feed-list-item-${tab}`,
-                loading,
-                beforeNavigation,
-                session,
-                zIndex,
-            });
-            if (loading || listFeedItems.length > 0) {
-                listFeeds.push((
-                    <ListTitleContainer
-                        key={`feed-list-${tab}`}
-                        isEmpty={listFeedItems.length === 0}
-                        title={getFeedTitle(`${tab}`)}
-                        onClick={(e) => toSearchPage(e, tab)}
-                        options={[['See more results', (e) => { toSearchPage(e, tab) }]]}
-                        session={session}
-                    >
-                        {listFeedItems}
-                    </ListTitleContainer>
-                ))
-            }
-        }
-        return listFeeds;
-    }, [beforeNavigation, data, feedOrder, getFeedTitle, loading, session, toSearchPage]);
-
     // Menu for opening an advanced search page
     const [advancedSearchAnchor, setAdvancedSearchAnchor] = useState<any>(null);
     const openAdvancedSearch = useCallback((ev: React.MouseEvent<any>) => {
@@ -280,9 +190,7 @@ export const HomePage = ({
     const handleCreateNewSelect = useCallback((path: string) => {
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
-            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
-                redirect: path
-            })}`);
+            setLocation(APP_LINKS.Start, { searchParams: { redirect: path } });
         }
         // Otherwise, navigate to create page
         else setLocation(path);
@@ -291,39 +199,13 @@ export const HomePage = ({
     return (
         <PageContainer>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
-            {showHistoryTab && (
-                <Box display="flex" justifyContent="center" width="100%">
-                    <Tabs
-                        value={tabIndex}
-                        onChange={handleTabChange}
-                        indicatorColor="secondary"
-                        textColor="inherit"
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        allowScrollButtonsMobile
-                        aria-label="home-pages"
-                        sx={{
-                            marginBottom: 1,
-                            paddingLeft: '1em',
-                            paddingRight: '1em',
-                        }}
-                    >
-                        {tabOptions.map((option, index) => (
-                            <Tab
-                                key={index}
-                                id={`home-tab-${index}`}
-                                {...{
-                                    'aria-labelledby': `home-pages`,
-                                    'aria-label': `home page ${option[0]}`,
-                                }}
-                                label={option[0]}
-                                color={index === 0 ? '#ce6c12' : 'default'}
-                                component='a'
-                                href={option[1]}
-                            />
-                        ))}
-                    </Tabs>
-                </Box>
+            {showTabs && (
+                <PageTabs
+                    ariaLabel="home-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />
             )}
             {/* Advanced search dialog */}
             <ListMenu
@@ -363,9 +245,10 @@ export const HomePage = ({
             </Stack>
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column" mt={10}>
-                {/* Search results */}
-                {feeds}
-                {/* Advanced search prompt TODO */}
+                {/* Quick actions */}
+                {/* TODO replace buttons below with grid of many customizable buttons. 
+                Should look like how iOS has buttons for flashlight, remote, calculator, etc.
+                Options can be taken from quickActions. Will need to update quickActions to support icons*/}
                 <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
                     <Typography component="h3" variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
                     <Grid container spacing={2} sx={{ width: 'min(100%, 500px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -377,21 +260,35 @@ export const HomePage = ({
                         </Grid>
                     </Grid>
                 </Stack>
-                {/* FAQ */}
+                {/* Resources */}
                 <TitleContainer
-                    id="faq"
-                    key={`faq-container`}
-                    title={'FAQ'}
-                    sx={{
-                        '& h2': {
-                            fontSize: '2rem',
-                            fontWeight: '500',
-                            textAlign: 'center',
-                        },
-                        ...linkColors(palette)
-                    }}
+                    session={session}
+                    titleKey="Resource"
+                    titleVariables={{ count: 2 }}
                 >
-                    <Box pl={2} pr={2}><Markdown>{faqText}</Markdown></Box>
+                    {/* TODO */}
+                </TitleContainer>
+                {/* Events */}
+                <TitleContainer
+                    session={session}
+                    titleKey="Schedule"
+                >
+                    {/* TODO */}
+                </TitleContainer>
+                {/* Reminders */}
+                <TitleContainer
+                    session={session}
+                    titleKey="ToDo"
+                >
+                    {/* TODO */}
+                </TitleContainer>
+                {/* Notes */}
+                <TitleContainer
+                    session={session}
+                    titleKey="Note"
+                    titleVariables={{ count: 2 }}
+                >
+                    {/* TODO */}
                 </TitleContainer>
             </Stack>
         </PageContainer>

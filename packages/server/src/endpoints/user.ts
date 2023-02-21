@@ -4,7 +4,7 @@ import { UserDeleteInput, Success, ProfileUpdateInput, FindByIdOrHandleInput, Us
 import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 import { rateLimit } from '../middleware';
 import { assertRequestFrom } from '../auth/request';
-import { readManyHelper, readOneHelper } from '../actions';
+import { readManyHelper, readOneHelper, updateHelper } from '../actions';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -57,7 +57,7 @@ export const typeDef = gql`
         issuesCreated: [Issue!]
         issuesClosed: [Issue!]
         labels: [Label!]
-        languages: [String!]
+        translationLanguages: [String!]
         meetingsAttending: [Meeting!]
         meetingsInvited: [MeetingInvite!]
         memberships: [Member!]
@@ -247,17 +247,8 @@ export const resolvers: {
     },
     Mutation: {
         profileUpdate: async (_, { input }, { prisma, req, res }, info) => {
-            throw new CustomError('0999', 'NotImplemented', ['en']);
-            // const userData = assertRequestFrom(req, { isUser: true });
-            // await rateLimit({ info, maxUser: 250, req });
-            // // Update object
-            // const updated = await ProfileModel.mutate(prisma).updateProfile(userData, input, info);
-            // if (!updated)
-            //     throw new CustomError('0160', 'ErrorUnknown', req.languages);
-            // // Update session
-            // const session = await toSession({ id: userData.id }, prisma, req);
-            // await generateSessionJwt(res, session);
-            // return updated;
+            await rateLimit({ info, maxUser: 250, req });
+            return updateHelper({ info, input, objectType, prisma, req })
         },
         profileEmailUpdate: async (_, { input }, { prisma, req, res }, info) => {
             throw new CustomError('0999', 'NotImplemented', ['en']);

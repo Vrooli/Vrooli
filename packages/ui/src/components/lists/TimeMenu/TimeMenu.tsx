@@ -20,11 +20,11 @@ const timeOptions = {
 export function TimeMenu({
     anchorEl,
     onClose,
+    session,
 }: TimeMenuProps) {
     const open = Boolean(anchorEl);
 
     const [customRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-
     const handleTimeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
     const handleTimeClose = () => {
         setCustomRangeAnchorEl(null)
@@ -64,6 +64,7 @@ export function TimeMenu({
                 anchorEl={customRangeAnchorEl}
                 onClose={handleTimeClose}
                 onSubmit={(after, before) => onClose('Custom', { after, before })}
+                session={session}
             />
         </Menu>
     )

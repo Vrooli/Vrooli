@@ -8,17 +8,17 @@ export const standardSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchStandard', lng),
     containers: [
         hasCompleteVersionContainer,
-        votesContainer,
-        bookmarksContainer,
-        languagesVersionContainer,
-        tagsContainer,
+        votesContainer(lng),
+        bookmarksContainer(lng),
+        languagesVersionContainer(lng),
+        tagsContainer(lng),
     ],
     fields: [
-        ...hasCompleteVersionFields,
-        ...votesFields,
-        ...bookmarksFields,
-        ...languagesVersionFields,
-        ...tagsFields,
+        ...hasCompleteVersionFields(lng),
+        ...votesFields(lng),
+        ...bookmarksFields(lng),
+        ...languagesVersionFields(lng),
+        ...tagsFields(lng),
     ]
 })
 

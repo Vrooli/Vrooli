@@ -1,12 +1,12 @@
 import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput, VersionYou, PrependString } from '@shared/consts';
+import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput, VersionYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -56,7 +56,7 @@ import { StandardModel } from "./standard";
 //         isPrivate: true,
 //         isDeleted: true,
 //         permissions: true,
-//         createdBy: padSelect({ id: true }),
+//         createdBy: selPad({ id: true }),
 //         ...permissionsSelectHelper([
 //             ['ownedByOrganization', 'Organization'],
 //             ['ownedByUser', 'User'],
@@ -432,6 +432,7 @@ export const StandardVersionModel: ModelLogic<{
         sortBy: StandardVersionSortBy,
         searchFields: {
             completedTimeFrame: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,
             maxBookmarksRoot: true,
@@ -440,10 +441,13 @@ export const StandardVersionModel: ModelLogic<{
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
             standardType: true,
             tagsRoot: true,
+            translationLanguages: true,
             updatedTimeFrame: true,
             userId: true,
             visibility: true,
@@ -468,7 +472,7 @@ export const StandardVersionModel: ModelLogic<{
             data.isDeleted === false &&
             StandardModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => StandardModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,

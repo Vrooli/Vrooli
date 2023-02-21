@@ -39,10 +39,14 @@ export const typeDef = gql`
         toObjectType: PullRequestToObjectType!
         toConnect: ID!
         fromConnect: ID!
+        translationsCreate: [PullRequestTranslationCreateInput!]
     }
     input PullRequestUpdateInput {
         id: ID!
         status: PullRequestStatus
+        translationsDelete: [ID!]
+        translationsCreate: [PullRequestTranslationCreateInput!]
+        translationsUpdate: [PullRequestTranslationUpdateInput!]
     }
     type PullRequest {
         id: ID!
@@ -55,7 +59,25 @@ export const typeDef = gql`
         createdBy: User
         comments: [Comment!]!
         commentsCount: Int!
+        translations: [CommentTranslation!]!
+        translationsCount: Int!
         you: PullRequestYou!
+    }
+
+    input PullRequestTranslationCreateInput {
+        id: ID!
+        language: String!
+        text: String!
+    }
+    input PullRequestTranslationUpdateInput {
+        id: ID!
+        language: String
+        text: String
+    }
+    type PullRequestTranslation {
+        id: ID!
+        language: String!
+        text: String!
     }
 
     type PullRequestYou {
@@ -70,7 +92,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isMergedOrRejected: Boolean
-        languages: [String!]
+        translationLanguages: [String!]
         toId: ID
         createdById: ID
         searchString: String

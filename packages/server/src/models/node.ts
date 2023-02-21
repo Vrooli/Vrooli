@@ -1,4 +1,4 @@
-import { Node, NodeCreateInput, NodeUpdateInput } from '@shared/consts';
+import { MaxObjects, Node, NodeCreateInput, NodeUpdateInput } from '@shared/consts';
 import { nodeValidation } from "@shared/validation";
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -82,13 +82,7 @@ export const NodeModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 0,
-                public: 10000,
-            },
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ routineVersion: 'RoutineVersion' }),
         permissionResolvers: defaultPermissions,
         owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),

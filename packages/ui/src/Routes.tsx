@@ -21,11 +21,13 @@ const {
     SettingsPage,
 } = lazily(() => import('./pages/main'));
 const { TutorialPage, WelcomePage } = lazily(() => import('./pages/tutorial'));
+const { AwardsPage } = lazily(() => import('./pages/AwardsPage/AwardsPage'));
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
 const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
 const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
 const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
+const { PremiumPage } = lazily(() => import('./pages/PremiumPage/PremiumPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
@@ -41,7 +43,7 @@ const Fallback = <Box sx={{
 </Box>
 
 export const Routes = (props: CommonProps) => {
-
+    // Tab title for static (non-dynamic) pages (e.g. Home, Search, Create, Notifications).
     const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
 
     return (
@@ -273,7 +275,7 @@ export const Routes = (props: CommonProps) => {
                     sitemapIndex={false}
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Settings')} {...props} mustBeLoggedIn={true} >
+                        <Page title={title('Settings⚙️')} {...props} mustBeLoggedIn={true} >
                             <SettingsPage session={props.session} />
                         </Page>
                     </Suspense>
@@ -285,7 +287,7 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="monthly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Tutorial')} {...props}>
+                        <Page title={title('Tutorial🤔')} {...props}>
                             <TutorialPage />
                         </Page>
                     </Suspense>
@@ -297,7 +299,7 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="monthly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Welcome')} {...props}>
+                        <Page title={title('Welcome!💙')} {...props}>
                             <WelcomePage {...props} />
                         </Page>
                     </Suspense>
@@ -310,13 +312,37 @@ export const Routes = (props: CommonProps) => {
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Stats📊')} {...props}>
-                            <StatsPage />
+                            <StatsPage {...props} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Awards}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="weekly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Awards🏆')} {...props}>
+                            <AwardsPage {...props} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Premium}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="weekly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Premium😎')} {...props}>
+                            <PremiumPage {...props} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('404')} {...props}>
+                        <Page title={title('404🥺')} {...props}>
                             <NotFoundPage />
                         </Page>
                     </Suspense>

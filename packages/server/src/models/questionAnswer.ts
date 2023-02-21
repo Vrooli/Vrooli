@@ -28,8 +28,44 @@ export const QuestionAnswerModel: ModelLogic<{
         select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations as any, 'name', languages)
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            bookmarkedBy: 'User',
+            createdBy: 'User',
+            comments: 'Comment',
+            question: 'Question',
+        },
+        prismaRelMap: {
+            __typename,
+            bookmarkedBy: 'User',
+            createdBy: 'User',
+            comments: 'Comment',
+            question: 'Question',
+            votedBy: 'Vote',
+        },
+        countFields: {
+            commentsCount: true,
+        },
+        joinMap: { bookmarkedBy: 'user' },
+    },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: QuestionAnswerSortBy.DateUpdatedDesc,
+        sortBy: QuestionAnswerSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            excludeIds: true,
+            translationLanguages: true,
+            minScore: true,
+            minBookmarks: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transTextWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

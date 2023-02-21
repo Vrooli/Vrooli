@@ -1,6 +1,7 @@
 import { TextFieldProps } from "@mui/material";
 import { CommentFor, Session } from "@shared/consts";
 import { MarkdownInputProps } from "components/inputs/types";
+import { CommonKey } from "types";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;
@@ -15,13 +16,16 @@ export interface CommentContainerProps {
 
 export interface TitleContainerProps {
     children: JSX.Element | JSX.Element[];
-    helpText?: string;
+    helpKey?: CommonKey;
+    helpVariables?: { [x: string]: string | number };
+    titleKey: CommonKey;
+    titleVariables?: { [x: string]: string | number };
     id?: string;
     loading?: boolean;
     onClick?: (event: React.MouseEvent) => void;
-    options?: [string, (e?: any) => void][];
+    options?: [(CommonKey | { key: CommonKey, variables: Record<string, any> }), (e?: any) => void][];
+    session: Session;
     sx?: object;
-    title: string;
     tooltip?: string;
 }
 

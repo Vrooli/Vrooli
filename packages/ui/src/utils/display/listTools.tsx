@@ -112,7 +112,7 @@ export const getYou = (
     object: ListObjectType | null | undefined
 ): YouInflated => {
     // Initialize fields to false (except isUpvoted, where false means downvoted)
-    const defaultPermissions = defaultYou;
+    const defaultPermissions = { ...defaultYou };
     if (!object) return defaultPermissions;
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getYou(object.to as ListObjectType);
@@ -158,6 +158,7 @@ export const getCounts = (
         versions: 0,
         views: 0,
     };
+    console.log('getcounts 1', object)
     if (!object) return defaultCounts;
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
@@ -170,14 +171,17 @@ export const getCounts = (
     // Otherwise, get the counts from the object
     // Loop through all count fields
     for (const key in defaultCounts) {
+        // For every field except score and views, property name is field + "Count"
+        const objectProp = ['score', 'views'].includes(key) ? key : `${key}Count`;
         // Check if the field is in the object
-        const field = valueFromDot(object, `${key}Count`);
+        const field = valueFromDot(object, objectProp);
         if (field !== undefined) defaultCounts[key] = field;
         // If not, check if the field is in the root.counts object
         else {
-            const field = valueFromDot(object, `root.${key}Count`);
+            const field = valueFromDot(object, `root.${objectProp}`);
             if (field !== undefined) defaultCounts[key] = field;
         }
+        if (key === 'score') console.log('getcounts score', field, defaultCounts[key])
     }
     return defaultCounts;
 }

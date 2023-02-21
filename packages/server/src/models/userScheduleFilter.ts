@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { UserScheduleFilter, UserScheduleFilterCreateInput, UserScheduleSearchInput, UserScheduleSortBy } from '@shared/consts';
+import { MaxObjects, UserScheduleFilter, UserScheduleFilterCreateInput, UserScheduleSearchInput, UserScheduleSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
@@ -30,23 +30,25 @@ export const UserScheduleFilterModel: ModelLogic<{
         select: () => ({ id: true, tag: { select: TagModel.display.select() } }),
         label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : '',
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            tag: 'Tag',
+        },
+        prismaRelMap: {
+            __typename,
+            userSchedule: 'UserSchedule',
+            tag: 'Tag',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
-    search: {} as any,
     validate: {
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 25,
-                    premium: 100,
-                },
-                public: 0,
-            },
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => UserScheduleModel.validate!.owner(data.userSchedule as any),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

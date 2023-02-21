@@ -1,13 +1,14 @@
 import { APP_LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
-import { useLocation } from '@shared/route';
+import { openLink, useLocation } from '@shared/route';
 import { clickSize } from 'styles';
-import { useEffect } from 'react';
-import { PubSub } from 'utils';
+import { useEffect, useMemo } from 'react';
+import { getUserLanguages, PubSub } from 'utils';
 import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
 import { PageContainer } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { WelcomePageProps } from 'pages/types';
+import { useTranslation } from 'react-i18next';
 
 const buttonProps = {
     height: "48px",
@@ -29,7 +30,8 @@ export const WelcomePage = ({
 }: WelcomePageProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Show confetti on page load, if it's the user's first time
     useEffect(() => {
@@ -57,29 +59,29 @@ export const WelcomePage = ({
                 background: palette.mode === 'light' ? palette.primary.dark : palette.background.paper,
                 color: palette.mode === 'light' ? palette.primary.contrastText : palette.background.textPrimary,
             }}>
-                <Typography component="h1" variant="h2" mb={1}>Welcome to Vrooli!🥳</Typography>
-                <Typography component="h2" variant="h4" mb={3}>Not sure where to start?</Typography>
+                <Typography component="h1" variant="h2" mb={1}>{t(`common:WelcomeToVrooli`, { lng })}</Typography>
+                <Typography component="h2" variant="h4" mb={3}>{t(`common:NotSureWhereToStart`, { lng })}</Typography>
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                     <Button
                         onClick={() => setLocation(APP_LINKS.Tutorial)}
                         startIcon={<LearnIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >View a Short Tutorial</Button>
+                    >{t(`common:WelcomeToVrooli`, { lng })}</Button>
                     <Button
                         onClick={() => setLocation(APP_LINKS.Example)}
                         startIcon={<PlayIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Run Example</Button>
+                    >{t(`common:RunExample`, { lng })}</Button>
                     {Boolean(getCurrentUser(session).id) && <Button
                         onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
                         startIcon={<ProfileIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Set Up Profile</Button>}
+                    >{t(`common:SetUpProfile`, { lng })}</Button>}
                     <Button
-                        onClick={() => openLink(WHITE_PAPER_URL)}
+                        onClick={() => openLink(setLocation, WHITE_PAPER_URL)}
                         startIcon={<ArticleIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Read the White Paper</Button>
+                    >{t(`common:ReadWhitePaper`, { lng })}</Button>
                 </Stack>
                 <Box sx={{
                     ...clickSize,
@@ -92,7 +94,7 @@ export const WelcomePage = ({
                             brightness: '120%',
                         }
                     }}>
-                        <Typography sx={{ marginRight: 2, color: palette.secondary.light }}>I know what I'm doing</Typography>
+                        <Typography sx={{ marginRight: 2, color: palette.secondary.light }}>{t(`common:IKnowWhatImDoing`, { lng })}</Typography>
                     </Link>
                 </Box>
             </Box>

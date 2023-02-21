@@ -58,6 +58,24 @@ export const QuizQuestionModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: QuizQuestionSortBy.OrderAsc,
+        sortBy: QuizQuestionSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            translationLanguages: true,
+            quizId: true,
+            standardId: true,
+            userId: true,
+            responseId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transQuestionTextWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

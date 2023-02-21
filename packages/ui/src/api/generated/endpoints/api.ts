@@ -31,6 +31,11 @@ query api($input: FindByIdInput!) {
     }
     versions {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -238,6 +243,11 @@ mutation apiCreate($input: ApiCreateInput!) {
     }
     versions {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -360,6 +370,11 @@ mutation apiUpdate($input: ApiUpdateInput!) {
     }
     versions {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at

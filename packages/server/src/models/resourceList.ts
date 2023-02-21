@@ -1,5 +1,5 @@
 import { resourceListValidation } from "@shared/validation";
-import { ResourceListSortBy } from "@shared/consts";
+import { MaxObjects, ResourceListSortBy } from "@shared/consts";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -117,7 +117,7 @@ export const ResourceListModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: 50000,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             apiVersion: 'ApiVersion',

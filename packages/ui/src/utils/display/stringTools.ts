@@ -21,8 +21,8 @@ export const firstString = (...strings: (string | null | undefined | (() => stri
     const date = new Date(timestamp);
     // Only display year if it's not the current year
     const year = (date.getFullYear() !== new Date().getFullYear()) ? 'numeric' : undefined;
-    // Only display month if it's not the current day or year
-    const month = (date.getMonth() !== new Date().getMonth() || year) ? 'short' : undefined;
+    // Always display month
+    const month = 'short';
     // Only display day if it's not the current day or year
     const day = (date.getDate() !== new Date().getDate() || month) ? 'numeric' : undefined;
     // Get date string

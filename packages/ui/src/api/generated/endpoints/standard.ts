@@ -31,6 +31,11 @@ query standard($input: FindByIdInput!) {
     versions {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -267,6 +272,11 @@ mutation standardCreate($input: StandardCreateInput!) {
     versions {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -414,6 +424,11 @@ mutation standardUpdate($input: StandardUpdateInput!) {
     versions {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at

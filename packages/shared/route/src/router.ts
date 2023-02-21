@@ -1,6 +1,8 @@
-import locationHook, { BaseLocationHook, HookNavigationOptions, LocationHook, Path } from "./useLocation";
+import locationHook, { HookNavigationOptions, LocationHook, Path } from "./useLocation";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
 import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, useRef, useLayoutEffect, useContext, useCallback, ReactElement, ReactNode, useEffect } from "react";
+import { parseSearchParams } from "./searchParams";
+import { SetLocation } from "@shared/route";
 
 export type ExtractRouteOptionalParam<PathType extends Path> =
     PathType extends `${infer Param}?`
@@ -26,22 +28,22 @@ export type ExtractRouteParams<PathType extends string> =
     : {};
 
 export interface RouterProps {
-    hook: BaseLocationHook;
+    hook: LocationHook;
     base: Path;
     matcher: MatcherFn;
 }
 
-export type NavigationalProps<H extends BaseLocationHook = LocationHook> = (
+export type NavigationalProps = (
     | { to: Path; href?: never }
     | { href: Path; to?: never }
 ) &
-    HookNavigationOptions<H>;
+    HookNavigationOptions;
 
-export type LinkProps<H extends BaseLocationHook = LocationHook> = Omit<
+export type LinkProps = Omit<
     AnchorHTMLAttributes<HTMLAnchorElement>,
     "href"
 > &
-    NavigationalProps<H>;
+    NavigationalProps;
 
 /*
  * Part 1, Hooks API: useRouter, useRoute and useLocation
@@ -67,7 +69,7 @@ export const useRouter = () => {
     return globalRef.v || (globalRef.v = buildRouter());
 };
 
-export const useLocation = () => {
+export const useLocation = (): [Path, SetLocation] => {
     const router = useRouter();
     return router.hook(router);
 };
@@ -131,15 +133,14 @@ export type RouteProps = {
 export const Route = ({ path, match, component, children }: RouteProps) => {
     const useRouteMatch = useRoute(path as any);
 
-    // Store last and current path in session storage, so we can handle 
-    // dialogs better
+    // Store last and current url data in session storage, if not already stored
     useEffect(() => {
-        // Get last stored path in sessionStorage
-        const lastPath = sessionStorage.getItem("currentPath");
-        // Store last path in sessionStorage
-        if (lastPath) sessionStorage.setItem("lastPath", lastPath);
-        // Store current path in sessionStorage
-        sessionStorage.setItem("currentPath", location.pathname);
+        // Get last stored data in sessionStorage
+        const lastCurrentPath = sessionStorage.getItem("currentPath");
+        const lastCurrentSearchParams = sessionStorage.getItem("currentSearchParams");
+        // Store current data in sessionStorage if last data didn't exist
+        if(!lastCurrentPath) sessionStorage.setItem("currentPath", location.pathname);
+        if (!lastCurrentSearchParams) sessionStorage.setItem("currentSearchParams", JSON.stringify(parseSearchParams()));
     } , [path]);
 
     // `props.match` is present - Route is controlled by the Switch

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou, PrependString } from '@shared/consts';
+import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";
@@ -8,6 +8,9 @@ import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { defaultPermissions } from "../utils";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Note' as const;
 type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -29,18 +32,7 @@ export const NoteModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.note,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: NoteVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            NoteVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(NoteVersionModel),
     format: {
         gqlRelMap: {
             __typename,
@@ -97,6 +89,64 @@ export const NoteModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    search: {
+        defaultSort: NoteSortBy.DateUpdatedDesc,
+        sortBy: NoteSortBy,
+        searchFields: {
+            createdById: true,
+            createdTimeFrame: true,
+            maxBookmarks: true,
+            maxScore: true,
+            minBookmarks: true,
+            minScore: true,
+            ownedByOrganizationId: true,
+            ownedByUserId: true,
+            parentId: true,
+            tags: true,
+            translationLanguagesLatestVersion: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'tagsWrapped',
+                'labelsWrapped',
+                { versions: { some: 'transDescriptionWrapped' } },
+                { versions: { some: 'transNameWrapped' } },
+            ]
+        })
+    },
+    validate: {
+        hasCompleteVersion: () => true,
+        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
+        isDeleted: () => false,
+        isPublic: (data) => data.isPrivate === false,
+        isTransferable: true,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            permissions: true,
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: ['NoteVersion', ['root']],
+        }),
+        visibility: {
+            private: { isPrivate: true },
+            public: { isPrivate: false },
+            owner: (userId) => ({
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

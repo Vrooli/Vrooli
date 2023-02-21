@@ -12,13 +12,13 @@ import {
     useTheme,
 } from '@mui/material';
 import { Stack } from '@mui/system';
-import { CloseIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, LogOutIcon, PlusIcon, SettingsIcon, UserIcon } from '@shared/icons';
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useMutation } from 'api/hooks';
-import { PubSub, shapeProfile } from 'utils';
+import { getUserLanguages, HistorySearchPageTabOption, PubSub, shapeProfile } from 'utils';
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
@@ -28,6 +28,7 @@ import { ContactInfo } from 'components/navigation';
 import { userValidation } from '@shared/validation';
 import { userProfileUpdate } from 'api/generated/endpoints/user';
 import { authLogOut, authSwitchCurrentAccount } from 'api/generated/endpoints/auth';
+import { useTranslation } from 'react-i18next';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -39,8 +40,16 @@ export const AccountMenu = ({
 }: AccountMenuProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
+
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const open = Boolean(anchorEl);
+
+    // Display settings collapse
+    const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
+    const toggleDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(!isDisplaySettingsOpen) }, [isDisplaySettingsOpen]);
+    const closeDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(false) }, []);
 
     // Additional resources collapse
     const [isAdditionalResourcesOpen, setIsAdditionalResourcesOpen] = useState(false);
@@ -86,7 +95,8 @@ export const AccountMenu = ({
         formik.handleSubmit();
         onClose(event);
         closeAdditionalResources();
-    }, [closeAdditionalResources, formik, onClose]);
+        closeDisplaySettings();
+    }, [closeAdditionalResources, closeDisplaySettings, formik, onClose]);
 
     const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(authSwitchCurrentAccount, 'switchCurrentAccount');
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
@@ -127,10 +137,25 @@ export const AccountMenu = ({
         setLocation(APP_LINKS.Home);
     }, [handleClose, session, logOut, setLocation]);
 
-    const handleOpenSettings = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        setLocation(APP_LINKS.Settings);
+    const handleOpen = useCallback((event: React.MouseEvent<HTMLElement>, link: string) => {
+        setLocation(link);
         handleClose(event);
     }, [handleClose, setLocation]);
+    const handleOpenSettings = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleOpen(event, APP_LINKS.Settings);
+    }, [handleOpen]);
+    const handleOpenBookmarks = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleOpen(event, `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`);
+    }, [handleOpen]);
+    const handleOpenHistory = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleOpen(event, APP_LINKS.History);
+    }, [handleOpen]);
+    const handleOpenAwards = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleOpen(event, APP_LINKS.Awards);
+    }, [handleOpen]);
+    const handleOpenPremium = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleOpen(event, APP_LINKS.Premium);
+    }, [handleOpen]);
 
 
     const accounts = useMemo(() => session.users ?? [], [session.users]);
@@ -164,7 +189,7 @@ export const AccountMenu = ({
                 }
             }}
         >
-            {/* Custom menu title with theme switch, preferred language selector, text size quantity box, and close icon */}
+            {/* Menu title with close icon */}
             <Stack
                 direction='row'
                 spacing={1}
@@ -182,16 +207,6 @@ export const AccountMenu = ({
                     paddingRight: 3, // Matches navbar padding
                 }}
             >
-                {/* Theme switch */}
-                <ThemeSwitch
-                    showText={false}
-                    theme={formik.values.theme as 'light' | 'dark'}
-                    onChange={(t) => formik.setFieldValue('theme', t)}
-                />
-                {/* Preferred language selector */}
-                {/* TODO */}
-                {/* Text size quantity box */}
-                {/* TODO */}
                 {/* Close icon */}
                 <IconButton
                     aria-label="close"
@@ -202,7 +217,7 @@ export const AccountMenu = ({
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
             </Stack>
-            {/* List of logged/in accounts, authentication-related actions, and additional quick links */}
+            {/* List of logged/in accounts and authentication-related actions */}
             <List sx={{ paddingTop: 0, paddingBottom: 0 }}>
                 {profileListItems}
                 <Divider sx={{ background: palette.background.textSecondary }} />
@@ -211,23 +226,105 @@ export const AccountMenu = ({
                     <ListItemIcon>
                         <PlusIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={'Add account'} />
+                    <ListItemText primary={t(`common:AddAccount`, { lng })} />
                 </ListItem>}
                 {accounts.length > 0 && <ListItem button onClick={handleLogOut}>
                     <ListItemIcon>
                         <LogOutIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={'Log out'} />
+                    <ListItemText primary={t(`common:LogOut`, { lng })} />
                 </ListItem>}
-                <Divider sx={{ background: palette.background.textSecondary }} />
+            </List>
+            <Divider sx={{ background: palette.background.textSecondary }} />
+            {/* Display Settings */}
+            <Stack direction="row" spacing={1} onClick={toggleDisplaySettings} sx={{
+                display: 'flex',
+                alignItems: 'center',
+                textAlign: 'left',
+                paddingLeft: 2,
+                paddingRight: 2,
+                paddingTop: 1,
+                paddingBottom: 1,
+            }}>
+                <Box sx={{ minWidth: '56px', display: 'flex', alignItems: 'center' }}>
+                    <DisplaySettingsIcon fill={palette.background.textPrimary} />
+                </Box>
+                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>{t(`common:Display`, { lng })}</Typography>
+                {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
+            </Stack>
+            <Collapse in={isDisplaySettingsOpen} sx={{ display: 'inline-block' }}>
+                <Box sx={{
+                    minWidth: 'fit-content',
+                    height: 'fit-content',
+                    padding: 1,
+                }}>
+                    {/* Theme switch */}
+                    <Stack direction="row" spacing={1} sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        paddingLeft: 1,
+                        paddingRight: 1,
+                    }}>
+                        <Typography variant="body1" sx={{
+                            ...noSelect,
+                            marginRight: 'auto',
+                        }}>
+                            {t(`common:Theme`, { lng })}: {formik.values.theme === 'light' ? t(`common:Light`, { lng }) : t(`common:Dark`, { lng })}
+                        </Typography>
+                        <ThemeSwitch
+                            showText={false}
+                            theme={formik.values.theme as 'light' | 'dark'}
+                            onChange={(t) => formik.setFieldValue('theme', t)}
+                        />
+                    </Stack>
+                    {/* Preferred language selector */}
+                    {/* TODO */}
+                    {/* Text size quantity box */}
+                    {/* TODO */}
+                    {/* Focus mode */}
+                    {/* TODO */}
+                </Box>
+            </Collapse>
+            <Divider sx={{ background: palette.background.textSecondary }} />
+            {/* List of quick links */}
+            <List>
                 {/* Settings page */}
                 <ListItem button onClick={handleOpenSettings}>
                     <ListItemIcon>
                         <SettingsIcon fill={palette.background.textPrimary} />
                     </ListItemIcon>
-                    <ListItemText primary={'Settings'} />
+                    <ListItemText primary={t(`common:Settings`, { lng })} />
+                </ListItem>
+                {/* Bookmarked */}
+                <ListItem button onClick={handleOpenBookmarks}>
+                    <ListItemIcon>
+                        <BookmarkFilledIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={t(`common:Bookmark`, { lng, count: 2 })} />
+                </ListItem>
+                {/* History */}
+                <ListItem button onClick={handleOpenHistory}>
+                    <ListItemIcon>
+                        <HistoryIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={t(`common:History`, { lng })} />
+                </ListItem>
+                {/* Awards */}
+                <ListItem button onClick={handleOpenAwards}>
+                    <ListItemIcon>
+                        <AwardIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={t(`common:Award`, { lng, count: 2 })} />
+                </ListItem>
+                {/* Premium */}
+                <ListItem button onClick={handleOpenPremium}>
+                    <ListItemIcon>
+                        <PremiumIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={t(`common:Premium`, { lng })} />
                 </ListItem>
             </List>
+            <Divider sx={{ background: palette.background.textSecondary }} />
             {/* Additional Resources */}
             <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={{
                 display: 'flex',
@@ -241,8 +338,8 @@ export const AccountMenu = ({
                 <Box sx={{ minWidth: '56px', display: 'flex', alignItems: 'center' }}>
                     <HelpIcon fill={palette.background.textPrimary} />
                 </Box>
-                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>Additional Resources</Typography>
-                {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} /> : <ExpandLessIcon fill={palette.background.textPrimary} />}
+                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>{t(`common:AdditionalResources`, { lng })}</Typography>
+                {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
             <Collapse in={isAdditionalResourcesOpen} sx={{ display: 'inline-block' }}>
                 <ContactInfo session={session} />

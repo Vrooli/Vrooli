@@ -3,11 +3,12 @@
  */
 
 import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Bookmark, View, Vote } from "@shared/consts";
+import { SetLocation, stringifySearchParams } from "@shared/route";
 import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
-import { NavigableObject, SetLocation } from "types";
+import { NavigableObject } from "types";
 import { ResourceType } from "utils/consts";
-import { stringifySearchParams, uuidToBase36 } from "./urlTools";
+import { uuidToBase36 } from "./urlTools";
 
 export type ObjectType = 'Api' | 
     'Bookmark' |
@@ -48,7 +49,12 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: { __typename: `${GqlModelType}` | 'Action' | 'Shortcut', id: string, handle?: string | null}): string => {
+export const getObjectSlug = (object: { 
+    __typename: `${GqlModelType}` | 'Action' | 'Shortcut', 
+    id: string, 
+    handle?: string | null,
+    root?: { handle?: string | null, id: string } | null,
+}): string => {
     // If object is an action/shortcut, return blank
     if (isOfType(object, 'Action', 'Shortcut')) return '';
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
@@ -57,7 +63,9 @@ export const getObjectSlug = (object: { __typename: `${GqlModelType}` | 'Action'
     if (isOfType(object, 'RunRoutine')) return getObjectSlug((object as RunRoutine).routineVersion as any);
     // If the object is a run project, use the project version
     if (isOfType(object, 'RunProject')) return getObjectSlug((object as RunProject).projectVersion as any);
-    // Otherwise, use handle or id
+    // If object has root, use its handle or id
+    if (object.root) return object.root.handle ?? uuidToBase36(object.root.id);
+    // Otherwise, use object's handle or id
     return object.handle ?? uuidToBase36(object.id);
 }
 

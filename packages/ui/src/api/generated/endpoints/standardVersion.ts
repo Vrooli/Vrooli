@@ -13,6 +13,11 @@ query standardVersion($input: FindVersionInput!) {
   standardVersion(input: $input) {
     versionNotes
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -207,6 +212,11 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
   standardVersionCreate(input: $input) {
     versionNotes
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -354,6 +364,11 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
   standardVersionUpdate(input: $input) {
     versionNotes
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from '@shared/consts';
+import { MaxObjects, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
@@ -44,7 +44,7 @@ export const NodeLoopWhileModel: ModelLogic<{
     mutate: {} as any,
     validate: {
         isTransferable: false,
-        maxObjects: 100000,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ loop: 'NodeLoop' }),
         permissionResolvers: defaultPermissions,
         owner: (data) => NodeLoopModel.validate!.owner(data.loop as any),

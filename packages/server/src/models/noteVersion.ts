@@ -1,10 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
+import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { bestLabel, defaultPermissions } from "../utils";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
+import { NoteModel } from "./note";
 
 const __typename = 'NoteVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -66,6 +67,81 @@ export const NoteVersionModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    search: {
+        defaultSort: NoteVersionSortBy.DateUpdatedDesc,
+        sortBy: NoteVersionSortBy,
+        searchFields: {
+            createdByIdRoot: true,
+            createdTimeFrame: true,
+            maxBookmarksRoot: true,
+            maxScoreRoot: true,
+            maxViewsRoot: true,
+            minBookmarksRoot: true,
+            minScoreRoot: true,
+            minViewsRoot: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
+            tagsRoot: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                'transNameWrapped',
+                { root: 'tagsWrapped' },
+                { root: 'labelsWrapped' },
+            ]
+        }),
+    },
+    validate: {
+        isDeleted: (data) => false,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            NoteModel.validate!.isPublic(data.root as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => NoteModel.validate!.owner(data.root as any),
+        permissionsSelect: () => ({
+            id: true,
+            isPrivate: true,
+            root: ['Note', ['versions']],
+        }),
+        permissionResolvers: defaultPermissions,
+        validations: {
+            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
+                await versionsCheck({
+                    createMany,
+                    deleteMany,
+                    languages,
+                    objectType: 'Note',
+                    prisma,
+                    updateMany: updateMany as any,
+                });
+            },
+            async create({ createMany, languages }) {
+                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
+            },
+            async update({ languages, updateMany }) {
+                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
+            },
+        },
+        visibility: {
+            private: {
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
+            },
+            public: {
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
+            },
+            owner: (userId) => ({
+                root: NoteModel.validate!.visibility.owner(userId),
+            }),
+        },
+    },
 })

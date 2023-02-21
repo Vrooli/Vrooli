@@ -65,6 +65,30 @@ export const PostModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: PostSortBy.ScoreDesc,
+        sortBy: PostSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            excludeIds: true,
+            isPinned: true,
+            maxScore: true,
+            maxBookmarks: true,
+            minScore: true,
+            minBookmarks: true,
+            organizationId: true,
+            userId: true,
+            repostedFromIds: true,
+            tags: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'nameWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

@@ -1,12 +1,12 @@
 import { reportValidation } from "@shared/validation";
-import { PrependString, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
+import { MaxObjects, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { CommentModel } from "./comment";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -58,18 +58,18 @@ export const ReportModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            apiVersion: padSelect(ApiVersionModel.display.select),
-            comment: padSelect(CommentModel.display.select),
-            issue: padSelect(IssueModel.display.select),
-            noteVersion: padSelect(NoteVersionModel.display.select),
-            organization: padSelect(OrganizationModel.display.select),
-            post: padSelect(PostModel.display.select),
-            projectVersion: padSelect(ProjectVersionModel.display.select),
-            routineVersion: padSelect(RoutineVersionModel.display.select),
-            smartContractVersion: padSelect(SmartContractVersionModel.display.select),
-            standardVersion: padSelect(StandardVersionModel.display.select),
-            tag: padSelect(TagModel.display.select),
-            user: padSelect(UserModel.display.select),
+            apiVersion: selPad(ApiVersionModel.display.select),
+            comment: selPad(CommentModel.display.select),
+            issue: selPad(IssueModel.display.select),
+            noteVersion: selPad(NoteVersionModel.display.select),
+            organization: selPad(OrganizationModel.display.select),
+            post: selPad(PostModel.display.select),
+            projectVersion: selPad(ProjectVersionModel.display.select),
+            routineVersion: selPad(RoutineVersionModel.display.select),
+            smartContractVersion: selPad(SmartContractVersionModel.display.select),
+            standardVersion: selPad(StandardVersionModel.display.select),
+            tag: selPad(TagModel.display.select),
+            user: selPad(UserModel.display.select),
         }),
         label: (select, languages) => {
             if (select.apiVersion) return ApiVersionModel.display.label(select.apiVersion as any, languages);
@@ -171,14 +171,8 @@ export const ReportModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 0,
-                public: 10000,
-            },
-            Organization: 0,
-        },
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             createdBy: 'User',
         }),

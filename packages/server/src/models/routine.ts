@@ -3,7 +3,7 @@ import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Trigger } from "../events";
-import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, SessionUser, RoutineYou, PrependString } from '@shared/consts';
+import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, SessionUser, RoutineYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -13,6 +13,7 @@ import { SelectWrap } from "../builders/types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -241,19 +242,7 @@ export const RoutineModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                where: { isPrivate: false },
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: RoutineVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            RoutineVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(RoutineVersionModel),
     format: {
         gqlRelMap: {
             __typename,
@@ -472,28 +461,7 @@ export const RoutineModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 2000,
-                },
-            },
-            Organization: {
-                private: {
-                    noPremium: 25,
-                    premium: 250,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 2000,
-                },
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,

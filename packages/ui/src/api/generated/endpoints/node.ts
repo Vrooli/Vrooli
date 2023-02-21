@@ -65,6 +65,11 @@ mutation nodeCreate($input: NodeCreateInput!) {
         versionNotes
         apiVersion {
             pullRequest {
+                translations {
+                    id
+                    language
+                    text
+                }
                 id
                 created_at
                 updated_at
@@ -270,6 +275,11 @@ mutation nodeCreate($input: NodeCreateInput!) {
             }
         }
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -384,6 +394,11 @@ mutation nodeCreate($input: NodeCreateInput!) {
         smartContractVersion {
             versionNotes
             pullRequest {
+                translations {
+                    id
+                    language
+                    text
+                }
                 id
                 created_at
                 updated_at
@@ -777,6 +792,11 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
         versionNotes
         apiVersion {
             pullRequest {
+                translations {
+                    id
+                    language
+                    text
+                }
                 id
                 created_at
                 updated_at
@@ -982,6 +1002,11 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             }
         }
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -1096,6 +1121,11 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
         smartContractVersion {
             versionNotes
             pullRequest {
+                translations {
+                    id
+                    language
+                    text
+                }
                 id
                 created_at
                 updated_at

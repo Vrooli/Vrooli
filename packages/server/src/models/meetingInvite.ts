@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, PrependString } from '@shared/consts';
+import { MaxObjects, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { MeetingModel } from "./meeting";
 import { ModelLogic } from "./types";
@@ -56,13 +56,28 @@ export const MeetingInviteModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: MeetingInviteSortBy.DateUpdatedDesc,
+        sortBy: MeetingInviteSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            status: true,
+            meetingId: true,
+            userId: true,
+            organizationId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'messageWrapped',
+                { meeting: MeetingModel.search!.searchStringQuery() },
+            ]
+        })
+    },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 0,
-            Organization: 5000,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             status: true,

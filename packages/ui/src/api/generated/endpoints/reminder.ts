@@ -15,8 +15,8 @@ query reminder($input: FindByIdInput!) {
     name
     description
     dueDate
-    completed
     index
+    isComplete
     reminderItems {
         id
         created_at
@@ -24,8 +24,8 @@ query reminder($input: FindByIdInput!) {
         name
         description
         dueDate
-        completed
         index
+        isComplete
     }
     reminderList {
         id
@@ -64,8 +64,8 @@ query reminders($input: ReminderSearchInput!) {
             name
             description
             dueDate
-            completed
             index
+            isComplete
             reminderItems {
                 id
                 created_at
@@ -73,8 +73,8 @@ query reminders($input: ReminderSearchInput!) {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
             }
             reminderList {
                 id
@@ -116,8 +116,8 @@ mutation reminderCreate($input: ReminderCreateInput!) {
     name
     description
     dueDate
-    completed
     index
+    isComplete
     reminderItems {
         id
         created_at
@@ -125,8 +125,8 @@ mutation reminderCreate($input: ReminderCreateInput!) {
         name
         description
         dueDate
-        completed
         index
+        isComplete
     }
     reminderList {
         id
@@ -162,8 +162,8 @@ mutation reminderUpdate($input: ReminderUpdateInput!) {
     name
     description
     dueDate
-    completed
     index
+    isComplete
     reminderItems {
         id
         created_at
@@ -171,8 +171,8 @@ mutation reminderUpdate($input: ReminderUpdateInput!) {
         name
         description
         dueDate
-        completed
         index
+        isComplete
     }
     reminderList {
         id

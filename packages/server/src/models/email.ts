@@ -1,4 +1,4 @@
-import { Email, EmailCreateInput } from '@shared/consts';
+import { Email, EmailCreateInput, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { CustomError, Trigger } from "../events";
 import { ModelLogic } from "./types";
@@ -55,14 +55,8 @@ export const EmailModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 5,
-                public: 1,
-            },
-            Organization: 0,
-        },
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             user: 'User',
         }),

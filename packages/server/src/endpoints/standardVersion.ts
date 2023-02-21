@@ -117,10 +117,13 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         ids: [ID!]
         isCompleteWithRoot: Boolean
         isLatest: Boolean
-        languages: [String!]
+        translationLanguages: [String!]
         maxBookmarksRoot: Int
         maxScoreRoot: Int
         maxViewsRoot: Int

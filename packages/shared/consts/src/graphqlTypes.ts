@@ -235,7 +235,7 @@ export type ApiVersionEdge = {
 
 export type ApiVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
@@ -246,8 +246,8 @@ export type ApiVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ApiVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
@@ -380,9 +380,11 @@ export enum AwardCategory {
 export type Bookmark = {
   __typename: 'Bookmark';
   by: User;
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   label: Scalars['String'];
   to: BookmarkTo;
+  updated_at: Scalars['Date'];
 };
 
 export type BookmarkCreateInput = {
@@ -650,13 +652,6 @@ export enum DeleteType {
   Wallet = 'Wallet'
 }
 
-export type DevelopResult = {
-  __typename: 'DevelopResult';
-  completed: Array<ProjectOrRoutine>;
-  inProgress: Array<ProjectOrRoutine>;
-  recent: Array<ProjectOrRoutine>;
-};
-
 export type Email = {
   __typename: 'Email';
   emailAddress: Scalars['String'];
@@ -719,14 +714,13 @@ export enum GqlModelType {
   Bookmark = 'Bookmark',
   Comment = 'Comment',
   Copy = 'Copy',
-  DevelopResult = 'DevelopResult',
   Email = 'Email',
   Fork = 'Fork',
   Handle = 'Handle',
   HistoryResult = 'HistoryResult',
+  HomeResult = 'HomeResult',
   Issue = 'Issue',
   Label = 'Label',
-  LearnResult = 'LearnResult',
   Meeting = 'Meeting',
   MeetingInvite = 'MeetingInvite',
   Member = 'Member',
@@ -768,7 +762,6 @@ export enum GqlModelType {
   Report = 'Report',
   ReportResponse = 'ReportResponse',
   ReputationHistory = 'ReputationHistory',
-  ResearchResult = 'ResearchResult',
   Resource = 'Resource',
   ResourceList = 'ResourceList',
   Role = 'Role',
@@ -827,6 +820,22 @@ export type HistoryResult = {
   completedRuns: Array<AnyRun>;
   recentlyBookmarked: Array<Bookmark>;
   recentlyViewed: Array<View>;
+};
+
+export type HomeInput = {
+  searchString: Scalars['String'];
+  showOnlyRelevantToSchedule?: InputMaybe<Scalars['Boolean']>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type HomeResult = {
+  __typename: 'HomeResult';
+  meetings: Array<Meeting>;
+  notes: Array<Note>;
+  reminders: Array<Reminder>;
+  resources: Array<Resource>;
+  runProjectSchedules: Array<RunProjectSchedule>;
+  runRoutineSchedules: Array<RunRoutineSchedule>;
 };
 
 export type Issue = {
@@ -1121,12 +1130,6 @@ export type LabelYou = {
   canUpdate: Scalars['Boolean'];
 };
 
-export type LearnResult = {
-  __typename: 'LearnResult';
-  courses: Array<Project>;
-  tutorials: Array<Routine>;
-};
-
 export type LogOutInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
@@ -1229,10 +1232,12 @@ export enum MeetingInviteSortBy {
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
-  MemberNameAsc = 'MemberNameAsc',
-  MemberNameDesc = 'MemberNameDesc',
-  StatusAsc = 'StatusAsc',
-  StatusDesc = 'StatusDesc'
+  MeetingEndAsc = 'MeetingEndAsc',
+  MeetingEndDesc = 'MeetingEndDesc',
+  MeetingStartAsc = 'MeetingStartAsc',
+  MeetingStartDesc = 'MeetingStartDesc',
+  UserNameAsc = 'UserNameAsc',
+  UserNameDesc = 'UserNameDesc'
 }
 
 export enum MeetingInviteStatus {
@@ -1422,10 +1427,8 @@ export enum MemberInviteSortBy {
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
-  MemberNameAsc = 'MemberNameAsc',
-  MemberNameDesc = 'MemberNameDesc',
-  StatusAsc = 'StatusAsc',
-  StatusDesc = 'StatusDesc'
+  UserNameAsc = 'UserNameAsc',
+  UserNameDesc = 'UserNameDesc'
 }
 
 export enum MemberInviteStatus {
@@ -2652,7 +2655,6 @@ export type NoteSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -2663,6 +2665,7 @@ export type NoteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -2754,23 +2757,23 @@ export type NoteVersionEdge = {
 
 export type NoteVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxViewsRoot?: InputMaybe<Scalars['Int']>;
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -2927,14 +2930,10 @@ export type NotificationSettingsUpdateInput = {
 };
 
 export enum NotificationSortBy {
-  CategoryAsc = 'CategoryAsc',
-  CategoryDesc = 'CategoryDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  TitleAsc = 'TitleAsc',
-  TitleDesc = 'TitleDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type NotificationSubscription = {
@@ -2979,9 +2978,7 @@ export type NotificationSubscriptionSearchResult = {
 
 export enum NotificationSubscriptionSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  ObjectTypeAsc = 'ObjectTypeAsc',
-  ObjectTypeDesc = 'ObjectTypeDesc'
+  DateCreatedDesc = 'DateCreatedDesc'
 }
 
 export type NotificationSubscriptionUpdateInput = {
@@ -3188,6 +3185,41 @@ export type Payment = {
   user: User;
 };
 
+export type PaymentEdge = {
+  __typename: 'PaymentEdge';
+  cursor: Scalars['String'];
+  node: Payment;
+};
+
+export type PaymentSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  cardLast4?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  currency?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  maxAmount?: InputMaybe<Scalars['Int']>;
+  minAmount?: InputMaybe<Scalars['Int']>;
+  sortBy?: InputMaybe<PaymentSortBy>;
+  status?: InputMaybe<PaymentStatus>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
+export type PaymentSearchResult = {
+  __typename: 'PaymentSearchResult';
+  edges: Array<PaymentEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum PaymentSortBy {
+  AmountAsc = 'AmountAsc',
+  AmountDesc = 'AmountDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
 export enum PaymentStatus {
   Failed = 'Failed',
   Paid = 'Paid',
@@ -3212,9 +3244,13 @@ export type PopularInput = {
 
 export type PopularResult = {
   __typename: 'PopularResult';
+  apis: Array<Api>;
+  notes: Array<Note>;
   organizations: Array<Organization>;
   projects: Array<Project>;
+  questions: Array<Question>;
   routines: Array<Routine>;
+  smartContracts: Array<SmartContract>;
   standards: Array<Standard>;
   users: Array<User>;
 };
@@ -3264,7 +3300,6 @@ export type PostSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isPinned?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -3275,6 +3310,7 @@ export type PostSearchInput = {
   sortBy?: InputMaybe<PostSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
@@ -3780,7 +3816,7 @@ export type ProjectVersionEdge = {
 
 export type ProjectVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   directoryListingsId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -3800,8 +3836,8 @@ export type ProjectVersionSearchInput = {
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectVersionSortBy>;
@@ -3915,6 +3951,8 @@ export type PullRequest = {
   mergedOrRejectedAt?: Maybe<Scalars['Date']>;
   status: PullRequestStatus;
   to: PullRequestTo;
+  translations: Array<CommentTranslation>;
+  translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
   you: PullRequestYou;
 };
@@ -3924,6 +3962,7 @@ export type PullRequestCreateInput = {
   id: Scalars['ID'];
   toConnect: Scalars['ID'];
   toObjectType: PullRequestToObjectType;
+  translationsCreate?: InputMaybe<Array<PullRequestTranslationCreateInput>>;
 };
 
 export type PullRequestEdge = {
@@ -3940,12 +3979,12 @@ export type PullRequestSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isMergedOrRejected?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<PullRequestSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   toId?: InputMaybe<Scalars['ID']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -3983,9 +4022,31 @@ export enum PullRequestToObjectType {
   Standard = 'Standard'
 }
 
+export type PullRequestTranslation = {
+  __typename: 'PullRequestTranslation';
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type PullRequestTranslationCreateInput = {
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type PullRequestTranslationUpdateInput = {
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  text?: InputMaybe<Scalars['String']>;
+};
+
 export type PullRequestUpdateInput = {
   id: Scalars['ID'];
   status?: InputMaybe<PullRequestStatus>;
+  translationsCreate?: InputMaybe<Array<PullRequestTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<PullRequestTranslationUpdateInput>>;
 };
 
 export type PullRequestYou = {
@@ -4030,14 +4091,13 @@ export type Query = {
   bookmarks: BookmarkSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
-  develop: DevelopResult;
   findHandles: Array<Scalars['String']>;
   history: HistoryResult;
+  home: HomeResult;
   issue?: Maybe<Issue>;
   issues: IssueSearchResult;
   label?: Maybe<Label>;
   labels: LabelSearchResult;
-  learn: LearnResult;
   meeting?: Maybe<Meeting>;
   meetingInvite?: Maybe<MeetingInvite>;
   meetingInvites: MeetingInviteSearchResult;
@@ -4056,6 +4116,8 @@ export type Query = {
   notifications: NotificationSearchResult;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
+  payment?: Maybe<Payment>;
+  payments: PaymentSearchResult;
   popular: PopularResult;
   post?: Maybe<Post>;
   posts: PostSearchResult;
@@ -4083,8 +4145,6 @@ export type Query = {
   quizzes: QuizSearchResult;
   readAssets: Array<Maybe<Scalars['String']>>;
   reminder?: Maybe<Reminder>;
-  reminderList?: Maybe<ReminderList>;
-  reminderLists: ReminderListSearchResult;
   reminders: ReminderSearchResult;
   report?: Maybe<Report>;
   reportResponse?: Maybe<ReportResponse>;
@@ -4092,7 +4152,6 @@ export type Query = {
   reports: ReportSearchResult;
   reputationHistories: ReputationHistorySearchResult;
   reputationHistory?: Maybe<ReputationHistory>;
-  research: ResearchResult;
   resource?: Maybe<Resource>;
   resourceList?: Maybe<Resource>;
   resourceLists: ResourceListSearchResult;
@@ -4191,6 +4250,11 @@ export type QueryFindHandlesArgs = {
 
 export type QueryHistoryArgs = {
   input: HistoryInput;
+};
+
+
+export type QueryHomeArgs = {
+  input: HomeInput;
 };
 
 
@@ -4301,6 +4365,16 @@ export type QueryOrganizationArgs = {
 
 export type QueryOrganizationsArgs = {
   input: OrganizationSearchInput;
+};
+
+
+export type QueryPaymentArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryPaymentsArgs = {
+  input: PaymentSearchInput;
 };
 
 
@@ -4426,16 +4500,6 @@ export type QueryReadAssetsArgs = {
 
 export type QueryReminderArgs = {
   input: FindByIdInput;
-};
-
-
-export type QueryReminderListArgs = {
-  input: FindByIdInput;
-};
-
-
-export type QueryReminderListsArgs = {
-  input: ReminderListSearchInput;
 };
 
 
@@ -4768,12 +4832,12 @@ export type QuestionAnswerSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuestionAnswerSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
@@ -4798,21 +4862,21 @@ export enum QuestionAnswerSortBy {
 
 export type QuestionAnswerTranslation = {
   __typename: 'QuestionAnswerTranslation';
-  description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
+  text: Scalars['String'];
 };
 
 export type QuestionAnswerTranslationCreateInput = {
-  description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
+  text: Scalars['String'];
 };
 
 export type QuestionAnswerTranslationUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
+  text?: InputMaybe<Scalars['String']>;
 };
 
 export type QuestionAnswerUpdateInput = {
@@ -4858,7 +4922,6 @@ export type QuestionSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   hasAcceptedAnswer?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -4872,6 +4935,7 @@ export type QuestionSearchInput = {
   sortBy?: InputMaybe<QuestionSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
@@ -4998,8 +5062,9 @@ export type QuizAttemptSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languageIn?: InputMaybe<Array<Scalars['String']>>;
+  maxPointsEarned?: InputMaybe<Scalars['Int']>;
+  minPointsEarned?: InputMaybe<Scalars['Int']>;
   quizId?: InputMaybe<Scalars['ID']>;
-  searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuizAttemptSortBy>;
   status?: InputMaybe<QuizAttemptStatus>;
   take?: InputMaybe<Scalars['Int']>;
@@ -5149,7 +5214,9 @@ export enum QuizQuestionResponseSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  QuestionOrderAsc = 'QuestionOrderAsc',
+  QuestionOrderDesc = 'QuestionOrderDesc'
 }
 
 export type QuizQuestionResponseTranslation = {
@@ -5188,13 +5255,13 @@ export type QuizQuestionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   quizId?: InputMaybe<Scalars['ID']>;
   responseId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuizQuestionSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -5260,7 +5327,6 @@ export type QuizSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -5270,6 +5336,7 @@ export type QuizSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuizSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -5356,12 +5423,12 @@ export type ReadAssetsInput = {
 
 export type Reminder = {
   __typename: 'Reminder';
-  completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   dueDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   index: Scalars['Int'];
+  isComplete: Scalars['Boolean'];
   name: Scalars['String'];
   reminderItems: Array<ReminderItem>;
   reminderList: ReminderList;
@@ -5386,12 +5453,12 @@ export type ReminderEdge = {
 
 export type ReminderItem = {
   __typename: 'ReminderItem';
-  completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   dueDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   index: Scalars['Int'];
+  isComplete: Scalars['Boolean'];
   name: Scalars['String'];
   reminder: Reminder;
   updated_at: Scalars['Date'];
@@ -5410,6 +5477,7 @@ export type ReminderItemUpdateInput = {
   dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -5427,36 +5495,6 @@ export type ReminderListCreateInput = {
   remindersCreate?: InputMaybe<Array<ReminderCreateInput>>;
   userScheduleConnect?: InputMaybe<Scalars['ID']>;
 };
-
-export type ReminderListEdge = {
-  __typename: 'ReminderListEdge';
-  cursor: Scalars['String'];
-  node: ReminderList;
-};
-
-export type ReminderListSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ReminderListSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userSchedule?: InputMaybe<Scalars['ID']>;
-};
-
-export type ReminderListSearchResult = {
-  __typename: 'ReminderListSearchResult';
-  edges: Array<ReminderListEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum ReminderListSortBy {
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
 
 export type ReminderListUpdateInput = {
   id: Scalars['ID'];
@@ -5495,6 +5533,7 @@ export type ReminderUpdateInput = {
   dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   reminderItemsCreate?: InputMaybe<Array<ReminderItemCreateInput>>;
   reminderItemsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -5707,15 +5746,6 @@ export enum ReputationHistorySortBy {
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc'
 }
-
-export type ResearchResult = {
-  __typename: 'ResearchResult';
-  needInvestments: Array<Project>;
-  needMembers: Array<Organization>;
-  needVotes: Array<Project>;
-  newlyCompleted: Array<ProjectOrRoutine>;
-  processes: Array<Routine>;
-};
 
 export type Resource = {
   __typename: 'Resource';
@@ -5966,11 +5996,11 @@ export type RoleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   organizationId: Scalars['ID'];
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoleSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -6355,7 +6385,7 @@ export type RoutineVersionOutputUpdateInput = {
 
 export type RoutineVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   directoryListingsId?: InputMaybe<Scalars['ID']>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
@@ -6379,8 +6409,8 @@ export type RoutineVersionSearchInput = {
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -6622,6 +6652,7 @@ export enum RunProjectOrRunRoutineSortBy {
 
 export type RunProjectSchedule = {
   __typename: 'RunProjectSchedule';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   labels: Array<Label>;
   recurrEnd?: Maybe<Scalars['Date']>;
@@ -6630,6 +6661,7 @@ export type RunProjectSchedule = {
   runProject: RunProject;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunProjectScheduleTranslation>;
+  updated_at: Scalars['Date'];
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -6658,7 +6690,7 @@ export type RunProjectScheduleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  labelIds?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   maxEventEnd?: InputMaybe<Scalars['Date']>;
   maxEventStart?: InputMaybe<Scalars['Date']>;
   maxRecurrEnd?: InputMaybe<Scalars['Date']>;
@@ -6667,7 +6699,7 @@ export type RunProjectScheduleSearchInput = {
   minEventStart?: InputMaybe<Scalars['Date']>;
   minRecurrEnd?: InputMaybe<Scalars['Date']>;
   minRecurrStart?: InputMaybe<Scalars['Date']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
+  runProjectOrganizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunProjectScheduleSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -6949,6 +6981,7 @@ export type RunRoutineInputUpdateInput = {
 export type RunRoutineSchedule = {
   __typename: 'RunRoutineSchedule';
   attemptAutomatic: Scalars['Boolean'];
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   labels: Array<Label>;
   maxAutomaticAttempts: Scalars['Int'];
@@ -6958,6 +6991,7 @@ export type RunRoutineSchedule = {
   runRoutine: RunRoutine;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunRoutineScheduleTranslation>;
+  updated_at: Scalars['Date'];
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -6988,7 +7022,7 @@ export type RunRoutineScheduleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  labelId?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   maxEventEnd?: InputMaybe<Scalars['Date']>;
   maxEventStart?: InputMaybe<Scalars['Date']>;
   maxRecurrEnd?: InputMaybe<Scalars['Date']>;
@@ -6997,7 +7031,7 @@ export type RunRoutineScheduleSearchInput = {
   minEventStart?: InputMaybe<Scalars['Date']>;
   minRecurrEnd?: InputMaybe<Scalars['Date']>;
   minRecurrStart?: InputMaybe<Scalars['Date']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
+  runRoutineOrganizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunRoutineScheduleSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -7404,23 +7438,26 @@ export type SmartContractVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
   contractType?: InputMaybe<Scalars['String']>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxViewsRoot?: InputMaybe<Scalars['Int']>;
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<SmartContractVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7705,17 +7742,19 @@ export type StandardVersionEdge = {
 export type StandardVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxViewsRoot?: InputMaybe<Scalars['Int']>;
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
+  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -7723,6 +7762,7 @@ export type StandardVersionSearchInput = {
   standardType?: InputMaybe<Scalars['String']>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7810,6 +7850,7 @@ export type StandardYou = {
 
 export enum StatPeriodType {
   Daily = 'Daily',
+  Hourly = 'Hourly',
   Monthly = 'Monthly',
   Weekly = 'Weekly',
   Yearly = 'Yearly'
@@ -8505,7 +8546,6 @@ export type User = {
   issuesClosed?: Maybe<Array<Issue>>;
   issuesCreated?: Maybe<Array<Issue>>;
   labels?: Maybe<Array<Label>>;
-  languages?: Maybe<Array<Scalars['String']>>;
   meetingsAttending?: Maybe<Array<Meeting>>;
   meetingsInvited?: Maybe<Array<MeetingInvite>>;
   memberships?: Maybe<Array<Member>>;
@@ -8549,6 +8589,7 @@ export type User = {
   theme?: Maybe<Scalars['String']>;
   transfersIncoming?: Maybe<Array<Transfer>>;
   transfersOutgoing?: Maybe<Array<Transfer>>;
+  translationLanguages?: Maybe<Array<Scalars['String']>>;
   translations: Array<UserTranslation>;
   updated_at?: Maybe<Scalars['Date']>;
   viewed?: Maybe<Array<View>>;
@@ -8640,11 +8681,11 @@ export type UserScheduleSearchInput = {
   eventEndTimeFrame?: InputMaybe<TimeFrame>;
   eventStartTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   recurrEndTimeFrame?: InputMaybe<TimeFrame>;
   recurrStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserScheduleSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   timeZone?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -9030,7 +9071,6 @@ export type ResolversTypes = {
   DeleteManyInput: DeleteManyInput;
   DeleteOneInput: DeleteOneInput;
   DeleteType: DeleteType;
-  DevelopResult: ResolverTypeWrapper<Omit<DevelopResult, 'completed' | 'inProgress' | 'recent'> & { completed: Array<ResolversTypes['ProjectOrRoutine']>, inProgress: Array<ResolversTypes['ProjectOrRoutine']>, recent: Array<ResolversTypes['ProjectOrRoutine']> }>;
   Email: ResolverTypeWrapper<Email>;
   EmailCreateInput: EmailCreateInput;
   EmailLogInInput: EmailLogInInput;
@@ -9046,6 +9086,8 @@ export type ResolversTypes = {
   Handle: ResolverTypeWrapper<Handle>;
   HistoryInput: HistoryInput;
   HistoryResult: ResolverTypeWrapper<Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversTypes['AnyRun']>, completedRuns: Array<ResolversTypes['AnyRun']> }>;
+  HomeInput: HomeInput;
+  HomeResult: ResolverTypeWrapper<HomeResult>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
   Int: ResolverTypeWrapper<Scalars['Int']>;
   Issue: ResolverTypeWrapper<Omit<Issue, 'to'> & { to: ResolversTypes['IssueTo'] }>;
@@ -9074,7 +9116,6 @@ export type ResolversTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: ResolverTypeWrapper<LabelYou>;
-  LearnResult: ResolverTypeWrapper<LearnResult>;
   LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
   MeetingCreateInput: MeetingCreateInput;
@@ -9197,6 +9238,10 @@ export type ResolversTypes = {
   Owner: ResolversTypes['Organization'] | ResolversTypes['User'];
   PageInfo: ResolverTypeWrapper<PageInfo>;
   Payment: ResolverTypeWrapper<Payment>;
+  PaymentEdge: ResolverTypeWrapper<PaymentEdge>;
+  PaymentSearchInput: PaymentSearchInput;
+  PaymentSearchResult: ResolverTypeWrapper<PaymentSearchResult>;
+  PaymentSortBy: PaymentSortBy;
   PaymentStatus: PaymentStatus;
   Phone: ResolverTypeWrapper<Phone>;
   PhoneCreateInput: PhoneCreateInput;
@@ -9262,6 +9307,9 @@ export type ResolversTypes = {
   PullRequestStatus: PullRequestStatus;
   PullRequestTo: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   PullRequestToObjectType: PullRequestToObjectType;
+  PullRequestTranslation: ResolverTypeWrapper<PullRequestTranslation>;
+  PullRequestTranslationCreateInput: PullRequestTranslationCreateInput;
+  PullRequestTranslationUpdateInput: PullRequestTranslationUpdateInput;
   PullRequestUpdateInput: PullRequestUpdateInput;
   PullRequestYou: ResolverTypeWrapper<PullRequestYou>;
   PushDevice: ResolverTypeWrapper<PushDevice>;
@@ -9343,10 +9391,6 @@ export type ResolversTypes = {
   ReminderItemUpdateInput: ReminderItemUpdateInput;
   ReminderList: ResolverTypeWrapper<ReminderList>;
   ReminderListCreateInput: ReminderListCreateInput;
-  ReminderListEdge: ResolverTypeWrapper<ReminderListEdge>;
-  ReminderListSearchInput: ReminderListSearchInput;
-  ReminderListSearchResult: ResolverTypeWrapper<ReminderListSearchResult>;
-  ReminderListSortBy: ReminderListSortBy;
   ReminderListUpdateInput: ReminderListUpdateInput;
   ReminderSearchInput: ReminderSearchInput;
   ReminderSearchResult: ResolverTypeWrapper<ReminderSearchResult>;
@@ -9375,7 +9419,6 @@ export type ResolversTypes = {
   ReputationHistorySearchInput: ReputationHistorySearchInput;
   ReputationHistorySearchResult: ResolverTypeWrapper<ReputationHistorySearchResult>;
   ReputationHistorySortBy: ReputationHistorySortBy;
-  ResearchResult: ResolverTypeWrapper<Omit<ResearchResult, 'newlyCompleted'> & { newlyCompleted: Array<ResolversTypes['ProjectOrRoutine']> }>;
   Resource: ResolverTypeWrapper<Resource>;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResolverTypeWrapper<ResourceEdge>;
@@ -9717,7 +9760,6 @@ export type ResolversParentTypes = {
   Date: Scalars['Date'];
   DeleteManyInput: DeleteManyInput;
   DeleteOneInput: DeleteOneInput;
-  DevelopResult: Omit<DevelopResult, 'completed' | 'inProgress' | 'recent'> & { completed: Array<ResolversParentTypes['ProjectOrRoutine']>, inProgress: Array<ResolversParentTypes['ProjectOrRoutine']>, recent: Array<ResolversParentTypes['ProjectOrRoutine']> };
   Email: Email;
   EmailCreateInput: EmailCreateInput;
   EmailLogInInput: EmailLogInInput;
@@ -9732,6 +9774,8 @@ export type ResolversParentTypes = {
   Handle: Handle;
   HistoryInput: HistoryInput;
   HistoryResult: Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversParentTypes['AnyRun']>, completedRuns: Array<ResolversParentTypes['AnyRun']> };
+  HomeInput: HomeInput;
+  HomeResult: HomeResult;
   ID: Scalars['ID'];
   Int: Scalars['Int'];
   Issue: Omit<Issue, 'to'> & { to: ResolversParentTypes['IssueTo'] };
@@ -9756,7 +9800,6 @@ export type ResolversParentTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: LabelYou;
-  LearnResult: LearnResult;
   LogOutInput: LogOutInput;
   Meeting: Meeting;
   MeetingCreateInput: MeetingCreateInput;
@@ -9867,6 +9910,9 @@ export type ResolversParentTypes = {
   Owner: ResolversParentTypes['Organization'] | ResolversParentTypes['User'];
   PageInfo: PageInfo;
   Payment: Payment;
+  PaymentEdge: PaymentEdge;
+  PaymentSearchInput: PaymentSearchInput;
+  PaymentSearchResult: PaymentSearchResult;
   Phone: Phone;
   PhoneCreateInput: PhoneCreateInput;
   PopularInput: PopularInput;
@@ -9923,6 +9969,9 @@ export type ResolversParentTypes = {
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: PullRequestSearchResult;
   PullRequestTo: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  PullRequestTranslation: PullRequestTranslation;
+  PullRequestTranslationCreateInput: PullRequestTranslationCreateInput;
+  PullRequestTranslationUpdateInput: PullRequestTranslationUpdateInput;
   PullRequestUpdateInput: PullRequestUpdateInput;
   PullRequestYou: PullRequestYou;
   PushDevice: PushDevice;
@@ -9996,9 +10045,6 @@ export type ResolversParentTypes = {
   ReminderItemUpdateInput: ReminderItemUpdateInput;
   ReminderList: ReminderList;
   ReminderListCreateInput: ReminderListCreateInput;
-  ReminderListEdge: ReminderListEdge;
-  ReminderListSearchInput: ReminderListSearchInput;
-  ReminderListSearchResult: ReminderListSearchResult;
   ReminderListUpdateInput: ReminderListUpdateInput;
   ReminderSearchInput: ReminderSearchInput;
   ReminderSearchResult: ReminderSearchResult;
@@ -10021,7 +10067,6 @@ export type ResolversParentTypes = {
   ReputationHistoryEdge: ReputationHistoryEdge;
   ReputationHistorySearchInput: ReputationHistorySearchInput;
   ReputationHistorySearchResult: ReputationHistorySearchResult;
-  ResearchResult: Omit<ResearchResult, 'newlyCompleted'> & { newlyCompleted: Array<ResolversParentTypes['ProjectOrRoutine']> };
   Resource: Resource;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResourceEdge;
@@ -10404,9 +10449,11 @@ export type AwardResolvers<ContextType = any, ParentType extends ResolversParent
 
 export type BookmarkResolvers<ContextType = any, ParentType extends ResolversParentTypes['Bookmark'] = ResolversParentTypes['Bookmark']> = {
   by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   label?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['BookmarkTo'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10501,13 +10548,6 @@ export interface DateScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes
   name: 'Date';
 }
 
-export type DevelopResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['DevelopResult'] = ResolversParentTypes['DevelopResult']> = {
-  completed?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  inProgress?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  recent?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type EmailResolvers<ContextType = any, ParentType extends ResolversParentTypes['Email'] = ResolversParentTypes['Email']> = {
   emailAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -10527,6 +10567,16 @@ export type HistoryResultResolvers<ContextType = any, ParentType extends Resolve
   completedRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
   recentlyBookmarked?: Resolver<Array<ResolversTypes['Bookmark']>, ParentType, ContextType>;
   recentlyViewed?: Resolver<Array<ResolversTypes['View']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type HomeResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['HomeResult'] = ResolversParentTypes['HomeResult']> = {
+  meetings?: Resolver<Array<ResolversTypes['Meeting']>, ParentType, ContextType>;
+  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
+  reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
+  resources?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
+  runProjectSchedules?: Resolver<Array<ResolversTypes['RunProjectSchedule']>, ParentType, ContextType>;
+  runRoutineSchedules?: Resolver<Array<ResolversTypes['RunRoutineSchedule']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10650,12 +10700,6 @@ export type LabelTranslationResolvers<ContextType = any, ParentType extends Reso
 export type LabelYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['LabelYou'] = ResolversParentTypes['LabelYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type LearnResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['LearnResult'] = ResolversParentTypes['LearnResult']> = {
-  courses?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  tutorials?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11330,6 +11374,18 @@ export type PaymentResolvers<ContextType = any, ParentType extends ResolversPare
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type PaymentEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['PaymentEdge'] = ResolversParentTypes['PaymentEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Payment'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PaymentSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PaymentSearchResult'] = ResolversParentTypes['PaymentSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['PaymentEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type PhoneResolvers<ContextType = any, ParentType extends ResolversParentTypes['Phone'] = ResolversParentTypes['Phone']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   phoneNumber?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -11338,9 +11394,13 @@ export type PhoneResolvers<ContextType = any, ParentType extends ResolversParent
 };
 
 export type PopularResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularResult'] = ResolversParentTypes['PopularResult']> = {
+  apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
+  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
   organizations?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
   projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
+  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
   routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
+  smartContracts?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
   standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
   users?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11609,6 +11669,8 @@ export type PullRequestResolvers<ContextType = any, ParentType extends Resolvers
   mergedOrRejectedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['PullRequestStatus'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['PullRequestTo'], ParentType, ContextType>;
+  translations?: Resolver<Array<ResolversTypes['CommentTranslation']>, ParentType, ContextType>;
+  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['PullRequestYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11632,6 +11694,13 @@ export type PullRequestSearchResultResolvers<ContextType = any, ParentType exten
 
 export type PullRequestToResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestTo'] = ResolversParentTypes['PullRequestTo']> = {
   __resolveType: TypeResolveFn<'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+};
+
+export type PullRequestTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestTranslation'] = ResolversParentTypes['PullRequestTranslation']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type PullRequestYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestYou'] = ResolversParentTypes['PullRequestYou']> = {
@@ -11658,14 +11727,13 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarksArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
-  develop?: Resolver<ResolversTypes['DevelopResult'], ParentType, ContextType>;
   findHandles?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType, RequireFields<QueryFindHandlesArgs, 'input'>>;
   history?: Resolver<ResolversTypes['HistoryResult'], ParentType, ContextType, RequireFields<QueryHistoryArgs, 'input'>>;
+  home?: Resolver<ResolversTypes['HomeResult'], ParentType, ContextType, RequireFields<QueryHomeArgs, 'input'>>;
   issue?: Resolver<Maybe<ResolversTypes['Issue']>, ParentType, ContextType, RequireFields<QueryIssueArgs, 'input'>>;
   issues?: Resolver<ResolversTypes['IssueSearchResult'], ParentType, ContextType, RequireFields<QueryIssuesArgs, 'input'>>;
   label?: Resolver<Maybe<ResolversTypes['Label']>, ParentType, ContextType, RequireFields<QueryLabelArgs, 'input'>>;
   labels?: Resolver<ResolversTypes['LabelSearchResult'], ParentType, ContextType, RequireFields<QueryLabelsArgs, 'input'>>;
-  learn?: Resolver<ResolversTypes['LearnResult'], ParentType, ContextType>;
   meeting?: Resolver<Maybe<ResolversTypes['Meeting']>, ParentType, ContextType, RequireFields<QueryMeetingArgs, 'input'>>;
   meetingInvite?: Resolver<Maybe<ResolversTypes['MeetingInvite']>, ParentType, ContextType, RequireFields<QueryMeetingInviteArgs, 'input'>>;
   meetingInvites?: Resolver<ResolversTypes['MeetingInviteSearchResult'], ParentType, ContextType, RequireFields<QueryMeetingInvitesArgs, 'input'>>;
@@ -11684,6 +11752,8 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   notifications?: Resolver<ResolversTypes['NotificationSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationsArgs, 'input'>>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType, RequireFields<QueryOrganizationArgs, 'input'>>;
   organizations?: Resolver<ResolversTypes['OrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryOrganizationsArgs, 'input'>>;
+  payment?: Resolver<Maybe<ResolversTypes['Payment']>, ParentType, ContextType, RequireFields<QueryPaymentArgs, 'input'>>;
+  payments?: Resolver<ResolversTypes['PaymentSearchResult'], ParentType, ContextType, RequireFields<QueryPaymentsArgs, 'input'>>;
   popular?: Resolver<ResolversTypes['PopularResult'], ParentType, ContextType, RequireFields<QueryPopularArgs, 'input'>>;
   post?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType, RequireFields<QueryPostArgs, 'input'>>;
   posts?: Resolver<ResolversTypes['PostSearchResult'], ParentType, ContextType, RequireFields<QueryPostsArgs, 'input'>>;
@@ -11711,8 +11781,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   quizzes?: Resolver<ResolversTypes['QuizSearchResult'], ParentType, ContextType, RequireFields<QueryQuizzesArgs, 'input'>>;
   readAssets?: Resolver<Array<Maybe<ResolversTypes['String']>>, ParentType, ContextType, RequireFields<QueryReadAssetsArgs, 'input'>>;
   reminder?: Resolver<Maybe<ResolversTypes['Reminder']>, ParentType, ContextType, RequireFields<QueryReminderArgs, 'input'>>;
-  reminderList?: Resolver<Maybe<ResolversTypes['ReminderList']>, ParentType, ContextType, RequireFields<QueryReminderListArgs, 'input'>>;
-  reminderLists?: Resolver<ResolversTypes['ReminderListSearchResult'], ParentType, ContextType, RequireFields<QueryReminderListsArgs, 'input'>>;
   reminders?: Resolver<ResolversTypes['ReminderSearchResult'], ParentType, ContextType, RequireFields<QueryRemindersArgs, 'input'>>;
   report?: Resolver<Maybe<ResolversTypes['Report']>, ParentType, ContextType, RequireFields<QueryReportArgs, 'input'>>;
   reportResponse?: Resolver<Maybe<ResolversTypes['ReportResponse']>, ParentType, ContextType, RequireFields<QueryReportResponseArgs, 'input'>>;
@@ -11720,7 +11788,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   reports?: Resolver<ResolversTypes['ReportSearchResult'], ParentType, ContextType, RequireFields<QueryReportsArgs, 'input'>>;
   reputationHistories?: Resolver<ResolversTypes['ReputationHistorySearchResult'], ParentType, ContextType, RequireFields<QueryReputationHistoriesArgs, 'input'>>;
   reputationHistory?: Resolver<Maybe<ResolversTypes['ReputationHistory']>, ParentType, ContextType, RequireFields<QueryReputationHistoryArgs, 'input'>>;
-  research?: Resolver<ResolversTypes['ResearchResult'], ParentType, ContextType>;
   resource?: Resolver<Maybe<ResolversTypes['Resource']>, ParentType, ContextType, RequireFields<QueryResourceArgs, 'input'>>;
   resourceList?: Resolver<Maybe<ResolversTypes['Resource']>, ParentType, ContextType, RequireFields<QueryResourceListArgs, 'input'>>;
   resourceLists?: Resolver<ResolversTypes['ResourceListSearchResult'], ParentType, ContextType, RequireFields<QueryResourceListsArgs, 'input'>>;
@@ -11823,9 +11890,9 @@ export type QuestionAnswerSearchResultResolvers<ContextType = any, ParentType ex
 };
 
 export type QuestionAnswerTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionAnswerTranslation'] = ResolversParentTypes['QuestionAnswerTranslation']> = {
-  description?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12032,12 +12099,12 @@ export type QuizYouResolvers<ContextType = any, ParentType extends ResolversPare
 };
 
 export type ReminderResolvers<ContextType = any, ParentType extends ResolversParentTypes['Reminder'] = ResolversParentTypes['Reminder']> = {
-  completed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   dueDate?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   index?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminderItems?: Resolver<Array<ResolversTypes['ReminderItem']>, ParentType, ContextType>;
   reminderList?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType>;
@@ -12052,12 +12119,12 @@ export type ReminderEdgeResolvers<ContextType = any, ParentType extends Resolver
 };
 
 export type ReminderItemResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReminderItem'] = ResolversParentTypes['ReminderItem']> = {
-  completed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   dueDate?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   index?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminder?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12070,18 +12137,6 @@ export type ReminderListResolvers<ContextType = any, ParentType extends Resolver
   reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedule?: Resolver<Maybe<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ReminderListEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReminderListEdge'] = ResolversParentTypes['ReminderListEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ReminderListSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReminderListSearchResult'] = ResolversParentTypes['ReminderListSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['ReminderListEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12173,15 +12228,6 @@ export type ReputationHistoryEdgeResolvers<ContextType = any, ParentType extends
 export type ReputationHistorySearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReputationHistorySearchResult'] = ResolversParentTypes['ReputationHistorySearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ReputationHistoryEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ResearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResearchResult'] = ResolversParentTypes['ResearchResult']> = {
-  needInvestments?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  needMembers?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
-  needVotes?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  newlyCompleted?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  processes?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12529,6 +12575,7 @@ export type RunProjectOrRunRoutineSearchResultResolvers<ContextType = any, Paren
 };
 
 export type RunProjectScheduleResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProjectSchedule'] = ResolversParentTypes['RunProjectSchedule']> = {
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   recurrEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
@@ -12537,6 +12584,7 @@ export type RunProjectScheduleResolvers<ContextType = any, ParentType extends Re
   runProject?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunProjectScheduleTranslation']>, ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12643,6 +12691,7 @@ export type RunRoutineInputSearchResultResolvers<ContextType = any, ParentType e
 
 export type RunRoutineScheduleResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineSchedule'] = ResolversParentTypes['RunRoutineSchedule']> = {
   attemptAutomatic?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   maxAutomaticAttempts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12652,6 +12701,7 @@ export type RunRoutineScheduleResolvers<ContextType = any, ParentType extends Re
   runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunRoutineScheduleTranslation']>, ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13363,7 +13413,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   issuesClosed?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   issuesCreated?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   labels?: Resolver<Maybe<Array<ResolversTypes['Label']>>, ParentType, ContextType>;
-  languages?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
   meetingsAttending?: Resolver<Maybe<Array<ResolversTypes['Meeting']>>, ParentType, ContextType>;
   meetingsInvited?: Resolver<Maybe<Array<ResolversTypes['MeetingInvite']>>, ParentType, ContextType>;
   memberships?: Resolver<Maybe<Array<ResolversTypes['Member']>>, ParentType, ContextType>;
@@ -13407,6 +13456,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   transfersIncoming?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
   transfersOutgoing?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
+  translationLanguages?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['UserTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   viewed?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
@@ -13588,10 +13638,10 @@ export type Resolvers<ContextType = any> = {
   CopyResult?: CopyResultResolvers<ContextType>;
   Count?: CountResolvers<ContextType>;
   Date?: GraphQLScalarType;
-  DevelopResult?: DevelopResultResolvers<ContextType>;
   Email?: EmailResolvers<ContextType>;
   Handle?: HandleResolvers<ContextType>;
   HistoryResult?: HistoryResultResolvers<ContextType>;
+  HomeResult?: HomeResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;
   IssueSearchResult?: IssueSearchResultResolvers<ContextType>;
@@ -13603,7 +13653,6 @@ export type Resolvers<ContextType = any> = {
   LabelSearchResult?: LabelSearchResultResolvers<ContextType>;
   LabelTranslation?: LabelTranslationResolvers<ContextType>;
   LabelYou?: LabelYouResolvers<ContextType>;
-  LearnResult?: LearnResultResolvers<ContextType>;
   Meeting?: MeetingResolvers<ContextType>;
   MeetingEdge?: MeetingEdgeResolvers<ContextType>;
   MeetingInvite?: MeetingInviteResolvers<ContextType>;
@@ -13657,6 +13706,8 @@ export type Resolvers<ContextType = any> = {
   Owner?: OwnerResolvers<ContextType>;
   PageInfo?: PageInfoResolvers<ContextType>;
   Payment?: PaymentResolvers<ContextType>;
+  PaymentEdge?: PaymentEdgeResolvers<ContextType>;
+  PaymentSearchResult?: PaymentSearchResultResolvers<ContextType>;
   Phone?: PhoneResolvers<ContextType>;
   PopularResult?: PopularResultResolvers<ContextType>;
   Post?: PostResolvers<ContextType>;
@@ -13688,6 +13739,7 @@ export type Resolvers<ContextType = any> = {
   PullRequestFrom?: PullRequestFromResolvers<ContextType>;
   PullRequestSearchResult?: PullRequestSearchResultResolvers<ContextType>;
   PullRequestTo?: PullRequestToResolvers<ContextType>;
+  PullRequestTranslation?: PullRequestTranslationResolvers<ContextType>;
   PullRequestYou?: PullRequestYouResolvers<ContextType>;
   PushDevice?: PushDeviceResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
@@ -13724,8 +13776,6 @@ export type Resolvers<ContextType = any> = {
   ReminderEdge?: ReminderEdgeResolvers<ContextType>;
   ReminderItem?: ReminderItemResolvers<ContextType>;
   ReminderList?: ReminderListResolvers<ContextType>;
-  ReminderListEdge?: ReminderListEdgeResolvers<ContextType>;
-  ReminderListSearchResult?: ReminderListSearchResultResolvers<ContextType>;
   ReminderSearchResult?: ReminderSearchResultResolvers<ContextType>;
   Report?: ReportResolvers<ContextType>;
   ReportEdge?: ReportEdgeResolvers<ContextType>;
@@ -13738,7 +13788,6 @@ export type Resolvers<ContextType = any> = {
   ReputationHistory?: ReputationHistoryResolvers<ContextType>;
   ReputationHistoryEdge?: ReputationHistoryEdgeResolvers<ContextType>;
   ReputationHistorySearchResult?: ReputationHistorySearchResultResolvers<ContextType>;
-  ResearchResult?: ResearchResultResolvers<ContextType>;
   Resource?: ResourceResolvers<ContextType>;
   ResourceEdge?: ResourceEdgeResolvers<ContextType>;
   ResourceList?: ResourceListResolvers<ContextType>;

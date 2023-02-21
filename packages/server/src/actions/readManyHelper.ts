@@ -9,6 +9,9 @@ import { SearchMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { ReadManyHelperProps } from "./types";
 
+const DEFAULT_TAKE = 20;
+const MAX_TAKE = 100;
+
 /**
  * Helper function for reading many objects in a single line.
  * Cursor-based search. Supports pagination, sorting, and filtering by string.
@@ -28,11 +31,16 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
+    console.log('readmanyhelper before toPartialGraphQLInfo', objectType, model.__typename, JSON.stringify(model.format.gqlRelMap), '\n\n');
     let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
     console.log('readmanyhelper after toPartialGraphQLInfo', objectType, JSON.stringify(partialInfo), '\n\n')
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
+    // Check take limit
+    if (Number.isInteger(input.take) && input.take > MAX_TAKE) {
+        throw new CustomError('0389', 'InternalError', req.languages, { objectType, take: input.take });
+    }
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Loop through search fields and add each to the search query, 
@@ -64,7 +72,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,
             orderBy,
-            take: input.take ?? 20,
+            take: Number.isInteger(input.take) ? input.take : 25,
             skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
             cursor: input.after ? {
                 id: input.after

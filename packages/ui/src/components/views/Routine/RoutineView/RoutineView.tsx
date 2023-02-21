@@ -1,11 +1,11 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
-import { useLocation } from '@shared/route';
+import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsCreate, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -71,9 +71,7 @@ export const RoutineView = ({
 
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
     const viewGraph = useCallback(() => {
-        setSearchParams(setLocation, {
-            build: true,
-        })
+        setSearchParams(setLocation, { build: true })
         setIsBuildOpen(true);
     }, [setLocation]);
     const stopBuild = useCallback(() => {

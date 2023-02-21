@@ -14,33 +14,33 @@ source "${HERE}/prettify.sh"
 
 # Read arguments
 while getopts ":v:d:h:g" opt; do
-  case $opt in
+    case $opt in
     v)
-      VERSION=$OPTARG
-      ;;
+        VERSION=$OPTARG
+        ;;
     d)
-      DEPLOY=$OPTARG
-      ;;
+        DEPLOY=$OPTARG
+        ;;
     g)
-      GRAPHQL_GENERATE=$OPTARG
-      ;;
+        GRAPHQL_GENERATE=$OPTARG
+        ;;
     h)
-      echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
-      echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
-      echo "  -d --deploy: Deploy to VPS (y/N)"
-      echo "  -h --help: Show this help message"
-      echo "  -g --graphql-generate: Generate GraphQL tags for queries/mutations"
-      exit 0
-      ;;
+        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
+        echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
+        echo "  -d --deploy: Deploy to VPS (y/N)"
+        echo "  -h --help: Show this help message"
+        echo "  -g --graphql-generate: Generate GraphQL tags for queries/mutations"
+        exit 0
+        ;;
     \?)
-      echo "Invalid option: -$OPTARG" >&2
-      exit 1
-      ;;
+        echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
     :)
-      echo "Option -$OPTARG requires an argument." >&2
-      exit 1
-      ;;
-  esac
+        echo "Option -$OPTARG requires an argument." >&2
+        exit 1
+        ;;
+    esac
 done
 
 # Load variables from .env file
@@ -52,7 +52,7 @@ else
 fi
 
 # Check for required variables
-check_var () {
+check_var() {
     if [ -z "${!1}" ]; then
         error "Variable ${1} is not set. Exiting..."
         exit 1
@@ -97,10 +97,10 @@ cd ${HERE}/../packages/ui
 # Create local .env file
 touch .env
 # Set environment variables
-echo "REACT_APP_SERVER_LOCATION=${SERVER_LOCATION}" >> .env
-echo "REACT_APP_PORT_SERVER=${PORT_SERVER}" >> .env
-echo "REACT_APP_SERVER_URL=${SERVER_URL}" >> .env
-echo "REACT_APP_SITE_IP=${SITE_IP}" >> .env
+echo "REACT_APP_SERVER_LOCATION=${SERVER_LOCATION}" >>.env
+echo "REACT_APP_PORT_SERVER=${PORT_SERVER}" >>.env
+echo "REACT_APP_SERVER_URL=${SERVER_URL}" >>.env
+echo "REACT_APP_SITE_IP=${SITE_IP}" >>.env
 # Set trap to remove .env file on exit
 trap "rm .env" EXIT
 
@@ -111,7 +111,7 @@ if [ -z "$GRAPHQL_GENERATE" ]; then
 fi
 if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
     info "Generating GraphQL query/mutation selectors... (this may take a minute)"
-    ts-node --esm --experimental-specifier-resolution node  ./src/tools/api/gqlSelects.ts
+    ts-node --esm --experimental-specifier-resolution node ./src/tools/api/gqlSelects.ts
     if [ $? -ne 0 ]; then
         error "Failed to generate query/mutation selectors"
         echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
@@ -136,7 +136,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Generate sitemap.xml
-ts-node --esm --experimental-specifier-resolution node  ./src/tools/sitemap.ts 
+ts-node --esm --experimental-specifier-resolution node ./src/tools/sitemap.ts
 if [ $? -ne 0 ]; then
     error "Failed to generate sitemap.xml"
     echo "${HERE}/../packages/ui/src/tools/sitemap.ts"
@@ -150,9 +150,9 @@ else
     info "Creating build/.well-known/brave-rewards-verification.txt file..."
     mkdir build/.well-known
     cd ${HERE}/../packages/ui/build/.well-known
-    echo "This is a Brave Rewards publisher verification file.\n" > brave-rewards-verification.txt
-    echo "Domain: vrooli.com" >> brave-rewards-verification.txt
-    echo "Token: ${BRAVE_REWARDS_TOKEN}" >> brave-rewards-verification.txt
+    echo "This is a Brave Rewards publisher verification file.\n" >brave-rewards-verification.txt
+    echo "Domain: vrooli.com" >>brave-rewards-verification.txt
+    echo "Token: ${BRAVE_REWARDS_TOKEN}" >>brave-rewards-verification.txt
     cd ../..
 fi
 
@@ -163,7 +163,7 @@ else
     info "Creating build/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)..."
     mkdir build/.well-known
     cd ${HERE}/../packages/ui/build/.well-known
-    echo "[{\"relation\": [\"delegate_permission/common.handle_all_urls\"],\"target\": {\"namespace\": \"android_app\",\"package_name\": \"com.vrooli.twa\",\"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]}}]" > assetlinks.json
+    echo "[{\"relation\": [\"delegate_permission/common.handle_all_urls\"],\"target\": {\"namespace\": \"android_app\",\"package_name\": \"com.vrooli.twa\",\"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]}}]" >assetlinks.json
     cd ../..
 fi
 
@@ -183,6 +183,7 @@ if [ $? -ne 0 ]; then
 fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
+    source "${HERE}/keylessSsh.sh"
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build to ${BUILD_DIR}. Press any key to continue..."
     read -r
