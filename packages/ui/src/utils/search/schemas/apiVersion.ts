@@ -9,18 +9,18 @@ export const apiVersionSearchSchema = (lng: string): FormSchema => ({
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
-        votesRootContainer,
-        bookmarksRootContainer,
-        languagesContainer,
-        tagsRootContainer,
+        votesRootContainer(lng),
+        bookmarksRootContainer(lng),
+        languagesContainer(lng),
+        tagsRootContainer(lng),
     ],
     fields: [
-        ...isCompleteWithRootFields,
-        ...isLatestFields,
-        ...votesRootFields,
-        ...bookmarksRootFields,
-        ...languagesFields,
-        ...tagsRootFields,
+        ...isCompleteWithRootFields(lng),
+        ...isLatestFields(lng),
+        ...votesRootFields(lng),
+        ...bookmarksRootFields(lng),
+        ...languagesFields(lng),
+        ...tagsRootFields(lng),
     ]
 })
 

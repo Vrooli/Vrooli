@@ -4141,8 +4141,6 @@ export type Query = {
   quizzes: QuizSearchResult;
   readAssets: Array<Maybe<Scalars['String']>>;
   reminder?: Maybe<Reminder>;
-  reminderList?: Maybe<ReminderList>;
-  reminderLists: ReminderListSearchResult;
   reminders: ReminderSearchResult;
   report?: Maybe<Report>;
   reportResponse?: Maybe<ReportResponse>;
@@ -4494,16 +4492,6 @@ export type QueryReadAssetsArgs = {
 
 export type QueryReminderArgs = {
   input: FindByIdInput;
-};
-
-
-export type QueryReminderListArgs = {
-  input: FindByIdInput;
-};
-
-
-export type QueryReminderListsArgs = {
-  input: ReminderListSearchInput;
 };
 
 
@@ -5066,8 +5054,9 @@ export type QuizAttemptSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languageIn?: InputMaybe<Array<Scalars['String']>>;
+  maxPointsEarned?: InputMaybe<Scalars['Int']>;
+  minPointsEarned?: InputMaybe<Scalars['Int']>;
   quizId?: InputMaybe<Scalars['ID']>;
-  searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuizAttemptSortBy>;
   status?: InputMaybe<QuizAttemptStatus>;
   take?: InputMaybe<Scalars['Int']>;
@@ -5217,7 +5206,9 @@ export enum QuizQuestionResponseSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  QuestionOrderAsc = 'QuestionOrderAsc',
+  QuestionOrderDesc = 'QuestionOrderDesc'
 }
 
 export type QuizQuestionResponseTranslation = {
@@ -5424,12 +5415,12 @@ export type ReadAssetsInput = {
 
 export type Reminder = {
   __typename: 'Reminder';
-  completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   dueDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   index: Scalars['Int'];
+  isComplete: Scalars['Boolean'];
   name: Scalars['String'];
   reminderItems: Array<ReminderItem>;
   reminderList: ReminderList;
@@ -5454,12 +5445,12 @@ export type ReminderEdge = {
 
 export type ReminderItem = {
   __typename: 'ReminderItem';
-  completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   dueDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   index: Scalars['Int'];
+  isComplete: Scalars['Boolean'];
   name: Scalars['String'];
   reminder: Reminder;
   updated_at: Scalars['Date'];
@@ -5478,6 +5469,7 @@ export type ReminderItemUpdateInput = {
   dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
 };
 
@@ -5495,36 +5487,6 @@ export type ReminderListCreateInput = {
   remindersCreate?: InputMaybe<Array<ReminderCreateInput>>;
   userScheduleConnect?: InputMaybe<Scalars['ID']>;
 };
-
-export type ReminderListEdge = {
-  __typename: 'ReminderListEdge';
-  cursor: Scalars['String'];
-  node: ReminderList;
-};
-
-export type ReminderListSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ReminderListSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userSchedule?: InputMaybe<Scalars['ID']>;
-};
-
-export type ReminderListSearchResult = {
-  __typename: 'ReminderListSearchResult';
-  edges: Array<ReminderListEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum ReminderListSortBy {
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
 
 export type ReminderListUpdateInput = {
   id: Scalars['ID'];
@@ -5563,6 +5525,7 @@ export type ReminderUpdateInput = {
   dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   reminderItemsCreate?: InputMaybe<Array<ReminderItemCreateInput>>;
   reminderItemsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -9429,10 +9392,6 @@ export type ResolversTypes = {
   ReminderItemUpdateInput: ReminderItemUpdateInput;
   ReminderList: ResolverTypeWrapper<ReminderList>;
   ReminderListCreateInput: ReminderListCreateInput;
-  ReminderListEdge: ResolverTypeWrapper<ReminderListEdge>;
-  ReminderListSearchInput: ReminderListSearchInput;
-  ReminderListSearchResult: ResolverTypeWrapper<ReminderListSearchResult>;
-  ReminderListSortBy: ReminderListSortBy;
   ReminderListUpdateInput: ReminderListUpdateInput;
   ReminderSearchInput: ReminderSearchInput;
   ReminderSearchResult: ResolverTypeWrapper<ReminderSearchResult>;
@@ -10088,9 +10047,6 @@ export type ResolversParentTypes = {
   ReminderItemUpdateInput: ReminderItemUpdateInput;
   ReminderList: ReminderList;
   ReminderListCreateInput: ReminderListCreateInput;
-  ReminderListEdge: ReminderListEdge;
-  ReminderListSearchInput: ReminderListSearchInput;
-  ReminderListSearchResult: ReminderListSearchResult;
   ReminderListUpdateInput: ReminderListUpdateInput;
   ReminderSearchInput: ReminderSearchInput;
   ReminderSearchResult: ReminderSearchResult;
@@ -11828,8 +11784,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   quizzes?: Resolver<ResolversTypes['QuizSearchResult'], ParentType, ContextType, RequireFields<QueryQuizzesArgs, 'input'>>;
   readAssets?: Resolver<Array<Maybe<ResolversTypes['String']>>, ParentType, ContextType, RequireFields<QueryReadAssetsArgs, 'input'>>;
   reminder?: Resolver<Maybe<ResolversTypes['Reminder']>, ParentType, ContextType, RequireFields<QueryReminderArgs, 'input'>>;
-  reminderList?: Resolver<Maybe<ResolversTypes['ReminderList']>, ParentType, ContextType, RequireFields<QueryReminderListArgs, 'input'>>;
-  reminderLists?: Resolver<ResolversTypes['ReminderListSearchResult'], ParentType, ContextType, RequireFields<QueryReminderListsArgs, 'input'>>;
   reminders?: Resolver<ResolversTypes['ReminderSearchResult'], ParentType, ContextType, RequireFields<QueryRemindersArgs, 'input'>>;
   report?: Resolver<Maybe<ResolversTypes['Report']>, ParentType, ContextType, RequireFields<QueryReportArgs, 'input'>>;
   reportResponse?: Resolver<Maybe<ResolversTypes['ReportResponse']>, ParentType, ContextType, RequireFields<QueryReportResponseArgs, 'input'>>;
@@ -12149,12 +12103,12 @@ export type QuizYouResolvers<ContextType = any, ParentType extends ResolversPare
 };
 
 export type ReminderResolvers<ContextType = any, ParentType extends ResolversParentTypes['Reminder'] = ResolversParentTypes['Reminder']> = {
-  completed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   dueDate?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   index?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminderItems?: Resolver<Array<ResolversTypes['ReminderItem']>, ParentType, ContextType>;
   reminderList?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType>;
@@ -12169,12 +12123,12 @@ export type ReminderEdgeResolvers<ContextType = any, ParentType extends Resolver
 };
 
 export type ReminderItemResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReminderItem'] = ResolversParentTypes['ReminderItem']> = {
-  completed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   dueDate?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   index?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminder?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12187,18 +12141,6 @@ export type ReminderListResolvers<ContextType = any, ParentType extends Resolver
   reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedule?: Resolver<Maybe<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ReminderListEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReminderListEdge'] = ResolversParentTypes['ReminderListEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ReminderListSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReminderListSearchResult'] = ResolversParentTypes['ReminderListSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['ReminderListEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13848,8 +13790,6 @@ export type Resolvers<ContextType = any> = {
   ReminderEdge?: ReminderEdgeResolvers<ContextType>;
   ReminderItem?: ReminderItemResolvers<ContextType>;
   ReminderList?: ReminderListResolvers<ContextType>;
-  ReminderListEdge?: ReminderListEdgeResolvers<ContextType>;
-  ReminderListSearchResult?: ReminderListSearchResultResolvers<ContextType>;
   ReminderSearchResult?: ReminderSearchResultResolvers<ContextType>;
   Report?: ReportResolvers<ContextType>;
   ReportEdge?: ReportEdgeResolvers<ContextType>;

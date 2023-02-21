@@ -26,6 +26,7 @@ export const NotificationsPage = ({
             setNotifications(n => [...n, ...data.notifications.edges.map(e => e.node)]);
         }
     }, [data]);
+    const hasItems = useMemo(() => notifications.length > 0, [notifications]);
 
     const onSelect = useCallback((notification: Notification) => {
         // setLocation(`${APP_LINKS[objectType]}/add`);
@@ -42,13 +43,32 @@ export const NotificationsPage = ({
 
     return (
         <PageContainer>
-            <List>
-                {notifications.map((notification) => (
-                    <ListItem key={notification.id}>
-                        {notification.title}
-                    </ListItem>
-                ))}
-            </List>
+            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} session={session} />
+            <Box sx={{
+                marginTop: 2,
+                maxWidth: '1000px',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                ...(hasItems ? {
+                    boxShadow: 12,
+                    background: palette.background.paper,
+                    borderRadius: '8px',
+                    overflow: 'overlay',
+                    display: 'block',
+                } : {}),
+            }}>
+                {
+                    hasItems ? (
+                        <List sx={{ padding: 0 }}>
+                            {notifications.map((notification) => (
+                                <ListItem key={notification.id}>
+                                    {notification.title}
+                                </ListItem>
+                            ))}
+                        </List>
+                    ) : (<Typography variant="h6" textAlign="center">{t(`error:NoResults`, { lng: getUserLanguages(session)[0] })}</Typography>)
+                }
+            </Box>
         </PageContainer>
     )
 };

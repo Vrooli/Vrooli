@@ -41,6 +41,20 @@ export const ReminderModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: ReminderSortBy.DueDateAsc,
+        sortBy: ReminderSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            reminderListId: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'nameWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

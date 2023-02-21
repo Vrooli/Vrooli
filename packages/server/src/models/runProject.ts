@@ -63,7 +63,26 @@ export const RunProjectModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: RunProjectSortBy.DateUpdatedDesc,
+        sortBy: RunProjectSortBy,
+        searchFields: {
+            completedTimeFrame: true,
+            createdTimeFrame: true,
+            excludeIds: true,
+            projectVersionId: true,
+            startedTimeFrame: true,
+            status: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'nameWrapped',
+                { projectVersion: RunProjectModel.search!.searchStringQuery() },
+            ]
+        })
+    },
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],

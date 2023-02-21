@@ -9,12 +9,12 @@ export const projectOrRoutineSearchSchema = (lng: string): FormSchema => ({
     containers: [
         { totalItems: 1 },
         hasCompleteVersionContainer,
-        votesContainer,
-        bookmarksContainer,
-        simplicityContainer,
-        complexityContainer,
-        languagesVersionContainer,
-        tagsContainer,
+        votesContainer(lng),
+        bookmarksContainer(lng),
+        simplicityContainer(lng),
+        complexityContainer(lng),
+        languagesVersionContainer(lng),
+        tagsContainer(lng),
     ],
     fields: [
         {
@@ -31,13 +31,13 @@ export const projectOrRoutineSearchSchema = (lng: string): FormSchema => ({
                 ]
             }
         },
-        ...hasCompleteVersionFields,
-        ...votesFields,
-        ...bookmarksFields,
-        ...simplicityFields,
-        ...complexityFields,
-        ...languagesVersionFields,
-        ...tagsFields,
+        ...hasCompleteVersionFields(lng),
+        ...votesFields(lng),
+        ...bookmarksFields(lng),
+        ...simplicityFields(lng),
+        ...complexityFields(lng),
+        ...languagesVersionFields(lng),
+        ...tagsFields(lng),
     ]
 })
 

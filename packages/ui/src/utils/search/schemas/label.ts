@@ -7,10 +7,10 @@ import { languagesContainer, languagesFields, searchFormLayout } from "./common"
 export const labelSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchLabel', lng),
     containers: [
-        languagesContainer,
+        languagesContainer(lng),
     ],
     fields: [
-        ...languagesFields,
+        ...languagesFields(lng),
     ]
 })
 

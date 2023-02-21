@@ -66,9 +66,10 @@ export const typeDef = gql`
         ids: [ID!]
         status: QuizAttemptStatus
         languageIn: [String!]
+        maxPointsEarned: Int
+        minPointsEarned: Int
         userId: ID
         quizId: ID
-        searchString: String
         sortBy: QuizAttemptSortBy
         take: Int
         updatedTimeFrame: TimeFrame

@@ -3,94 +3,90 @@ import { FieldData, FormSchema, GridContainer } from "forms/types";
 import i18next from "i18next";
 import { CommonKey } from "types";
 
-//TODO move to common.json
-const votesDescription = `Votes are a way to show support for an object, which affect the ranking of an object in default searches.`;
-const languagesDescription = `Filter results by the language(s) they are written in.`;
-const tagsDescription = `Filter results by the tags they are associated with.`;
-const simplicityDescription = `Simplicity is a mathematical measure of the shortest path to complete a routine. 
-
-For the curious, it is calculated using a weighted, directed, cyclic graph. Each node is a subroutine list or decision, and each weight represents the number of steps the node takes to complete`;
-const complexityDescription = `Complexity is a mathematical measure of the longest path to complete a routine.
-
-For the curious, it is calculated using a weighted, directed, cyclic graph. Each node is a subroutine list or decision, and each weight represents the number of steps the node takes to complete`;
-
-
 export const searchFormLayout = (title: CommonKey, lng: string): FormSchema['formLayout'] => ({
     title: i18next.t(`common:${title}`, { lng }),
     direction: "column",
     spacing: 4,
 })
 
-export const languagesContainer: GridContainer = {
-    title: "Languages",
-    description: languagesDescription,
+// Containers
+export const languagesContainer = (lng: string): GridContainer => ({
+    title: i18next.t(`common:Language`, { lng, count: 2 }),
+    description: i18next.t(`common:LanguagesHelp`, { lng }),
     totalItems: 1
-}
-export const languagesVersionContainer: GridContainer = languagesContainer;
-
-export const bookmarksContainer: GridContainer = {
-    title: "Bookmarks",
+})
+export const languagesVersionContainer = languagesContainer;
+export const bookmarksContainer = (lng: string): GridContainer => ({
+    title: i18next.t(`common:Bookmark`, { lng, count: 2 }),
+    description: i18next.t(`common:BookmarksHelp`, { lng }),
     totalItems: 1,
     spacing: 2,
-}
-export const bookmarksRootContainer: GridContainer = bookmarksContainer;
-
-export const tagsContainer: GridContainer = {
-    title: "Tags",
-    description: tagsDescription,
+})
+export const bookmarksRootContainer = bookmarksContainer;
+export const tagsContainer = (lng: string): GridContainer => ({
+    title: i18next.t(`common:Tag`, { lng, count: 2 }),
+    description: i18next.t(`common:TagsHelp`, { lng }),
     totalItems: 1
-}
-export const tagsRootContainer: GridContainer = tagsContainer;
-
-export const votesContainer: GridContainer = {
-    title: "Votes",
-    description: votesDescription,
+})
+export const tagsRootContainer = tagsContainer;
+export const votesContainer = (lng: string): GridContainer => ({
+    title: i18next.t(`common:Vote`, { lng, count: 2 }),
+    description: i18next.t(`common:VotesHelp`, { lng }),
     totalItems: 1,
     spacing: 2,
-}
-export const votesRootContainer: GridContainer = votesContainer;
-
-export const simplicityContainer: GridContainer = {
-    title: "Simplicity",
-    description: simplicityDescription,
+})
+export const votesRootContainer = votesContainer;
+export const simplicityContainer = (lng: string): GridContainer => ({
+    title: i18next.t(`common:Simplicity`, { lng }),
+    description: i18next.t(`common:SimplicityHelp`, { lng }),
     totalItems: 2,
     spacing: 2,
-}
-export const simplicityRootContainer: GridContainer = simplicityContainer;
-
-export const complexityContainer: GridContainer = {
-    title: "Complexity",
-    description: complexityDescription,
+})
+export const simplicityRootContainer = simplicityContainer;
+export const complexityContainer = (lng: string): GridContainer => ({
+    title: i18next.t(`common:Complexity`, { lng }),
+    description: i18next.t(`common:ComplexityHelp`, { lng }),
     totalItems: 2,
     spacing: 2,
-}
-export const complexityRootContainer: GridContainer = complexityContainer;
-
+})
+export const complexityRootContainer = complexityContainer;
 export const hasCompleteVersionContainer: GridContainer = { totalItems: 1 }
-
 export const isCompleteWithRootContainer: GridContainer = hasCompleteVersionContainer;
-
 export const isLatestContainer: GridContainer = hasCompleteVersionContainer;
 
-export const languagesFields: FieldData[] = [
+// Partial fields
+export const yesNoDontCare = (lng: string) => ({
+    type: InputType.Radio as const,
+    props: {
+        defaultValue: 'undefined',
+        row: true,
+        options: [
+            { label: i18next.t(`common:Yes`, { lng }), value: 'true' },
+            { label: i18next.t(`common:No`, { lng }), value: 'false' },
+            { label: i18next.t(`common:DontCare`, { lng }), value: 'undefined' },
+        ]
+    }
+})
+
+// Fields
+export const languagesFields = (lng: string): FieldData[] => ([
     {
         fieldName: "translationLanguages",
-        label: "Languages",
+        label: i18next.t(`common:Language`, { lng, count: 2 }),
         type: InputType.LanguageInput,
         props: {},
     },
-]
-export const languagesVersionFields: FieldData[] = [
+])
+export const languagesVersionFields = (lng: string): FieldData[] => ([
     {
-        ...languagesFields[0],
+        ...languagesFields(lng)[0],
         fieldName: "translationLanguagesLatestVersion",
     }
-]
-
-export const bookmarksFields: FieldData[] = [
+])
+export const bookmarksFields = (lng: string): FieldData[] => ([
     {
         fieldName: "minBookmarks",
-        label: "Min",
+        label: i18next.t(`common:Min`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
@@ -99,44 +95,42 @@ export const bookmarksFields: FieldData[] = [
     },
     {
         fieldName: "maxBookmarks",
-        label: "Min",
+        label: i18next.t(`common:Max`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
             defaultValue: 0,
         }
     },
-]
-export const bookmarksRootFields: FieldData[] = [
+])
+export const bookmarksRootFields = (lng: string): FieldData[] => ([
     {
-        ...bookmarksFields[0],
+        ...bookmarksFields(lng)[0],
         fieldName: "minBookmarksRoot",
     },
     {
-        ...bookmarksFields[1],
+        ...bookmarksFields(lng)[1],
         fieldName: "maxBookmarksRoot",
     },
-]
-
-export const tagsFields: FieldData[] = [
+])
+export const tagsFields = (lng: string): FieldData[] => ([
     {
         fieldName: "tags",
-        label: "Tags",
+        label: i18next.t(`common:Tag`, { lng, count: 2 }),
         type: InputType.TagSelector,
         props: {}
     },
-]
-export const tagsRootFields: FieldData[] = [
+])
+export const tagsRootFields = (lng: string): FieldData[] => ([
     {
-        ...tagsFields[0],
+        ...tagsFields(lng)[0],
         fieldName: "tagsRoot",
     },
-]
-
-export const votesFields: FieldData[] = [
+])
+export const votesFields = (lng: string): FieldData[] => ([
     {
         fieldName: "minVotes",
-        label: "Min",
+        label: i18next.t(`common:Min`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
@@ -145,29 +139,28 @@ export const votesFields: FieldData[] = [
     },
     {
         fieldName: "maxVotes",
-        label: "Max",
+        label: i18next.t(`common:Max`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
             defaultValue: 0,
         }
     },
-]
-export const votesRootFields: FieldData[] = [
+])
+export const votesRootFields = (lng: string): FieldData[] => ([
     {
-        ...votesFields[0],
+        ...votesFields(lng)[0],
         fieldName: "minVotesRoot",
     },
     {
-        ...votesFields[1],
+        ...votesFields(lng)[1],
         fieldName: "maxVotesRoot",
     },
-]
-
-export const simplicityFields: FieldData[] = [
+])
+export const simplicityFields = (lng: string): FieldData[] => ([
     {
         fieldName: "minSimplicity",
-        label: "Min",
+        label: i18next.t(`common:Min`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
@@ -176,29 +169,28 @@ export const simplicityFields: FieldData[] = [
     },
     {
         fieldName: "maxSimplicity",
-        label: "Max",
+        label: i18next.t(`common:Max`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
             defaultValue: 0,
         }
     },
-]
-export const simplicityRootFields: FieldData[] = [
+])
+export const simplicityRootFields = (lng: string): FieldData[] => ([
     {
-        ...simplicityFields[0],
+        ...simplicityFields(lng)[0],
         fieldName: "minSimplicityRoot",
     },
     {
-        ...simplicityFields[1],
+        ...simplicityFields(lng)[1],
         fieldName: "maxSimplicityRoot",
     },
-]
-
-export const complexityFields: FieldData[] = [
+])
+export const complexityFields = (lng: string): FieldData[] => ([
     {
         fieldName: "minComplexity",
-        label: "Min",
+        label: i18next.t(`common:Min`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
@@ -207,52 +199,42 @@ export const complexityFields: FieldData[] = [
     },
     {
         fieldName: "maxComplexity",
-        label: "Max",
+        label: i18next.t(`common:Max`, { lng }),
         type: InputType.QuantityBox,
         props: {
             min: 0,
             defaultValue: 0,
         }
     },
-]
-export const complexityRootFields: FieldData[] = [
+])
+export const complexityRootFields = (lng: string): FieldData[] => ([
     {
-        ...complexityFields[0],
+        ...complexityFields(lng)[0],
         fieldName: "minComplexityRoot",
     },
     {
-        ...complexityFields[1],
+        ...complexityFields(lng)[1],
         fieldName: "maxComplexityRoot",
     },
-]
-
-export const hasCompleteVersionFields: FieldData[] = [
+])
+export const hasCompleteVersionFields = (lng: string): FieldData[] => ([
     {
         fieldName: "hasCompleteVersion",
-        label: "Has complete version?",
-        type: InputType.Radio,
-        props: {
-            defaultValue: 'undefined',
-            row: true,
-            options: [
-                { label: "Yes", value: 'true' },
-                { label: "No", value: 'false' },
-                { label: "Don't Care", value: 'undefined' },
-            ]
-        }
+        label: i18next.t(`common:HasCompleteVersion`, { lng }),
+        ...yesNoDontCare(lng),
     },
-]
-
-export const isCompleteWithRootFields: FieldData[] = [
+])
+export const isCompleteWithRootFields = (lng: string): FieldData[] => ([
     {
-        ...hasCompleteVersionFields[0],
         fieldName: "isCompleteWithRoot",
+        label: i18next.t(`common:VersionAndRootComplete`, { lng }),
+        ...yesNoDontCare(lng),
     },
-]
-
-export const isLatestFields: FieldData[] = [
+])
+export const isLatestFields = (lng: string): FieldData[] => ([
     {
-        ...hasCompleteVersionFields[0],
         fieldName: "isLatest",
+        label: i18next.t(`common:IsLatestVersion`, { lng }),
+        ...yesNoDontCare(lng),
     },
-]
+])

@@ -27,6 +27,7 @@ export const typeDef = gql`
         description: String
         dueDate: Date
         index: Int
+        isComplete: Boolean
         reminderItemsCreate: [ReminderItemCreateInput!]
         reminderItemsUpdate: [ReminderItemUpdateInput!]
         reminderItemsDelete: [ID!]
@@ -38,7 +39,7 @@ export const typeDef = gql`
         name: String!
         description: String
         dueDate: Date
-        completed: Boolean!
+        isComplete: Boolean!
         index: Int!
         reminderList: ReminderList!
         reminderItems: [ReminderItem!]!

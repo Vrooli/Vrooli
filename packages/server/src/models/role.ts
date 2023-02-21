@@ -25,10 +25,10 @@ export const RoleModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: {
-        select: () => ({ 
-            id: true, 
+        select: () => ({
+            id: true,
             name: true,
-            translations: { select: { language: true, name: true } } 
+            translations: { select: { language: true, name: true } }
         }),
         label: (select, languages) => {
             // Prefer translated name over default name
@@ -53,5 +53,24 @@ export const RoleModel: ModelLogic<{
             membersCount: true,
         },
     },
-    search: {} as any,
+    mutate: {} as any,
+    search: {
+        defaultSort: RoleSortBy.MembersDesc,
+        sortBy: RoleSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            translationLanguages: true,
+            organizationId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'nameWrapped',
+                'transDescriptionWrapped',
+                'transNameWrapped',
+            ]
+        }),
+    },
+    validate: {} as any,
 })

@@ -55,8 +55,8 @@ users {
                 name
                 description
                 dueDate
-                completed
                 index
+                isComplete
                 reminderItems {
                     id
                     created_at
@@ -64,8 +64,8 @@ users {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                 }
             }
         }

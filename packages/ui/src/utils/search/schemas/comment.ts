@@ -7,14 +7,14 @@ import { languagesContainer, languagesFields, searchFormLayout, bookmarksContain
 export const commentSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchComment', lng),
     containers: [
-        votesContainer,
-        bookmarksContainer,
-        languagesContainer,
+        votesContainer(lng),
+        bookmarksContainer(lng),
+        languagesContainer(lng),
     ],
     fields: [
-        ...votesFields,
-        ...bookmarksFields,
-        ...languagesFields,
+        ...votesFields(lng),
+        ...bookmarksFields(lng),
+        ...languagesFields(lng),
     ]
 })
 

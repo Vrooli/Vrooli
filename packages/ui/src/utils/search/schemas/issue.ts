@@ -7,14 +7,14 @@ import { bookmarksContainer, bookmarksFields, languagesContainer, languagesField
 export const issueSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchIssue', lng),
     containers: [
-        votesContainer,
-        bookmarksContainer,
-        languagesContainer,
+        votesContainer(lng),
+        bookmarksContainer(lng),
+        languagesContainer(lng),
     ],
     fields: [
-        ...votesFields,
-        ...bookmarksFields,
-        ...languagesFields,
+        ...votesFields(lng),
+        ...bookmarksFields(lng),
+        ...languagesFields(lng),
     ]
 })
 

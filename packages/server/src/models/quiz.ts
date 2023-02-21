@@ -73,7 +73,30 @@ export const QuizModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: QuizSortBy.ScoreDesc,
+        sortBy: QuizSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            isComplete: true,
+            translationLanguages: true,
+            maxBookmarks: true,
+            maxScore: true,
+            minBookmarks: true,
+            minScore: true,
+            routineId: true,
+            projectId: true,
+            userId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                'transNameWrapped',
+            ]
+        }),
+    },
     validate: {
         isDeleted: () => false,
         isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.quizSelect>(data, [

@@ -69,8 +69,8 @@ mutation emailLogIn($input: EmailLogInInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                     reminderItems {
                         id
                         created_at
@@ -78,8 +78,8 @@ mutation emailLogIn($input: EmailLogInInput!) {
                         name
                         description
                         dueDate
-                        completed
                         index
+                        isComplete
                     }
                 }
             }
@@ -161,8 +161,8 @@ mutation emailSignUp($input: EmailSignUpInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                     reminderItems {
                         id
                         created_at
@@ -170,8 +170,8 @@ mutation emailSignUp($input: EmailSignUpInput!) {
                         name
                         description
                         dueDate
-                        completed
                         index
+                        isComplete
                     }
                 }
             }
@@ -260,8 +260,8 @@ mutation emailResetPassword($input: EmailResetPasswordInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                     reminderItems {
                         id
                         created_at
@@ -269,8 +269,8 @@ mutation emailResetPassword($input: EmailResetPasswordInput!) {
                         name
                         description
                         dueDate
-                        completed
                         index
+                        isComplete
                     }
                 }
             }
@@ -352,8 +352,8 @@ mutation guestLogIn {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                     reminderItems {
                         id
                         created_at
@@ -361,8 +361,8 @@ mutation guestLogIn {
                         name
                         description
                         dueDate
-                        completed
                         index
+                        isComplete
                     }
                 }
             }
@@ -444,8 +444,8 @@ mutation logOut($input: LogOutInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                     reminderItems {
                         id
                         created_at
@@ -453,8 +453,8 @@ mutation logOut($input: LogOutInput!) {
                         name
                         description
                         dueDate
-                        completed
                         index
+                        isComplete
                     }
                 }
             }
@@ -536,8 +536,8 @@ mutation validateSession($input: ValidateSessionInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                     reminderItems {
                         id
                         created_at
@@ -545,8 +545,8 @@ mutation validateSession($input: ValidateSessionInput!) {
                         name
                         description
                         dueDate
-                        completed
                         index
+                        isComplete
                     }
                 }
             }
@@ -628,8 +628,8 @@ mutation switchCurrentAccount($input: SwitchCurrentAccountInput!) {
                     name
                     description
                     dueDate
-                    completed
                     index
+                    isComplete
                     reminderItems {
                         id
                         created_at
@@ -637,8 +637,8 @@ mutation switchCurrentAccount($input: SwitchCurrentAccountInput!) {
                         name
                         description
                         dueDate
-                        completed
                         index
+                        isComplete
                     }
                 }
             }

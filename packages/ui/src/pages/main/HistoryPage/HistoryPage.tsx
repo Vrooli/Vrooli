@@ -17,14 +17,6 @@ enum TabOptions {
     History = "History",
 }
 
-const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
-
-const completedRoutinesText = `Routines that you've executed and completed`
-
-const recentText = `Organizations, projects, routines, standards, and users that you've recently viewed.`;
-
-const bookmarkedText = `Organizations, projects, routines, standards, and users that you've bookmarked.`;
-
 const zIndex = 200;
 
 /**
@@ -183,41 +175,41 @@ export const HistoryPage = ({
                 </Stack>
                 {/* Search results */}
                 <ListTitleContainer
-                    title={t(`common:RunsActive`, { lng })}
-                    helpText={activeRoutinesText}
+                    titleKey="RunsActive"
+                    helpKey="RunsActiveHelp"
                     isEmpty={activeRuns.length === 0}
                     onClick={toSeeAllActiveRuns}
-                    options={[['See all', toSeeAllActiveRuns]]}
+                    options={[['SeeAll', toSeeAllActiveRuns]]}
                     session={session}
                 >
                     {activeRuns}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={t(`common:RunsCompleted`, { lng })}
-                    helpText={completedRoutinesText}
+                    titleKey="RunsCompleted"
+                    helpKey="RunsCompletedHelp"
                     isEmpty={completedRuns.length === 0}
                     onClick={toSeeAllCompletedRuns}
-                    options={[['See all', toSeeAllCompletedRuns]]}
+                    options={[['SeeAll', toSeeAllCompletedRuns]]}
                     session={session}
                 >
                     {completedRuns}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={"Recently Viewed"}
-                    helpText={recentText}
+                    titleKey="RecentlyViewed"
+                    helpKey="RecentlyViewedHelp"
                     isEmpty={recent.length === 0}
                     onClick={toSeeAllViewed}
-                    options={[['See all', toSeeAllViewed]]}
+                    options={[['SeeAll', toSeeAllViewed]]}
                     session={session}
                 >
                     {recent}
                 </ListTitleContainer>
                 <ListTitleContainer
-                    title={"Bookmarked"}
-                    helpText={bookmarkedText}
+                    titleKey="Bookmarked"
+                    helpKey="BookmarkedHelp"
                     isEmpty={bookmarked.length === 0}
                     onClick={toSeeAllBookmarked}
-                    options={[['See all', toSeeAllBookmarked]]}
+                    options={[['SeeAll', toSeeAllBookmarked]]}
                     session={session}
                 >
                     {bookmarked}

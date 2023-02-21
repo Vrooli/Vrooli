@@ -8,17 +8,17 @@ export const noteVersionSearchSchema = (lng: string): FormSchema => ({
     formLayout: searchFormLayout('SearchNoteVersion', lng),
     containers: [
         isLatestContainer,
-        votesRootContainer,
-        bookmarksRootContainer,
-        languagesContainer,
-        tagsRootContainer,
+        votesRootContainer(lng),
+        bookmarksRootContainer(lng),
+        languagesContainer(lng),
+        tagsRootContainer(lng),
     ],
     fields: [
-        ...isLatestFields,
-        ...votesRootFields,
-        ...bookmarksRootFields,
-        ...languagesFields,
-        ...tagsRootFields,
+        ...isLatestFields(lng),
+        ...votesRootFields(lng),
+        ...bookmarksRootFields(lng),
+        ...languagesFields(lng),
+        ...tagsRootFields(lng),
     ]
 })
 

@@ -19,7 +19,7 @@ export function ListTitleContainer({
     const lng = getUserLanguages(session)[0];
 
     return (
-        <TitleContainer {...props}>
+        <TitleContainer session={session} {...props}>
             {
                 isEmpty ?
                     <Typography variant="h6" sx={{

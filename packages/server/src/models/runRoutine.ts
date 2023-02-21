@@ -7,7 +7,7 @@ import { OrganizationModel } from "./organization";
 import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
-import { getSingleTypePermissions, profanityCheck } from "../validators";
+import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'RunRoutine' as const;
 type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
