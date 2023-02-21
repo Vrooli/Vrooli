@@ -1,44 +1,24 @@
-import { DevelopResult, LearnResult, PopularResult, ResearchResult } from "@shared/consts";
+import { HomeResult, PopularResult } from "@shared/consts";
 import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const developResult: GqlPartial<DevelopResult> = {
-    __typename: 'DevelopResult',
+export const homeResult: GqlPartial<HomeResult> = {
+    __typename: 'HomeResult',
     list: {
         __define: {
-            0: async () => rel((await import('./project')).project, 'list'),
-            1: async () => rel((await import('./routine')).routine, 'list'),
+            0: async () => rel((await import('./meeting')).meeting, 'list'),
+            1: async () => rel((await import('./note')).note, 'list'),
+            2: async () => rel((await import('./reminder')).reminder, 'list'),
+            3: async () => rel((await import('./resource')).resource, 'list'),
+            4: async () => rel((await import('./runProjectSchedule')).runProjectSchedule, 'list'),
+            5: async () => rel((await import('./runRoutineSchedule')).runRoutineSchedule, 'list'),
         },
-        completed: {
-            __union: {
-                Project: 0,
-                Routine: 1,
-            }
-        },
-        inProgress: {
-            __union: {
-                Project: 0,
-                Routine: 1,
-            }
-        },
-        recent: {
-            __union: {
-                Project: 0,
-                Routine: 1,
-            }
-        },
-    }
-}
-
-export const learnResult: GqlPartial<LearnResult> = {
-    __typename: 'LearnResult',
-    list: {
-        __define: {
-            0: async () => rel((await import('./project')).project, 'list'),
-            1: async () => rel((await import('./routine')).routine, 'list'),
-        },
-        courses: { __use: 0 },
-        tutorials: { __use: 1 },
+        meetings: { __use: 0 },
+        notes: { __use: 1 },
+        reminders: { __use: 2 },
+        resources: { __use: 3 },
+        runProjectSchedules: { __use: 4 },
+        runRoutineSchedules: { __use: 5 },
     }
 }
 
@@ -46,37 +26,24 @@ export const popularResult: GqlPartial<PopularResult> = {
     __typename: 'PopularResult',
     list: {
         __define: {
-            0: async () => rel((await import('./organization')).organization, 'list'),
-            1: async () => rel((await import('./project')).project, 'list'),
-            2: async () => rel((await import('./routine')).routine, 'list'),
-            3: async () => rel((await import('./standard')).standard, 'list'),
-            4: async () => rel((await import('./user')).user, 'list'),
-        },
-        organizations: { __use: 0 },
-        projects: { __use: 1 },
-        routines: { __use: 2 },
-        standards: { __use: 3 },
-        users: { __use: 4 },
-    }
-}
-
-export const researchResult: GqlPartial<ResearchResult> = {
-    __typename: 'ResearchResult',
-    list: {
-        __define: {
-            0: async () => rel((await import('./routine')).routine, 'list'),
-            1: async () => rel((await import('./project')).project, 'list'),
+            0: async () => rel((await import('./api')).api, 'list'),
+            1: async () => rel((await import('./note')).note, 'list'),
             2: async () => rel((await import('./organization')).organization, 'list'),
+            3: async () => rel((await import('./project')).project, 'list'),
+            4: async () => rel((await import('./question')).question, 'list'),
+            5: async () => rel((await import('./routine')).routine, 'list'),
+            6: async () => rel((await import('./smartContract')).smartContract, 'list'),
+            7: async () => rel((await import('./standard')).standard, 'list'),
+            8: async () => rel((await import('./user')).user, 'list'),
         },
-        processes: { __use: 0 },
-        newlyCompleted: { 
-            __union: {
-                Routine: 0,
-                Project: 1,
-            },
-        },
-        needVotes: { __use: 1 },
-        needInvestments: { __use: 1 },
-        needMembers: { __use: 2 },
+        apis: { __use: 0 },
+        notes: { __use: 1 },
+        organizations: { __use: 2 },
+        projects: { __use: 3 },
+        questions: { __use: 4 },
+        routines: { __use: 5 },
+        smartContracts: { __use: 6 },
+        standards: { __use: 7 },
+        users: { __use: 8 },
     }
 }

@@ -1253,7 +1253,7 @@ model reminder {
     description    String?         @db.VarChar(2048)
     dueDate        DateTime?       @db.Timestamptz(6)
     index          Int
-    isComplete      Boolean         @default(false)
+    isComplete     Boolean         @default(false)
     reminderListId String          @db.Uuid
     reminderItems  reminder_item[]
     reminderList   reminder_list   @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
@@ -1267,7 +1267,7 @@ model reminder_item {
     description String?   @db.VarChar(2048)
     dueDate     DateTime? @db.Timestamptz(6)
     index       Int
-    isComplete   Boolean   @default(false)
+    isComplete  Boolean   @default(false)
     reminderId  String    @db.Uuid
     reminder    reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
 }
@@ -2237,6 +2237,7 @@ model user {
     confirmationCode               String?                     @unique @db.VarChar(256)
     confirmationCodeDate           DateTime?                   @db.Timestamptz(6)
     invitedByUserId                String?                     @db.Uuid
+    isBot                          Boolean                     @default(false)
     isPrivate                      Boolean                     @default(false)
     isPrivateApis                  Boolean                     @default(false)
     isPrivateApisCreated           Boolean                     @default(false)

@@ -652,13 +652,6 @@ export enum DeleteType {
   Wallet = 'Wallet'
 }
 
-export type DevelopResult = {
-  __typename: 'DevelopResult';
-  completed: Array<ProjectOrRoutine>;
-  inProgress: Array<ProjectOrRoutine>;
-  recent: Array<ProjectOrRoutine>;
-};
-
 export type Email = {
   __typename: 'Email';
   emailAddress: Scalars['String'];
@@ -721,14 +714,13 @@ export enum GqlModelType {
   Bookmark = 'Bookmark',
   Comment = 'Comment',
   Copy = 'Copy',
-  DevelopResult = 'DevelopResult',
   Email = 'Email',
   Fork = 'Fork',
   Handle = 'Handle',
   HistoryResult = 'HistoryResult',
+  HomeResult = 'HomeResult',
   Issue = 'Issue',
   Label = 'Label',
-  LearnResult = 'LearnResult',
   Meeting = 'Meeting',
   MeetingInvite = 'MeetingInvite',
   Member = 'Member',
@@ -770,7 +762,6 @@ export enum GqlModelType {
   Report = 'Report',
   ReportResponse = 'ReportResponse',
   ReputationHistory = 'ReputationHistory',
-  ResearchResult = 'ResearchResult',
   Resource = 'Resource',
   ResourceList = 'ResourceList',
   Role = 'Role',
@@ -829,6 +820,22 @@ export type HistoryResult = {
   completedRuns: Array<AnyRun>;
   recentlyBookmarked: Array<Bookmark>;
   recentlyViewed: Array<View>;
+};
+
+export type HomeInput = {
+  searchString: Scalars['String'];
+  showOnlyRelevantToSchedule?: InputMaybe<Scalars['Boolean']>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type HomeResult = {
+  __typename: 'HomeResult';
+  meetings: Array<Meeting>;
+  notes: Array<Note>;
+  reminders: Array<Reminder>;
+  resources: Array<Resource>;
+  runProjectSchedules: Array<RunProjectSchedule>;
+  runRoutineSchedules: Array<RunRoutineSchedule>;
 };
 
 export type Issue = {
@@ -1121,12 +1128,6 @@ export type LabelYou = {
   __typename: 'LabelYou';
   canDelete: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-};
-
-export type LearnResult = {
-  __typename: 'LearnResult';
-  courses: Array<Project>;
-  tutorials: Array<Routine>;
 };
 
 export type LogOutInput = {
@@ -3243,9 +3244,13 @@ export type PopularInput = {
 
 export type PopularResult = {
   __typename: 'PopularResult';
+  apis: Array<Api>;
+  notes: Array<Note>;
   organizations: Array<Organization>;
   projects: Array<Project>;
+  questions: Array<Question>;
   routines: Array<Routine>;
+  smartContracts: Array<SmartContract>;
   standards: Array<Standard>;
   users: Array<User>;
 };
@@ -4086,14 +4091,13 @@ export type Query = {
   bookmarks: BookmarkSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
-  develop: DevelopResult;
   findHandles: Array<Scalars['String']>;
   history: HistoryResult;
+  home: HomeResult;
   issue?: Maybe<Issue>;
   issues: IssueSearchResult;
   label?: Maybe<Label>;
   labels: LabelSearchResult;
-  learn: LearnResult;
   meeting?: Maybe<Meeting>;
   meetingInvite?: Maybe<MeetingInvite>;
   meetingInvites: MeetingInviteSearchResult;
@@ -4148,7 +4152,6 @@ export type Query = {
   reports: ReportSearchResult;
   reputationHistories: ReputationHistorySearchResult;
   reputationHistory?: Maybe<ReputationHistory>;
-  research: ResearchResult;
   resource?: Maybe<Resource>;
   resourceList?: Maybe<Resource>;
   resourceLists: ResourceListSearchResult;
@@ -4247,6 +4250,11 @@ export type QueryFindHandlesArgs = {
 
 export type QueryHistoryArgs = {
   input: HistoryInput;
+};
+
+
+export type QueryHomeArgs = {
+  input: HomeInput;
 };
 
 
@@ -5738,15 +5746,6 @@ export enum ReputationHistorySortBy {
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc'
 }
-
-export type ResearchResult = {
-  __typename: 'ResearchResult';
-  needInvestments: Array<Project>;
-  needMembers: Array<Organization>;
-  needVotes: Array<Project>;
-  newlyCompleted: Array<ProjectOrRoutine>;
-  processes: Array<Routine>;
-};
 
 export type Resource = {
   __typename: 'Resource';
@@ -9072,7 +9071,6 @@ export type ResolversTypes = {
   DeleteManyInput: DeleteManyInput;
   DeleteOneInput: DeleteOneInput;
   DeleteType: DeleteType;
-  DevelopResult: ResolverTypeWrapper<Omit<DevelopResult, 'completed' | 'inProgress' | 'recent'> & { completed: Array<ResolversTypes['ProjectOrRoutine']>, inProgress: Array<ResolversTypes['ProjectOrRoutine']>, recent: Array<ResolversTypes['ProjectOrRoutine']> }>;
   Email: ResolverTypeWrapper<Email>;
   EmailCreateInput: EmailCreateInput;
   EmailLogInInput: EmailLogInInput;
@@ -9088,6 +9086,8 @@ export type ResolversTypes = {
   Handle: ResolverTypeWrapper<Handle>;
   HistoryInput: HistoryInput;
   HistoryResult: ResolverTypeWrapper<Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversTypes['AnyRun']>, completedRuns: Array<ResolversTypes['AnyRun']> }>;
+  HomeInput: HomeInput;
+  HomeResult: ResolverTypeWrapper<HomeResult>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
   Int: ResolverTypeWrapper<Scalars['Int']>;
   Issue: ResolverTypeWrapper<Omit<Issue, 'to'> & { to: ResolversTypes['IssueTo'] }>;
@@ -9116,7 +9116,6 @@ export type ResolversTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: ResolverTypeWrapper<LabelYou>;
-  LearnResult: ResolverTypeWrapper<LearnResult>;
   LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
   MeetingCreateInput: MeetingCreateInput;
@@ -9420,7 +9419,6 @@ export type ResolversTypes = {
   ReputationHistorySearchInput: ReputationHistorySearchInput;
   ReputationHistorySearchResult: ResolverTypeWrapper<ReputationHistorySearchResult>;
   ReputationHistorySortBy: ReputationHistorySortBy;
-  ResearchResult: ResolverTypeWrapper<Omit<ResearchResult, 'newlyCompleted'> & { newlyCompleted: Array<ResolversTypes['ProjectOrRoutine']> }>;
   Resource: ResolverTypeWrapper<Resource>;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResolverTypeWrapper<ResourceEdge>;
@@ -9762,7 +9760,6 @@ export type ResolversParentTypes = {
   Date: Scalars['Date'];
   DeleteManyInput: DeleteManyInput;
   DeleteOneInput: DeleteOneInput;
-  DevelopResult: Omit<DevelopResult, 'completed' | 'inProgress' | 'recent'> & { completed: Array<ResolversParentTypes['ProjectOrRoutine']>, inProgress: Array<ResolversParentTypes['ProjectOrRoutine']>, recent: Array<ResolversParentTypes['ProjectOrRoutine']> };
   Email: Email;
   EmailCreateInput: EmailCreateInput;
   EmailLogInInput: EmailLogInInput;
@@ -9777,6 +9774,8 @@ export type ResolversParentTypes = {
   Handle: Handle;
   HistoryInput: HistoryInput;
   HistoryResult: Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversParentTypes['AnyRun']>, completedRuns: Array<ResolversParentTypes['AnyRun']> };
+  HomeInput: HomeInput;
+  HomeResult: HomeResult;
   ID: Scalars['ID'];
   Int: Scalars['Int'];
   Issue: Omit<Issue, 'to'> & { to: ResolversParentTypes['IssueTo'] };
@@ -9801,7 +9800,6 @@ export type ResolversParentTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: LabelYou;
-  LearnResult: LearnResult;
   LogOutInput: LogOutInput;
   Meeting: Meeting;
   MeetingCreateInput: MeetingCreateInput;
@@ -10069,7 +10067,6 @@ export type ResolversParentTypes = {
   ReputationHistoryEdge: ReputationHistoryEdge;
   ReputationHistorySearchInput: ReputationHistorySearchInput;
   ReputationHistorySearchResult: ReputationHistorySearchResult;
-  ResearchResult: Omit<ResearchResult, 'newlyCompleted'> & { newlyCompleted: Array<ResolversParentTypes['ProjectOrRoutine']> };
   Resource: Resource;
   ResourceCreateInput: ResourceCreateInput;
   ResourceEdge: ResourceEdge;
@@ -10551,13 +10548,6 @@ export interface DateScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes
   name: 'Date';
 }
 
-export type DevelopResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['DevelopResult'] = ResolversParentTypes['DevelopResult']> = {
-  completed?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  inProgress?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  recent?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type EmailResolvers<ContextType = any, ParentType extends ResolversParentTypes['Email'] = ResolversParentTypes['Email']> = {
   emailAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -10577,6 +10567,16 @@ export type HistoryResultResolvers<ContextType = any, ParentType extends Resolve
   completedRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
   recentlyBookmarked?: Resolver<Array<ResolversTypes['Bookmark']>, ParentType, ContextType>;
   recentlyViewed?: Resolver<Array<ResolversTypes['View']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type HomeResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['HomeResult'] = ResolversParentTypes['HomeResult']> = {
+  meetings?: Resolver<Array<ResolversTypes['Meeting']>, ParentType, ContextType>;
+  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
+  reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
+  resources?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
+  runProjectSchedules?: Resolver<Array<ResolversTypes['RunProjectSchedule']>, ParentType, ContextType>;
+  runRoutineSchedules?: Resolver<Array<ResolversTypes['RunRoutineSchedule']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10700,12 +10700,6 @@ export type LabelTranslationResolvers<ContextType = any, ParentType extends Reso
 export type LabelYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['LabelYou'] = ResolversParentTypes['LabelYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type LearnResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['LearnResult'] = ResolversParentTypes['LearnResult']> = {
-  courses?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  tutorials?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11400,9 +11394,13 @@ export type PhoneResolvers<ContextType = any, ParentType extends ResolversParent
 };
 
 export type PopularResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularResult'] = ResolversParentTypes['PopularResult']> = {
+  apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
+  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
   organizations?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
   projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
+  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
   routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
+  smartContracts?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
   standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
   users?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11729,14 +11727,13 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarksArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
-  develop?: Resolver<ResolversTypes['DevelopResult'], ParentType, ContextType>;
   findHandles?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType, RequireFields<QueryFindHandlesArgs, 'input'>>;
   history?: Resolver<ResolversTypes['HistoryResult'], ParentType, ContextType, RequireFields<QueryHistoryArgs, 'input'>>;
+  home?: Resolver<ResolversTypes['HomeResult'], ParentType, ContextType, RequireFields<QueryHomeArgs, 'input'>>;
   issue?: Resolver<Maybe<ResolversTypes['Issue']>, ParentType, ContextType, RequireFields<QueryIssueArgs, 'input'>>;
   issues?: Resolver<ResolversTypes['IssueSearchResult'], ParentType, ContextType, RequireFields<QueryIssuesArgs, 'input'>>;
   label?: Resolver<Maybe<ResolversTypes['Label']>, ParentType, ContextType, RequireFields<QueryLabelArgs, 'input'>>;
   labels?: Resolver<ResolversTypes['LabelSearchResult'], ParentType, ContextType, RequireFields<QueryLabelsArgs, 'input'>>;
-  learn?: Resolver<ResolversTypes['LearnResult'], ParentType, ContextType>;
   meeting?: Resolver<Maybe<ResolversTypes['Meeting']>, ParentType, ContextType, RequireFields<QueryMeetingArgs, 'input'>>;
   meetingInvite?: Resolver<Maybe<ResolversTypes['MeetingInvite']>, ParentType, ContextType, RequireFields<QueryMeetingInviteArgs, 'input'>>;
   meetingInvites?: Resolver<ResolversTypes['MeetingInviteSearchResult'], ParentType, ContextType, RequireFields<QueryMeetingInvitesArgs, 'input'>>;
@@ -11791,7 +11788,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   reports?: Resolver<ResolversTypes['ReportSearchResult'], ParentType, ContextType, RequireFields<QueryReportsArgs, 'input'>>;
   reputationHistories?: Resolver<ResolversTypes['ReputationHistorySearchResult'], ParentType, ContextType, RequireFields<QueryReputationHistoriesArgs, 'input'>>;
   reputationHistory?: Resolver<Maybe<ResolversTypes['ReputationHistory']>, ParentType, ContextType, RequireFields<QueryReputationHistoryArgs, 'input'>>;
-  research?: Resolver<ResolversTypes['ResearchResult'], ParentType, ContextType>;
   resource?: Resolver<Maybe<ResolversTypes['Resource']>, ParentType, ContextType, RequireFields<QueryResourceArgs, 'input'>>;
   resourceList?: Resolver<Maybe<ResolversTypes['Resource']>, ParentType, ContextType, RequireFields<QueryResourceListArgs, 'input'>>;
   resourceLists?: Resolver<ResolversTypes['ResourceListSearchResult'], ParentType, ContextType, RequireFields<QueryResourceListsArgs, 'input'>>;
@@ -12232,15 +12228,6 @@ export type ReputationHistoryEdgeResolvers<ContextType = any, ParentType extends
 export type ReputationHistorySearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReputationHistorySearchResult'] = ResolversParentTypes['ReputationHistorySearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ReputationHistoryEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ResearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResearchResult'] = ResolversParentTypes['ResearchResult']> = {
-  needInvestments?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  needMembers?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
-  needVotes?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  newlyCompleted?: Resolver<Array<ResolversTypes['ProjectOrRoutine']>, ParentType, ContextType>;
-  processes?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13651,10 +13638,10 @@ export type Resolvers<ContextType = any> = {
   CopyResult?: CopyResultResolvers<ContextType>;
   Count?: CountResolvers<ContextType>;
   Date?: GraphQLScalarType;
-  DevelopResult?: DevelopResultResolvers<ContextType>;
   Email?: EmailResolvers<ContextType>;
   Handle?: HandleResolvers<ContextType>;
   HistoryResult?: HistoryResultResolvers<ContextType>;
+  HomeResult?: HomeResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;
   IssueSearchResult?: IssueSearchResultResolvers<ContextType>;
@@ -13666,7 +13653,6 @@ export type Resolvers<ContextType = any> = {
   LabelSearchResult?: LabelSearchResultResolvers<ContextType>;
   LabelTranslation?: LabelTranslationResolvers<ContextType>;
   LabelYou?: LabelYouResolvers<ContextType>;
-  LearnResult?: LearnResultResolvers<ContextType>;
   Meeting?: MeetingResolvers<ContextType>;
   MeetingEdge?: MeetingEdgeResolvers<ContextType>;
   MeetingInvite?: MeetingInviteResolvers<ContextType>;
@@ -13802,7 +13788,6 @@ export type Resolvers<ContextType = any> = {
   ReputationHistory?: ReputationHistoryResolvers<ContextType>;
   ReputationHistoryEdge?: ReputationHistoryEdgeResolvers<ContextType>;
   ReputationHistorySearchResult?: ReputationHistorySearchResultResolvers<ContextType>;
-  ResearchResult?: ResearchResultResolvers<ContextType>;
   Resource?: ResourceResolvers<ContextType>;
   ResourceEdge?: ResourceEdgeResolvers<ContextType>;
   ResourceList?: ResourceListResolvers<ContextType>;

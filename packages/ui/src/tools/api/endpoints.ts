@@ -88,12 +88,10 @@ export const endpoints = {
         }
     },
     feed: async () => {
-        const { developResult: developResultPartial, learnResult: learnResultPartial, popularResult: popularResultPartial, researchResult: researchResultPartial } = await import('./partial/feed');
+        const { homeResult: homeResultPartial, popularResult: popularResultPartial } = await import('./partial/feed');
         return {
+            home: toQuery('home', 'HomeInput', homeResultPartial, 'list'),
             popular: toQuery('popular', 'PopularInput', popularResultPartial, 'list'),
-            learn: toQuery('learn', null, learnResultPartial, 'list'),
-            research: toQuery('research', null, researchResultPartial, 'list'),
-            develop: toQuery('develop', null, developResultPartial, 'list'),
         }
     },
     history: async () => {

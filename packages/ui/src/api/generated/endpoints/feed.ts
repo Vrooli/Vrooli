@@ -1,132 +1,113 @@
 import gql from 'graphql-tag';
-import { Label_full } from '../fragments/Label_full';
 import { Label_list } from '../fragments/Label_list';
-import { Organization_list } from '../fragments/Organization_list';
+import { Meeting_list } from '../fragments/Meeting_list';
+import { Note_list } from '../fragments/Note_list';
 import { Organization_nav } from '../fragments/Organization_nav';
-import { Project_list } from '../fragments/Project_list';
-import { Routine_list } from '../fragments/Routine_list';
-import { Standard_list } from '../fragments/Standard_list';
+import { Reminder_full } from '../fragments/Reminder_full';
+import { Resource_list } from '../fragments/Resource_list';
+import { RunProjectSchedule_list } from '../fragments/RunProjectSchedule_list';
+import { RunRoutineSchedule_list } from '../fragments/RunRoutineSchedule_list';
 import { Tag_list } from '../fragments/Tag_list';
-import { User_list } from '../fragments/User_list';
 import { User_nav } from '../fragments/User_nav';
+import { Api_list } from '../fragments/Api_list';
+import { Api_nav } from '../fragments/Api_nav';
+import { Label_full } from '../fragments/Label_full';
+import { Note_nav } from '../fragments/Note_nav';
+import { Organization_list } from '../fragments/Organization_list';
+import { Project_list } from '../fragments/Project_list';
+import { Project_nav } from '../fragments/Project_nav';
+import { Question_list } from '../fragments/Question_list';
+import { Routine_list } from '../fragments/Routine_list';
+import { Routine_nav } from '../fragments/Routine_nav';
+import { SmartContract_list } from '../fragments/SmartContract_list';
+import { SmartContract_nav } from '../fragments/SmartContract_nav';
+import { Standard_list } from '../fragments/Standard_list';
+import { Standard_nav } from '../fragments/Standard_nav';
+import { User_list } from '../fragments/User_list';
 
-export const feedPopular = gql`${Label_full}
+export const feedHome = gql`${Label_list}
+${Meeting_list}
+${Note_list}
+${Organization_nav}
+${Reminder_full}
+${Resource_list}
+${RunProjectSchedule_list}
+${RunRoutineSchedule_list}
+${Tag_list}
+${User_nav}
+
+query home($input: HomeInput!) {
+  home(input: $input) {
+    meetings {
+        ...Meeting_list
+    }
+    notes {
+        ...Note_list
+    }
+    reminders {
+        ...Reminder_full
+    }
+    resources {
+        ...Resource_list
+    }
+    runProjectSchedules {
+        ...RunProjectSchedule_list
+    }
+    runRoutineSchedules {
+        ...RunRoutineSchedule_list
+    }
+  }
+}`;
+
+export const feedPopular = gql`${Api_list}
+${Api_nav}
+${Label_full}
 ${Label_list}
+${Note_list}
+${Note_nav}
 ${Organization_list}
 ${Organization_nav}
 ${Project_list}
+${Project_nav}
+${Question_list}
 ${Routine_list}
+${Routine_nav}
+${SmartContract_list}
+${SmartContract_nav}
 ${Standard_list}
+${Standard_nav}
 ${Tag_list}
 ${User_list}
 ${User_nav}
 
 query popular($input: PopularInput!) {
   popular(input: $input) {
+    apis {
+        ...Api_list
+    }
+    notes {
+        ...Note_list
+    }
     organizations {
         ...Organization_list
     }
     projects {
         ...Project_list
     }
+    questions {
+        ...Question_list
+    }
     routines {
         ...Routine_list
+    }
+    smartContracts {
+        ...SmartContract_list
     }
     standards {
         ...Standard_list
     }
     users {
         ...User_list
-    }
-  }
-}`;
-
-export const feedLearn = gql`${Label_full}
-${Label_list}
-${Organization_nav}
-${Project_list}
-${Routine_list}
-${Tag_list}
-${User_nav}
-
-query learn {
-  learn {
-    courses {
-        ...Project_list
-    }
-    tutorials {
-        ...Routine_list
-    }
-  }
-}`;
-
-export const feedResearch = gql`${Label_full}
-${Label_list}
-${Organization_list}
-${Organization_nav}
-${Project_list}
-${Routine_list}
-${Tag_list}
-${User_nav}
-
-query research {
-  research {
-    processes {
-        ...Routine_list
-    }
-    newlyCompleted {
-        ... on Routine {
-            ...Routine_list
-        }
-        ... on Project {
-            ...Project_list
-        }
-    }
-    needVotes {
-        ...Project_list
-    }
-    needInvestments {
-        ...Project_list
-    }
-    needMembers {
-        ...Organization_list
-    }
-  }
-}`;
-
-export const feedDevelop = gql`${Label_full}
-${Label_list}
-${Organization_nav}
-${Project_list}
-${Routine_list}
-${Tag_list}
-${User_nav}
-
-query develop {
-  develop {
-    completed {
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
-    }
-    inProgress {
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
-    }
-    recent {
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
     }
   }
 }`;

@@ -18,14 +18,13 @@ export const typeDef = gql`
         Bookmark
         Comment
         Copy
-        DevelopResult
         Email
         Fork
         Handle
+        HomeResult,
         HistoryResult
         Issue
         Label
-        LearnResult
         Meeting
         MeetingInvite
         Member
@@ -67,7 +66,6 @@ export const typeDef = gql`
         Report
         ReportResponse
         ReputationHistory
-        ResearchResult
         Resource
         ResourceList
         Role
