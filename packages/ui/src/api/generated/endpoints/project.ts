@@ -239,6 +239,11 @@ query project($input: FindByIdOrHandleInput!) {
             }
         }
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -660,6 +665,11 @@ mutation projectCreate($input: ProjectCreateInput!) {
             }
         }
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -998,6 +1008,11 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
             }
         }
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at

@@ -39,6 +39,5 @@ export const ReminderItemModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
     validate: {} as any,
 })

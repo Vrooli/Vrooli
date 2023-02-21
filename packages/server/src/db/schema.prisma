@@ -171,7 +171,7 @@ model comment {
 
 model comment_translation {
     id        String  @id @default(uuid()) @db.Uuid
-    text      String  @db.VarChar(2048)
+    text      String  @db.VarChar(32768)
     language  String  @db.VarChar(3)
     commentId String  @db.Uuid
     comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
@@ -1037,6 +1037,17 @@ model pull_request {
     fromStandardVersion      standard_version?           @relation("pull_request_from_standard_version")
     comments                 comment[]
     subscriptions            notification_subscription[]
+    translations             pull_request_translation[]
+}
+
+model pull_request_translation {
+    id            String       @id @default(uuid()) @db.Uuid
+    text          String       @db.VarChar(32768)
+    language      String       @db.VarChar(3)
+    pullRequestId String       @db.Uuid
+    pullRequest   pull_request @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+
+    @@unique([pullRequestId, language])
 }
 
 model question {
@@ -1114,11 +1125,11 @@ model question_answer {
 }
 
 model question_answer_translation {
-    id          String          @id @default(uuid()) @db.Uuid
-    description String          @db.VarChar(2048)
-    language    String          @db.VarChar(3)
-    answerId    String          @db.Uuid
-    answer      question_answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+    id       String          @id @default(uuid()) @db.Uuid
+    text     String          @db.VarChar(32768)
+    language String          @db.VarChar(3)
+    answerId String          @db.Uuid
+    answer   question_answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
 
     @@unique([answerId, language])
 }
@@ -1616,6 +1627,8 @@ model run_project_step {
 
 model run_project_schedule {
     id           String                             @id @default(uuid()) @db.Uuid
+    created_at   DateTime                           @default(now()) @db.Timestamptz(6)
+    updated_at   DateTime                           @default(now()) @db.Timestamptz(6)
     timeZone     String?                            @db.VarChar(128)
     windowStart  DateTime?                          @db.Timestamptz(6)
     windowEnd    DateTime?                          @db.Timestamptz(6)
@@ -1706,6 +1719,8 @@ model run_routine_step {
 
 model run_routine_schedule {
     id                   String                             @id @default(uuid()) @db.Uuid
+    created_at           DateTime                           @default(now()) @db.Timestamptz(6)
+    updated_at           DateTime                           @default(now()) @db.Timestamptz(6)
     attemptAutomatic     Boolean                            @default(true)
     maxAutomaticAttempts Int                                @default(2)
     timeZone             String?                            @db.VarChar(128)

@@ -60,6 +60,5 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
     validate: {} as any,
 })

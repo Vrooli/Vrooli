@@ -94,7 +94,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isLatest: Boolean
-        languages: [String!]
+        translationLanguages: [String!]
         maxBookmarksRoot: Int
         maxScoreRoot: Int
         maxViewsRoot: Int

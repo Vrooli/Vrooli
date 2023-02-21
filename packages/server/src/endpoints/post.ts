@@ -89,7 +89,7 @@ export const typeDef = gql`
         excludeIds: [ID!]
         isPinned: Boolean
         ids: [ID!]
-        languages: [String!]
+        translationLanguages: [String!]
         maxScore: Int
         maxBookmarks: Int
         minScore: Int

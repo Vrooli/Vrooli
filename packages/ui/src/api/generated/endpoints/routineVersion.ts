@@ -16,6 +16,11 @@ query routineVersion($input: FindVersionInput!) {
     versionNotes
     apiVersion {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -227,6 +232,11 @@ query routineVersion($input: FindVersionInput!) {
             versionNotes
             apiVersion {
                 pullRequest {
+                    translations {
+                        id
+                        language
+                        text
+                    }
                     id
                     created_at
                     updated_at
@@ -432,6 +442,11 @@ query routineVersion($input: FindVersionInput!) {
                 }
             }
             pullRequest {
+                translations {
+                    id
+                    language
+                    text
+                }
                 id
                 created_at
                 updated_at
@@ -546,6 +561,11 @@ query routineVersion($input: FindVersionInput!) {
             smartContractVersion {
                 versionNotes
                 pullRequest {
+                    translations {
+                        id
+                        language
+                        text
+                    }
                     id
                     created_at
                     updated_at
@@ -938,6 +958,11 @@ query routineVersion($input: FindVersionInput!) {
         }
     }
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -1052,6 +1077,11 @@ query routineVersion($input: FindVersionInput!) {
     smartContractVersion {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -1571,6 +1601,11 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
     versionNotes
     apiVersion {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -1782,6 +1817,11 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             versionNotes
             apiVersion {
                 pullRequest {
+                    translations {
+                        id
+                        language
+                        text
+                    }
                     id
                     created_at
                     updated_at
@@ -1987,6 +2027,11 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                 }
             }
             pullRequest {
+                translations {
+                    id
+                    language
+                    text
+                }
                 id
                 created_at
                 updated_at
@@ -2101,6 +2146,11 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             smartContractVersion {
                 versionNotes
                 pullRequest {
+                    translations {
+                        id
+                        language
+                        text
+                    }
                     id
                     created_at
                     updated_at
@@ -2493,6 +2543,11 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
         }
     }
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -2607,6 +2662,11 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
     smartContractVersion {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -2944,6 +3004,11 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
     versionNotes
     apiVersion {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -3155,6 +3220,11 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             versionNotes
             apiVersion {
                 pullRequest {
+                    translations {
+                        id
+                        language
+                        text
+                    }
                     id
                     created_at
                     updated_at
@@ -3360,6 +3430,11 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                 }
             }
             pullRequest {
+                translations {
+                    id
+                    language
+                    text
+                }
                 id
                 created_at
                 updated_at
@@ -3474,6 +3549,11 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             smartContractVersion {
                 versionNotes
                 pullRequest {
+                    translations {
+                        id
+                        language
+                        text
+                    }
                     id
                     created_at
                     updated_at
@@ -3866,6 +3946,11 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
         }
     }
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -3980,6 +4065,11 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
     smartContractVersion {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at

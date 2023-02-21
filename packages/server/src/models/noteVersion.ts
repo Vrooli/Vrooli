@@ -82,6 +82,7 @@ export const NoteVersionModel: ModelLogic<{
             ownedByOrganizationIdRoot: true,
             ownedByUserIdRoot: true,
             tagsRoot: true,
+            translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,
         },

@@ -8,7 +8,8 @@ import { Prisma } from "@prisma/client";
 import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, translationShapeHelper } from "../utils";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'User' as const;
 type Permissions = Pick<UserYou, 'canDelete' | 'canUpdate' | 'canReport'>
@@ -116,19 +117,34 @@ export const UserModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            update: async ({ data, prisma, userData }) => {
-                return {
-                    // handle: data.handle,
-                    // name: data.name ?? undefined,
-                    // theme: data.theme ?? undefined,
-                    // // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
-                    // // bookmarked: {
-                    // //     create: bookmarkedCreate,
-                    // //     delete: bookmarkedDelete,
-                    // // }, TODO
-                    // translations: await translationRelationshipBuilder(prisma, userData, data, false),
-                } as any
-            }
+            update: async ({ prisma, userData, data }) => ({
+                handle: data.handle ?? null,
+                name: noNull(data.name),
+                theme: noNull(data.theme),
+                isPrivate: noNull(data.isPrivate),
+                isPrivateApis: noNull(data.isPrivateApis),
+                isPrivateApisCreated: noNull(data.isPrivateApisCreated),
+                isPrivateMemberships: noNull(data.isPrivateMemberships),
+                isPrivateOrganizationsCreated: noNull(data.isPrivateOrganizationsCreated),
+                isPrivateProjects: noNull(data.isPrivateProjects),
+                isPrivateProjectsCreated: noNull(data.isPrivateProjectsCreated),
+                isPrivatePullRequests: noNull(data.isPrivatePullRequests),
+                isPrivateQuestionsAnswered: noNull(data.isPrivateQuestionsAnswered),
+                isPrivateQuestionsAsked: noNull(data.isPrivateQuestionsAsked),
+                isPrivateQuizzesCreated: noNull(data.isPrivateQuizzesCreated),
+                isPrivateRoles: noNull(data.isPrivateRoles),
+                isPrivateRoutines: noNull(data.isPrivateRoutines),
+                isPrivateRoutinesCreated: noNull(data.isPrivateRoutinesCreated),
+                isPrivateSmartContracts: noNull(data.isPrivateSmartContracts),
+                isPrivateStandards: noNull(data.isPrivateStandards),
+                isPrivateStandardsCreated: noNull(data.isPrivateStandardsCreated),
+                isPrivateBookmarks: noNull(data.isPrivateBookmarks),
+                isPrivateVotes: noNull(data.isPrivateVotes),
+                notificationSettings: data.notificationSettings ?? null,
+                // languages: TODO!!!
+                ...(await shapeHelper({ relation: 'schedules', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'user', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
         },
         yup: userValidation,
     },

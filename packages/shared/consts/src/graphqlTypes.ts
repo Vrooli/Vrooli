@@ -2654,7 +2654,6 @@ export type NoteSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -2665,6 +2664,7 @@ export type NoteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -2760,7 +2760,6 @@ export type NoteVersionSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxViewsRoot?: InputMaybe<Scalars['Int']>;
@@ -2773,6 +2772,7 @@ export type NoteVersionSearchInput = {
   sortBy?: InputMaybe<NoteVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -3295,7 +3295,6 @@ export type PostSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isPinned?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -3306,6 +3305,7 @@ export type PostSearchInput = {
   sortBy?: InputMaybe<PostSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
@@ -3946,6 +3946,8 @@ export type PullRequest = {
   mergedOrRejectedAt?: Maybe<Scalars['Date']>;
   status: PullRequestStatus;
   to: PullRequestTo;
+  translations: Array<CommentTranslation>;
+  translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
   you: PullRequestYou;
 };
@@ -3955,6 +3957,7 @@ export type PullRequestCreateInput = {
   id: Scalars['ID'];
   toConnect: Scalars['ID'];
   toObjectType: PullRequestToObjectType;
+  translationsCreate?: InputMaybe<Array<PullRequestTranslationCreateInput>>;
 };
 
 export type PullRequestEdge = {
@@ -3971,12 +3974,12 @@ export type PullRequestSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isMergedOrRejected?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<PullRequestSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   toId?: InputMaybe<Scalars['ID']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -4014,9 +4017,31 @@ export enum PullRequestToObjectType {
   Standard = 'Standard'
 }
 
+export type PullRequestTranslation = {
+  __typename: 'PullRequestTranslation';
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type PullRequestTranslationCreateInput = {
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type PullRequestTranslationUpdateInput = {
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  text?: InputMaybe<Scalars['String']>;
+};
+
 export type PullRequestUpdateInput = {
   id: Scalars['ID'];
   status?: InputMaybe<PullRequestStatus>;
+  translationsCreate?: InputMaybe<Array<PullRequestTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<PullRequestTranslationUpdateInput>>;
 };
 
 export type PullRequestYou = {
@@ -4811,12 +4836,12 @@ export type QuestionAnswerSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuestionAnswerSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
@@ -4841,21 +4866,21 @@ export enum QuestionAnswerSortBy {
 
 export type QuestionAnswerTranslation = {
   __typename: 'QuestionAnswerTranslation';
-  description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
+  text: Scalars['String'];
 };
 
 export type QuestionAnswerTranslationCreateInput = {
-  description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
+  text: Scalars['String'];
 };
 
 export type QuestionAnswerTranslationUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
+  text?: InputMaybe<Scalars['String']>;
 };
 
 export type QuestionAnswerUpdateInput = {
@@ -4901,7 +4926,6 @@ export type QuestionSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   hasAcceptedAnswer?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -4915,6 +4939,7 @@ export type QuestionSearchInput = {
   sortBy?: InputMaybe<QuestionSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
@@ -5231,13 +5256,13 @@ export type QuizQuestionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   quizId?: InputMaybe<Scalars['ID']>;
   responseId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuizQuestionSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -5303,7 +5328,6 @@ export type QuizSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
@@ -5313,6 +5337,7 @@ export type QuizSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuizSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -6009,11 +6034,11 @@ export type RoleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   organizationId: Scalars['ID'];
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoleSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -6665,6 +6690,7 @@ export enum RunProjectOrRunRoutineSortBy {
 
 export type RunProjectSchedule = {
   __typename: 'RunProjectSchedule';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   labels: Array<Label>;
   recurrEnd?: Maybe<Scalars['Date']>;
@@ -6673,6 +6699,7 @@ export type RunProjectSchedule = {
   runProject: RunProject;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunProjectScheduleTranslation>;
+  updated_at: Scalars['Date'];
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -6701,7 +6728,7 @@ export type RunProjectScheduleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  labelIds?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   maxEventEnd?: InputMaybe<Scalars['Date']>;
   maxEventStart?: InputMaybe<Scalars['Date']>;
   maxRecurrEnd?: InputMaybe<Scalars['Date']>;
@@ -6710,7 +6737,7 @@ export type RunProjectScheduleSearchInput = {
   minEventStart?: InputMaybe<Scalars['Date']>;
   minRecurrEnd?: InputMaybe<Scalars['Date']>;
   minRecurrStart?: InputMaybe<Scalars['Date']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
+  runProjectOrganizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunProjectScheduleSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -6992,6 +7019,7 @@ export type RunRoutineInputUpdateInput = {
 export type RunRoutineSchedule = {
   __typename: 'RunRoutineSchedule';
   attemptAutomatic: Scalars['Boolean'];
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   labels: Array<Label>;
   maxAutomaticAttempts: Scalars['Int'];
@@ -7001,6 +7029,7 @@ export type RunRoutineSchedule = {
   runRoutine: RunRoutine;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunRoutineScheduleTranslation>;
+  updated_at: Scalars['Date'];
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -7031,7 +7060,7 @@ export type RunRoutineScheduleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  labelId?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   maxEventEnd?: InputMaybe<Scalars['Date']>;
   maxEventStart?: InputMaybe<Scalars['Date']>;
   maxRecurrEnd?: InputMaybe<Scalars['Date']>;
@@ -7040,7 +7069,7 @@ export type RunRoutineScheduleSearchInput = {
   minEventStart?: InputMaybe<Scalars['Date']>;
   minRecurrEnd?: InputMaybe<Scalars['Date']>;
   minRecurrStart?: InputMaybe<Scalars['Date']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
+  runRoutineOrganizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunRoutineScheduleSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -7452,7 +7481,6 @@ export type SmartContractVersionSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxViewsRoot?: InputMaybe<Scalars['Int']>;
@@ -7467,6 +7495,7 @@ export type SmartContractVersionSearchInput = {
   sortBy?: InputMaybe<SmartContractVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7756,7 +7785,6 @@ export type StandardVersionSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
   maxViewsRoot?: InputMaybe<Scalars['Int']>;
@@ -7772,6 +7800,7 @@ export type StandardVersionSearchInput = {
   standardType?: InputMaybe<Scalars['String']>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -8555,7 +8584,6 @@ export type User = {
   issuesClosed?: Maybe<Array<Issue>>;
   issuesCreated?: Maybe<Array<Issue>>;
   labels?: Maybe<Array<Label>>;
-  languages?: Maybe<Array<Scalars['String']>>;
   meetingsAttending?: Maybe<Array<Meeting>>;
   meetingsInvited?: Maybe<Array<MeetingInvite>>;
   memberships?: Maybe<Array<Member>>;
@@ -8599,6 +8627,7 @@ export type User = {
   theme?: Maybe<Scalars['String']>;
   transfersIncoming?: Maybe<Array<Transfer>>;
   transfersOutgoing?: Maybe<Array<Transfer>>;
+  translationLanguages?: Maybe<Array<Scalars['String']>>;
   translations: Array<UserTranslation>;
   updated_at?: Maybe<Scalars['Date']>;
   viewed?: Maybe<Array<View>>;
@@ -8690,11 +8719,11 @@ export type UserScheduleSearchInput = {
   eventEndTimeFrame?: InputMaybe<TimeFrame>;
   eventStartTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   recurrEndTimeFrame?: InputMaybe<TimeFrame>;
   recurrStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserScheduleSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   timeZone?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -9316,6 +9345,9 @@ export type ResolversTypes = {
   PullRequestStatus: PullRequestStatus;
   PullRequestTo: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   PullRequestToObjectType: PullRequestToObjectType;
+  PullRequestTranslation: ResolverTypeWrapper<PullRequestTranslation>;
+  PullRequestTranslationCreateInput: PullRequestTranslationCreateInput;
+  PullRequestTranslationUpdateInput: PullRequestTranslationUpdateInput;
   PullRequestUpdateInput: PullRequestUpdateInput;
   PullRequestYou: ResolverTypeWrapper<PullRequestYou>;
   PushDevice: ResolverTypeWrapper<PushDevice>;
@@ -9980,6 +10012,9 @@ export type ResolversParentTypes = {
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: PullRequestSearchResult;
   PullRequestTo: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  PullRequestTranslation: PullRequestTranslation;
+  PullRequestTranslationCreateInput: PullRequestTranslationCreateInput;
+  PullRequestTranslationUpdateInput: PullRequestTranslationUpdateInput;
   PullRequestUpdateInput: PullRequestUpdateInput;
   PullRequestYou: PullRequestYou;
   PushDevice: PushDevice;
@@ -11680,6 +11715,8 @@ export type PullRequestResolvers<ContextType = any, ParentType extends Resolvers
   mergedOrRejectedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['PullRequestStatus'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['PullRequestTo'], ParentType, ContextType>;
+  translations?: Resolver<Array<ResolversTypes['CommentTranslation']>, ParentType, ContextType>;
+  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['PullRequestYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11703,6 +11740,13 @@ export type PullRequestSearchResultResolvers<ContextType = any, ParentType exten
 
 export type PullRequestToResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestTo'] = ResolversParentTypes['PullRequestTo']> = {
   __resolveType: TypeResolveFn<'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+};
+
+export type PullRequestTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestTranslation'] = ResolversParentTypes['PullRequestTranslation']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type PullRequestYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestYou'] = ResolversParentTypes['PullRequestYou']> = {
@@ -11896,9 +11940,9 @@ export type QuestionAnswerSearchResultResolvers<ContextType = any, ParentType ex
 };
 
 export type QuestionAnswerTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionAnswerTranslation'] = ResolversParentTypes['QuestionAnswerTranslation']> = {
-  description?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12602,6 +12646,7 @@ export type RunProjectOrRunRoutineSearchResultResolvers<ContextType = any, Paren
 };
 
 export type RunProjectScheduleResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProjectSchedule'] = ResolversParentTypes['RunProjectSchedule']> = {
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   recurrEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
@@ -12610,6 +12655,7 @@ export type RunProjectScheduleResolvers<ContextType = any, ParentType extends Re
   runProject?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunProjectScheduleTranslation']>, ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12716,6 +12762,7 @@ export type RunRoutineInputSearchResultResolvers<ContextType = any, ParentType e
 
 export type RunRoutineScheduleResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineSchedule'] = ResolversParentTypes['RunRoutineSchedule']> = {
   attemptAutomatic?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   maxAutomaticAttempts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12725,6 +12772,7 @@ export type RunRoutineScheduleResolvers<ContextType = any, ParentType extends Re
   runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunRoutineScheduleTranslation']>, ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13436,7 +13484,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   issuesClosed?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   issuesCreated?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   labels?: Resolver<Maybe<Array<ResolversTypes['Label']>>, ParentType, ContextType>;
-  languages?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
   meetingsAttending?: Resolver<Maybe<Array<ResolversTypes['Meeting']>>, ParentType, ContextType>;
   meetingsInvited?: Resolver<Maybe<Array<ResolversTypes['MeetingInvite']>>, ParentType, ContextType>;
   memberships?: Resolver<Maybe<Array<ResolversTypes['Member']>>, ParentType, ContextType>;
@@ -13480,6 +13527,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   transfersIncoming?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
   transfersOutgoing?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
+  translationLanguages?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['UserTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   viewed?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
@@ -13763,6 +13811,7 @@ export type Resolvers<ContextType = any> = {
   PullRequestFrom?: PullRequestFromResolvers<ContextType>;
   PullRequestSearchResult?: PullRequestSearchResultResolvers<ContextType>;
   PullRequestTo?: PullRequestToResolvers<ContextType>;
+  PullRequestTranslation?: PullRequestTranslationResolvers<ContextType>;
   PullRequestYou?: PullRequestYouResolvers<ContextType>;
   PushDevice?: PushDeviceResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;

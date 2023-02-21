@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { RunProjectSchedule, RunProjectScheduleCreateInput, RunProjectScheduleSearchInput, RunProjectScheduleSortBy, RunProjectScheduleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, SearchMap } from "../utils";
 import { ModelLogic } from "./types";
 
 const __typename = 'RunProjectSchedule' as const;
@@ -43,6 +43,38 @@ export const RunProjectScheduleModel: ModelLogic<{
         joinMap: { labels: 'label' },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: RunProjectScheduleSortBy.RecurrStartAsc,
+        sortBy: RunProjectScheduleSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            maxEventStart: true,
+            maxEventEnd: true,
+            maxRecurrStart: true,
+            maxRecurrEnd: true,
+            minEventStart: true,
+            minEventEnd: true,
+            minRecurrStart: true,
+            minRecurrEnd: true,
+            labelsIds: true,
+            runProjectOrganizationId: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        } as any,
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                'transNameWrapped',
+            ]
+        }),
+        /**
+         * Use userId if organizationId is not provided
+         */
+        customQueryData: (input, userData) => {
+            if (input.runProjectOrganizationId) return {};
+            return SearchMap.runProjectUserId(userData?.id!);
+        }
+    },
     validate: {} as any,
 })

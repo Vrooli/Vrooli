@@ -50,6 +50,22 @@ export const QuestionAnswerModel: ModelLogic<{
         joinMap: { bookmarkedBy: 'user' },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: QuestionAnswerSortBy.DateUpdatedDesc,
+        sortBy: QuestionAnswerSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            excludeIds: true,
+            translationLanguages: true,
+            minScore: true,
+            minBookmarks: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transTextWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

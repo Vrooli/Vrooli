@@ -47,17 +47,17 @@ export const typeDef = gql`
     input QuestionAnswerTranslationCreateInput {
         id: ID!
         language: String!
-        description: String!
+        text: String!
     }
     input QuestionAnswerTranslationUpdateInput {
         id: ID!
         language: String
-        description: String
+        text: String
     }
     type QuestionAnswerTranslation {
         id: ID!
         language: String!
-        description: String!
+        text: String!
     }
 
     input QuestionAnswerSearchInput {
@@ -65,7 +65,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        languages: [String!]
+        translationLanguages: [String!]
         minScore: Int
         minBookmarks: Int
         searchString: String

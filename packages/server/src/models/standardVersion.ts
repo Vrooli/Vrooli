@@ -447,6 +447,7 @@ export const StandardVersionModel: ModelLogic<{
             rootId: true,
             standardType: true,
             tagsRoot: true,
+            translationLanguages: true,
             updatedTimeFrame: true,
             userId: true,
             visibility: true,

@@ -84,7 +84,7 @@ export const typeDef = gql`
         recurrEndTimeFrame: TimeFrame
         searchString: String
         sortBy: UserScheduleSortBy
-        tags: [String!]
+        labelsIds: [ID!]
         take: Int
         timeZone: String
         updatedTimeFrame: TimeFrame

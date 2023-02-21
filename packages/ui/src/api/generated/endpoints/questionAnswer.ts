@@ -100,7 +100,7 @@ query questionAnswer($input: FindByIdInput!) {
     translations {
         id
         language
-        description
+        text
     }
     id
     created_at
@@ -126,7 +126,7 @@ query questionAnswers($input: QuestionAnswerSearchInput!) {
             translations {
                 id
                 language
-                description
+                text
             }
             id
             created_at
@@ -240,7 +240,7 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
     translations {
         id
         language
-        description
+        text
     }
     id
     created_at
@@ -348,7 +348,7 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
     translations {
         id
         language
-        description
+        text
     }
     id
     created_at
@@ -456,7 +456,7 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
     translations {
         id
         language
-        description
+        text
     }
     id
     created_at

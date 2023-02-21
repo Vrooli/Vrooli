@@ -13,6 +13,11 @@ query smartContractVersion($input: FindVersionInput!) {
   smartContractVersion(input: $input) {
     versionNotes
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -208,6 +213,11 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
   smartContractVersionCreate(input: $input) {
     versionNotes
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -356,6 +366,11 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
   smartContractVersionUpdate(input: $input) {
     versionNotes
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at

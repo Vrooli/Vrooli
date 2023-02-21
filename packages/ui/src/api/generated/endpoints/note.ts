@@ -31,6 +31,11 @@ query note($input: FindByIdInput!) {
     }
     versions {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -222,6 +227,11 @@ mutation noteCreate($input: NoteCreateInput!) {
     }
     versions {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -332,6 +342,11 @@ mutation noteUpdate($input: NoteUpdateInput!) {
     }
     versions {
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at

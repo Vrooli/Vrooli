@@ -109,7 +109,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
-        languages: [String!]
+        translationLanguages: [String!]
         maxBookmarks: Int
         maxScore: Int
         minBookmarks: Int

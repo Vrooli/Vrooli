@@ -120,7 +120,7 @@ export const typeDef = gql`
         ids: [ID!]
         isCompleteWithRoot: Boolean
         isLatest: Boolean
-        languages: [String!]
+        translationLanguages: [String!]
         maxBookmarksRoot: Int
         maxScoreRoot: Int
         maxViewsRoot: Int

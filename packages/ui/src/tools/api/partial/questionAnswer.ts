@@ -7,7 +7,7 @@ export const questionAnswerTranslation: GqlPartial<QuestionAnswerTranslation> = 
     common: {
         id: true,
         language: true,
-        description: true,
+        text: true,
     },
     full: {},
     list: {},

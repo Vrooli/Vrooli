@@ -106,7 +106,7 @@ export const typeDef = gql`
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
-        languages: [String!]
+        translationLanguagesLatestVersion: [String!]
         ids: [ID!]
         searchString: String
         sortBy: NoteSortBy

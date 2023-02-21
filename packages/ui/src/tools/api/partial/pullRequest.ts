@@ -1,4 +1,4 @@
-import { PullRequest, PullRequestYou } from "@shared/consts";
+import { PullRequest, PullRequestTranslation, PullRequestYou } from "@shared/consts";
 import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
@@ -9,6 +9,17 @@ export const pullRequestYou: GqlPartial<PullRequestYou> = {
         canDelete: true,
         canReport: true,
         canUpdate: true,
+    },
+    full: {},
+    list: {},
+}
+
+export const pullRequestTranslation: GqlPartial<PullRequestTranslation> = {
+    __typename: 'PullRequestTranslation',
+    common: {
+        id: true,
+        language: true,
+        text: true,
     },
     full: {},
     list: {},
@@ -60,8 +71,12 @@ export const pullRequest: GqlPartial<PullRequest> = {
         createdBy: async () => rel((await import('./user')).user, 'nav'),
         you: () => rel(pullRequestYou, 'full'),
     },
-    full: {},
-    list: {},
+    full: {
+        translations: () => rel(pullRequestTranslation, 'full'),
+    },
+    list: {
+        translations: () => rel(pullRequestTranslation, 'list'),
+    },
     nav: {
         id: true,
         created_at: true,

@@ -12,6 +12,11 @@ ${User_nav}
 query apiVersion($input: FindVersionInput!) {
   apiVersion(input: $input) {
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -219,6 +224,11 @@ ${User_nav}
 mutation apiVersionCreate($input: ApiVersionCreateInput!) {
   apiVersionCreate(input: $input) {
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -341,6 +351,11 @@ ${User_nav}
 mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
   apiVersionUpdate(input: $input) {
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at

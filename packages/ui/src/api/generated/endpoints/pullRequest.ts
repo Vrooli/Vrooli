@@ -3,6 +3,11 @@ import gql from 'graphql-tag';
 export const pullRequestFindOne = gql`
 query pullRequest($input: FindByIdInput!) {
   pullRequest(input: $input) {
+    translations {
+        id
+        language
+        text
+    }
     id
     created_at
     updated_at
@@ -29,6 +34,11 @@ query pullRequests($input: PullRequestSearchInput!) {
     edges {
         cursor
         node {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -58,6 +68,11 @@ query pullRequests($input: PullRequestSearchInput!) {
 export const pullRequestCreate = gql`
 mutation pullRequestCreate($input: PullRequestCreateInput!) {
   pullRequestCreate(input: $input) {
+    translations {
+        id
+        language
+        text
+    }
     id
     created_at
     updated_at
@@ -81,6 +96,11 @@ mutation pullRequestCreate($input: PullRequestCreateInput!) {
 export const pullRequestUpdate = gql`
 mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
   pullRequestUpdate(input: $input) {
+    translations {
+        id
+        language
+        text
+    }
     id
     created_at
     updated_at
@@ -104,6 +124,11 @@ mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
 export const pullRequestAccept = gql`
 mutation pullRequestAcdept($input: FindByIdInput!) {
   pullRequestAcdept(input: $input) {
+    translations {
+        id
+        language
+        text
+    }
     id
     created_at
     updated_at
@@ -127,6 +152,11 @@ mutation pullRequestAcdept($input: FindByIdInput!) {
 export const pullRequestReject = gql`
 mutation pullRequestReject($input: FindByIdInput!) {
   pullRequestReject(input: $input) {
+    translations {
+        id
+        language
+        text
+    }
     id
     created_at
     updated_at

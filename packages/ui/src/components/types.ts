@@ -1,6 +1,12 @@
+import { SvgProps } from "@shared/icons";
+
 export type PageTab<T extends any> = {
     color?: string,
     href?: string,
+    /**
+     * If set, icon is displayed and label becomes a toolip
+     */
+    Icon?: (props: SvgProps) => JSX.Element,
     index: number,
     label: string,
     value: T

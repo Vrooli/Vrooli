@@ -51,6 +51,8 @@ export const typeDef = gql`
     }
     type RunRoutineSchedule {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         attemptAutomatic: Boolean!
         maxAutomaticAttempts: Int!
         timeZone: String
@@ -95,8 +97,8 @@ export const typeDef = gql`
         minEventEnd: Date
         minRecurrStart: Date
         minRecurrEnd: Date
-        labelId: [ID!]
-        organizationId: ID # If not provided, uses your user ID
+        labelsIds: [ID!]
+        runRoutineOrganizationId: ID # If not provided, uses your user ID
         searchString: String
         sortBy: RunRoutineScheduleSortBy
         take: Int

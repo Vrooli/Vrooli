@@ -81,6 +81,34 @@ export const QuestionModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: QuestionSortBy.ScoreDesc,
+        sortBy: QuestionSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            excludeIds: true,
+            hasAcceptedAnswer: true,
+            createdById: true,
+            apiId: true,
+            noteId: true,
+            organizationId: true,
+            projectId: true,
+            routineId: true,
+            smartContractId: true,
+            standardId: true,
+            translationLanguages: true,
+            maxScore: true,
+            maxBookmarks: true,
+            minScore: true,
+            minBookmarks: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'nameWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

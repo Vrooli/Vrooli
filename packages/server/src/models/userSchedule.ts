@@ -85,6 +85,25 @@ export const UserScheduleModel: ModelLogic<{
         joinMap: { labels: 'label' },
     },
     mutate: {} as any,
-    search: {} as any,
+    search: {
+        defaultSort: UserScheduleSortBy.TitleAsc,
+        sortBy: UserScheduleSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            eventStartTimeFrame: true,
+            eventEndTimeFrame: true,
+            recurrStartTimeFrame: true,
+            recurrEndTimeFrame: true,
+            labelsIds: true,
+            timeZone: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'nameWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

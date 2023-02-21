@@ -32,6 +32,11 @@ query smartContract($input: FindByIdInput!) {
     versions {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -269,6 +274,11 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
     versions {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at
@@ -417,6 +427,11 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
     versions {
         versionNotes
         pullRequest {
+            translations {
+                id
+                language
+                text
+            }
             id
             created_at
             updated_at

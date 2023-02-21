@@ -221,6 +221,11 @@ query projectVersion($input: FindVersionInput!) {
         }
     }
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -642,6 +647,11 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
         }
     }
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at
@@ -980,6 +990,11 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         }
     }
     pullRequest {
+        translations {
+            id
+            language
+            text
+        }
         id
         created_at
         updated_at

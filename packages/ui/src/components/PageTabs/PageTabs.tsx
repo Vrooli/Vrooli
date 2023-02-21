@@ -1,4 +1,4 @@
-import { Box, Tab, Tabs } from "@mui/material";
+import { Box, Tab, Tabs, Tooltip, useTheme } from "@mui/material";
 import { PageTabsProps } from "components/types";
 import { useCallback } from "react";
 
@@ -12,8 +12,7 @@ export const PageTabs = <T extends any>({
     onChange,
     tabs,
 }: PageTabsProps<T>) => {
-
-    console.log('page tabs', tabs)
+    const { palette } = useTheme();
 
     const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
         onChange(event, tabs[newValue]);
@@ -36,18 +35,25 @@ export const PageTabs = <T extends any>({
                     paddingRight: '1em',
                 }}
             >
-                {tabs.map((option, index) => (
-                    <Tab
-                        key={index}
-                        id={`${ariaLabel}-${index}`}
-                        {...{ 'aria-controls': `${ariaLabel}-tabpanel-${index}` }}
-                        label={<span
-                            style={{ color: option.color ?? 'default' }}
-                        >{option.label}</span>}
-                        component={option.href ? 'a' : 'div'}
-                        href={option.href ?? undefined}
-                    />
-                ))}
+                {tabs.map(({ color, href, Icon, label }, index) => {
+                    // If icon is provided, use it. Otherwise, use the label
+                    const contents: { [x: string]: any } = {};
+                    if (Icon) {
+                        contents.icon = <Icon fill={palette.mode === 'dark' ? palette.primary.light : palette.primary.main} />;
+                    } else {
+                        contents.label = <span style={{ color: color ?? 'default' }}>{label}</span>;
+                    }
+                    return (<Tooltip title={Boolean(Icon) ? label : ''}>
+                        <Tab
+                            key={index}
+                            id={`${ariaLabel}-${index}`}
+                            {...{ 'aria-controls': `${ariaLabel}-tabpanel-${index}` }}
+                            {...contents}
+                            component={href ? 'a' : 'div'}
+                            href={href ?? undefined}
+                        />
+                    </Tooltip>)
+                })}
             </Tabs>
         </Box>
     )

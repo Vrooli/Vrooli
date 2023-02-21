@@ -76,7 +76,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        languages: [String!]
+        translationLanguages: [String!]
         quizId: ID
         standardId: ID
         userId: ID

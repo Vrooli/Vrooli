@@ -117,7 +117,7 @@ export const typeDef = gql`
         smartContractId: ID
         standardId: ID
         ids: [ID!]
-        languages: [String!]
+        translationLanguages: [String!]
         maxScore: Int
         maxBookmarks: Int
         minScore: Int

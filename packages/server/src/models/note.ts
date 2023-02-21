@@ -103,6 +103,7 @@ export const NoteModel: ModelLogic<{
             ownedByUserId: true,
             parentId: true,
             tags: true,
+            translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
             visibility: true,
         },

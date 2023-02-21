@@ -9,7 +9,7 @@ import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
 import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions, getUserLanguages } from "utils";
 import { APP_LINKS, GqlModelType } from "@shared/consts";
-import { AddIcon } from "@shared/icons";
+import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { CommonKey } from "types";
 import { useTranslation } from "react-i18next";
@@ -17,6 +17,7 @@ import { PageTab } from "components/types";
 
 // Tab data type
 type BaseParams = {
+    Icon: (props: SvgProps) => JSX.Element,
     popupTitleKey: CommonKey;
     popupTooltipKey: CommonKey;
     searchType: SearchType;
@@ -26,54 +27,63 @@ type BaseParams = {
 
 // Data for each tab
 const tabParams: BaseParams[] = [{
+    Icon: ApiIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Api,
     tabType: TabOptions.Apis,
     where: {},
 }, {
+    Icon: NoteIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Note,
     tabType: TabOptions.Notes,
     where: {},
 }, {
+    Icon: OrganizationIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.Organization,
     tabType: TabOptions.Organizations,
     where: {},
 }, {
+    Icon: ProjectIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Project,
     tabType: TabOptions.Projects,
     where: {},
 }, {
+    Icon: HelpIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.Question,
     tabType: TabOptions.Questions,
     where: {},
 }, {
+    Icon: RoutineIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Routine,
     tabType: TabOptions.Routines,
     where: { isInternal: false },
 }, {
+    Icon: SmartContractIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.SmartContract,
     tabType: TabOptions.SmartContracts,
     where: {},
 }, {
+    Icon: StandardIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Standard,
     tabType: TabOptions.Standards,
     where: {},
 }, {
+    Icon: UserIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.User,
@@ -99,6 +109,7 @@ export function SearchPage({
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
         return tabParams.map((tab, i) => ({
             index: i,
+            Icon: tab.Icon,
             label: t(`common:${tab.searchType}`, { lng: getUserLanguages(session)[0], count: 2 }),
             value: tab.tabType,
         }));

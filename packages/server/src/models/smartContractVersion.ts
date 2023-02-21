@@ -88,6 +88,7 @@ export const SmartContractVersionModel: ModelLogic<{
             reportId: true,
             rootId: true,
             tagsRoot: true,
+            translationLanguages: true,
             updatedTimeFrame: true,
             userId: true,
             visibility: true,

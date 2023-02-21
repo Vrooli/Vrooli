@@ -44,7 +44,6 @@ export const UserScheduleFilterModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
-    search: {} as any,
     validate: {
         isDeleted: () => false,
         isPublic: () => false,
