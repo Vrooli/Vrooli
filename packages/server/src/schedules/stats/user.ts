@@ -1,5 +1,5 @@
 import pkg, { PeriodType, QuizAttemptStatus } from '@prisma/client';
-import { PrismaType } from '../types';
+import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
 type BatchApisResult = Record<string, {

@@ -1,6 +1,6 @@
 import pkg, { PeriodType } from '@prisma/client';
 import { QuizAttemptStatus } from '@shared/consts';
-import { PrismaType } from '../types';
+import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
 type BatchDirectoryAttemptCountsResult = Record<string, {

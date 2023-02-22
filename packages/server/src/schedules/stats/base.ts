@@ -6,7 +6,7 @@
  * by combining all matching period rows within a periodStart and periodEnd.
  */
 import cron from 'node-cron';
-import { logger } from '../events';
+import { logger } from '../../events';
 import { PeriodType } from '@prisma/client';
 import { logApiStats } from './api';
 import { logOrganizationStats } from './organization';

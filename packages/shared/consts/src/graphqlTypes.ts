@@ -838,6 +838,10 @@ export type HomeResult = {
   runRoutineSchedules: Array<RunRoutineSchedule>;
 };
 
+export type ImportCalendarInput = {
+  file: Scalars['Upload'];
+};
+
 export type Issue = {
   __typename: 'Issue';
   bookmarkedBy?: Maybe<Array<Bookmark>>;
@@ -1506,8 +1510,10 @@ export type Mutation = {
   emailRequestPasswordChange: Success;
   emailResetPassword: Session;
   emailSignUp: Session;
+  exportCalendar: Scalars['String'];
   exportData: Scalars['String'];
   guestLogIn: Session;
+  importCalendar: Success;
   issueClose: Issue;
   issueCreate: Issue;
   issueUpdate: Issue;
@@ -1722,6 +1728,11 @@ export type MutationEmailResetPasswordArgs = {
 
 export type MutationEmailSignUpArgs = {
   input: EmailSignUpInput;
+};
+
+
+export type MutationImportCalendarArgs = {
+  input: ImportCalendarInput;
 };
 
 
@@ -9089,6 +9100,7 @@ export type ResolversTypes = {
   HomeInput: HomeInput;
   HomeResult: ResolverTypeWrapper<HomeResult>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
+  ImportCalendarInput: ImportCalendarInput;
   Int: ResolverTypeWrapper<Scalars['Int']>;
   Issue: ResolverTypeWrapper<Omit<Issue, 'to'> & { to: ResolversTypes['IssueTo'] }>;
   IssueCloseInput: IssueCloseInput;
@@ -9777,6 +9789,7 @@ export type ResolversParentTypes = {
   HomeInput: HomeInput;
   HomeResult: HomeResult;
   ID: Scalars['ID'];
+  ImportCalendarInput: ImportCalendarInput;
   Int: Scalars['Int'];
   Issue: Omit<Issue, 'to'> & { to: ResolversParentTypes['IssueTo'] };
   IssueCloseInput: IssueCloseInput;
@@ -10861,8 +10874,10 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   emailRequestPasswordChange?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationEmailRequestPasswordChangeArgs, 'input'>>;
   emailResetPassword?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationEmailResetPasswordArgs, 'input'>>;
   emailSignUp?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationEmailSignUpArgs, 'input'>>;
+  exportCalendar?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   exportData?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   guestLogIn?: Resolver<ResolversTypes['Session'], ParentType, ContextType>;
+  importCalendar?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationImportCalendarArgs, 'input'>>;
   issueClose?: Resolver<ResolversTypes['Issue'], ParentType, ContextType, RequireFields<MutationIssueCloseArgs, 'input'>>;
   issueCreate?: Resolver<ResolversTypes['Issue'], ParentType, ContextType, RequireFields<MutationIssueCreateArgs, 'input'>>;
   issueUpdate?: Resolver<ResolversTypes['Issue'], ParentType, ContextType, RequireFields<MutationIssueUpdateArgs, 'input'>>;

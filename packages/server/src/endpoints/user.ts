@@ -5,6 +5,7 @@ import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../
 import { rateLimit } from '../middleware';
 import { assertRequestFrom } from '../auth/request';
 import { readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { parseICalFile } from '../utils';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -176,6 +177,10 @@ export const typeDef = gql`
         deletePublicData: Boolean!
     }
 
+    input ImportCalendarInput {
+        file: Upload!
+    }
+
     input UserSearchInput {
         maxBookmarks: Int
         maxViews: Int
@@ -211,6 +216,9 @@ export const typeDef = gql`
         profileUpdate(input: ProfileUpdateInput!): User!
         profileEmailUpdate(input: ProfileEmailUpdateInput!): User!
         userDeleteOne(input: UserDeleteInput!): Success!
+        importCalendar(input: ImportCalendarInput!): Success!
+        # importUserData(input: ImportUserDataInput!): Success!
+        exportCalendar: String!
         exportData: String!
     }
 `
@@ -227,6 +235,9 @@ export const resolvers: {
         profileUpdate: GQLEndpoint<ProfileUpdateInput, UpdateOneResult<User>>;
         profileEmailUpdate: GQLEndpoint<ProfileEmailUpdateInput, UpdateOneResult<User>>;
         userDeleteOne: GQLEndpoint<UserDeleteInput, Success>;
+        importCalendar: GQLEndpoint<any, Success>;
+        // importUserData: GQLEndpoint<ImportUserDataInput, Success>;
+        exportCalendar: GQLEndpoint<{}, string>;
         exportData: GQLEndpoint<{}, string>;
     }
 } = {
@@ -267,9 +278,16 @@ export const resolvers: {
             // // TODO anonymize public data
             // return await ProfileModel.mutate(prisma).deleteProfile(userData.id, input);
         },
+        importCalendar: async (_, { input }, { prisma, req, res }, info) => {
+            await rateLimit({ info, maxUser: 25, req });
+            await parseICalFile(input.file);
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+        },
+        exportCalendar: async (_p, _d, { prisma, req, res }, info) => {
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+        },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
-         * In the future, an import function will be added.
          * @returns JSON of all user data
          */
         exportData: async (_p, _d, { prisma, req, res }, info) => {

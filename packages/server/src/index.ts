@@ -11,7 +11,9 @@ import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
 import { i18nConfig } from '@shared/translations';
 import i18next from 'i18next';
-import { initStatsCronJobs } from './stats';
+import { initStatsCronJobs } from './scheduled/stats';
+import { initEventsCronJobs } from './scheduled/events';
+import { initCountsCronJobs } from './scheduled/counts';
 
 const debug = process.env.NODE_ENV === 'development';
 
@@ -110,8 +112,10 @@ const main = async () => {
     // Start Express server
     app.listen(5329);
 
-    // Start cron jobs for calculating site statistics
+    // Start cron jobs
     initStatsCronJobs();
+    initEventsCronJobs();
+    initCountsCronJobs();
 
     logger.info( `🚀 Server running at ${SERVER_URL}`);
 }

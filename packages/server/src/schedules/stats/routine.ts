@@ -1,5 +1,5 @@
 import pkg, { PeriodType } from '@prisma/client';
-import { PrismaType } from '../types';
+import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
 type BatchDirectoryRunCountsResult = Record<string, {
