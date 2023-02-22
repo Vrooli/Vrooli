@@ -7,9 +7,9 @@ import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { HistorySearchPageProps } from "../types";
 import { SearchType, HistorySearchPageTabOption as TabOptions, getUserLanguages } from "utils";
-import { CommonKey } from "types";
 import { PageTab } from "components/types";
 import { useTranslation } from "react-i18next";
+import { CommonKey } from "@shared/translations";
 
 // Tab data type
 type BaseParams = {

@@ -13,9 +13,9 @@ import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsC
 import { PageContainer, SettingsSearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
-import { CommonKey } from 'types';
 import { useTranslation } from 'react-i18next';
 import { userProfile } from 'api/generated/endpoints/user';
+import { CommonKey } from '@shared/translations';
 
 /**
  * Describes a settings page button

@@ -4,9 +4,9 @@
  */
 import { WalletComplete } from '@shared/consts';
 import { errorToCode, initializeApollo } from 'api/utils';
-import { ApolloError } from 'types';
 import { PubSub } from 'utils';
 import { authWalletComplete, authWalletInit } from 'api/generated/endpoints/auth';
+import { ApolloError } from '@apollo/client';
 
 /**
  * Object returned from await window.cardano[providerKey].enable()

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Stack } from '@mui/material';
-import { getUserLanguages, PubSub, translateCommonKey, translateSnackMessage } from 'utils';
+import { getUserLanguages, PubSub, translateCommonKey, TranslatedSnackMessage, translateSnackMessage, UntranslatedSnackMessage } from 'utils';
 import { uuid } from '@shared/uuid';
 import { BasicSnack } from '../BasicSnack/BasicSnack';
 import { BasicSnackProps, SnackStackProps } from '../types';
@@ -39,7 +39,9 @@ export const SnackStack = ({
                     data: o.data,
                     handleClose: () => handleClose(id),
                     id,
-                    message: translateSnackMessage(o.messageKey, o.messageVariables, getUserLanguages(session)).message,
+                    message: (o as UntranslatedSnackMessage).message ? 
+                        (o as UntranslatedSnackMessage).message : 
+                        translateSnackMessage((o as TranslatedSnackMessage).messageKey, (o as TranslatedSnackMessage).messageVariables, getUserLanguages(session)).message,
                     severity: o.severity,
                 }];
                 // Filter out same ids

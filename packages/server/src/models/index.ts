@@ -2,6 +2,7 @@ import { GqlModelType } from '@shared/consts';
 import { ApiModel } from './api';
 import { ApiKeyModel } from './apiKey';
 import { ApiVersionModel } from './apiVersion';
+import { AwardModel } from './award';
 import { BookmarkModel } from './bookmark';
 import { CommentModel } from './comment';
 import { EmailModel } from './email';
@@ -86,6 +87,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     Api: ApiModel,
     ApiKey: ApiKeyModel,
     ApiVersion: ApiVersionModel,
+    Award: AwardModel,
     Bookmark: BookmarkModel,
     Comment: CommentModel,
     Email: EmailModel,
@@ -166,6 +168,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
 export * from './api';
 export * from './apiKey';
 export * from './apiVersion';
+export * from './award';
 export * from './bookmark';
 export * from './comment';
 export * from './email';

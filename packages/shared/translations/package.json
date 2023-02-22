@@ -12,6 +12,7 @@
         "build": "yarn tsc"
     },
     "dependencies": {
-        "@types/node": "^17.0.35"
+        "@types/node": "^17.0.35",
+        "i18next": "^22.0.6"
     }
 }

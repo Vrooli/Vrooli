@@ -1,6 +1,7 @@
 import { InputProps } from '@mui/material';
 import { Session } from '@shared/consts';
-import { AutocompleteOption, CommonKey } from 'types';
+import { CommonKey } from '@shared/translations';
+import { AutocompleteOption } from 'types';
 import { SearchItem } from 'utils';
 
 export type SiteSearchBarProps = InputProps & {

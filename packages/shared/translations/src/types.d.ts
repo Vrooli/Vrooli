@@ -1,3 +1,4 @@
+import { TFuncKey } from 'i18next'
 import awardLocale from './locales/en/award.json'
 import commonLocale from './locales/en/common.json'
 import errorLocale from './locales/en/error.json'
@@ -19,3 +20,10 @@ declare module "i18next" {
         };
     }
 }
+
+// Translations
+export type AwardKey = TFuncKey<'award', undefined>
+export type CommonKey = TFuncKey<'common', undefined>
+export type ErrorKey = TFuncKey<'error', undefined>
+export type NotifyKey = TFuncKey<'notify', undefined>
+export type ValidateKey = TFuncKey<'validate', undefined>

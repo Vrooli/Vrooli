@@ -1,9 +1,9 @@
 import { PubSub } from "utils";
-import { DocumentNode } from '@apollo/client';
+import { ApolloError, DocumentNode } from '@apollo/client';
 import { errorToCode } from './errorParser';
-import { ApolloError, CommonKey, ErrorKey } from 'types';
 import { initializeApollo } from "./initialize";
 import { exists } from "@shared/utils";
+import { CommonKey, ErrorKey } from "@shared/translations";
 
 // Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
 // If you're wondering why, it prevents us from having to define the input fields in 
@@ -94,7 +94,7 @@ export const graphqlWrapperHelper = <Output extends object>({
         // If error callback is set, call it
         if (typeof onError === 'function') {
             console.log('bbbbbbb')
-            onError(isApolloError ? data as ApolloError : { message: 'Unknown error occurred' });
+            onError((isApolloError ? data : { message: 'Unknown error occurred' }) as ApolloError);
         }
     }
     // Start loading spinner

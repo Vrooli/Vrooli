@@ -1,10 +1,10 @@
 import { FormikErrors, FormikProps } from "formik";
 import { ObjectSchema, ValidationError } from 'yup';
-import { CommonKey, ErrorKey } from "types";
 import { uuid } from '@shared/uuid';
 import { getCurrentUser } from "utils/authentication";
 import i18next from 'i18next';
 import { Session } from "@shared/consts";
+import { CommonKey, ErrorKey } from "@shared/translations";
 
 export type TranslationObject = {
     id: string,

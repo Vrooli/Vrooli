@@ -1,4 +1,4 @@
-import { AutocompleteOption, CommonKey, NavigableObject } from "types";
+import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
@@ -7,6 +7,7 @@ import { valueFromDot } from "utils/shape";
 import { exists, isOfType } from "@shared/utils";
 import { SearchListGenerator } from "components/lists/types";
 import { SearchType } from "utils/search";
+import { CommonKey } from "@shared/translations";
 
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(

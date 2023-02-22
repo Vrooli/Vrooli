@@ -1,6 +1,7 @@
 export * from './api';
 export * from './apiKey';
 export * from './apiVersion';
+export * from './award';
 export * from './bookmark';
 export * from './comment';
 export * from './copyResult';

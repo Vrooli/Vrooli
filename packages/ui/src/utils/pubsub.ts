@@ -6,8 +6,8 @@
  *      PubSub.get().publishSnack({ messageKey: 'HelloWorld' });
  */
 import { Session } from '@shared/consts';
+import { CommonKey, ErrorKey } from '@shared/translations';
 import { SnackSeverity } from 'components';
-import { CommonKey, ErrorKey } from 'types';
 
 export type Pubs = 'Celebration' | 
     'CommandPalette' |
@@ -24,7 +24,15 @@ export type Pubs = 'Celebration' |
     'NodeDrop';
 
 
-export type SnackPub = {
+export type TranslatedSnackMessage = {
+    messageKey: ErrorKey | CommonKey;
+    messageVariables?: { [key: string]: string | number };
+}
+export type UntranslatedSnackMessage = {
+    message: string;
+}
+export type SnackMessage = TranslatedSnackMessage | UntranslatedSnackMessage;
+export type SnackPub = SnackMessage & {
     autoHideDuration?: number | 'persist';
     buttonClicked?: (event?: any) => any;
     buttonKey?: CommonKey;
@@ -34,10 +42,8 @@ export type SnackPub = {
      * If ID is set, a snack with the same ID will be replaced
      */
     id?: string;
-    messageKey: ErrorKey | CommonKey;
-    messageVariables?: { [key: string]: string | number };
     severity: `${SnackSeverity}`;
-}
+};
 
 export type AlertDialogPub = {
     titleKey?: CommonKey;

@@ -1,8 +1,8 @@
 import i18next from 'i18next';
-import { CommonKey } from "types";
 import { Session } from "@shared/consts";
 import { getUserLanguages, normalizeText, removeEmojis, removePunctuation } from 'utils/display';
 import { FilterOptionsState } from '@mui/material';
+import { CommonKey } from '@shared/translations';
 
 /**
  * A search item before it is translated into the user's language.

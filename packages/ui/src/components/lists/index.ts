@@ -1,3 +1,5 @@
+export * from './AwardList/AwardList';
+export * from './comment';
 export * from './DateRangeMenu/DateRangeMenu';
 export * from './devices';
 export * from './inputOutput';

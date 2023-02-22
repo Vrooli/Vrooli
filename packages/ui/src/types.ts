@@ -2,7 +2,7 @@
 import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { TFuncKey } from 'i18next';
-import { GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -47,6 +47,26 @@ export type NavigableObject = {
         handle?: string | null,
         id: string,
     }
+}
+
+/**
+ * All information required to display an award, its progress, and information about the next tier.
+ */
+export type AwardDisplay = {
+    category: AwardCategory;
+    categoryTitle: string;
+    categoryDescription: string;
+    earnedTier?: {
+        title: string;
+        description: string;
+        level: number;
+    },
+    nextTier?: {
+        title: string;
+        description: string;
+        level: number;
+    },
+    progress: number;
 }
 
 // Common query input groups
@@ -162,19 +182,6 @@ window.cardano = window.cardano || {};
 
 // Apollo GraphQL
 export type ApolloResponse = FetchResult<any, Record<string, any>, Record<string, any>>;
-export type ApolloError = {
-    message?: string;
-    graphQLErrors?: {
-        message: string;
-        extensions?: {
-            code: string;
-        };
-    }[];
-}
-
-// Translations
-export type ErrorKey = TFuncKey<'error', undefined>
-export type CommonKey = TFuncKey<'common', undefined>
 
 /**
  * Makes a value nullable. Mimics the Maybe type in GraphQL.

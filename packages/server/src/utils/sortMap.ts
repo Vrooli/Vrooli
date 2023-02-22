@@ -67,6 +67,8 @@ export const SortMap = {
     OrderDesc: { order: Order.Desc },
     PointsEarnedAsc: { pointsEarned: Order.Asc },
     PointsEarnedDesc: { pointsEarned: Order.Desc },
+    ProgressAsc: { progress: Order.Asc },
+    ProgressDesc: { progress: Order.Desc },
     PullRequestsAsc: { pullRequests: { _count: Order.Asc } },
     PullRequestsDesc: { pullRequests: { _count: Order.Desc } },
     QuestionOrderAsc: { question: { order: Order.Asc } },

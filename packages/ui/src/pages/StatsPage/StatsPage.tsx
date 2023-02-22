@@ -1,6 +1,6 @@
 import { Box, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LineGraphCard, DateRangeMenu, PageContainer, PageTabs } from 'components';
+import { LineGraphCard, DateRangeMenu, PageContainer, PageTabs, CardGrid } from 'components';
 import { useTranslation } from 'react-i18next';
 import { displayDate, getUserLanguages, statsDisplay } from 'utils';
 import { StatsPageProps } from 'pages/types';
@@ -176,16 +176,9 @@ export const StatsPage = ({
             <Typography component="h1" variant="h4" textAlign="center">{t(`common:Overview`, { lng })}</Typography>
             {/* Line graph cards */}
             <Typography component="h1" variant="h4" textAlign="center">Visual</Typography>
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(275px, 1fr))',
-                    gridAutoRows: '275px',
-                    alignItems: 'stretch',
-                }}
-            >
+            <CardGrid minWidth={275}>
                 {cards}
-            </Box>
+            </CardGrid>
         </PageContainer>
     )
 };

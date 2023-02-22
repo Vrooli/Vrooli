@@ -1,6 +1,5 @@
-import { TFuncKey } from "i18next";
+import { ErrorKey } from "@shared/translations";
 import { CustomError } from "../events";
-import { ErrorKey } from "../types";
 
 /**
  * Makes sure there are no more than k line breaks in the specified fields

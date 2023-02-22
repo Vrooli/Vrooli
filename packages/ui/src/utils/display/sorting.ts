@@ -1,5 +1,5 @@
+import { CommonKey } from '@shared/translations';
 import i18next from 'i18next';
-import { CommonKey } from 'types';
 
 export type LabelledSortOption<SortBy> = { label: string, value: SortBy };
 

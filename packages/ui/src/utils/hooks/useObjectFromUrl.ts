@@ -8,6 +8,7 @@ import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display";
 import { parseSingleItemUrl } from "utils/navigation";
 import { PubSub } from "utils/pubsub";
+import { useDisplayApolloError } from "./useDisplayApolloError";
 
 type UseObjectFromUrlProps<
     TData extends ListObjectType,
@@ -54,6 +55,7 @@ export function useObjectFromUrl<
     // Fetch data
     const [getData, { data, error, loading: isLoading }] = useLazyQuery<TData, TVariables>(query, endpoint, { errorPolicy: 'all' });
     const [object, setObject] = useState<TData | null | undefined>(null);
+    useDisplayApolloError(error);
     useEffect(() => {
         // Objects can be found using a few different unique identifiers
         if (exists(urlParams.handle)) getData({ variables: { handle: urlParams.handle } as any })
@@ -69,9 +71,6 @@ export function useObjectFromUrl<
         setObject(data?.[endpoint] ?? partialData as any);
     }, [data, endpoint, partialData]);
 
-    useEffect(() => {
-        if (error) PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
-    }, [error]);
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);

@@ -52,6 +52,7 @@ export const MaxObjects = {
         premium: 5,
     },
     ApiVersion: 1000000,
+    Award: 1000,
     Comment: {
         User: {
             private: 0,

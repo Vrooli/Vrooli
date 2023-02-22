@@ -46,6 +46,12 @@ export const endpoints = {
             walletComplete: toMutation('walletComplete', 'WalletCompleteInput', walletCompletePartial, 'full'),
         }
     },
+    award: async () => {
+        const { award: awardPartial } = await import('./partial/award');
+        return {
+            findMany: toQuery('awards', 'AwardSearchInput', ...(await toSearch(awardPartial))),
+        }
+    },
     bookmark: async () => {
         const { bookmark: bookmarkPartial } = await import('./partial/bookmark');
         return {

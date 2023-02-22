@@ -11,9 +11,9 @@ import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
 import { i18nConfig } from '@shared/translations';
 import i18next from 'i18next';
-import { initStatsCronJobs } from './scheduled/stats';
-import { initEventsCronJobs } from './scheduled/events';
-import { initCountsCronJobs } from './scheduled/counts';
+import { initStatsCronJobs } from './schedules/stats';
+import { initEventsCronJobs } from './schedules/events';
+import { initCountsCronJobs } from './schedules/counts';
 
 const debug = process.env.NODE_ENV === 'development';
 

@@ -341,9 +341,11 @@ export type Award = {
   __typename: 'Award';
   category: AwardCategory;
   created_at: Scalars['Date'];
+  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   progress: Scalars['Int'];
   timeCurrentTierCompleted?: Maybe<Scalars['Date']>;
+  title?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
 };
 
@@ -375,6 +377,33 @@ export enum AwardCategory {
   StandardCreate = 'StandardCreate',
   Streak = 'Streak',
   UserInvite = 'UserInvite'
+}
+
+export type AwardEdge = {
+  __typename: 'AwardEdge';
+  cursor: Scalars['String'];
+  node: Award;
+};
+
+export type AwardSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  sortBy?: InputMaybe<AwardSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
+export type AwardSearchResult = {
+  __typename: 'AwardSearchResult';
+  edges: Array<AwardEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum AwardSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  ProgressAsc = 'ProgressAsc',
+  ProgressDesc = 'ProgressDesc'
 }
 
 export type Bookmark = {
@@ -711,6 +740,7 @@ export enum GqlModelType {
   Api = 'Api',
   ApiKey = 'ApiKey',
   ApiVersion = 'ApiVersion',
+  Award = 'Award',
   Bookmark = 'Bookmark',
   Comment = 'Comment',
   Copy = 'Copy',
@@ -4098,6 +4128,7 @@ export type Query = {
   apiVersion?: Maybe<ApiVersion>;
   apiVersions: ApiVersionSearchResult;
   apis: ApiSearchResult;
+  awards: AwardSearchResult;
   bookmark?: Maybe<Bookmark>;
   bookmarks: BookmarkSearchResult;
   comment?: Maybe<Comment>;
@@ -4231,6 +4262,11 @@ export type QueryApiVersionsArgs = {
 
 export type QueryApisArgs = {
   input: ApiSearchInput;
+};
+
+
+export type QueryAwardsArgs = {
+  input: AwardSearchInput;
 };
 
 
@@ -9051,6 +9087,10 @@ export type ResolversTypes = {
   ApiYou: ResolverTypeWrapper<ApiYou>;
   Award: ResolverTypeWrapper<Award>;
   AwardCategory: AwardCategory;
+  AwardEdge: ResolverTypeWrapper<AwardEdge>;
+  AwardSearchInput: AwardSearchInput;
+  AwardSearchResult: ResolverTypeWrapper<AwardSearchResult>;
+  AwardSortBy: AwardSortBy;
   Bookmark: ResolverTypeWrapper<Omit<Bookmark, 'to'> & { to: ResolversTypes['BookmarkTo'] }>;
   BookmarkCreateInput: BookmarkCreateInput;
   BookmarkEdge: ResolverTypeWrapper<BookmarkEdge>;
@@ -9747,6 +9787,9 @@ export type ResolversParentTypes = {
   ApiVersionUpdateInput: ApiVersionUpdateInput;
   ApiYou: ApiYou;
   Award: Award;
+  AwardEdge: AwardEdge;
+  AwardSearchInput: AwardSearchInput;
+  AwardSearchResult: AwardSearchResult;
   Bookmark: Omit<Bookmark, 'to'> & { to: ResolversParentTypes['BookmarkTo'] };
   BookmarkCreateInput: BookmarkCreateInput;
   BookmarkEdge: BookmarkEdge;
@@ -10453,10 +10496,24 @@ export type ApiYouResolvers<ContextType = any, ParentType extends ResolversParen
 export type AwardResolvers<ContextType = any, ParentType extends ResolversParentTypes['Award'] = ResolversParentTypes['Award']> = {
   category?: Resolver<ResolversTypes['AwardCategory'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   progress?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   timeCurrentTierCompleted?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
+  title?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type AwardEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['AwardEdge'] = ResolversParentTypes['AwardEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Award'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type AwardSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['AwardSearchResult'] = ResolversParentTypes['AwardSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['AwardEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11738,6 +11795,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType, RequireFields<QueryApiVersionArgs, 'input'>>;
   apiVersions?: Resolver<ResolversTypes['ApiVersionSearchResult'], ParentType, ContextType, RequireFields<QueryApiVersionsArgs, 'input'>>;
   apis?: Resolver<ResolversTypes['ApiSearchResult'], ParentType, ContextType, RequireFields<QueryApisArgs, 'input'>>;
+  awards?: Resolver<ResolversTypes['AwardSearchResult'], ParentType, ContextType, RequireFields<QueryAwardsArgs, 'input'>>;
   bookmark?: Resolver<Maybe<ResolversTypes['Bookmark']>, ParentType, ContextType, RequireFields<QueryBookmarkArgs, 'input'>>;
   bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarksArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
@@ -13640,6 +13698,8 @@ export type Resolvers<ContextType = any> = {
   ApiVersionTranslation?: ApiVersionTranslationResolvers<ContextType>;
   ApiYou?: ApiYouResolvers<ContextType>;
   Award?: AwardResolvers<ContextType>;
+  AwardEdge?: AwardEdgeResolvers<ContextType>;
+  AwardSearchResult?: AwardSearchResultResolvers<ContextType>;
   Bookmark?: BookmarkResolvers<ContextType>;
   BookmarkEdge?: BookmarkEdgeResolvers<ContextType>;
   BookmarkSearchResult?: BookmarkSearchResultResolvers<ContextType>;

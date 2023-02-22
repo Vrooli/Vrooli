@@ -1,13 +1,13 @@
-import { useCallback } from 'react';
-import { PageContainer, PageTitle } from 'components';
+import { useCallback, useMemo } from 'react';
+import { CardGrid, PageContainer } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, Typography, useTheme } from '@mui/material';
 import { CreatePageProps } from '../types';
 import { useTranslation } from 'react-i18next';
 import { getUserLanguages } from 'utils';
-import { CommonKey } from 'types';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
+import { CommonKey } from '@shared/translations';
 
 type CreateType = 'Api' | 'Note' | 'Organization' | 'Project' | 'Question' | 'Reminder' | 'Routine' | 'SmartContract' | 'Standard';
 
@@ -70,6 +70,7 @@ export const CreatePage = ({
 }: CreatePageProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const { palette } = useTheme();
 
     const onSelect = useCallback((objectType: CreateType) => {
@@ -78,14 +79,7 @@ export const CreatePage = ({
 
     return (
         <PageContainer>
-            <Box sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                alignItems: 'stretch',
-                gap: 2,
-                margin: 2,
-                borderRadius: 2,
-            }}>
+            <CardGrid minWidth={300}>
                 {createCards.map(({ objectType, description, Icon }, index) => (
                     <Box
                         key={index}
@@ -128,10 +122,10 @@ export const CreatePage = ({
                             display: 'contents',
                         }}>
                             <Typography variant='h6' component='div'>
-                                {t(`common:${objectType}`, { lng: getUserLanguages(session)[0], count: 1 })}
+                                {t(`common:${objectType}`, { lng, count: 1 })}
                             </Typography>
                             <Typography variant='body2' color={palette.background.textSecondary}>
-                                {t(`common:${description}`, { lng: getUserLanguages(session)[0] })}
+                                {t(`common:${description}`, { lng })}
                             </Typography>
                             {/* Bottom of card is button */}
                             <Button
@@ -141,11 +135,11 @@ export const CreatePage = ({
                                     marginLeft: 'auto',
                                     display: 'flex',
                                 }}
-                            >Create</Button>
+                            >{t(`common:Create`, { lng })}</Button>
                         </Box>
                     </Box>
                 ))}
-            </Box>
+            </CardGrid>
         </PageContainer>
     )
 };

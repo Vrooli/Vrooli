@@ -4,8 +4,8 @@ import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIco
 import { Box, Button, List, ListItem, Typography, useTheme } from '@mui/material';
 import { NotificationsPageProps } from '../types';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages } from 'utils';
-import { CommonKey, Wrap } from 'types';
+import { getUserLanguages, useDisplayApolloError } from 'utils';
+import { Wrap } from 'types';
 import { APP_LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useQuery } from '@apollo/client';
@@ -19,8 +19,9 @@ export const NotificationsPage = ({
     const { palette } = useTheme();
 
     const [searchString, setSearchString] = useState('');
-    const { data, refetch, loading } = useQuery<Wrap<NotificationSearchResult, 'notifications'>, Wrap<NotificationSearchInput, 'input'>>(notificationFindMany, { variables: { input: { searchString } }, errorPolicy: 'all' });
+    const { data, refetch, loading, error } = useQuery<Wrap<NotificationSearchResult, 'notifications'>, Wrap<NotificationSearchInput, 'input'>>(notificationFindMany, { variables: { input: { searchString } }, errorPolicy: 'all' });
     const [notifications, setNotifications] = useState<Notification[]>([]);
+    useDisplayApolloError(error);
     useMemo(() => {
         if (data) {
             setNotifications(n => [...n, ...data.notifications.edges.map(e => e.node)]);

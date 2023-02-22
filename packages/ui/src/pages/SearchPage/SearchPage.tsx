@@ -11,9 +11,9 @@ import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions
 import { APP_LINKS, GqlModelType } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
-import { CommonKey } from "types";
 import { useTranslation } from "react-i18next";
 import { PageTab } from "components/types";
+import { CommonKey } from "@shared/translations";
 
 // Tab data type
 type BaseParams = {

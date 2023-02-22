@@ -15,6 +15,7 @@ export const typeDef = gql`
         Api
         ApiKey
         ApiVersion
+        Award
         Bookmark
         Comment
         Copy

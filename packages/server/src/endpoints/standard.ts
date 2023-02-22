@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { StandardSortBy, ApiVersion, ApiVersionSearchInput, ApiVersionCreateInput, ApiVersionUpdateInput, FindByIdInput } from '@shared/consts';
+import { StandardSortBy, FindByIdInput, Standard, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -137,12 +137,10 @@ export const typeDef = gql`
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }
-
     type StandardSearchResult {
         pageInfo: PageInfo!
         edges: [StandardEdge!]!
     }
-
     type StandardEdge {
         cursor: String!
         node: Standard!
@@ -163,12 +161,12 @@ const objectType = 'Standard';
 export const resolvers: {
     StandardSortBy: typeof StandardSortBy;
     Query: {
-        standard: GQLEndpoint<FindByIdInput, FindOneResult<ApiVersion>>;
-        standards: GQLEndpoint<ApiVersionSearchInput, FindManyResult<ApiVersion>>;
+        standard: GQLEndpoint<FindByIdInput, FindOneResult<Standard>>;
+        standards: GQLEndpoint<StandardVersionSearchInput, FindManyResult<StandardVersion>>;
     },
     Mutation: {
-        standardCreate: GQLEndpoint<ApiVersionCreateInput, CreateOneResult<ApiVersion>>;
-        standardUpdate: GQLEndpoint<ApiVersionUpdateInput, UpdateOneResult<ApiVersion>>;
+        standardCreate: GQLEndpoint<StandardVersionCreateInput, CreateOneResult<StandardVersion>>;
+        standardUpdate: GQLEndpoint<StandardVersionUpdateInput, UpdateOneResult<StandardVersion>>;
     }
 } = {
     StandardSortBy,

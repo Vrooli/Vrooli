@@ -1,6 +1,7 @@
 import { BoxProps, TypographyProps } from "@mui/material";
 import { Api, Organization, Project, Quiz, Routine, Session, SmartContract, Standard, User } from "@shared/consts";
-import { CommonKey, VersionInfo } from "types";
+import { CommonKey } from "@shared/translations";
+import { VersionInfo } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {

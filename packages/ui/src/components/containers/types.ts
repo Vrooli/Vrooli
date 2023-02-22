@@ -1,7 +1,7 @@
 import { TextFieldProps } from "@mui/material";
 import { CommentFor, Session } from "@shared/consts";
+import { CommonKey } from "@shared/translations";
 import { MarkdownInputProps } from "components/inputs/types";
-import { CommonKey } from "types";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;

@@ -60,15 +60,21 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
     // Determine sort order
     // Make sure sort field is valid
-    const orderByField = searcher ? input.sortBy ?? searcher.defaultSort : undefined;
-    const orderByIsValid = searcher ? searcher.sortBy[orderByField] === undefined : false;
-    const orderBy = orderByIsValid ? SortMap[input.sortBy ?? searcher!.defaultSort] : undefined;
+    const orderBy = SortMap[input.sortBy ?? searcher!.defaultSort] ?? undefined;
     // Find requested search array
     console.log('readmanyhelper before selectHelper', objectType, JSON.stringify(partialInfo), '\n\n');
     const select = selectHelper(partialInfo);
     console.log('readmanyhelper after selectHelper', objectType, JSON.stringify(select), '\n\n');
     let searchResults: any[];
     try {
+        // await prisma.award.findMany({
+        //     where: {"user":{"id":"3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2"}},
+        //     select: {
+        //         "category":true,"created_at":true,"id":true,"progress":true,"timeCurrentTierCompleted":true,"updated_at":true
+        //     },
+        //     "orderBy":{"updated_at":"desc"},
+        //     take: 25,
+        // })
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,
             orderBy,

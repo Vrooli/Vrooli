@@ -1,3 +1,4 @@
+export * from './awardsDisplay';
 export * from './device';
 export * from './documentTools';
 export * from './listTools';
