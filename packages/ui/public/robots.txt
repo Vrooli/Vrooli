@@ -4,3 +4,5 @@ Disallow: /admin
 Disallow: /admin/*
 Allow: /
 Allow: /sitemap.xml
+
+Sitemap: https://app.vrooli.com/sitemap.xml

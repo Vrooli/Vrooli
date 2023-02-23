@@ -144,3 +144,7 @@ info "Restarting docker containers..."
 docker-compose -f ${HERE}/../docker-compose-prod.yml up --build -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
+info: "Now that you've deployed, here are some next steps:"
+info: "Manually check that the site is working correctly"
+info: "Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
+info: "Let everyone on social media know that you've deployed a new version of Vrooli!"
