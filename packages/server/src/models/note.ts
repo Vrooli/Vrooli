@@ -130,7 +130,6 @@ export const NoteModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            isDeleted: true,
             isPrivate: true,
             permissions: true,
             createdBy: 'User',

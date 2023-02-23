@@ -6,6 +6,7 @@
  */
 import cron from 'node-cron';
 import { logger } from '../../events';
+import { genSitemap } from './genSitemap';
 
 // Cron syntax created using this website: https://crontab.guru/
 // NOTE: Cron job starts at a weird time so it runs when there is less activity.
@@ -20,9 +21,12 @@ const sitemapCron = '43 4 * * *';
 export const initSitemapCronJob = () => {
     logger.info('Initializing sitemap cron job.', { trace: '0398' });
     try {
+        genSitemap().then(() => {
+            logger.info(`✅ Sitemap cron job completed.`, { trace: '0399' });
+        })
         // Start cron for caching events
         cron.schedule(sitemapCron, () => {
-            logger.info('Starting stiemap cron job.', { trace: '0399' });
+            logger.info('Starting stiemap cron job.', { trace: '0400' });
             // TODO: Cache events
         });
         logger.info('✅ Sitemap cron job initialized');

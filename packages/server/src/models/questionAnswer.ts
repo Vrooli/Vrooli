@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput } from '@shared/consts';
+import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
 
 const __typename = 'QuestionAnswer' as const;
@@ -67,5 +67,25 @@ export const QuestionAnswerModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => true,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data.createdBy,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            createdBy: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                createdBy: { id: userId },
+            }),
+        },
+    },
 })

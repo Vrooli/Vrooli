@@ -159,7 +159,7 @@ export const ApiModel: ModelLogic<{
     validate: {
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
-        isDeleted: () => false,
+        isDeleted: (data) => data.isDeleted === false,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
@@ -180,8 +180,8 @@ export const ApiModel: ModelLogic<{
             versions: ['ApiVersion', ['root']],
         }),
         visibility: {
-            private: { isPrivate: true },
-            public: { isPrivate: false },
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },

@@ -75,6 +75,7 @@ services:
     volumes:
       - ./packages/server:${PROJECT_DIR}/packages/server:z
       - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+      - ./packages/ui/public:${PROJECT_DIR}/packages/ui/public:z
       - ./data/logs:${PROJECT_DIR}/data/logs:z
       - ./data/uploads:${PROJECT_DIR}/data/uploads:z
       - ./data/stats:${PROJECT_DIR}/data/stats:z

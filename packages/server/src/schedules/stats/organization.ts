@@ -142,4 +142,6 @@ export const logOrganizationStats = async (
             }))
         });
     } while (currentBatchSize === batchSize);
+    // Close the Prisma client
+    await prisma.$disconnect();
 }

@@ -1,8 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { UserSchedule, UserScheduleCreateInput, UserScheduleSearchInput, UserScheduleSortBy, UserScheduleUpdateInput } from '@shared/consts';
+import { MaxObjects, UserSchedule, UserScheduleCreateInput, UserScheduleSearchInput, UserScheduleSortBy, UserScheduleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
 
 // const searcher = (): Searcher<
 //     StandardSearchInput,
@@ -105,5 +106,25 @@ export const UserScheduleModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            user: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                user: { id: userId },
+            }),
+        },
+    },
 })

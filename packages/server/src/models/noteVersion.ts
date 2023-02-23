@@ -96,7 +96,7 @@ export const NoteVersionModel: ModelLogic<{
         }),
     },
     validate: {
-        isDeleted: (data) => false,
+        isDeleted: () => false,
         isPublic: (data, languages) => data.isPrivate === false &&
             NoteModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,

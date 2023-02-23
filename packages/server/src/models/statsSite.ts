@@ -3,6 +3,7 @@ import { StatsSite, StatsSiteSearchInput, StatsSiteSortBy } from "@shared/consts
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
 
 const __typename = 'StatsSite' as const;
@@ -48,5 +49,20 @@ export const StatsSiteModel: ModelLogic<{
         },
         searchStringQuery: () => ({ })
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => true,
+        isTransferable: false,
+        maxObjects: 10000000,
+        owner: () => ({ }),
+        permissionResolvers: ({ isDeleted, isPublic }) => defaultPermissions({ isAdmin: false, isDeleted, isPublic }), // Force isAdmin false, since there is no "visibility.owner" query
+        permissionsSelect: () => ({
+            id: true, 
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: () => ({ }),
+        },
+    },
 })

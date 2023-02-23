@@ -3,7 +3,7 @@
  * Doing this in a script during the build process - as opposed to options like react-dynamic-sitemap - 
  * allows us to view the generated sitemap in the public folder to check that it's correct.
  */
-import { generateSitemap, SitemapEntry } from '@shared/utils';
+import { generateSitemap, SitemapEntryMain } from '@shared/utils';
 import fs from 'fs';
 
 // Read packages/shared/consts/src/ui.ts to get all routes
@@ -15,11 +15,9 @@ fs.readFile(new URL(routeMapLocation, import.meta.url), 'utf8', (err, data) => {
         console.error(err);
         return;
     }
-    console.log(data);
     // Find route map object
     const linksStringRegex = new RegExp(`export const ${routeMapName} = {(.|\n)*?}`, 'g');
     const linksString = data.match(linksStringRegex);
-    console.log(linksString);
     if (!linksString) {
         console.error(`Could not find ${routeMapName} in ${routeMapLocation}`);
         return;
@@ -62,7 +60,7 @@ fs.readFile(new URL(routesLocation, import.meta.url), 'utf8', (err, data) => {
         return route.includes('sitemapIndex\n') || route.includes('sitemapIndex="true"') || route.includes('sitemapIndex={true}');
     });
     // For the remaining routes, extract the path, priority, and changeFreq
-    const sitemapData: SitemapEntry[] = routes.map((route) => {
+    const entries: SitemapEntryMain[] = routes.map((route) => {
         // Match path (e.g. path="/about" => /about, path={"/about"} => /about, path={APP_LINKS.ABOUT} => /about)
         // May need to use route map object to convert to path
         let path = route.match(/path=".*?"/g)?.[0] ?? route.match(/path={.*?}/g)?.[0];
@@ -85,11 +83,17 @@ fs.readFile(new URL(routesLocation, import.meta.url), 'utf8', (err, data) => {
             changeFreq = changeFreq.replaceAll('changeFreq=', '').replaceAll('"', '').replaceAll('{', '').replaceAll('}', '');
         }
         return { path, priority, changeFreq };
-    }).filter((route) => route.path) as SitemapEntry[];
+    }).filter((route) => route.path) as SitemapEntryMain[];
     // Generate sitemap.xml
-    const sitemap = generateSitemap('https://app.vrooli.com', sitemapData);
-    // Write sitemap.xml to public folder
-    const sitemapLocation = new URL('../../public/sitemap.xml', import.meta.url);
+    const sitemap = generateSitemap('https://app.vrooli.com', { main: entries });
+    // Check if sitemap save directory exists
+    const sitemapDir = new URL('../../public/sitemaps', import.meta.url);
+    if (!fs.existsSync(sitemapDir)) {
+        console.log('Creating sitemap directory', sitemapDir.pathname);
+        fs.mkdirSync(sitemapDir);
+    }
+    // Write sitemap-routes.xml to sitemap directory
+    const sitemapLocation = `${sitemapDir.pathname}/sitemap-routes.xml`;
     fs.writeFile(sitemapLocation, sitemap, (err) => {
         if (err) {
             console.error(err);

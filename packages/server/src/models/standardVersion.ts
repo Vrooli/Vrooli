@@ -95,18 +95,20 @@ import { StandardModel } from "./standard";
 //     profanityFields: ['name'],
 //     visibility: {
 //         private: {
-//             isPrivate: true,
-//             // OR: [
-//             //     { isPrivate: true },
-//             //     { root: { isPrivate: true } },
-//             // ]
+//              isDeleted: false,
+//              { root: { isDeleted: false }}}
+//             OR: [
+//                  { isPrivate: true },
+//                  { root: { isPrivate: true } },
+//              ]
 //         },
 //         public: {
-//             isPrivate: false,
-//             // AND: [
-//             //     { isPrivate: false },
-//             //     { root: { isPrivate: false } },
-//             // ]
+//             isDeleted: false,
+//            { root: { isDeleted: false }}}
+//              AND: [
+//                  { isPrivate: false },
+//                  { root: { isPrivate: false } },
+//              ]
 //         },
 //         owner: (userId) => ({
 //             OR: [
@@ -190,7 +192,7 @@ const querier = () => ({
      */
     async generateName(prisma: PrismaType, userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
         // First, check if name was already provided
-        const translatedName = '' ;//bestLabel(data.translationsCreate ?? [], 'name', languages);
+        const translatedName = '';//bestLabel(data.translationsCreate ?? [], 'name', languages);
         if (translatedName.length > 0) return translatedName;
         // Otherwise, generate name based on type and random string
         const name = `${data.standardType} ${randomString(5)}`
@@ -474,7 +476,7 @@ export const StandardVersionModel: ModelLogic<{
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => StandardModel.validate!.owner(data.root as any),
-        permissionsSelect: (...params) => ({
+        permissionsSelect: () => ({
             id: true,
             isDeleted: true,
             isPrivate: true,
@@ -483,12 +485,12 @@ export const StandardVersionModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {
-                await versionsCheck({ 
+                await versionsCheck({
                     createMany,
                     deleteMany,
                     languages,
-                    objectType: 'Standard', 
-                    prisma, 
+                    objectType: 'Standard',
+                    prisma,
                     updateMany: updateMany as any,
                 });
             },
@@ -501,12 +503,16 @@ export const StandardVersionModel: ModelLogic<{
         },
         visibility: {
             private: {
+                isDeleted: false,
+                root: { isDeleted: false },
                 OR: [
                     { isPrivate: true },
                     { root: { isPrivate: true } },
                 ]
             },
             public: {
+                isDeleted: false,
+                root: { isDeleted: false },
                 AND: [
                     { isPrivate: false },
                     { root: { isPrivate: false } },

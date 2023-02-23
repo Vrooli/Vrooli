@@ -1,9 +1,10 @@
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";
-import { Premium } from '@shared/consts';
+import { MaxObjects, Premium } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'Premium' as const;
 const suppFields = [] as const;
@@ -43,5 +44,25 @@ export const PremiumModel: ModelLogic<{
         },
         countFields: {},
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => true,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            user: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                user: { id: userId },
+            }),
+        },
+    },
 })

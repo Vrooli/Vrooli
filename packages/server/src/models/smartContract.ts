@@ -154,8 +154,8 @@ export const SmartContractModel: ModelLogic<{
             versions: ['SmartContractVersion', ['root']],
         }),
         visibility: {
-            private: { isPrivate: true },
-            public: { isPrivate: false },
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },

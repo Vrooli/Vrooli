@@ -140,12 +140,16 @@ export const ApiVersionModel: ModelLogic<{
         },
         visibility: {
             private: {
+                isDeleted: false,
+                root: { isDeleted: false },
                 OR: [
                     { isPrivate: true },
                     { root: { isPrivate: true } },
                 ]
             },
             public: {
+                isDeleted: false,
+                root: { isDeleted: false },
                 AND: [
                     { isPrivate: false },
                     { root: { isPrivate: false } },

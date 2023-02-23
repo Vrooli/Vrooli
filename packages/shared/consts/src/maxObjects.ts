@@ -51,7 +51,7 @@ export const MaxObjects = {
         noPremium: 1,
         premium: 5,
     },
-    ApiVersion: 1000000,
+    ApiVersion: 100000,
     Award: 1000,
     Comment: {
         User: {
@@ -147,7 +147,8 @@ export const MaxObjects = {
             }
         },
     },
-    NoteVersion: 1000000,
+    NoteVersion: 100000,
+    Notification: 100000,
     NotificationSubscription: {
         User: 1000,
         Organization: 0,
@@ -165,7 +166,8 @@ export const MaxObjects = {
         },
         Organization: 0,
     },
-    Payment: 10000000,
+    Payment: 1000000,
+    Premium: 1000000,
     Phone: {
         noPremium: 1,
         premium: 5,
@@ -180,9 +182,17 @@ export const MaxObjects = {
             premium: 250,
         },
     },
-    ProjectVersion: 1000000,
+    ProjectVersion: 100000,
     PushDevice: {
         User: 5,
+        Organization: 0,
+    },
+    Question: {
+        User: 5000,
+        Organization: 0,
+    },
+    QuestionAnswer: {
+        User: 10000,
         Organization: 0,
     },
     Quiz: {
@@ -208,7 +218,7 @@ export const MaxObjects = {
             premium: 2000,
         },
     },
-    RoutineVersion: 1000000,
+    RoutineVersion: 100000,
     RunProject: {
         User: 5000,
         Organization: 50000,
@@ -229,7 +239,7 @@ export const MaxObjects = {
             premium: 200,
         }
     },
-    SmartContractVersion: 1000000,
+    SmartContractVersion: 100000,
     Standard: {
         private: {
             noPremium: 5,
@@ -240,12 +250,19 @@ export const MaxObjects = {
             premium: 1000,
         },
     },
-    StandardVersion: 1000000,
+    StandardVersion: 100000,
     Tag: {
         User: 5000,
         Organization: 0,
     },
     User: 0,
+    UserSchedule: {
+        User: {
+            noPremium: 2,
+            premium: 15,
+        },
+        Organization: 0,
+    },
     UserScheduleFilter: {
         User: {
             private: {

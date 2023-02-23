@@ -285,4 +285,6 @@ export const logSiteStats = async (
             verifiedWalletsCreated,
         },
     })
+    // Close the Prisma client
+    await prisma.$disconnect();
 }

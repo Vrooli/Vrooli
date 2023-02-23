@@ -63,4 +63,6 @@ export const logStandardStats = async (
             }))
         });
     } while (currentBatchSize === batchSize);
+    // Close the Prisma client
+    await prisma.$disconnect();
 }

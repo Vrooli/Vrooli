@@ -21,6 +21,7 @@ import { NodeLoopWhileModel } from './nodeLoopWhile';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { NodeRoutineListItemModel } from './nodeRoutineListItem';
 import { NoteModel } from './note';
+import { NoteVersionModel } from './noteVersion';
 import { NotificationModel } from './notification';
 import { NotificationSubscriptionModel } from './notificationSubscription';
 import { OrganizationModel } from './organization';
@@ -106,6 +107,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     NodeRoutineList: NodeRoutineListModel,
     NodeRoutineListItem: NodeRoutineListItemModel,
     Note: NoteModel,
+    NoteVersion: NoteVersionModel,
     Notification: NotificationModel,
     NotificationSubscription: NotificationSubscriptionModel,
     Organization: OrganizationModel,
@@ -188,6 +190,7 @@ export * from './nodeLoopWhile';
 export * from './nodeRoutineList';
 export * from './nodeRoutineListItem';
 export * from './note';
+export * from './noteVersion';
 export * from './notification';
 export * from './notificationSubscription';
 export * from './organization';
