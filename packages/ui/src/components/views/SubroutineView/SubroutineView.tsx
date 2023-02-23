@@ -225,12 +225,12 @@ export const SubroutineView = ({
             {/* Box with description and instructions */}
             <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                 {/* Description */}
-                <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                <TextCollapse session={session} title="Description" text={description} loading={loading} loadingLines={2} />
                 {/* Instructions */}
-                <TextCollapse title="Instructions" text={instructions} loading={loading} loadingLines={4} />
+                <TextCollapse session={session} title="Instructions" text={instructions} loading={loading} loadingLines={4} />
             </Stack>
             <Box sx={containerProps(palette)}>
-                <ContentCollapse title="Inputs">
+                <ContentCollapse session={session} title="Inputs">
                     {inputComponents}
                     <Button startIcon={<SuccessIcon />} fullWidth onClick={() => { }} color="secondary" sx={{ marginTop: 2 }}>Submit</Button>
                 </ContentCollapse>
@@ -244,7 +244,7 @@ export const SubroutineView = ({
                 zIndex={zIndex}
             />
             <Box sx={containerProps(palette)}>
-                <ContentCollapse isOpen={false} title="Additional Information">
+                <ContentCollapse isOpen={false} session={session} title="Additional Information">
                     {/* Relationships */}
                     <RelationshipButtons
                         isEditing={false}

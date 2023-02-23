@@ -175,7 +175,7 @@ export const StandardView = ({
             />}
             {/* Box with description */}
             <Box sx={containerProps(palette)}>
-                <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
+                <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
             </Box>
             {/* Box with standard */}
             <Stack direction="column" spacing={4} sx={containerProps(palette)}>

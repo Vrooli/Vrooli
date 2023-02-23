@@ -252,7 +252,7 @@ export function CommentContainer({
     }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <ContentCollapse isOpen={isOpen} title="Comments">
+        <ContentCollapse isOpen={isOpen} session={session} title="Comments">
             {/* Dialog for setting advanced search items */}
             <AdvancedSearchDialog
                 handleClose={handleAdvancedSearchDialogClose}

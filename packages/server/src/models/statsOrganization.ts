@@ -44,7 +44,6 @@ export const StatsOrganizationModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsOrganizationSortBy.DateUpdatedDesc,
         sortBy: StatsOrganizationSortBy,

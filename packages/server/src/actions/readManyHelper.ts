@@ -67,13 +67,15 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     console.log('readmanyhelper after selectHelper', objectType, JSON.stringify(select), '\n\n');
     let searchResults: any[];
     try {
-        // await prisma.award.findMany({
-        //     where: {"user":{"id":"3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2"}},
-        //     select: {
-        //         "category":true,"created_at":true,"id":true,"progress":true,"timeCurrentTierCompleted":true,"updated_at":true
+        // await prisma.run_project_schedule.findMany({
+        //     "where": {
         //     },
-        //     "orderBy":{"updated_at":"desc"},
-        //     take: 25,
+        //     "orderBy": {
+        //         "bookmarkedBy": {
+        //           "_count": "desc"
+        //         }
+        //       },
+
         // })
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,

@@ -1,4 +1,5 @@
 export * from './AwardsPage/AwardsPage';
+export * from './CalendarPage/CalendarPage';
 export * from './main';
 export * from './HistorySearchPage/HistorySearchPage';
 export * from './view';

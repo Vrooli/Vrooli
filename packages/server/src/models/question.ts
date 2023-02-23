@@ -10,7 +10,7 @@ import { VoteModel } from "./vote";
 
 const __typename = 'Question' as const;
 type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
-const suppFields = [] as const;
+const suppFields = ['you'] as const;
 export const QuestionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -38,6 +38,15 @@ export const QuestionModel: ModelLogic<{
             createdBy: 'User',
             answers: 'QuestionAnswer',
             comments: 'Comment',
+            forObject: {
+                api: 'Api',
+                note: 'Note',
+                organization: 'Organization',
+                project: 'Project',
+                routine: 'Routine',
+                smartContract: 'SmartContract',
+                standard: 'Standard',
+            },
             reports: 'Report',
             bookmarkedBy: 'User',
             tags: 'Tag',

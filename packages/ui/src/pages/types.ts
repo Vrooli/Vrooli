@@ -4,6 +4,10 @@ export interface AwardsPageProps {
     session: Session;
 }
 
+export interface CalendarPageProps {
+    session: Session;
+}
+
 export interface HistorySearchPageProps {
     session: Session;
 }

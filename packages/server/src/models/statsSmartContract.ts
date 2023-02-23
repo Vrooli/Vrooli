@@ -44,7 +44,6 @@ export const StatsSmartContractModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsSmartContractSortBy.DateUpdatedDesc,
         sortBy: StatsSmartContractSortBy,

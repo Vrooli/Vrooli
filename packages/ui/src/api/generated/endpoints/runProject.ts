@@ -54,7 +54,6 @@ query runProject($input: FindByIdInput!) {
     name
     status
     stepsCount
-    wasRunAutomaticaly
     organization {
         ...Organization_nav
     }
@@ -122,7 +121,6 @@ query runProjects($input: RunProjectSearchInput!) {
             name
             status
             stepsCount
-            wasRunAutomaticaly
             organization {
                 ...Organization_nav
             }
@@ -228,7 +226,6 @@ mutation runProjectCreate($input: RunProjectCreateInput!) {
     name
     status
     stepsCount
-    wasRunAutomaticaly
     organization {
         ...Organization_nav
     }
@@ -328,7 +325,6 @@ mutation runProjectUpdate($input: RunProjectUpdateInput!) {
     name
     status
     stepsCount
-    wasRunAutomaticaly
     organization {
         ...Organization_nav
     }
@@ -435,7 +431,6 @@ mutation runProjectComplete($input: RunProjectCompleteInput!) {
     name
     status
     stepsCount
-    wasRunAutomaticaly
     organization {
         ...Organization_nav
     }
@@ -535,7 +530,6 @@ mutation runProjectCancel($input: RunProjectCancelInput!) {
     name
     status
     stepsCount
-    wasRunAutomaticaly
     organization {
         ...Organization_nav
     }

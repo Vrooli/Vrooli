@@ -43,7 +43,6 @@ export const PaymentModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: PaymentSortBy.DateCreatedDesc,
         sortBy: PaymentSortBy,

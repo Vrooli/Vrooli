@@ -292,14 +292,15 @@ export const RoutineView = ({
             {/* Box with description and instructions */}
             <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                 {/* Description */}
-                <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
+                <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
                 {/* Instructions */}
-                <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
+                <TextCollapse session={session} title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
             </Stack>
             {/* Box with inputs, if this is a single-step routine */}
             {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
                 <ContentCollapse
                     isOpen={false}
+                    session={session}
                     title="Inputs"
                 >
                     {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (

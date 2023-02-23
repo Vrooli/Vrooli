@@ -11,7 +11,7 @@ import { logger } from '../../events';
 
 // Cron syntax created using this website: https://crontab.guru/
 // NOTE: Cron job starts at a weird time so it runs when there is less activity.
-// This cron job is run every month at 5:049am (UTC)
+// This cron job is run every month at 5:49am (UTC)
 const countsCron = '49 5 * * *';
 
 /**

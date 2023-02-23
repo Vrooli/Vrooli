@@ -49,7 +49,10 @@ export interface ContentCollapseProps {
     }
     title?: string | null;
     titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
+    titleKey?: CommonKey;
+    titleVariables?: { [x: string]: string | number };
     children?: React.ReactNode;
+    session: Session;
 }
 
 export interface TextCollapseProps {
@@ -58,6 +61,7 @@ export interface TextCollapseProps {
     loading?: boolean;
     loadingLines?: number;
     onOpenChange?: (isOpen: boolean) => void;
+    session: Session;
     title?: string | null;
     text?: string | null;
 }
@@ -75,6 +79,7 @@ export interface EditableTextCollapseProps {
      * Props for MarkdownInput. If not set, assumes TextField is used.
      */
     propsMarkdownInput?: MarkdownInputProps;
+    session: Session;
     showOnNoText?: boolean;
     title?: string | null;
     text?: string | null;

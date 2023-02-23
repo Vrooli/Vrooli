@@ -1,4 +1,4 @@
-import { BookmarkFor, BookmarkSortBy } from "@shared/consts";
+import { BookmarkCreateInput, BookmarkFor, BookmarkSortBy, BookmarkUpdateInput } from "@shared/consts";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -38,8 +38,8 @@ const suppFields = [] as const;
 export const BookmarkModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
+    GqlCreate: BookmarkCreateInput,
+    GqlUpdate: BookmarkUpdateInput,
     GqlModel: Bookmark,
     GqlSearch: BookmarkSearchInput,
     GqlSort: BookmarkSortBy,
@@ -133,6 +133,7 @@ export const BookmarkModel: ModelLogic<{
         },
         countFields: {},
     },
+    mutate: {} as any,
     query: {
         async getIsBookmarkeds(
             prisma: PrismaType,
@@ -185,6 +186,7 @@ export const BookmarkModel: ModelLogic<{
             ]
         }),
     },
+    validate: {} as any,
     // TODO replace with mutate and validate. Trigger should update "bookmarks" count of object being bookmarkred
     // bookmark: async (prisma: PrismaType, userData: SessionUser, input: BookmarkInput): Promise<boolean> => {
     //     prisma.bookmark.findMany({

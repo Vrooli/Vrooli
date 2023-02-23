@@ -10,6 +10,7 @@ export function TextCollapse({
     loading,
     loadingLines,
     onOpenChange,
+    session,
     title,
     text,
 }: TextCollapseProps) {
@@ -34,6 +35,7 @@ export function TextCollapse({
             helpText={helpText}
             isOpen={isOpen}
             onOpenChange={onOpenChange}
+            session={session}
             title={title}
         >
             {text ? <Markdown style={{ marginTop: 0 }}>{text}</Markdown> : lines}

@@ -4,14 +4,14 @@ import { centeredDiv } from 'styles';
 import { useQuery } from '@apollo/client';
 import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer, PageTabs } from 'components';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
+import { APP_LINKS, HomeInput, HomeResult, PopularInput, PopularResult } from '@shared/consts';
 import { HomePageProps } from '../types';
-import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, useDisplayApolloError, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
-import { feedPopular } from 'api/generated/endpoints/feed';
+import { feedHome, feedPopular } from 'api/generated/endpoints/feed';
 import { PageTab } from 'components/types';
 import { useTranslation } from 'react-i18next';
 
@@ -37,13 +37,6 @@ const createNewPopupOptions: ListMenuItemData<string>[] = [
 
 const zIndex = 200;
 
-/**
- * Containers a search bar, lists of routines, projects, tags, and organizations, 
- * and a FAQ section.
- * If a search string is entered, each list is filtered by the search string. 
- * Otherwise, each list shows popular items. Each list has a "See more" button, 
- * which opens a full search page for that object type.
- */
 export const HomePage = ({
     session
 }: HomePageProps) => {
@@ -52,18 +45,16 @@ export const HomePage = ({
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const [, setLocation] = useLocation();
 
-    // TODO create new endpoint to use instead of popular. Should return 
-    // resources, notes, scheduled projects/routines, and other personal 
-    // data. Users can use main search page to search for public content. 
-    // This should take the current user schedule into account somehow
+    // TODO query should take the current user schedule into account somehow
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
     useEffect(() => {
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    const { data, refetch, loading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(feedPopular, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, 'home'>, Wrap<HomeInput, 'input'>>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
+    useDisplayApolloError(error);
     const showTabs = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     // Handle tabs
@@ -101,7 +92,7 @@ export const HomePage = ({
             });
         }
         // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
-        const flattened = (Object.values(data?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(data?.home ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.bookmarks - a.bookmarks;
         });
@@ -198,7 +189,7 @@ export const HomePage = ({
 
     return (
         <PageContainer>
-            {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
+            {/* Navigate between for you and history pages */}
             {showTabs && (
                 <PageTabs
                     ariaLabel="home-tabs"
@@ -243,7 +234,7 @@ export const HomePage = ({
                 />
                 {/* =========  #endregion ========= */}
             </Stack>
-            {/* Result feeds (or popular feeds if no search string) */}
+            {/* Result feeds */}
             <Stack spacing={10} direction="column" mt={10}>
                 {/* Quick actions */}
                 {/* TODO replace buttons below with grid of many customizable buttons. 

@@ -44,7 +44,6 @@ export const StatsUserModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsUserSortBy.DateUpdatedDesc,
         sortBy: StatsUserSortBy,

@@ -1,6 +1,7 @@
 export * from './awardsDisplay';
 export * from './device';
 export * from './documentTools';
+export * from './getResourceIcon';
 export * from './listTools';
 export * from './scheduleTools';
 export * from './sorting';

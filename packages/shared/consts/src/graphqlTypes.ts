@@ -5569,6 +5569,10 @@ export type ReminderSearchResult = {
 };
 
 export enum ReminderSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
   DueDateAsc = 'DueDateAsc',
   DueDateDesc = 'DueDateDesc',
   NameAsc = 'NameAsc',
@@ -6604,7 +6608,6 @@ export type RunProject = {
   stepsCount: Scalars['Int'];
   timeElapsed?: Maybe<Scalars['Int']>;
   user?: Maybe<User>;
-  wasRunAutomaticaly: Scalars['Boolean'];
   you: RunProjectYou;
 };
 
@@ -12613,7 +12616,6 @@ export type RunProjectResolvers<ContextType = any, ParentType extends ResolversP
   stepsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
-  wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['RunProjectYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

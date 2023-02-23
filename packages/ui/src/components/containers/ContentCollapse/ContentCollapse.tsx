@@ -2,20 +2,27 @@
 import { Box, Collapse, IconButton, Stack, Typography, useTheme } from '@mui/material';
 import { ContentCollapseProps } from '../types';
 import { HelpButton } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
+import { useTranslation } from 'react-i18next';
+import { getUserLanguages } from 'utils';
 
 export function ContentCollapse({
+    children,
     helpText,
     id,
     isOpen = true,
     onOpenChange,
+    session,
     sxs,
     title,
     titleComponent,
-    children,
+    titleKey,
+    titleVariables,
 }: ContentCollapseProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [internalIsOpen, setInternalIsOpen] = useState(isOpen);
     useEffect(() => {
@@ -39,7 +46,7 @@ export function ContentCollapse({
         }}>
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
-                <Typography component={titleComponent ?? 'h6'} variant="h6">{title}</Typography>
+                <Typography component={titleComponent ?? 'h6'} variant="h6">{title ? title : t(`common:${titleKey}`, { lng, ...titleVariables })}</Typography>
                 {helpText && <HelpButton markdown={helpText} />}
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}

@@ -44,7 +44,6 @@ export const StatsApiModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsApiSortBy.DateUpdatedDesc,
         sortBy: StatsApiSortBy,

@@ -6,4 +6,5 @@ export * from './isObject';
 export * from './isOfType';
 export * from './omit';
 export * from './setDotNotationValue';
+export * from './sitemap';
 export * from './uniqBy';

@@ -30,7 +30,6 @@ export const runProject: GqlPartial<RunProject> = {
         name: true,
         status: true,
         stepsCount: true,
-        wasRunAutomaticaly: true,
         organization: { __use: 0 },
         projectVersion: async () => rel((await import('./projectVersion')).projectVersion, 'nav', { omit: 'you' }),
         runProjectSchedule: async () => rel((await import('./runProjectSchedule')).runProjectSchedule, 'full', { omit: 'runProject' }),

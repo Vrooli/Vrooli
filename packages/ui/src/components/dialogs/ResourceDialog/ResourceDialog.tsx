@@ -3,12 +3,12 @@ import { resourceTranslationValidation, resourceValidation } from '@shared/valid
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getObjectUrl, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
+import { addEmptyTranslation, getObjectUrl, getResourceIcon, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons } from 'components';
+import { ColorIconButton, DialogTitle, GridSubmitButtons } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceTranslation, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { mutationWrapper } from 'api/utils';

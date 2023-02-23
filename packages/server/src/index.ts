@@ -14,6 +14,7 @@ import i18next from 'i18next';
 import { initStatsCronJobs } from './schedules/stats';
 import { initEventsCronJobs } from './schedules/events';
 import { initCountsCronJobs } from './schedules/counts';
+import { initSitemapCronJob } from './schedules';
 
 const debug = process.env.NODE_ENV === 'development';
 
@@ -116,6 +117,7 @@ const main = async () => {
     initStatsCronJobs();
     initEventsCronJobs();
     initCountsCronJobs();
+    initSitemapCronJob();
 
     logger.info( `🚀 Server running at ${SERVER_URL}`);
 }

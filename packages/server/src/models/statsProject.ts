@@ -44,7 +44,6 @@ export const StatsProjectModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsProjectSortBy.DateUpdatedDesc,
         sortBy: StatsProjectSortBy,

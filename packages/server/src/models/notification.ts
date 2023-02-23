@@ -36,7 +36,6 @@ export const NotificationModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: NotificationSortBy.DateCreatedDesc,
         sortBy: NotificationSortBy,

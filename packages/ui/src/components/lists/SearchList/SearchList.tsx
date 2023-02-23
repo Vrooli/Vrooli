@@ -7,7 +7,7 @@ import { AdvancedSearchDialog, SiteSearchBar, SortMenu, TimeMenu } from "compone
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, searchTypeToParams } from "utils";
+import { getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, searchTypeToParams, useDisplayApolloError } from "utils";
 import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 import { SearchParams } from "utils/search/schemas/base";
@@ -127,7 +127,7 @@ export function SearchList<
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query ?? routineFindMany, (endpoint ?? 'routines') as any, { // We have to set something as the defaults, so I picked routines
+    const [getPageData, { data: pageData, loading, error }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query ?? routineFindMany, (endpoint ?? 'routines') as any, { // We have to set something as the defaults, so I picked routines
         variables: ({
             after: after.current,
             take,
@@ -142,6 +142,7 @@ export function SearchList<
         } as any),
         errorPolicy: 'all',
     });
+    useDisplayApolloError(error);
     const [allData, setAllData] = useState<DataType[]>(() => {
         // Check if we just navigated back to this page from an object page
         const lastPath = sessionStorage.getItem("lastPath");

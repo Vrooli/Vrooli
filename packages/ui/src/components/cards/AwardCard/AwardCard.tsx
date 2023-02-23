@@ -16,13 +16,20 @@ export const AwardCard = ({
     // Display next tier
     const { title, description, level } = useMemo(() => {
         // If next tier exists, display that
-        if (award.nextTier)  return award.nextTier
+        if (award.nextTier) return award.nextTier
         // If not, but earned tier exists, then we must be at the top tier already
         if (award.earnedTier) return award.earnedTier
         // Otherwise, award invalid
-        return { title: '',  description: '', level: 0 }
+        return { title: '', description: '', level: 0 }
     }, [award]);
     console.log('award card', award);
+
+    // Calculate percentage complete
+    const percentage = useMemo(() => {
+        if (award.progress === 0) return 0;
+        if (level === 0) return -1;
+        return Math.round((award.progress / level) * 100);
+    }, [award.progress, level]);
 
     return (
         <Card sx={{
@@ -48,7 +55,28 @@ export const AwardCard = ({
                     }}
                 >{title}</Typography>
                 {/* Display progress */}
-                <LinearProgress variant="determinate" value={level > 0 ? (award.progress / level) : 0} />
+                {percentage >= 0 && <>
+                    <LinearProgress
+                        variant="determinate"
+                        value={percentage}
+                        sx={{
+                            marginLeft: 2,
+                            marginRight: 2,
+                            height: '12px',
+                            borderRadius: '12px',
+                        }}
+                    />
+                    <Typography
+                        variant="body2"
+                        component="p"
+                        textAlign="center"
+                        sx={{
+                            marginBottom: 1,
+                        }}
+                    >
+                        {award.progress} / {level} ({percentage}%)
+                    </Typography>
+                </>}
             </CardContent>
         </Card>
     );

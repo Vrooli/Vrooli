@@ -70,9 +70,9 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
 } } = {
     AccountAnniversary: (years, findNext = false) => ({
         name: 'AccountAnniversaryTitle',
-        nameVariables: { count: years },
+        nameVariables: { count: findNext ? years + 1 : years },
         body: 'AccountAnniversaryBody',
-        bodyVariables: { count: years },
+        bodyVariables: { count: findNext ? years + 1 : years },
         level: findNext ? years + 1 : years,
     }),
     AccountNew: () => ({ name: 'AccountNewTitle', body: 'AccountNewBody', level: 0 }),

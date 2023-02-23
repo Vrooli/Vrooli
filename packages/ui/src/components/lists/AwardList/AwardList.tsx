@@ -15,9 +15,9 @@ export const AwardList = ({
                 <Chip
                     key={award.category}
                     label={award.earnedTier?.title ?? award.categoryTitle}
-                    size="small"
+                    size="medium"
                     sx={{
-                        backgroundColor: palette.mode === 'light' ? '#8148b0' : '#8148b0', //'#a068ce',
+                        backgroundColor: palette.mode === 'light' ? '#995d43' : '#893b19',
                         color: 'white',
                         width: 'fit-content',
                     }} />

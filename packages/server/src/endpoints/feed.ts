@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, Project, Routine, PopularInput, PopularResult, ApiSortBy, NoteSortBy, SmartContractSortBy, HomeInput, HomeResult, MeetingSortBy } from '@shared/consts';
+import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, Project, Routine, PopularInput, PopularResult, ApiSortBy, NoteSortBy, SmartContractSortBy, HomeInput, HomeResult, MeetingSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RunProjectScheduleSortBy, RunRoutineScheduleSortBy } from '@shared/consts';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
-import { getUser } from '../auth/request';
+import { assertRequestFrom, getUser } from '../auth/request';
 import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
 import { PartialGraphQLInfo } from '../builders/types';
 import { readManyAsFeedHelper } from '../actions';
@@ -54,6 +54,7 @@ export const resolvers: {
 } = {
     Query: {
         home: async (_, { input }, { prisma, req }, info) => {
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 __typename: 'HomeResult',
@@ -66,11 +67,12 @@ export const resolvers: {
             }, req.languages, true);
             const take = 5;
             const commonReadParams = { prisma, req }
+            const activeScheduleIds = [];//TODO
             // Query meetings
             const { nodes: meetings } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 // TODO Find meetings that have not ended yet, and you are invited to (or you are the owner)
-                additionalQueries: {  },
+                additionalQueries: {},
                 info: partial.meetings as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: MeetingSortBy.EventEndAsc },
                 objectType: 'Meeting',
@@ -79,45 +81,54 @@ export const resolvers: {
             const { nodes: notes } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 // TODO Find your own notes only
-                additionalQueries: {  },
+                additionalQueries: {},
                 info: partial.notes as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ProjectSortBy.BookmarksDesc, isComplete: true },
+                input: { ...input, take, sortBy: NoteSortBy.DateUpdatedDesc },
                 objectType: 'Note',
             });
             // Query reminders
             const { nodes: reminders } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 // TODO Find all of your reminders if "showOnlyRelevantToSchedule" is false, otherwise find reminders associated with your active schedule(s)
-                additionalQueries: { },
+                additionalQueries: {},
                 info: partial.reminders as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: RoutineSortBy.BookmarksDesc, isComplete: true, isInternal: false },
+                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false },
                 objectType: 'Reminder',
             });
             // Query resources
             const { nodes: resources } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                // TODO Find all of your resources if "showOnlyRelevantToSchedule" is false, otherwise find resources associated with your active schedule(s)
-                additionalQueries: {  },
+                additionalQueries: {
+                    list: {
+                        userSchedule: input.showOnlyRelevantToSchedule ? {
+                            id: { in: activeScheduleIds }
+                        } : {
+                            user: {
+                                id: userData.id
+                            }
+                        }
+                    }
+                },
                 info: partial.resources as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: StandardSortBy.BookmarksDesc, type: 'JSON' },
+                input: { ...input, take, sortBy: ResourceSortBy.IndexAsc },
                 objectType: 'Resource',
             });
             // Query runProjectSchedules
             const { nodes: runProjectSchedules } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 // TODO Find all of your runProjectSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
-                additionalQueries: { },
+                additionalQueries: {},
                 info: partial.runProjectSchedules as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: UserSortBy.BookmarksDesc },
+                input: { ...input, take, sortBy: RunProjectScheduleSortBy.WindowStartAsc },
                 objectType: 'RunProjectSchedule',
             });
             // Query runRoutineSchedules
             const { nodes: runRoutineSchedules } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 // TODO Find all of your runRoutineSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
-                additionalQueries: { },
+                additionalQueries: {},
                 info: partial.runRoutineSchedules as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: UserSortBy.BookmarksDesc },
+                input: { ...input, take, sortBy: RunRoutineScheduleSortBy.WindowStartAsc },
                 objectType: 'RunRoutineSchedule',
             });
             // Add supplemental fields to every result
@@ -161,7 +172,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.apis as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ApiSortBy.BookmarksDesc },
+                input: { ...input, take, sortBy: ApiSortBy.ScoreDesc },
                 objectType: 'Api',
             });
             // Query notes
@@ -169,7 +180,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.notes as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: NoteSortBy.BookmarksDesc },
+                input: { ...input, take, sortBy: NoteSortBy.ScoreDesc },
                 objectType: 'Note',
             });
             // Query organizations
@@ -185,24 +196,24 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.projects as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ProjectSortBy.BookmarksDesc, isComplete: true },
+                input: { ...input, take, sortBy: ProjectSortBy.ScoreDesc, isComplete: true },
                 objectType: 'Project',
             });
             // Query questions
             const { nodes: questions } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 // Make sure question is not attached to any objects (i.e. standalone)
-                additionalQueries: { ...bookmarksQuery, api: null, note: null, organization: null, project: null, routine: null, smartContract: null, standard: null},
+                additionalQueries: { ...bookmarksQuery, api: null, note: null, organization: null, project: null, routine: null, smartContract: null, standard: null },
                 info: partial.questions as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ProjectSortBy.BookmarksDesc, isComplete: true },
-                objectType: 'Project',
+                input: { ...input, take, sortBy: QuestionSortBy.ScoreDesc, isComplete: true },
+                objectType: 'Question',
             });
             // Query routines
             const { nodes: routines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.routines as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: RoutineSortBy.BookmarksDesc, isComplete: true, isInternal: false },
+                input: { ...input, take, sortBy: RoutineSortBy.ScoreDesc, isComplete: true, isInternal: false },
                 objectType: 'Routine',
             });
             // Query smart contracts
@@ -210,7 +221,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.smartContracts as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: SmartContractSortBy.BookmarksDesc, isComplete: true },
+                input: { ...input, take, sortBy: SmartContractSortBy.ScoreDesc, isComplete: true },
                 objectType: 'SmartContract',
             });
             // Query standards
@@ -218,7 +229,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.standards as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: StandardSortBy.BookmarksDesc, type: 'JSON' },
+                input: { ...input, take, sortBy: StandardSortBy.ScoreDesc, type: 'JSON' },
                 objectType: 'Standard',
             });
             // Query users

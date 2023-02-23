@@ -11,6 +11,7 @@ import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
+import { exists } from "@shared/utils";
 
 const __typename = 'Organization' as const;
 type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead'>;
@@ -240,8 +241,9 @@ export const OrganizationModel: ModelLogic<{
          * @param name The name of the role
          * @returns Array in the same order as the ids, with either admin/owner role data or undefined
          */
-        async hasRole(prisma: PrismaType, userId: string, organizationIds: (string | null | undefined)[], name: string = 'Admin'): Promise<Array<role | undefined>> {
+        async hasRole(prisma: PrismaType, userId: string | null | undefined, organizationIds: (string | null | undefined)[], name: string = 'Admin'): Promise<Array<role | undefined>> {
             if (organizationIds.length === 0) return [];
+            if (!exists(userId)) return organizationIds.map(() => undefined);
             // Take out nulls
             const idsToQuery = onlyValidIds(organizationIds);
             // Query roles data for each organization ID

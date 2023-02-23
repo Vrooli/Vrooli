@@ -8,6 +8,7 @@ export interface AwardCardProps {
 
 export interface CardGridProps {
     children: JSX.Element | (JSX.Element | null)[] | null;
+    disableMargin?: boolean;
     minWidth: number;
 }
 

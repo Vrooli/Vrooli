@@ -5,12 +5,11 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { firstString, getDisplay, getResourceType, getResourceUrl, getUserLanguages, PubSub, usePress } from 'utils';
+import { firstString, getDisplay, getResourceIcon, getResourceType, getResourceUrl, getUserLanguages, PubSub, usePress } from 'utils';
 import { useCallback, useMemo, useState } from 'react';
 import { openLink, useLocation } from '@shared/route';
-import { ResourceCardProps } from '../../../cards/types';
+import { ResourceCardProps } from '../types';
 import { multiLineEllipsis, noSelect } from 'styles';
-import { getResourceIcon } from '..';
 import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
 import { ResourceUsedFor } from '@shared/consts';

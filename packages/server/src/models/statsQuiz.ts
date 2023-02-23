@@ -44,7 +44,6 @@ export const StatsQuizModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsQuizSortBy.DateUpdatedDesc,
         sortBy: StatsQuizSortBy,

@@ -43,6 +43,5 @@ export const PremiumModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     validate: {} as any,
 })

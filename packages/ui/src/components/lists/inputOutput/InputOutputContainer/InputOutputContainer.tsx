@@ -151,6 +151,7 @@ export const InputOutputContainer = ({
             <ContentCollapse
                 id={`${type}-container`}
                 helpText={t(`common:${isInput ? 'Input' : 'Output'}ContainerHelp`)}
+                session={session}
                 title={isInput ? 'Inputs' : 'Outputs'}
                 sxs={{
                     titleContainer: {

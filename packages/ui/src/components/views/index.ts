@@ -1,5 +1,6 @@
 export * from './Api';
 export * from './BuildView/BuildView';
+export * from './CalendarView/CalendarView';
 export * from './DecisionView/DecisionView';
 export * from './ErrorBoundary/ErrorBoundary';
 export * from './UserView/UserView';

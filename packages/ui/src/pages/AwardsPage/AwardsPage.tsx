@@ -2,7 +2,7 @@ import { useQuery } from "@apollo/client";
 import { Box } from "@mui/material";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
 import { awardFindMany } from "api/generated/endpoints/award";
-import { AwardCard, AwardList, CardGrid, PageContainer, PageTitle } from "components";
+import { AwardCard, AwardList, CardGrid, ContentCollapse, PageContainer, PageTitle } from "components";
 import { AwardsPageProps } from "pages/types";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -46,15 +46,30 @@ export function AwardsPage({
         <PageContainer>
             <PageTitle titleKey='Award' titleVariables={{ count: 2 }} session={session} />
             {/* Display earned awards as a list of tags. Press or hover to see description */}
-            <Box>
+            <ContentCollapse
+                isOpen={true}
+                session={session}
+                titleKey="Earned"
+                sxs={{
+                    root: {
+                        marginBottom: 2,
+                    }
+                }}
+            >
                 <AwardList awards={awards.filter(a => Boolean(a.earnedTier))} />
-            </Box>
+            </ContentCollapse>
             {/* Display progress of awards as cards */}
-            <CardGrid minWidth={300}>
-                {awards.map((award) => (
-                    <AwardCard key={award.category} award={award} />
-                ))}
-            </CardGrid>
+            <ContentCollapse
+                isOpen={true}
+                session={session}
+                titleKey="InProgress"
+            >
+                <CardGrid minWidth={250} disableMargin={true}>
+                    {awards.map((award) => (
+                        <AwardCard key={award.category} award={award} />
+                    ))}
+                </CardGrid>
+            </ContentCollapse>
         </PageContainer>
     )
 }

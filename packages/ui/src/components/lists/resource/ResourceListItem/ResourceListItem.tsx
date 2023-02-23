@@ -6,8 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { openLink, useLocation } from '@shared/route';
-import { firstString, getDisplay, getResourceUrl, getUserLanguages, PubSub, ResourceType, usePress } from 'utils';
-import { getResourceIcon } from '..';
+import { firstString, getDisplay, getResourceIcon, getResourceUrl, getUserLanguages, PubSub, ResourceType, usePress } from 'utils';
 import { TextLoading } from 'components';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 

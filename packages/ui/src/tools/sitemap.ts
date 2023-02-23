@@ -3,7 +3,7 @@
  * Doing this in a script during the build process - as opposed to options like react-dynamic-sitemap - 
  * allows us to view the generated sitemap in the public folder to check that it's correct.
  */
-import { generateSitemap, SitemapEntry } from '@shared/route/src/sitemap';
+import { generateSitemap, SitemapEntry } from '@shared/utils';
 import fs from 'fs';
 
 // Read packages/shared/consts/src/ui.ts to get all routes

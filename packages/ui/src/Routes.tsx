@@ -22,15 +22,16 @@ const {
 } = lazily(() => import('./pages/main'));
 const { TutorialPage, WelcomePage } = lazily(() => import('./pages/tutorial'));
 const { AwardsPage } = lazily(() => import('./pages/AwardsPage/AwardsPage'));
-const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
-const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
-const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
+const { CalendarPage } = lazily(() => import('./pages/CalendarPage/CalendarPage'));
+const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
+const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
 const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
 const { PremiumPage } = lazily(() => import('./pages/PremiumPage/PremiumPage'));
+const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
+const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
+const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
-const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
-const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
 
 const Fallback = <Box sx={{
     position: 'absolute',
@@ -50,29 +51,35 @@ export const Routes = (props: CommonProps) => {
         <>
             <ScrollToTop />
             <Switch>
-                {/* ========= #region Main Routes ========= */}
-                {/* Pages for each of the bottom navigation items */}
                 <Route
-                    path={LINKS.Home}
-                    sitemapIndex
-                    priority={1.0}
-                    changeFreq="weekly"
+                    path={`${LINKS.Api}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Home')} {...props}>
-                            <HomePage session={props.session} />
+                        <Page {...props}>
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route
-                    path={`${LINKS.Search}/:params*`}
+                    path={LINKS.Awards}
                     sitemapIndex
-                    priority={0.4}
-                    changeFreq="monthly"
+                    priority={0.5}
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <SearchPage session={props.session} />
+                        <Page title={title('Awards🏆')} {...props}>
+                            <AwardsPage {...props} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Calendar}
+                    sitemapIndex={false}
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Calendar')} {...props}>
+                            <CalendarPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -89,18 +96,19 @@ export const Routes = (props: CommonProps) => {
                     </Suspense>
                 </Route>
                 <Route
-                    path={LINKS.Notifications}
+                    path={`${LINKS.ForgotPassword}/:code?`}
                     sitemapIndex
-                    priority={0.4}
-                    changeFreq="monthly"
+                    priority={0.2}
+                    changeFreq="yearly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <NotificationsPage session={props.session} />
+                        <Page title={title('Forgot Password')} {...props}>
+                            <FormPage title="Forgot Password" maxWidth="700px">
+                                <ForgotPasswordForm />
+                            </FormPage>
                         </Page>
                     </Suspense>
                 </Route>
-                {/* ========= #endregion Dashboard Routes ========= */}
                 <Route
                     path={LINKS.History}
                     sitemapIndex={false}
@@ -121,15 +129,15 @@ export const Routes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                {/* ========= #region Views Routes ========= */}
-                {/* Views for main Vrooli components (e.g. organizations, projects, routines, standards, users) */}
                 <Route
-                    path={`${LINKS.Api}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
+                    path={LINKS.Home}
+                    sitemapIndex
+                    priority={1.0}
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
+                        <Page title={title('Home')} {...props}>
+                            <HomePage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -144,12 +152,46 @@ export const Routes = (props: CommonProps) => {
                     </Suspense>
                 </Route>
                 <Route
+                    path={LINKS.Notifications}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <NotificationsPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
                     path={`${LINKS.Organization}/:params*`}
                     sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <ObjectPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Premium}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="weekly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Premium😎')} {...props}>
+                            <PremiumPage {...props} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={`${LINKS.Profile}/:id?`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each user
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <UserViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -184,12 +226,50 @@ export const Routes = (props: CommonProps) => {
                     </Suspense>
                 </Route>
                 <Route
+                    path={`${LINKS.ResetPassword}/:userId?/:code?`}
+                    sitemapIndex
+                    priority={0.2}
+                    changeFreq="yearly"
+                >
+                    {(params: any) => (
+                        <Suspense fallback={Fallback}>
+                            <Page title={title('Reset Password')} {...props}>
+                                <FormPage title="Reset Password" maxWidth="700px">
+                                    <ResetPasswordForm userId={params.userId} code={params.code} />
+                                </FormPage>
+                            </Page>
+                        </Suspense>
+                    )}
+                </Route>
+                <Route
                     path={`${LINKS.Routine}/:params*`}
                     sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each routine
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <ObjectPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={`${LINKS.Search}/:params*`}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <SearchPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Settings}
+                    sitemapIndex={false}
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Settings⚙️')} {...props} mustBeLoggedIn={true} >
+                            <SettingsPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -213,20 +293,6 @@ export const Routes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                {/* Profile editing is done on settings page, so no need for extra route */}
-                <Route
-                    path={`${LINKS.Profile}/:id?`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each user
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <UserViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                {/* =========  #endregion ========= */}
-
-                {/* ========= #region Authentication Routes ========= */}
                 <Route
                     path={LINKS.Start}
                     sitemapIndex
@@ -240,43 +306,14 @@ export const Routes = (props: CommonProps) => {
                     </Suspense>
                 </Route>
                 <Route
-                    path={`${LINKS.ForgotPassword}/:code?`}
+                    path={LINKS.Stats}
                     sitemapIndex
-                    priority={0.2}
-                    changeFreq="yearly"
+                    priority={0.5}
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Forgot Password')} {...props}>
-                            <FormPage title="Forgot Password" maxWidth="700px">
-                                <ForgotPasswordForm />
-                            </FormPage>
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.ResetPassword}/:userId?/:code?`}
-                    sitemapIndex
-                    priority={0.2}
-                    changeFreq="yearly"
-                >
-                    {(params: any) => (
-                        <Suspense fallback={Fallback}>
-                            <Page title={title('Reset Password')} {...props}>
-                                <FormPage title="Reset Password" maxWidth="700px">
-                                    <ResetPasswordForm userId={params.userId} code={params.code} />
-                                </FormPage>
-                            </Page>
-                        </Suspense>
-                    )}
-                </Route>
-                {/* ========= #endregion ========= */}
-                <Route
-                    path={LINKS.Settings}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Settings⚙️')} {...props} mustBeLoggedIn={true} >
-                            <SettingsPage session={props.session} />
+                        <Page title={title('Stats📊')} {...props}>
+                            <StatsPage {...props} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -301,42 +338,6 @@ export const Routes = (props: CommonProps) => {
                     <Suspense fallback={Fallback}>
                         <Page title={title('Welcome!💙')} {...props}>
                             <WelcomePage {...props} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Stats}
-                    sitemapIndex
-                    priority={0.5}
-                    changeFreq="weekly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Stats📊')} {...props}>
-                            <StatsPage {...props} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Awards}
-                    sitemapIndex
-                    priority={0.5}
-                    changeFreq="weekly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Awards🏆')} {...props}>
-                            <AwardsPage {...props} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Premium}
-                    sitemapIndex
-                    priority={0.5}
-                    changeFreq="weekly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Premium😎')} {...props}>
-                            <PremiumPage {...props} />
                         </Page>
                     </Suspense>
                 </Route>

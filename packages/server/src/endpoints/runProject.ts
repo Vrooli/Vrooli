@@ -60,7 +60,6 @@ export const typeDef = gql`
         completedAt: Date
         name: String!
         status: RunStatus!
-        wasRunAutomaticaly: Boolean!
         projectVersion: ProjectVersion
         runProjectSchedule: RunProjectSchedule
         steps: [RunProjectStep!]!

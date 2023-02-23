@@ -44,7 +44,6 @@ export const StatsRoutineModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsRoutineSortBy.DateUpdatedDesc,
         sortBy: StatsRoutineSortBy,

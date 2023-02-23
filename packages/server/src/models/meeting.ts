@@ -1,13 +1,15 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from '@shared/consts';
+import { MaxObjects, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
+import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'Meeting' as const;
-const suppFields = [] as const;
+type Permissions = Pick<MeetingYou, 'canDelete' | 'canInvite' | 'canUpdate'>;
+const suppFields = ['you'] as const;
 export const MeetingModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -16,7 +18,7 @@ export const MeetingModel: ModelLogic<{
     GqlModel: Meeting,
     GqlSearch: MeetingSearchInput,
     GqlSort: MeetingSortBy,
-    GqlPermission: {},
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.meetingUpsertArgs['create'],
     PrismaUpdate: Prisma.meetingUpsertArgs['update'],
     PrismaModel: Prisma.meetingGetPayload<SelectWrap<Prisma.meetingSelect>>,
@@ -58,6 +60,17 @@ export const MeetingModel: ModelLogic<{
             labelsCount: true,
             translationsCount: true,
         },
+        supplemental: {
+            dbFields: ['organizationId'],
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, objects, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                }
+            },
+        },
     },
     mutate: {} as any,
     search: {
@@ -97,7 +110,10 @@ export const MeetingModel: ModelLogic<{
             showOnOrganizationProfile: true,
             organization: 'Organization',
         }),
-        permissionResolvers: defaultPermissions,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
+            canInvite: () => isAdmin,
+        }),
         owner: (data) => ({
             Organization: data.organization,
         }),

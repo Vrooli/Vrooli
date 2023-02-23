@@ -9,7 +9,6 @@ completedAt
 name
 status
 stepsCount
-wasRunAutomaticaly
 organization {
     ...Organization_nav
 }

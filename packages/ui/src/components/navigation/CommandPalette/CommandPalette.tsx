@@ -4,7 +4,7 @@ import {
     DialogContent,
     useTheme,
 } from '@mui/material';
-import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
+import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems, useDisplayApolloError } from 'utils';
 import { SiteSearchBar } from 'components/inputs';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { AutocompleteOption } from 'types';
@@ -61,11 +61,12 @@ export const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(feedPopular, 'popular', {
+    const [refetch, { data, loading, error }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(feedPopular, 'popular', {
         variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') },
         errorPolicy: 'all'
     });
     useEffect(() => { open && refetch() }, [open, refetch, searchString]);
+    useDisplayApolloError(error);
 
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {

@@ -39,7 +39,6 @@ export const StatsSiteModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
     search: {
         defaultSort: StatsSiteSortBy.DateUpdatedDesc,
         sortBy: StatsSiteSortBy,
