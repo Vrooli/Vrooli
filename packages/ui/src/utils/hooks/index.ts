@@ -3,6 +3,7 @@ export * from './useCopier';
 export * from './useDebounce';
 export * from './useDimensions';
 export * from './useDisplayApolloError';
+export * from './useFindMany';
 export * from './useHistoryState';
 export * from './useKeyboardOpen';
 export * from './useObjectActions';

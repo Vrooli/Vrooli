@@ -110,6 +110,7 @@ export const typeDef = gql`
         ids: [ID!]
         searchString: String
         sortBy: NoteSortBy
+        take: Int
         tags: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType

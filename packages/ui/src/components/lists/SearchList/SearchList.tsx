@@ -1,38 +1,17 @@
 /**
  * Search list for a single object type
  */
-import { useLazyQuery } from "api/hooks";
 import { Box, Button, List, Typography, useTheme } from "@mui/material";
-import { AdvancedSearchButton, SearchButtonsList, SiteSearchBar, SortButton, TimeButton } from "components";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SearchButtonsList, SiteSearchBar } from "components";
+import { useCallback, useEffect, useMemo } from "react";
 import { PlusIcon } from '@shared/icons';
-import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, ListObjectType, listToAutocomplete, listToListItems, openObject, searchTypeToParams, useDisplayApolloError } from "utils";
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { AutocompleteOption } from "types";
-import { SearchParams } from "utils/search/schemas/base";
-import { routineFindMany } from "api/generated/endpoints/routine";
+import { SearchListProps } from "../types";
+import { getUserLanguages, listToListItems, openObject, useFindMany } from "utils";
+import { useLocation } from '@shared/route';
 import { useTranslation } from "react-i18next";
-import { exists } from "@shared/utils";
-import { TimeFrame } from "@shared/consts";
+import { NavigableObject } from "types";
 
-/**
- * Helper method for converting fetched data to an array of object data
- */
-const parseData = (data: any) => {
-    if (!data) return [];
-    const queryData: any = Object.values(data)[0];
-    if (!queryData || !queryData.edges) return [];
-    return queryData.edges.map((edge, index) => edge.node);
-};
-
-export function SearchList<
-    DataType extends ListObjectType,
-    SortBy,
-    Endpoint extends string,
-    QueryResult extends string | number | boolean | object,
-    QueryVariables extends SearchQueryVariablesInput<SortBy>
->({
+export function SearchList<DataType extends NavigableObject>({
     beforeNavigation,
     canSearch = true,
     handleAdd,
@@ -51,127 +30,30 @@ export function SearchList<
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
-    const [{ advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
-    useEffect(() => {
-        const fetchParams = async () => {
-            const params = searchTypeToParams[searchType];
-            if (!params) return;
-            setSearchParams(await params(lng));
-        };
-        fetchParams();
-    }, [lng, searchType, session]);
-
-    const [sortBy, setSortBy] = useState<string>(defaultSortBy);
-    const [searchString, setSearchString] = useState<string>('');
-    const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
-    useEffect(() => {
-        const searchParams = parseSearchParams()
-        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
-        if (typeof searchParams.sort === 'string') {
-            // Check if sortBy is valid
-            if (exists(sortByOptions) && searchParams.sort in sortByOptions) {
-                setSortBy(searchParams.sort);
-            } else {
-                setSortBy(defaultSortBy);
-            }
-        }
-        if (typeof searchParams.time === 'object' &&
-            !Array.isArray(searchParams.time) &&
-            searchParams.time.hasOwnProperty('after') &&
-            searchParams.time.hasOwnProperty('before')) {
-            setTimeFrame({
-                after: new Date((searchParams.time as any).after),
-                before: new Date((searchParams.time as any).before),
-            });
-        }
-    }, [defaultSortBy, searchType, sortByOptions]);
-
-    const after = useRef<string | undefined>(undefined);
-
-    /**
-     * When sort and filter options change, update the URL
-     */
-    useEffect(() => {
-        addSearchParams(setLocation, {
-            search: searchString.length > 0 ? searchString : undefined,
-            sort: sortBy,
-            time: timeFrame ? {
-                after: timeFrame.after?.toISOString() ?? '',
-                before: timeFrame.before?.toISOString() ?? '',
-            } : undefined,
-        });
-    }, [searchString, sortBy, timeFrame, setLocation]);
-
-    const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query ?? routineFindMany, (endpoint ?? 'routines') as any, { // We have to set something as the defaults, so I picked routines
-        variables: ({
-            after: after.current,
-            take,
-            sortBy,
-            searchString,
-            createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
-                after: timeFrame.after?.toISOString(),
-                before: timeFrame.before?.toISOString(),
-            } : undefined,
-            ...where,
-            ...advancedSearchParams
-        } as any),
-        errorPolicy: 'all',
+    const {
+        advancedSearchParams,
+        advancedSearchSchema,
+        allData,
+        autocompleteOptions,
+        loading,
+        loadMore,
+        pageData,
+        parseData,
+        searchString,
+        setAdvancedSearchParams,
+        setSortBy,
+        setSearchString,
+        setTimeFrame,
+        sortBy,
+        sortByOptions,
+        timeFrame,
+    } = useFindMany<DataType>({ 
+        canSearch,
+        searchType,
+        session,
+        take,
+        where,
     });
-    useDisplayApolloError(error);
-    const [allData, setAllData] = useState<DataType[]>(() => {
-        // Check if we just navigated back to this page from an object page
-        const lastPath = sessionStorage.getItem("lastPath");
-        const lastSearchParams = sessionStorage.getItem("lastSearchParams");
-        console.log('lastPath', lastPath)
-        console.log('lastSearchParams', lastSearchParams)
-        return []
-    });
-
-    console.log('allData', allData.length, allData)
-
-    // On search filters/sort change, reset the page
-    useEffect(() => {
-        after.current = undefined;
-        console.log('time frammeeeeeee', timeFrame)
-        if (canSearch) getPageData();
-    }, [advancedSearchParams, canSearch, searchString, searchType, sortBy, timeFrame, where, getPageData]);
-
-    // Fetch more data by setting "after"
-    const loadMore = useCallback(() => {
-        if (!pageData) return;
-        console.log('in load more')
-        const queryData: any = Object.values(pageData)[0];
-        if (!queryData || !queryData.pageInfo) return [];
-        if (queryData.pageInfo?.hasNextPage) {
-            const { endCursor } = queryData.pageInfo;
-            if (endCursor) {
-                after.current = endCursor;
-                getPageData();
-            }
-        }
-    }, [getPageData, pageData]);
-
-    // Parse newly fetched data, and determine if it should be appended to the existing data
-    useEffect(() => {
-        const parsedData = parseData(pageData);
-        console.log('parsing data', parsedData, after.current)
-        if (!parsedData) {
-            setAllData([]);
-            return;
-        }
-        if (after.current) {
-            setAllData(curr => [...curr, ...parsedData]);
-        } else {
-            setAllData(parsedData);
-        }
-    }, [pageData]);
-
-    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
-            return b.bookmarks - a.bookmarks;
-        });
-    }, [allData, session]);
 
     const listItems = useMemo(() => listToListItems({
         beforeNavigation,
@@ -182,7 +64,7 @@ export function SearchList<
         loading,
         session: session,
         zIndex,
-    }), [beforeNavigation, searchType, hideRoles, allData, pageData, loading, session, zIndex])
+    }), [beforeNavigation, searchType, hideRoles, allData, parseData, pageData, loading, session, zIndex])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button

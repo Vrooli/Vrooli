@@ -1,7 +1,6 @@
 // Defines common props
 import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
-import { TFuncKey } from 'i18next';
 import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
 
 // Top-level props that can be passed into any routed component

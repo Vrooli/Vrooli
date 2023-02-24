@@ -2706,6 +2706,7 @@ export type NoteSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
+  take?: InputMaybe<Scalars['Int']>;
   translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
