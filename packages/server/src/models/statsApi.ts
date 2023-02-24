@@ -29,7 +29,7 @@ export const StatsApiModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_api,
     display: {
         select: () => ({ id: true, api: selPad(ApiModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
+        label: (select, languages) => (i18next as any).t(`common:ObjectStats`, {
             lng: languages.length > 0 ? languages[0] : 'en',
             objectName: ApiModel.display.label(select.api as any, languages),
         }),

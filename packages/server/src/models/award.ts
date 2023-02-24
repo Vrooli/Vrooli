@@ -9,6 +9,7 @@ import { AwardKey } from "@shared/translations";
 
 const __typename = 'Award' as const;
 const suppFields = ['title', 'description'] as const;
+// TODO type instantiation is excessively deep and possibly infinite
 export const AwardModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -33,7 +34,7 @@ export const AwardModel: ModelLogic<{
             const { name, nameVariables } = awardNames[select.category](select.progress);
             // If key is not found, return empty string
             if (!name) return '';
-            return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) })
+            return (i18next as any).t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) })
         },
     },
     format: {
@@ -54,9 +55,9 @@ export const AwardModel: ModelLogic<{
                 const descriptions: (string | null)[] = [];
                 for (const award of objects) {
                     const { name, nameVariables, body, bodyVariables } = awardNames[award.category](award.progress);
-                    if (userData && name) titles.push(i18next.t(`award:${name as AwardKey}`, { lng: userData!.languages[0], ...(nameVariables ?? {}) }) as any);
+                    if (userData && name) titles.push((i18next as any).t(`award:${name as AwardKey}`, { lng: userData!.languages[0], ...(nameVariables ?? {}) }) as any);
                     else titles.push(null);
-                    if (userData && body) descriptions.push(i18next.t<any>(`award:${body as AwardKey}`, { lng: userData!.languages[0], ...(bodyVariables ?? {}) }) as any);
+                    if (userData && body) descriptions.push((i18next as any).t(`award:${body as AwardKey}`, { lng: userData!.languages[0], ...(bodyVariables ?? {}) }) as any);
                     else descriptions.push(null);
                 }
                 return {

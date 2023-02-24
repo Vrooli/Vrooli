@@ -21,7 +21,7 @@ export class CustomError extends ApolloError {
     constructor(traceBase: string, errorCode: ErrorKey, languages: string[], data?: { [key: string]: any }) {
         // Find message in user's language
         const lng = languages.length > 0 ? languages[0] : 'en';
-        const message = i18next.t(`error:${errorCode}`, { lng }) ?? errorCode
+        const message = (i18next as any).t(`error:${errorCode}`, { lng }) ?? errorCode
         // Generate unique trace
         const trace = genTrace(traceBase);
         // Generate display message by appending trace to message

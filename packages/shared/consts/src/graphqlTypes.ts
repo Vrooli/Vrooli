@@ -24,6 +24,13 @@ export enum AccountStatus {
   Unlocked = 'Unlocked'
 }
 
+export enum ProjectVersionDirectorySortBy {
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc     = 'DateUpdatedDesc',
+}
+
 export type AnyRun = RunProject | RunRoutine;
 
 export type Api = {

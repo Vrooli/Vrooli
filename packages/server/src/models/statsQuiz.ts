@@ -29,7 +29,7 @@ export const StatsQuizModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_quiz,
     display: {
         select: () => ({ id: true, quiz: selPad(QuizModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
+        label: (select, languages) => (i18next as any).t(`common:ObjectStats`, {
             lng: languages.length > 0 ? languages[0] : 'en',
             objectName: QuizModel.display.label(select.quiz as any, languages),
         }),

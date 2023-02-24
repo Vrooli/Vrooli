@@ -30,7 +30,7 @@ export const QuizQuestionResponseModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
     display: {
         select: () => ({ id: true, quizQuestion: selPad(QuizQuestionModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:QuizQuestionResponseLabel`, {
+        label: (select, languages) => (i18next as any).t(`common:QuizQuestionResponseLabel`, {
             lng: languages.length > 0 ? languages[0] : 'en',
             questionLabel: QuizQuestionModel.display.label(select.quizQuestion as any, languages),
         }),

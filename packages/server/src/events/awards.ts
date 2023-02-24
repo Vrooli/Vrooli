@@ -70,8 +70,8 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
             // Get translated award name and body
             const lng = languages.length > 0 ? languages[0] : 'en';
             const { name, nameVariables, body, bodyVariables } = awardNames[category](award.progress);
-            const transTitle = name ? i18next.t(`award:${name}`, { lng, ...(nameVariables ?? {}) }) : null;
-            const transBody = body ? i18next.t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;
+            const transTitle = name ? (i18next as any).t(`award:${name}`, { lng, ...(nameVariables ?? {}) }) : null;
+            const transBody = body ? (i18next as any).t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;
             // Send a notification to the user
             if (transTitle && transBody) {
                 await Notify(prisma, languages).pushAward(transTitle, transBody).toUser(userId);

@@ -30,8 +30,8 @@ export const PremiumModel: ModelLogic<{
         select: () => ({ id: true, customPlan: true }),
         label: (select, languages) => {
             const lng = languages[0];
-            if (select.customPlan) return i18next.t(`common:PaymentPlanCustom`, { lng });
-            return i18next.t(`common:PaymentPlanBasic`, { lng });
+            if (select.customPlan) return (i18next as any).t(`common:PaymentPlanCustom`, { lng });
+            return (i18next as any).t(`common:PaymentPlanBasic`, { lng });
         }
     },
     format: {

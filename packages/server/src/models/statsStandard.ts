@@ -29,7 +29,7 @@ export const StatsStandardModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_standard,
     display: {
         select: () => ({ id: true, standard: selPad(StandardModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
+        label: (select, languages) => (i18next as any).t(`common:ObjectStats`, {
             lng: languages.length > 0 ? languages[0] : 'en',
             objectName: StandardModel.display.label(select.standard as any, languages),
         }),
