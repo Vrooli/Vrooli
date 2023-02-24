@@ -66,6 +66,7 @@ check_var SERVER_URL
 check_var SITE_IP
 
 # Ask for version number, if not supplied in arguments
+AUTO_DETECT_VERSION=false
 if [ -z "$VERSION" ]; then
     prompt "What version number do you want to deploy? (e.g. 1.0.0). Leave blank if keeping the same version number."
     warning "WARNING: Keeping the same version number will overwrite the previous build."
@@ -75,21 +76,24 @@ if [ -z "$VERSION" ]; then
         info "No version number entered. Using version number found in package.json files."
         VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
         info "Version number found in package.json files: ${VERSION}"
+        AUTO_DETECT_VERSION=true
     fi
 fi
 
-# Update package.json files for every package
-cd ${HERE}/../packages
-# Find every directory containing a package.json file, up to 3 levels deep
-for dir in $(find . -maxdepth 3 -name package.json -printf '%h '); do
-    info "Updating package.json for ${dir}"
-    # Go to directory
-    cd ${dir}
-    # Patch with yarn
-    yarn version patch --new-version ${VERSION} --no-git-tag-version
-    # Go back to packages directory
+# Update package.json files for every package, if version number was not auto-detected
+if [ "${AUTO_DETECT_VERSION}" = false ]; then
     cd ${HERE}/../packages
-done
+    # Find every directory containing a package.json file, up to 3 levels deep
+    for dir in $(find . -maxdepth 3 -name package.json -printf '%h '); do
+        info "Updating package.json for ${dir}"
+        # Go to directory
+        cd ${dir}
+        # Patch with yarn
+        yarn version patch --new-version ${VERSION} --no-git-tag-version
+        # Go back to packages directory
+        cd ${HERE}/../packages
+    done
+fi
 
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
