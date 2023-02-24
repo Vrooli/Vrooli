@@ -15,7 +15,7 @@
         "@shared/consts": "*",
         "react": "^18.0.0",
         "react-dom": "^18.0.0",
-        "xmlbuilder": "^15.1.1",
+        "xmlbuilder2": "^3.0.2",
         "yup": "^0.32.9"
     },
     "devDependencies": {
