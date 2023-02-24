@@ -1,5 +1,6 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, TimeFrame, User } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
+import { FormSchema } from 'forms/types';
 import { AwardDisplay, NavigableObject } from 'types';
 import { ListObjectType, ObjectAction, SearchType, UseObjectActionsReturn } from 'utils';
 
@@ -62,6 +63,20 @@ export interface DateRangeMenuProps {
      * matches.
      */
     strictIntervalRange?: number;
+}
+
+export interface SearchButtonsListProps {
+    advancedSearchParams: object | null;
+    advancedSearchSchema: FormSchema | null | undefined;
+    searchType: SearchType | `${SearchType}`;
+    session: Session;
+    setAdvancedSearchParams: (params: object | null) => void;
+    setSortBy: (sortBy: string) => void;
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    sortBy: string;
+    sortByOptions: any; // No way to specify generic enum
+    timeFrame: TimeFrame | undefined;
+    zIndex: number;
 }
 
 /**

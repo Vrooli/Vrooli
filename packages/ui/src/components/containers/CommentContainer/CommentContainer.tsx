@@ -1,42 +1,23 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Box, Button, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Button, Stack, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
 import { useLazyQuery } from 'api/hooks';
 import { CommentCreateInput } from 'components/inputs';
-import { getUserLanguages, labelledSortOptions, SearchType, searchTypeToParams, useWindowSize } from 'utils';
+import { getUserLanguages, searchTypeToParams, useWindowSize } from 'utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from '@shared/route';
+import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { Wrap } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { uuidValidate } from '@shared/uuid';
-import { AdvancedSearchDialog } from 'components/dialogs';
-import { SortMenu, TimeMenu } from 'components/lists';
-import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@shared/icons';
+import { SearchButtonsList } from 'components/lists';
+import { CreateIcon } from '@shared/icons';
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 import { CommentThread as ThreadType, CommentSearchInput, CommentSearchResult, CommentSortBy, TimeFrame, Comment } from '@shared/consts';
 import { commentFindMany } from 'api/generated/endpoints/comment';
 import { SearchParams } from 'utils/search/schemas/base';
 import { useTranslation } from 'react-i18next';
-
-const searchButtonStyle = (palette: Palette) => ({
-    minHeight: '34px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: '50px',
-    border: `2px solid ${palette.secondary.main}`,
-    margin: 1,
-    padding: 0,
-    paddingLeft: 1,
-    paddingRight: 1,
-    cursor: 'pointer',
-    '&:hover': {
-        transform: 'scale(1.1)',
-    },
-    transition: 'transform 0.2s ease-in-out',
-});
 
 export function CommentContainer({
     forceAddCommentOpen,
@@ -48,10 +29,11 @@ export function CommentContainer({
     session,
     zIndex,
 }: CommentContainerProps) {
-    const { breakpoints, palette } = useTheme();
+    const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [{ advancedSearchSchema, defaultSortBy, sortByOptions }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
@@ -60,7 +42,6 @@ export function CommentContainer({
         }
         getSearchParams();
     }, [session]);
-    const sortOptionsLabelled = labelledSortOptions(sortByOptions, getUserLanguages(session)[0]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -87,9 +68,6 @@ export function CommentContainer({
         }
     }, [defaultSortBy, sortByOptions]);
 
-    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
     const after = useRef<string | undefined>(undefined);
 
     /**
@@ -106,7 +84,7 @@ export function CommentContainer({
         });
     }, [searchString, sortBy, timeFrame, setLocation]);
 
-    const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
+    const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>({});
     const [getPageData, { data: pageData, loading }] = useLazyQuery<CommentSearchResult, CommentSearchInput, 'comments'>(commentFindMany, 'comments', {
         variables: {
             after: after.current,
@@ -152,58 +130,8 @@ export function CommentContainer({
         return data.comments.threads ?? [];
     }, []);
 
-    const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
-    const handleSortClose = (label?: string, selected?: string) => {
-        setSortAnchorEl(null);
-        if (selected) setSortBy(selected);
-    };
-
-    const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
-    const handleTimeClose = (label?: string, frame?: { after?: Date | undefined, before?: Date | undefined }) => {
-        setTimeAnchorEl(null);
-        setTimeFrame(frame);
-        if (label) setTimeFrameLabel(label === 'All Time' ? '' : label);
-    };
-
-    /**
-     * Find sort by label when sortBy changes
-     */
-    const sortByLabel = useMemo(() => t(`common:${sortBy}`, { lng: getUserLanguages(session)[0] }) ?? sortBy, [session, sortBy, t]);
-
-    // Handle advanced search
-    useEffect(() => {
-        const searchParams = parseSearchParams();
-        // Open advanced search dialog, if needed
-        if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
-        // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
-        const { advanced, search, sort, time, ...otherParams } = searchParams;
-        // Find valid advanced search params
-        const allAdvancedSearchParams = advancedSearchSchema?.fields?.map(f => f.fieldName) ?? [];
-        // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
-        const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
-        setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, []);
-
-    // Handle advanced search dialog
-    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
-    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
-    const handleAdvancedSearchDialogClose = useCallback(() => {
-        setAdvancedSearchDialogOpen(false)
-    }, []);
-    const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
-        // Remove undefined and 0 values
-        const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
-        // Remove schema fields from search params
-        removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
-        // Add set fields to search params
-        addSearchParams(setLocation, valuesWithoutBlanks);
-        setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [advancedSearchSchema?.fields, setLocation]);
-
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
-        // Close advanced search dialog
-        // handleAdvancedSearchDialogClose();
         const parsedData = parseData(pageData);
         if (!parsedData) {
             setAllData([]);
@@ -214,7 +142,7 @@ export function CommentContainer({
         } else {
             setAllData(parsedData);
         }
-    }, [pageData, parseData, handleAdvancedSearchDialogClose]);
+    }, [pageData, parseData]);
 
     /**
      * When new comment is created, add it to the list of comments
@@ -253,28 +181,6 @@ export function CommentContainer({
 
     return (
         <ContentCollapse isOpen={isOpen} session={session} title="Comments">
-            {/* Dialog for setting advanced search items */}
-            <AdvancedSearchDialog
-                handleClose={handleAdvancedSearchDialogClose}
-                handleSearch={handleAdvancedSearchDialogSubmit}
-                isOpen={advancedSearchDialogOpen}
-                searchType={SearchType.Comment}
-                session={session}
-                zIndex={zIndex + 1}
-            />
-            {/* Menu for selecting "sort by" type */}
-            <SortMenu
-                sortOptions={sortOptionsLabelled}
-                anchorEl={sortAnchorEl}
-                lng={getUserLanguages(session)[0]}
-                onClose={handleSortClose}
-            />
-            {/* Menu for selecting time created */}
-            <TimeMenu
-                anchorEl={timeAnchorEl}
-                onClose={handleTimeClose}
-                session={session}
-            />
             {/* Add comment */}
             {
                 isAddCommentOpen && <CommentCreateInput
@@ -290,37 +196,19 @@ export function CommentContainer({
             }
             {/* Sort & filter */}
             {allData.length > 0 ? <>
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
-                    <Tooltip title="Sort by" placement="top">
-                        <Box
-                            onClick={handleSortOpen}
-                            sx={searchButtonStyle(palette)}
-                        >
-                            <SortIcon fill={palette.secondary.main} />
-                            <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{sortByLabel}</Typography>
-                        </Box>
-                    </Tooltip>
-                    <Tooltip title="Time created" placement="top">
-                        <Box
-                            onClick={handleTimeOpen}
-                            sx={searchButtonStyle(palette)}
-                        >
-                            <TimeIcon fill={palette.secondary.main} />
-                            <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{timeFrameLabel}</Typography>
-                        </Box>
-                    </Tooltip>
-                    {advancedSearchParams && <Tooltip title="See all search settings" placement="top">
-                        <Box
-                            onClick={handleAdvancedSearchDialogOpen}
-                            sx={searchButtonStyle(palette)}
-                        >
-                            <BuildIcon fill={palette.secondary.main} />
-                            {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={{ marginLeft: 0.5 }}>
-                                *{Object.keys(advancedSearchParams).length}
-                            </Typography>}
-                        </Box>
-                    </Tooltip>}
-                </Box>
+                <SearchButtonsList
+                    advancedSearchParams={advancedSearchParams}
+                    advancedSearchSchema={advancedSearchSchema}
+                    searchType="Comment"
+                    session={session}
+                    setAdvancedSearchParams={setAdvancedSearchParams}
+                    setSortBy={setSortBy}
+                    setTimeFrame={setTimeFrame}
+                    sortBy={sortBy}
+                    sortByOptions={sortByOptions}
+                    timeFrame={timeFrame}
+                    zIndex={zIndex}
+                />
                 {/* Comments list */}
                 <Stack direction="column" spacing={2}>
                     {allData.map((thread, index) => (
@@ -339,7 +227,7 @@ export function CommentContainer({
                 startIcon={<CreateIcon />}
                 onClick={handleAddCommentOpen}
                 sx={{ marginTop: 2 }}
-            >Add comment</Button> : null}
+            >{t(`common:AddComment`, { lng })}</Button> : null}
         </ContentCollapse>
     );
 }

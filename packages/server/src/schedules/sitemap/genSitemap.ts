@@ -159,3 +159,12 @@ export const genSitemap = async (): Promise<void> => {
     await prisma.$disconnect();
     console.info('✅ Sitemap generated successfully')
 }
+
+/**
+ * Calls genSitemap if no sitemap.xml file exists
+ */
+export const genSitemapIfNotExists = async (): Promise<void> => {
+    if (!fs.existsSync(`${sitemapIndexDir}/sitemap.xml`)) {
+        await genSitemap();
+    }
+}

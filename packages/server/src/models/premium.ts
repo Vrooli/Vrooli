@@ -5,6 +5,7 @@ import { MaxObjects, Premium } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Premium' as const;
 const suppFields = [] as const;
@@ -50,18 +51,23 @@ export const PremiumModel: ModelLogic<{
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
+            Organization: data.organization,
             User: data.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
+            organization: 'Organization',
             user: 'User',
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                user: { id: userId },
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
             }),
         },
     },

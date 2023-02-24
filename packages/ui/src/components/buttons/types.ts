@@ -1,9 +1,19 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
 import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor, VoteFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
+import { FormSchema } from 'forms/types';
 import React from 'react';
 import { NavigableObject} from 'types';
-import { Status } from 'utils';
+import { SearchType, Status } from 'utils';
+
+export interface AdvancedSearchButtonProps {
+    advancedSearchParams: object | null;
+    advancedSearchSchema: FormSchema | null | undefined;
+    searchType: SearchType | `${SearchType}`;
+    setAdvancedSearchParams: (params: object | null) => void;
+    session: Session;
+    zIndex: number;
+}
 
 export interface BuildEditButtonsProps {
     canSubmitMutate: boolean;
@@ -111,6 +121,13 @@ export interface ShareButtonProps {
     zIndex: number;
 }
 
+export interface SortButtonProps {
+    options: any; // No way to specify generic enum
+    setSortBy: (sortBy: string) => void;
+    session: Session;
+    sortBy: string;
+}
+
 export interface BookmarkButtonProps {
     disabled?: boolean;
     isBookmarked?: boolean | null; // Defaults to false
@@ -131,6 +148,17 @@ export interface StatusMessageArray {
 export interface StatusButtonProps extends ButtonProps {
     status: Status;
     messages: string[];
+}
+
+export type TimeFrame = {
+    after?: Date;
+    before?: Date;
+}
+
+export interface TimeButtonProps {
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    session: Session;
+    timeFrame: TimeFrame | undefined;
 }
 
 export interface VoteButtonProps {

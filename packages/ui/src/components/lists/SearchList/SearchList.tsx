@@ -2,41 +2,19 @@
  * Search list for a single object type
  */
 import { useLazyQuery } from "api/hooks";
-import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/material";
-import { AdvancedSearchDialog, SiteSearchBar, SortMenu, TimeMenu } from "components";
+import { Box, Button, List, Typography, useTheme } from "@mui/material";
+import { AdvancedSearchButton, SearchButtonsList, SiteSearchBar, SortButton, TimeButton } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
+import { PlusIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, searchTypeToParams, useDisplayApolloError } from "utils";
-import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from '@shared/route';
+import { getUserLanguages, ListObjectType, listToAutocomplete, listToListItems, openObject, searchTypeToParams, useDisplayApolloError } from "utils";
+import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 import { SearchParams } from "utils/search/schemas/base";
 import { routineFindMany } from "api/generated/endpoints/routine";
 import { useTranslation } from "react-i18next";
 import { exists } from "@shared/utils";
-
-type TimeFrame = {
-    after?: Date;
-    before?: Date;
-}
-
-const searchButtonStyle = (palette: Palette) => ({
-    minHeight: '34px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: '50px',
-    border: `2px solid ${palette.secondary.main}`,
-    margin: 1,
-    padding: 0,
-    paddingLeft: 1,
-    paddingRight: 1,
-    cursor: 'pointer',
-    '&:hover': {
-        transform: 'scale(1.1)',
-    },
-    transition: 'transform 0.2s ease-in-out',
-});
+import { TimeFrame } from "@shared/consts";
 
 /**
  * Helper method for converting fetched data to an array of object data
@@ -71,16 +49,17 @@ export function SearchList<
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [{ advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[searchType];
             if (!params) return;
-            setSearchParams(await params(getUserLanguages(session)[0]));
+            setSearchParams(await params(lng));
         };
         fetchParams();
-    }, [searchType, session]);
+    }, [lng, searchType, session]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -107,9 +86,6 @@ export function SearchList<
         }
     }, [defaultSortBy, searchType, sortByOptions]);
 
-    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
     const after = useRef<string | undefined>(undefined);
 
     /**
@@ -157,6 +133,7 @@ export function SearchList<
     // On search filters/sort change, reset the page
     useEffect(() => {
         after.current = undefined;
+        console.log('time frammeeeeeee', timeFrame)
         if (canSearch) getPageData();
     }, [advancedSearchParams, canSearch, searchString, searchType, sortBy, timeFrame, where, getPageData]);
 
@@ -175,40 +152,6 @@ export function SearchList<
         }
     }, [getPageData, pageData]);
 
-    // Handle advanced search
-    useEffect(() => {
-        const searchParams = parseSearchParams()
-        if (!advancedSearchSchema?.fields) {
-            setAdvancedSearchParams(null);
-            return;
-        }
-        // Open advanced search dialog, if needed
-        if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
-        // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
-        const { advanced, search, sort, time, ...otherParams } = searchParams;
-        // Find valid advanced search params
-        const allAdvancedSearchParams = advancedSearchSchema.fields.map(f => f.fieldName);
-        // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
-        const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
-        setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, [advancedSearchSchema?.fields]);
-
-    // Handle advanced search dialog
-    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
-    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
-    const handleAdvancedSearchDialogClose = useCallback(() => {
-        setAdvancedSearchDialogOpen(false)
-    }, []);
-    const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
-        // Remove 0 values
-        const valuesWithoutBlanks: { [x: string]: any } = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== 0));
-        // Remove schema fields from search params
-        removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
-        // Add set fields to search params
-        addSearchParams(setLocation, valuesWithoutBlanks);
-        setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [advancedSearchSchema?.fields, setLocation]);
-
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
         const parsedData = parseData(pageData);
@@ -222,7 +165,7 @@ export function SearchList<
         } else {
             setAllData(parsedData);
         }
-    }, [pageData, handleAdvancedSearchDialogClose]);
+    }, [pageData]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
@@ -262,29 +205,6 @@ export function SearchList<
 
     const handleSearch = useCallback((newString: any) => { setSearchString(newString) }, [setSearchString]);
 
-    const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
-    const handleSortClose = (label?: string, selected?: string) => {
-        setSortAnchorEl(null);
-        if (selected) setSortBy(selected);
-    };
-
-    const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
-    const handleTimeClose = (label?: string, frame?: { after?: Date | undefined, before?: Date | undefined }) => {
-        setTimeAnchorEl(null);
-        setTimeFrame(frame);
-        if (label) setTimeFrameLabel(label === 'All Time' ? '' : label);
-    };
-
-    /**
-     * Wrap sortByOptions with labels
-     */
-    const sortOptionsLabelled = useMemo(() => labelledSortOptions(sortByOptions, getUserLanguages(session)[0]), [session, sortByOptions]);
-
-    /**
-     * Find sort by label when sortBy changes
-     */
-    const sortByLabel = useMemo(() => t(`common:${sortBy}`, { lng: getUserLanguages(session)[0] }) ?? sortBy, [session, sortBy, t]);
-
     /**
      * When an autocomplete item is selected, navigate to object
      */
@@ -317,41 +237,15 @@ export function SearchList<
                         <List sx={{ padding: 0 }}>
                             {listItems}
                         </List>
-                    ) : (<Typography variant="h6" textAlign="center">{t(`error:NoResults`, { lng: getUserLanguages(session)[0] })}</Typography>)
+                    ) : (<Typography variant="h6" textAlign="center">{t(`error:NoResults`, { lng })}</Typography>)
                 }
             </Box>
         )
-    }, [listItems, palette.background.paper, session, t]);
+    }, [listItems, lng, palette.background.paper, t]);
 
-    // Update query params
-    useEffect(() => {
-        addSearchParams(setLocation, { advanced: advancedSearchDialogOpen });
-    }, [advancedSearchDialogOpen, setLocation]);
 
     return (
         <>
-            {/* Dialog for setting advanced search items */}
-            <AdvancedSearchDialog
-                handleClose={handleAdvancedSearchDialogClose}
-                handleSearch={handleAdvancedSearchDialogSubmit}
-                isOpen={advancedSearchDialogOpen}
-                searchType={searchType}
-                session={session}
-                zIndex={zIndex + 1}
-            />
-            {/* Menu for selecting "sort by" type */}
-            <SortMenu
-                sortOptions={sortOptionsLabelled}
-                anchorEl={sortAnchorEl}
-                lng={getUserLanguages(session)[0]}
-                onClose={handleSortClose}
-            />
-            {/* Menu for selecting time created */}
-            <TimeMenu
-                anchorEl={timeAnchorEl}
-                onClose={handleTimeClose}
-                session={session}
-            />
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
                 <SiteSearchBar
                     id={`search-bar-${id}`}
@@ -365,37 +259,19 @@ export function SearchList<
                     sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
-                <Tooltip title="Sort by" placement="top">
-                    <Box
-                        onClick={handleSortOpen}
-                        sx={searchButtonStyle(palette)}
-                    >
-                        <SortIcon fill={palette.secondary.main} />
-                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{sortByLabel}</Typography>
-                    </Box>
-                </Tooltip>
-                <Tooltip title="Time created" placement="top">
-                    <Box
-                        onClick={handleTimeOpen}
-                        sx={searchButtonStyle(palette)}
-                    >
-                        <TimeIcon fill={palette.secondary.main} />
-                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{timeFrameLabel}</Typography>
-                    </Box>
-                </Tooltip>
-                {advancedSearchParams && <Tooltip title="See all search settings" placement="top">
-                    <Box
-                        onClick={handleAdvancedSearchDialogOpen}
-                        sx={searchButtonStyle(palette)}
-                    >
-                        <BuildIcon fill={palette.secondary.main} />
-                        {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={{ marginLeft: 0.5 }}>
-                            *{Object.keys(advancedSearchParams).length}
-                        </Typography>}
-                    </Box>
-                </Tooltip>}
-            </Box>
+            <SearchButtonsList
+                advancedSearchParams={advancedSearchParams}
+                advancedSearchSchema={advancedSearchSchema}
+                searchType={searchType}
+                session={session}
+                setAdvancedSearchParams={setAdvancedSearchParams}
+                setSortBy={setSortBy}
+                setTimeFrame={setTimeFrame}
+                sortBy={sortBy}
+                sortByOptions={sortByOptions}
+                timeFrame={timeFrame}
+                zIndex={zIndex}
+            />
             {searchResultContainer}
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{
@@ -403,7 +279,7 @@ export function SearchList<
                 margin: 'auto',
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t(`common:AddNew`, { lng: getUserLanguages(session)[0] })}</Button>
+                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t(`common:AddNew`, { lng })}</Button>
             </Box>}
         </>
     )

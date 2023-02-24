@@ -66,7 +66,7 @@ export const ProjectView = ({
     }, [session, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
-    
+
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
@@ -82,13 +82,6 @@ export const ProjectView = ({
         setLocation,
         setObject: setProjectVersion,
     });
-
-    // Create search data
-    const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
-        if (currTab.value === TabOptions.Routine)
-            return toSearchListData('Routine', 'SearchRoutine', { projectId: projectVersion?.id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
-        return toSearchListData('Standard', 'SearchStandard', { projectId: projectVersion?.id, visibility: VisibilityType.All });
-    }, [currTab.value, projectVersion?.id, permissions.canUpdate]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -243,26 +236,21 @@ export const ProjectView = ({
             </Box>
             {/* View routines and standards associated with this project */}
             <Box>
-                <PageTabs
-                    ariaLabel="project-tabs"
-                    currTab={currTab}
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />
-                <Box p={2}>
-                    <SearchList
-                        canSearch={Boolean(projectVersion?.id)}
-                        handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                        hideRoles={true}
-                        id="project-view-list"
-                        searchType={searchType}
-                        searchPlaceholder={placeholder}
-                        session={session}
-                        take={20}
-                        where={where}
-                        zIndex={zIndex}
-                    />
-                </Box>
+                {/* Breadcrumbs to show directory hierarchy */}
+                {/* TODO */}
+                {/* List of items in current directory */}
+                {/* <SearchList
+                    canSearch={Boolean(projectVersion?.id)}
+                    handleAdd={permissions.canUpdate ? toAddNew : undefined}
+                    hideRoles={true}
+                    id="directory-view-list"
+                    searchType={searchType}
+                    searchPlaceholder={placeholder}
+                    session={session}
+                    take={20}
+                    where={where}
+                    zIndex={zIndex}
+                /> */}
             </Box>
         </>
     )
