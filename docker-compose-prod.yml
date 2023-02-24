@@ -130,35 +130,6 @@ services:
   #     - app
   #   expose:
   #     - ${PORT_TRANSLATE}
-  # docs:
-  #     build:
-  #         context: .
-  #         dockerfile: ./packages/docs/Dockerfile-prod
-  #         args:
-  #             PROJECT_DIR: "${PROJECT_DIR}"
-  #     container_name: docs
-  #     restart: always
-  #     environment:
-  #         NODE_ENV: "production"
-  #         REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-  #         REACT_APP_PORT_SERVER: ${PORT_SERVER}
-  #         REACT_APP_SERVER_URL: "${SERVER_URL}"
-  #         REACT_APP_SITE_IP: "${SITE_IP}"
-  #         PROJECT_DIR: "${PROJECT_DIR}"
-  #         VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
-  #         VIRTUAL_PATH: "/"
-  #         VIRTUAL_PORT: ${PORT_DOCS}
-  #         LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
-  #         LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-  #     expose:
-  #         - ${PORT_DOCS}
-  #     networks:
-  #         - proxy
-  #         - app
-  #     volumes:
-  #         - ./packages/docs:${PROJECT_DIR}/packages/docs:z
-  #         - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-  #     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/docs.sh"
   # adminer:
   #     image: adminer
   #     restart: always

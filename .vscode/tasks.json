@@ -16,10 +16,10 @@
         {
             "type": "npm",
             "script": "build",
-            "path": "packages/docs",
+            "path": "packages/ui",
             "group": "build",
             "problemMatcher": [],
-            "label": "npm: build - packages/docs",
+            "label": "npm: build - packages/ui",
             "detail": "react-scripts build --max-old-space-size=8192 --optimize_for_size --max_executable_size=4096 --stack_size=4096"
         }
     ]
