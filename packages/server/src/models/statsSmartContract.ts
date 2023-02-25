@@ -29,7 +29,7 @@ export const StatsSmartContractModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_smart_contract,
     display: {
         select: () => ({ id: true, smartContract: selPad(SmartContractModel.display.select) }),
-        label: (select, languages) => (i18next as any).t(`common:ObjectStats`, {
+        label: (select, languages) => i18next.t(`common:ObjectStats`, {
             lng: languages.length > 0 ? languages[0] : 'en',
             objectName: SmartContractModel.display.label(select.smartContract as any, languages),
         }),

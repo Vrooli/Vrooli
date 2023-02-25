@@ -79,8 +79,8 @@ const push = async ({
     const userBodies: { [userId: string]: string } = {};
     for (const user of users) {
         const lng = user.languages.length > 0 ? user.languages[0] : 'en';
-        const title: string | undefined = titleKey ? (i18next as any).t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) }) : undefined;
-        const body: string | undefined = bodyKey ? (i18next as any).t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined
+        const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) }) : undefined;
+        const body: string | undefined = bodyKey ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined
         // At least one of title or body must be defined
         if (!title && !body) throw new CustomError('0362', 'InternalError', user.languages);
         userTitles[user.userId] = title ?? `${body!.substring(0, 10)}...`; // If no title, use shortened body

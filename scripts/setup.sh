@@ -9,7 +9,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":f:r" opt; do
+while getopts ":f:h:r" opt; do
     case $opt in
     f)
         REINSTALL_MODULES=$OPTARG
@@ -18,7 +18,7 @@ while getopts ":f:r" opt; do
         ON_REMOTE=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-h HELP] [-r REMOTE]"
+        echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE]"
         echo "  -h --help: Show this help message"
         echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"

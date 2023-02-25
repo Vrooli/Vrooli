@@ -9,6 +9,7 @@
 # -v: Version number to use (e.g. "1.0.0")
 # -d: Deploy to VPS (y/N)
 # -h: Show this help message
+# -g: Generate GraphQL tags for queries/mutations
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 

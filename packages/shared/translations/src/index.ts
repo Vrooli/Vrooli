@@ -1,19 +1,19 @@
-declare var require: any
-const awardLocale = require('./locales/en/award.json');
-const commonLocale = require('./locales/en/common.json');
-const errorLocale = require('./locales/en/error.json');
-const notifyLocale = require('./locales/en/notify.json');
-const validateLocale = require('./locales/en/validate.json');
+declare var require: any;
+const award = require('./locales/en/award.json');
+const common = require('./locales/en/common.json');
+const error = require('./locales/en/error.json');
+const notify = require('./locales/en/notify.json');
+// const validate = require('./locales/en/validate.json');
 
 // Setup internationization
 const defaultNS = 'common';
 const resources = {
     en: {
-        award: awardLocale,
-        common: commonLocale,
-        validate: validateLocale,
-        error: errorLocale,
-        notify: notifyLocale,
+        award,
+        common,
+        // validate,
+        error,
+        notify,
     },
 } as const;
 
@@ -21,7 +21,7 @@ export const i18nConfig = (debug: boolean) => ({
     debug,
     partialBundledLanguages: true,
     defaultNS,
-    ns: ['common', 'validation', 'errors', 'notifications'],
+    ns: ['common', 'error', 'notify', 'award'], // 'validate'
     fallbackLng: 'en',
     resources,
     backend: {

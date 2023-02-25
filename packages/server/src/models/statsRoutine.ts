@@ -29,7 +29,7 @@ export const StatsRoutineModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_routine,
     display: {
         select: () => ({ id: true, routine: selPad(RoutineModel.display.select) }),
-        label: (select, languages) => (i18next as any).t(`common:ObjectStats`, {
+        label: (select, languages) => i18next.t(`common:ObjectStats`, {
             lng: languages.length > 0 ? languages[0] : 'en',
             objectName: RoutineModel.display.label(select.routine as any, languages),
         }),

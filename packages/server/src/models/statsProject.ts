@@ -29,7 +29,7 @@ export const StatsProjectModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_project,
     display: {
         select: () => ({ id: true, project: selPad(ProjectModel.display.select) }),
-        label: (select, languages) => (i18next as any).t(`common:ObjectStats`, {
+        label: (select, languages) => i18next.t(`common:ObjectStats`, {
             lng: languages.length > 0 ? languages[0] : 'en',
             objectName: ProjectModel.display.label(select.project as any, languages),
         }),

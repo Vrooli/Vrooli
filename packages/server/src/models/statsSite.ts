@@ -27,7 +27,7 @@ export const StatsSiteModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_site,
     display: {
         select: () => ({ id: true }),
-        label: (_, languages) => (i18next as any).t(`common:SiteStats`, {
+        label: (_, languages) => i18next.t(`common:SiteStats`, {
             lng: languages.length > 0 ? languages[0] : 'en',
         }),
     },
