@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 import { SearchList } from 'components/lists';
 import { useLazyQuery } from 'api/hooks';
-import { SearchType, getUserLanguages, searchTypeToParams } from 'utils';
+import { SearchType, searchTypeToParams } from 'utils';
 import { removeSearchParams, useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
@@ -21,7 +21,7 @@ import { CreatePageProps } from 'pages';
 import { CreateProps } from 'components/views/types';
 import { isOfType } from '@shared/utils';
 import { SearchParams } from 'utils/search/schemas/base';
-import { routineFindOne } from 'api/generated/endpoints/routine';
+import { CommonKey } from '@shared/translations';
 
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
@@ -58,13 +58,12 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     const [, setLocation] = useLocation();
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const { helpText, titleAria } = useMemo(() => {
         return {
-            helpText: help ?? t('common:SelectOrCreateDialogHelp', { lng, objectType: t(`common:${objectType}`, { lng, count: 1 }) }),
+            helpText: help ?? t('SelectOrCreateDialogHelp', { objectType: t(objectType, { count: 1, defaultValue: objectType }) }),
             titleAria: `select-or-create-${objectType}-dialog-title`,
         };
-    }, [help, lng, objectType, t]);
+    }, [help, objectType, t]);
     const CreateView = useMemo<((props: CreatePageProps) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : createMap[objectType], [objectType]);
 
@@ -73,10 +72,10 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         const fetchParams = async () => {
             const params = searchTypeToParams[objectType];
             if (!params) return;
-            setSearchParams(await params(getUserLanguages(session)[0]));
+            setSearchParams(await params());
         };
         fetchParams();
-    }, [objectType, session]);
+    }, [objectType]);
 
     /**
      * Before closing, remove all URL search params for advanced search
@@ -121,7 +120,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
 
 
     // If item selected from search, query for full data
-    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, string>(query ?? routineFindOne, endpoint ?? 'routine');  // We have to set something as the defaults, so I picked routine
+    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, string>({ query, endpoint });
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: T) => {
         if (!endpoint || !query) return false;
@@ -194,14 +193,14 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             </BaseObjectDialog>}
             <DialogTitle
                 ariaLabel={titleAria}
-                title={t(`common:Add${objectType.replace('Version', '')}`, { lng })}
+                title={t(`Add${objectType.replace('Version', '')}` as CommonKey)}
                 helpText={helpText}
                 onClose={onClose}
             />
             <Stack direction="column" spacing={2}>
                 <Stack direction="row" alignItems="center" justifyContent="center">
-                    <Typography component="h2" variant="h4">{t(`common:${objectType}`, { lng, count: 2 })}</Typography>
-                    <Tooltip title={t(`common:AddNew`, { lng })} placement="top">
+                    <Typography component="h2" variant="h4">{t(objectType, { count: 2 })}</Typography>
+                    <Tooltip title={t(`AddNew`)} placement="top">
                         <IconButton
                             size="medium"
                             onClick={handleCreateOrShareOpen}
@@ -215,7 +214,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                     id={`${objectType}-select-or-create-list`}
                     beforeNavigation={fetchFullData}
                     searchType={objectType as unknown as SearchType}
-                    searchPlaceholder={t(`common:SelectExisting${objectType}`, { lng })}
+                    searchPlaceholder={t(`SelectExisting${objectType}`)}
                     session={session}
                     take={20}
                     where={where ?? { userId }}

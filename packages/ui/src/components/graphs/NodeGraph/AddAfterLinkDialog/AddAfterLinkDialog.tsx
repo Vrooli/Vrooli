@@ -54,7 +54,7 @@ export const AddAfterLinkDialog = ({
             <DialogTitle
                 ariaLabel={titleAria}
                 onClose={handleClose}
-                title={t('common:LinkSelect', { lng: getUserLanguages(session)[0] })}
+                title={t('LinkSelect')}
             />
             <DialogContent>
                 <List>

@@ -5,7 +5,6 @@ import { uuidValidate } from '@shared/uuid';
 import { RoutineVersion, SearchException, VisibilityType } from '@shared/consts';
 import { SelectOrCreateDialog } from '../SelectOrCreateDialog/SelectOrCreateDialog';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages } from 'utils';
 
 export const SubroutineSelectOrCreateDialog = ({
     handleAdd,
@@ -16,7 +15,6 @@ export const SubroutineSelectOrCreateDialog = ({
     ...params
 }: SubroutineSelectOrCreateDialogProps) => {
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const handleCreated = useCallback((item: any) => {
         handleAdd(nodeId, item as RoutineVersion);
@@ -48,7 +46,7 @@ export const SubroutineSelectOrCreateDialog = ({
     return <SelectOrCreateDialog
         {...params}
         handleAdd={handleCreated}
-        help={t('common:SelectOrCreateSubroutineDialogHelp', { lng })}
+        help={t('SelectOrCreateSubroutineDialogHelp')}
         objectType='RoutineVersion'
         session={session}
         where={where}

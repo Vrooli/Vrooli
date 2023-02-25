@@ -4,24 +4,24 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { isCompleteWithRootContainer, isCompleteWithRootFields, votesRootContainer, votesRootFields, bookmarksRootContainer, bookmarksRootFields, languagesContainer, languagesFields, tagsRootContainer, tagsRootFields, searchFormLayout, isLatestContainer, isLatestFields } from "./common";
 
-export const apiVersionSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchApiVersion', lng),
+export const apiVersionSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchApiVersion'),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
-        votesRootContainer(lng),
-        bookmarksRootContainer(lng),
-        languagesContainer(lng),
-        tagsRootContainer(lng),
+        votesRootContainer(),
+        bookmarksRootContainer(),
+        languagesContainer(),
+        tagsRootContainer(),
     ],
     fields: [
-        ...isCompleteWithRootFields(lng),
-        ...isLatestFields(lng),
-        ...votesRootFields(lng),
-        ...bookmarksRootFields(lng),
-        ...languagesFields(lng),
-        ...tagsRootFields(lng),
+        ...isCompleteWithRootFields(),
+        ...isLatestFields(),
+        ...votesRootFields(),
+        ...bookmarksRootFields(),
+        ...languagesFields(),
+        ...tagsRootFields(),
     ]
 })
 
-export const apiVersionSearchParams = (lng: string) => toParams(apiVersionSearchSchema(lng), apiVersionFindMany, ApiVersionSortBy, ApiVersionSortBy.DateCreatedDesc);
+export const apiVersionSearchParams = () => toParams(apiVersionSearchSchema(), apiVersionFindMany, ApiVersionSortBy, ApiVersionSortBy.DateCreatedDesc);

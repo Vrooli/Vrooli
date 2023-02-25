@@ -3,7 +3,7 @@ import { SiteSearchBarProps } from '../types';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
 import { ActionIcon, ApiIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, BookmarkFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
-import { getLocalStorageKeys, getUserLanguages, performAction, useDebounce } from 'utils';
+import { getLocalStorageKeys, performAction, useDebounce } from 'utils';
 import { BookmarkFor } from '@shared/consts';
 import { MicrophoneButton, BookmarkButton } from 'components/buttons';
 import { getCurrentUser } from 'utils/authentication';
@@ -139,7 +139,6 @@ export function SiteSearchBar({
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Input internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
@@ -212,12 +211,12 @@ export function SiteSearchBar({
                             marginRight: 1,
                         }}
                     />
-                    {t(`common:Loading`, { lng })}
+                    {t(`Loading`)}
                 </>
             )
         }
-        return t(`error:NoResults`, { lng });
-    }, [loading, internalValue, value, t, lng]);
+        return t(`NoResults`, { ns: 'error' });
+    }, [loading, internalValue, value, t]);
 
     const onHighlightChange = useCallback((event: React.SyntheticEvent<Element, Event>, option: AutocompleteOption | null, reason: AutocompleteHighlightChangeReason) => {
         if (option && option.label && reason === 'keyboard') {
@@ -382,7 +381,7 @@ export function SiteSearchBar({
                         fullWidth={true}
                         value={internalValue}
                         onChange={handleChangeEvent}
-                        placeholder={t(`common:${placeholder ?? 'Search'}`, { lng }) + '...'}
+                        placeholder={t(`${placeholder ?? 'Search'}`) + '...'}
                         autoFocus={props.autoFocus ?? false}
                         // {...params.InputLabelProps}
                         inputProps={params.inputProps}
@@ -415,10 +414,7 @@ export function SiteSearchBar({
                             // }
                         }}
                     />
-                    <MicrophoneButton
-                        onTranscriptChange={handleChange}
-                        session={session}
-                    />
+                    <MicrophoneButton  onTranscriptChange={handleChange} />
                     <IconButton sx={{
                         width: '48px',
                         height: '48px',

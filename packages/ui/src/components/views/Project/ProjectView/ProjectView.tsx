@@ -60,10 +60,10 @@ export const ProjectView = ({
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
             index: i,
-            label: t(`common:${tab}`, { lng: getUserLanguages(session)[0], count: 2 }),
+            label: t(tab, { count: 2 }),
             value: tab,
         }));
-    }, [session, t]);
+    }, [t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 

@@ -3,7 +3,6 @@ import { CopyIcon } from "@shared/icons";
 import { HelpButton } from "components/buttons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils";
 import { GeneratedInputComponent } from "../GeneratedInputComponent/GeneratedInputComponent";
 import { GeneratedInputComponentWithLabelProps } from "../types";
 
@@ -42,12 +41,12 @@ export const GeneratedInputComponentWithLabel = ({
             <>
                 {/* Label, help button, and copy iput icon */}
                 <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
-                    <Tooltip title={t(`common:CopyToClipboard`, { lng: getUserLanguages(session)[0] })}>
+                    <Tooltip title={t(`CopyToClipboard`)}>
                         <IconButton onClick={() => copyInput && copyInput(fieldData.fieldName)}>
                             <CopyIcon fill={textPrimary} />
                         </IconButton>
                     </Tooltip>
-                    <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? t(`common:Input`, { lng: getUserLanguages(session)[0] })}</Typography>
+                    <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? t(`Input`)}</Typography>
                     {fieldData.helpText && <HelpButton markdown={fieldData.helpText} />}
                 </Stack>
                 {inputComponent}

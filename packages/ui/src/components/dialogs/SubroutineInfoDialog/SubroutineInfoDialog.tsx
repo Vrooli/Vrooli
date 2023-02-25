@@ -343,7 +343,6 @@ export const SubroutineInfoDialog = ({
                                     error: translations.touchedDescription && Boolean(translations.errorDescription),
                                     helperText: translations.touchedDescription && translations.errorDescription,
                                 }}
-                                session={session}
                                 text={translations.description}
                                 title="Description"
                             />
@@ -361,7 +360,6 @@ export const SubroutineInfoDialog = ({
                                     error: translations.touchedInstructions && Boolean(translations.errorInstructions),
                                     helperText: translations.touchedInstructions ? translations.errorInstructions as string : null,
                                 }}
-                                session={session}
                                 text={translations.instructions}
                                 title="Instructions"
                             />

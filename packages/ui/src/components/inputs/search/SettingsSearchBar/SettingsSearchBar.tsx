@@ -1,8 +1,8 @@
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme } from '@mui/material';
 import { SearchIcon } from '@shared/icons';
-import { ChangeEvent, useCallback, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { findSearchResults, getUserLanguages, SearchItem, shapeSearchText } from 'utils';
+import { findSearchResults, SearchItem, shapeSearchText } from 'utils';
 import { SettingsSearchBarProps } from '../types';
 
 const FullWidthPopper = function (props) {
@@ -26,7 +26,6 @@ export const SettingsSearchBar = ({
     console.log('settingssearchbar starttt', {...options})
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Input internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
@@ -193,7 +192,7 @@ export const SettingsSearchBar = ({
                     </IconButton>
                 </Paper>
             )}
-            noOptionsText={t(`error:NoResults`, { lng })}
+            noOptionsText={t(`NoResults`, { ns: 'error' })}
             sx={{
                 '& .MuiAutocomplete-inputRoot': {
                     paddingRight: '0 !important',

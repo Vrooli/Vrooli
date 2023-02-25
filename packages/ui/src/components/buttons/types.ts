@@ -81,7 +81,6 @@ export interface HelpButtonProps extends ButtonProps {
 export type MicrophoneButtonProps = {
     disabled?: boolean;
     onTranscriptChange: (result: string) => void;
-    session: Session;
 }
 
 export interface PopupMenuProps extends ButtonProps {
@@ -124,7 +123,6 @@ export interface ShareButtonProps {
 export interface SortButtonProps {
     options: any; // No way to specify generic enum
     setSortBy: (sortBy: string) => void;
-    session: Session;
     sortBy: string;
 }
 

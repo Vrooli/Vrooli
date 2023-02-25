@@ -2,7 +2,6 @@ import { Session, TimeFrame } from "@shared/consts";
 import { addSearchParams, parseSearchParams, useLocation } from "@shared/route";
 import { exists } from "@shared/utils";
 import { useLazyQuery } from "api";
-import { routineFindMany } from "api/generated/endpoints/routine";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AutocompleteOption } from "types";
@@ -49,17 +48,16 @@ export const useFindMany = <DataType extends Record<string, any>>({
     where,
 }: UseFindManyProps) => {
     const [, setLocation] = useLocation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [{ advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[searchType];
             if (!params) return;
-            setSearchParams(await params(lng));
+            setSearchParams(await params());
         };
         fetchParams();
-    }, [lng, searchType, session]);
+    }, [searchType, session]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -106,7 +104,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const after = useRef<string | undefined>(undefined);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useLazyQuery<(string | number | boolean | object), SearchQueryVariablesInput<any>, string>(query ?? routineFindMany, (endpoint ?? 'routines') as any, { // We have to set something as the defaults, so I picked routines
+    const [getPageData, { data: pageData, loading, error }] = useLazyQuery<(string | number | boolean | object), SearchQueryVariablesInput<any>, string>(query, endpoint, {
         variables: ({
             after: after.current,
             take,

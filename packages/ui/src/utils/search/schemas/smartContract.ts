@@ -4,22 +4,22 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
-export const smartContractSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchSmartContract', lng),
+export const smartContractSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchSmartContract'),
     containers: [
         hasCompleteVersionContainer,
-        votesContainer(lng),
-        bookmarksContainer(lng),
-        languagesVersionContainer(lng),
-        tagsContainer(lng),
+        votesContainer(),
+        bookmarksContainer(),
+        languagesVersionContainer(),
+        tagsContainer(),
     ],
     fields: [
-        ...hasCompleteVersionFields(lng),
-        ...votesFields(lng),
-        ...bookmarksFields(lng),
-        ...languagesVersionFields(lng),
-        ...tagsFields(lng),
+        ...hasCompleteVersionFields(),
+        ...votesFields(),
+        ...bookmarksFields(),
+        ...languagesVersionFields(),
+        ...tagsFields(),
     ]
 })
 
-export const smartContractSearchParams = (lng: string) => toParams(smartContractSearchSchema(lng), smartContractFindMany, SmartContractSortBy, SmartContractSortBy.ScoreDesc);
+export const smartContractSearchParams = () => toParams(smartContractSearchSchema(), smartContractFindMany, SmartContractSortBy, SmartContractSortBy.ScoreDesc);

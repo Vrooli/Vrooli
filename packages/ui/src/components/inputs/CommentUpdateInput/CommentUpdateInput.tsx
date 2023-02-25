@@ -13,6 +13,7 @@ import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
 import { commentUpdate } from "api/generated/endpoints/comment";
+import { useTranslation } from "react-i18next";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
@@ -29,6 +30,7 @@ export const CommentUpdateInput = ({
     zIndex,
 }: CommentUpdateInputProps) => {
     const { breakpoints } = useTheme();
+    const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
     const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
@@ -91,7 +93,6 @@ export const CommentUpdateInput = ({
             language={language}
             onTranslationChange={onTranslationChange}
             parent={parent}
-            session={session}
             text={translations.text}
             zIndex={zIndex + 1}
         />
@@ -100,7 +101,7 @@ export const CommentUpdateInput = ({
     return (
         <form>
             <Box sx={{ margin: 2 }}>
-                <Typography component="h3" variant="h6" textAlign="left">Update comment</Typography>
+                <Typography component="h3" variant="h6" textAlign="left">{t('EditComment')}</Typography>
                 <MarkdownInput
                     id="update-comment"
                     placeholder="Please be nice to each other."

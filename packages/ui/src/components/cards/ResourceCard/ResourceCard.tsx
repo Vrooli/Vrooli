@@ -14,6 +14,7 @@ import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
 import { ResourceUsedFor } from '@shared/consts';
 import { useTranslation } from 'react-i18next';
+import { CommonKey } from '@shared/translations';
 
 export const ResourceCard = ({
     canUpdate,
@@ -33,7 +34,7 @@ export const ResourceCard = ({
     const { title, subtitle } = useMemo(() => {
         const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            title: Boolean(title) ? title : t(`common:${data.usedFor ?? ResourceUsedFor.Context}`, { lng: getUserLanguages(session)[0] }),
+            title: Boolean(title) ? title : t(data.usedFor ?? 'Context' as unknown as CommonKey),
             subtitle,
         };
     }, [data, session, t]);

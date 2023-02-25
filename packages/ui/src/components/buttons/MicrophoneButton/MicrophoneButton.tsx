@@ -3,7 +3,7 @@ import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from '@sh
 import { TranscriptDialog } from 'components/dialogs';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages, useSpeech } from 'utils';
+import { useSpeech } from 'utils';
 import { MicrophoneButtonProps } from '../types';
 
 type MicrophoneStatus = 'On' | 'Off' | 'Disabled';
@@ -14,7 +14,6 @@ type MicrophoneStatus = 'On' | 'Off' | 'Disabled';
 export const MicrophoneButton = ({
     disabled = false,
     onTranscriptChange,
-    session,
 }: MicrophoneButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -51,7 +50,7 @@ export const MicrophoneButton = ({
     if (!isSpeechSupported) return null;
     return (
         <Box>
-            <Tooltip title={status !== 'Disabled' ? t(`common:SearchByVoice`, { lng: getUserLanguages(session)[0] }) : ''}>
+            <Tooltip title={status !== 'Disabled' ? t(`SearchByVoice`) : ''}>
                 <IconButton
                     onClick={handleClick}
                     sx={{
@@ -66,7 +65,6 @@ export const MicrophoneButton = ({
             <TranscriptDialog
                 handleClose={() => stopListening()}
                 isListening={status === 'On'}
-                lng={getUserLanguages(session)[0]}
                 transcript={transcript}
             />
         </Box>

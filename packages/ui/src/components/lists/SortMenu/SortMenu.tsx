@@ -8,7 +8,6 @@ import { SortMenuProps } from "../types";
 export function SortMenu({
     sortOptions,
     anchorEl,
-    lng,
     onClose,
 }: SortMenuProps) {
     const { t } = useTranslation();
@@ -17,7 +16,7 @@ export function SortMenu({
     const menuItems = useMemo(() => {
         let menuItems: JSX.Element[] = [];
         sortOptions.forEach(option => {
-            const optionLabel = t(`common:${option.value}`, { lng })
+            const optionLabel = t(`${option.value}`)
             if (optionLabel) {
                 menuItems.push(
                     <MenuItem
@@ -31,7 +30,7 @@ export function SortMenu({
             }
         });
         return menuItems;
-    }, [sortOptions, t, lng, onClose])
+    }, [sortOptions, t, onClose])
 
     return (
         <Menu

@@ -4,22 +4,22 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
-export const apiSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchApi', lng),
+export const apiSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchApi'),
     containers: [
         hasCompleteVersionContainer,
-        votesContainer(lng),
-        bookmarksContainer(lng),
-        languagesVersionContainer(lng),
-        tagsContainer(lng),
+        votesContainer(),
+        bookmarksContainer(),
+        languagesVersionContainer(),
+        tagsContainer(),
     ],
     fields: [
-        ...hasCompleteVersionFields(lng),
-        ...votesFields(lng),
-        ...bookmarksFields(lng),
-        ...languagesVersionFields(lng),
-        ...tagsFields(lng),
+        ...hasCompleteVersionFields(),
+        ...votesFields(),
+        ...bookmarksFields(),
+        ...languagesVersionFields(),
+        ...tagsFields(),
     ]
 })
 
-export const apiSearchParams = (lng: string) => toParams(apiSearchSchema(lng), apiFindMany, ApiSortBy, ApiSortBy.ScoreDesc);
+export const apiSearchParams = () => toParams(apiSearchSchema(), apiFindMany, ApiSortBy, ApiSortBy.ScoreDesc);

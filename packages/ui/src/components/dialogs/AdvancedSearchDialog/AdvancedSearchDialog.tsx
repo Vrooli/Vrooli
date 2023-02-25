@@ -13,7 +13,7 @@ import { AdvancedSearchDialogProps } from '../types';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, convertSearchForFormik, getUserLanguages, searchTypeToParams } from 'utils';
+import { convertFormikForSearch, convertSearchForFormik, searchTypeToParams } from 'utils';
 import { DialogTitle, GeneratedGrid } from 'components';
 import { CancelIcon, SearchIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
@@ -31,15 +31,15 @@ export const AdvancedSearchDialog = ({
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
     const { t } = useTranslation();
-    const lng = getUserLanguages(session)[0];
+
     // Search schema to use
     const [schema, setSchema] = useState<FormSchema | null>(null);
     useEffect(() => {
         async function getSchema() {
-            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType](getUserLanguages(session)[0])).advancedSearchSchema : null)
+            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType]()).advancedSearchSchema : null)
         }
         getSchema();
-    }, [searchType, session]);
+    }, [searchType]);
 
     // Parse default values to use in formik
     const initialValues = useMemo(() => {
@@ -120,7 +120,7 @@ export const AdvancedSearchDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                title={t(`common:AdvancedSearch`)}
+                title={t(`AdvancedSearch`)}
                 onClose={handleClose}
             />
             <form onSubmit={formik.handleSubmit}>
@@ -154,14 +154,14 @@ export const AdvancedSearchDialog = ({
                             fullWidth
                             startIcon={<SearchIcon />}
                             type="submit"
-                        >{t(`common:Search`, { lng })}</Button>
+                        >{t(`Search`)}</Button>
                     </Grid>
                     <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button
                             fullWidth
                             startIcon={<CancelIcon />}
                             onClick={handleClose}
-                        >{t(`common:Cancel`, { lng })}</Button>
+                        >{t(`Cancel`)}</Button>
                     </Grid>
                 </Grid>
             </form>

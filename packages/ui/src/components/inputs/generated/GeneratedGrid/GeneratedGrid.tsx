@@ -120,7 +120,6 @@ export const GeneratedGrid = ({
                     {/* If a title is provided, the items are wrapped in a collapsible container */}
                     {currLayout?.title ? <ContentCollapse
                         helpText={currLayout.description ?? undefined}
-                        session={session}
                         title={currLayout.title}
                         titleComponent="legend"
                     >

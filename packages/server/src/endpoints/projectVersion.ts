@@ -239,7 +239,7 @@ export const resolvers: {
         projectVersionContents: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
             throw new CustomError('0000', 'NotImplemented', ['en'])
-            // return ProjectVersionDirectoryModel.query.searchNested(prisma, req, input, info);
+            // return ProjectVersionModel.query.searchContents(prisma, req, input, info);
         },
     },
     Mutation: {

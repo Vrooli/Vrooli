@@ -4,10 +4,10 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const postSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchPost', lng),
+export const postSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchPost'),
     containers: [], //TODO
     fields: [], //TODO
 })
 
-export const postSearchParams = (lng: string) => toParams(postSearchSchema(lng), postFindMany, PostSortBy, PostSortBy.DateCreatedDesc);
+export const postSearchParams = () => toParams(postSearchSchema(), postFindMany, PostSortBy, PostSortBy.DateCreatedDesc);

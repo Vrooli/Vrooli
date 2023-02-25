@@ -7,7 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions, getUserLanguages } from "utils";
+import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions } from "utils";
 import { APP_LINKS, GqlModelType } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
@@ -97,7 +97,6 @@ export function SearchPage({
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Popup button, which opens either an add or invite dialog
     const [popupButton, setPopupButton] = useState<boolean>(false);
@@ -110,10 +109,10 @@ export function SearchPage({
         return tabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
-            label: t(`common:${tab.searchType}`, { lng: getUserLanguages(session)[0], count: 2 }),
+            label: t(tab.searchType, { count: 2 }),
             value: tab.tabType,
         }));
-    }, [session, t]);
+    }, [t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(() => {
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
@@ -130,9 +129,9 @@ export function SearchPage({
     // On tab change, update BaseParams, document title, where, and URL
     const { popupTitleKey, popupTooltipKey, searchType, where } = useMemo<BaseParams>(() => {
         // Update tab title
-        document.title = `${t(`common:Search`, { lng })} | ${currTab.label}`;
+        document.title = `${t(`Search`)} | ${currTab.label}`;
         return tabParams[currTab.index];
-    }, [currTab.index, currTab.label, lng, t]);
+    }, [currTab.index, currTab.label, t]);
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
@@ -167,7 +166,7 @@ export function SearchPage({
     const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
-            <Tooltip title={t(`common:${popupTooltipKey}`, { lng })}>
+            <Tooltip title={t(popupTooltipKey)}>
                 <Button
                     onClick={onPopupButtonClick}
                     size="large"
@@ -182,11 +181,11 @@ export function SearchPage({
                         transition: 'transform 1s ease-in-out',
                     }}
                 >
-                    {t(`common:${popupTitleKey}`, { lng })}
+                    {t(popupTitleKey)}
                 </Button>
             </Tooltip>
         </Box>
-    ), [lng, onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
+    ), [onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
     return (
         <PageContainer>
@@ -203,7 +202,7 @@ export function SearchPage({
                 tabs={tabs}
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                <Typography component="h2" variant="h4">{t(`common:${searchType}`, { lng })}</Typography>
+                <Typography component="h2" variant="h4">{t(searchType)}</Typography>
                 <Tooltip title="Add new" placement="top">
                     <IconButton
                         size="medium"

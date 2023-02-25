@@ -1,7 +1,6 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils";
 import { searchButtonStyle } from "../styles";
 import { TimeButtonProps } from "../types";
 import { HistoryIcon as TimeIcon } from '@shared/icons';
@@ -15,7 +14,6 @@ export const TimeButton = ({
 }: TimeButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
@@ -32,9 +30,8 @@ export const TimeButton = ({
             <TimeMenu
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
-                session={session}
             />
-            <Tooltip title={t(`common:TimeCreated`, { lng })} placement="top">
+            <Tooltip title={t(`TimeCreated`)} placement="top">
                 <Box
                     onClick={handleTimeOpen}
                     sx={searchButtonStyle(palette)}

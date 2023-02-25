@@ -40,7 +40,7 @@ export const CameraButton = ({
     // if (!isSpeechSupported) return null;
     // return (
     //     <Box>
-    //         <Tooltip title={status !== 'Disabled' ? t(`common:SearchByVoice`, { lng: getUserLanguages(session)[0] }) : ''}>
+    //         <Tooltip title={status !== 'Disabled' ? t(`SearchByVoice`) : ''}>
     //             <IconButton
     //                 onClick={handleClick}
     //                 sx={{

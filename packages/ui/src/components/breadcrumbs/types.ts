@@ -1,4 +1,3 @@
-import { CommonProps } from "types";
 
 export interface BreadcrumbsBaseProps {
     paths: { text: string; link: string; }[];
@@ -8,6 +7,6 @@ export interface BreadcrumbsBaseProps {
     sx?: any;
 }
 
-export type CopyrightBreadcrumbsProps = Pick<CommonProps, 'session'> & Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
+export type CopyrightBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
 
-export type PolicyBreadcrumbsProps = Pick<CommonProps, 'session'> & Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
+export type PolicyBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>

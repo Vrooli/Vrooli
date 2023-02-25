@@ -3,7 +3,7 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, getUserLanguages, useWindowSize } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
 import { openLink, useLocation } from '@shared/route';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -27,7 +27,6 @@ export const NavList = ({
     sessionChecked,
 }: NavListProps) => {
     const { t } = useTranslation();
-    const lng = getUserLanguages(session)[0];
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -56,7 +55,7 @@ export const NavList = ({
         }}>
             {/* Contact menu */}
             {!isMobile && <PopupMenu
-                text={t(`common:Contact`, { lng })}
+                text={t(`Contact`)}
                 variant="text"
                 size="large"
                 sx={navItemStyle(palette)}

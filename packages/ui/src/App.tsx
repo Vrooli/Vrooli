@@ -9,7 +9,7 @@ import {
     PullToRefresh,
     SnackStack,
 } from 'components';
-import { PubSub, themes, useReactHash } from 'utils';
+import { getUserLanguages, PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -21,6 +21,7 @@ import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cook
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth';
+import i18next from 'i18next';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -84,6 +85,14 @@ export function App() {
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(authValidateSession, 'validateSession');
+
+    /**
+     * Sets language
+     */
+    useEffect(() => {
+        const lng = getUserLanguages(session)[0]
+        i18next.changeLanguage(lng);
+    }, [session]);
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
@@ -350,7 +359,7 @@ export function App() {
                         />
                     </Box>
                     <BottomNav session={session ?? guestSession} />
-                    <Footer session={session ?? guestSession} />
+                    <Footer />
                 </Box>
             </ThemeProvider>
         </StyledEngineProvider>

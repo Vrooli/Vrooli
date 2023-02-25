@@ -4,8 +4,8 @@
 import { Button, Stack, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
 import { CommentCreateInput } from 'components/inputs';
-import { getUserLanguages, useFindMany, useWindowSize } from 'utils';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFindMany, useWindowSize } from 'utils';
+import { useCallback, useEffect, useState } from 'react';
 import { CommentThread } from 'components/lists/comment';
 import { uuidValidate } from '@shared/uuid';
 import { SearchButtonsList } from 'components/lists';
@@ -27,7 +27,6 @@ export function CommentContainer({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const {
         advancedSearchParams,
@@ -86,7 +85,7 @@ export function CommentContainer({
     }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <ContentCollapse isOpen={isOpen} session={session} title="Comments">
+        <ContentCollapse isOpen={isOpen} title="Comments">
             {/* Add comment */}
             {
                 isAddCommentOpen && <CommentCreateInput
@@ -133,7 +132,7 @@ export function CommentContainer({
                 startIcon={<CreateIcon />}
                 onClick={handleAddCommentOpen}
                 sx={{ marginTop: 2 }}
-            >{t(`common:AddComment`, { lng })}</Button> : null}
+            >{t(`AddComment`)}</Button> : null}
         </ContentCollapse>
     );
 }

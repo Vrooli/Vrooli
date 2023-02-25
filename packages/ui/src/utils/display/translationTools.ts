@@ -703,7 +703,7 @@ export const removeTranslation = <
     const messageAsError = translateErrorKey(key as ErrorKey, variables, languages);
     const messageAsCommon = translateCommonKey(key as CommonKey, variables, languages);
     if (messageAsError.length > 0) {
-        const details = i18next.t(`error:${key}Details` as any, { lng });
+        const details = i18next.t(`${key}Details` as any, { ns: 'error' });
         return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
     }
     return { message: messageAsCommon, details: undefined };

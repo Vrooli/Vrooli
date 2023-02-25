@@ -4,13 +4,13 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, languagesVersionContainer, languagesVersionFields } from "./common";
 
-export const projectOrOrganizationSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchProjectOrOrganization', lng),
+export const projectOrOrganizationSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchProjectOrOrganization'),
     containers: [
         { totalItems: 1 },
-        bookmarksContainer(lng),
-        languagesVersionContainer(lng),
-        tagsContainer(lng),
+        bookmarksContainer(),
+        languagesVersionContainer(),
+        tagsContainer(),
     ],
     fields: [
         {
@@ -27,10 +27,10 @@ export const projectOrOrganizationSearchSchema = (lng: string): FormSchema => ({
                 ]
             }
         },
-        ...bookmarksFields(lng),
-        ...languagesVersionFields(lng),
-        ...tagsFields(lng),
+        ...bookmarksFields(),
+        ...languagesVersionFields(),
+        ...tagsFields(),
     ]
 })
 
-export const projectOrOrganizationSearchParams = (lng: string) => toParams(projectOrOrganizationSearchSchema(lng), projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc)
+export const projectOrOrganizationSearchParams = () => toParams(projectOrOrganizationSearchSchema(), projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc)

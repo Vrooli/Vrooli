@@ -24,7 +24,6 @@ export interface TitleContainerProps {
     loading?: boolean;
     onClick?: (event: React.MouseEvent) => void;
     options?: [(CommonKey | { key: CommonKey, variables: Record<string, any> }), (e?: any) => void][];
-    session: Session;
     sx?: object;
     tooltip?: string;
 }
@@ -32,7 +31,6 @@ export interface TitleContainerProps {
 export interface ListTitleContainerProps extends TitleContainerProps {
     emptyText?: string;
     isEmpty: boolean;
-    session: Session;
 }
 
 // label, Icon, disabled, isSubmit, onClick
@@ -52,7 +50,6 @@ export interface ContentCollapseProps {
     titleKey?: CommonKey;
     titleVariables?: { [x: string]: string | number };
     children?: React.ReactNode;
-    session: Session;
 }
 
 export interface TextCollapseProps {
@@ -79,7 +76,6 @@ export interface EditableTextCollapseProps {
      * Props for MarkdownInput. If not set, assumes TextField is used.
      */
     propsMarkdownInput?: MarkdownInputProps;
-    session: Session;
     showOnNoText?: boolean;
     title?: string | null;
     text?: string | null;

@@ -15,8 +15,6 @@ import { useFormik } from 'formik';
 import { DialogTitle, HelpButton } from 'components';
 import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
 import { useTranslation } from 'react-i18next';
-import { useMemo } from 'react';
-import { getUserLanguages } from 'utils';
 
 const titleAria = 'cookie-settings-dialog-title';
 const strictlyNecessaryUses = ['Authentication'] as const;
@@ -29,7 +27,6 @@ export const CookieSettingsDialog = ({
 }: CookieSettingsDialogProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(undefined)[0], [])
 
     const setPreferences = (preferences: CookiePreferences) => {
         console.log('in setcookiepreferences', preferences);
@@ -91,19 +88,19 @@ export const CookieSettingsDialog = ({
             {/* Title */}
             <DialogTitle
                 ariaLabel={titleAria}
-                title={t(`common:CookieSettings`, { lng })}
+                title={t(`CookieSettings`)}
                 onClose={onCancel}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: '16px' }}>
                 {/* Description of cookies and why we use them */}
                 <Typography variant="body1" mb={4}>
-                    {t(`common:CookieSettings`, { lng })}
+                    {t(`CookieSettings`)}
                 </Typography>
                 {/* Strictly necessary */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">{t(`common:StrictlyNecessary`, { lng })}</Typography>
-                        <HelpButton markdown={t(`common:CookieStrictlyNecessaryDescription`, { lng })} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t(`StrictlyNecessary`)}</Typography>
+                        <HelpButton markdown={t(`CookieStrictlyNecessaryDescription`)} />
                         <Switch
                             checked={formik.values.strictlyNecessary}
                             onChange={formik.handleChange}
@@ -123,8 +120,8 @@ export const CookieSettingsDialog = ({
                 {/* Performance */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Performance</Typography>
-                        <HelpButton markdown={t(`common:CookiePerformanceDescription`, { lng })} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t('Performance')}</Typography>
+                        <HelpButton markdown={t(`CookiePerformanceDescription`)} />
                         <Switch
                             checked={formik.values.performance}
                             onChange={formik.handleChange}
@@ -142,8 +139,8 @@ export const CookieSettingsDialog = ({
                 {/* Functional */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Functional</Typography>
-                        <HelpButton markdown={t(`common:CookieFunctionalDescription`, { lng })} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t('Functional')}</Typography>
+                        <HelpButton markdown={t(`CookieFunctionalDescription`)} />
                         <Switch
                             checked={formik.values.functional}
                             onChange={formik.handleChange}
@@ -161,8 +158,8 @@ export const CookieSettingsDialog = ({
                 {/* Targeting */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 4 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Targeting</Typography>
-                        <HelpButton markdown={t(`common:CookieTargetingDescription`, { lng })} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t('Targeting')}</Typography>
+                        <HelpButton markdown={t(`CookieTargetingDescription`)} />
                         <Switch
                             checked={formik.values.targeting}
                             onChange={formik.handleChange}
@@ -185,20 +182,20 @@ export const CookieSettingsDialog = ({
                         <Button
                             fullWidth
                             type="submit"
-                        >{t(`common:Confirm`, { lng })}</Button>
+                        >{t(`Confirm`)}</Button>
                     </Grid>
                     <Grid item xs={4}>
                         <Button
                             fullWidth
                             onClick={handleAcceptAllCookies}
-                        >{t(`common:AcceptAll`, { lng })}</Button>
+                        >{t(`AcceptAll`)}</Button>
                     </Grid>
                     <Grid item xs={4}>
                         <Button
                             fullWidth
                             variant="text"
                             onClick={onCancel}
-                        >{t(`common:Cancel`, { lng })}</Button>
+                        >{t(`Cancel`)}</Button>
                     </Grid>
                 </Grid>
             </form>

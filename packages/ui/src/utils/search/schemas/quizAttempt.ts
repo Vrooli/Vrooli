@@ -4,10 +4,10 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const quizAttemptSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchQuizAttempt', lng),
+export const quizAttemptSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchQuizAttempt'),
     containers: [], //TODO
     fields: [], //TODO
 })
 
-export const quizAttemptSearchParams = (lng: string) => toParams(quizAttemptSearchSchema(lng), quizAttemptFindMany, QuizAttemptSortBy, QuizAttemptSortBy.DateCreatedDesc)
+export const quizAttemptSearchParams = () => toParams(quizAttemptSearchSchema(), quizAttemptFindMany, QuizAttemptSortBy, QuizAttemptSortBy.DateCreatedDesc)

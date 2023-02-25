@@ -6,7 +6,7 @@ import { PageContainer, PageTabs, SearchList } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { HistorySearchPageProps } from "../types";
-import { SearchType, HistorySearchPageTabOption as TabOptions, getUserLanguages } from "utils";
+import { SearchType, HistorySearchPageTabOption as TabOptions } from "utils";
 import { PageTab } from "components/types";
 import { useTranslation } from "react-i18next";
 import { CommonKey } from "@shared/translations";
@@ -42,16 +42,15 @@ export function HistorySearchPage({
 }: HistorySearchPageProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
         return tabParams.map((tab, i) => ({
             index: i,
-            label: t(`common:${tab.titleKey}`, { lng: getUserLanguages(session)[0], count: 2 }),
+            label: t(tab.titleKey, { count: 2 }),
             value: tab.tabType,
         }));
-    }, [session, t]);
+    }, [t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(() => {
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
@@ -68,12 +67,12 @@ export function HistorySearchPage({
     // On tab change, update BaseParams, document title, where, and URL
     const { searchType, title, where } = useMemo(() => {
         // Update tab title
-        document.title = `${t(`common:Search`, { lng })} | ${currTab.label}`;
+        document.title = `${t(`Search`)} | ${currTab.label}`;
         return {
             ...tabParams[currTab.index],
             title: currTab.label,
         }
-    }, [currTab.index, currTab.label, lng, t]);
+    }, [currTab.index, currTab.label, t]);
 
     return (
         <PageContainer>

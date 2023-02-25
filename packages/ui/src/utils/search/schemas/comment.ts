@@ -4,18 +4,18 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields, votesContainer, votesFields } from "./common";
 
-export const commentSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchComment', lng),
+export const commentSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchComment'),
     containers: [
-        votesContainer(lng),
-        bookmarksContainer(lng),
-        languagesContainer(lng),
+        votesContainer(),
+        bookmarksContainer(),
+        languagesContainer(),
     ],
     fields: [
-        ...votesFields(lng),
-        ...bookmarksFields(lng),
-        ...languagesFields(lng),
+        ...votesFields(),
+        ...bookmarksFields(),
+        ...languagesFields(),
     ]
 })
 
-export const commentSearchParams = (lng: string) => toParams(commentSearchSchema(lng), commentFindMany, CommentSortBy, CommentSortBy.ScoreDesc);
+export const commentSearchParams = () => toParams(commentSearchSchema(), commentFindMany, CommentSortBy, CommentSortBy.ScoreDesc);

@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Button, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { DateRangeMenuProps } from "../types";
 import { LocalizationProvider, MobileDatePicker } from '@mui/lab';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages } from 'utils';
 
 export const DateRangeMenu = ({
     anchorEl,
@@ -13,12 +12,10 @@ export const DateRangeMenu = ({
     onClose,
     onSubmit,
     range,
-    session,
     strictIntervalRange
 }: DateRangeMenuProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const open = Boolean(anchorEl);
 
@@ -89,19 +86,19 @@ export const DateRangeMenu = ({
             <Typography textAlign="center" p={1} sx={{
                 background: palette.primary.dark,
                 color: palette.primary.contrastText,
-            }}>{t(`common:SelectDateRange`, { lng })}</Typography>
+            }}>{t(`SelectDateRange`)}</Typography>
             <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <Box p={2}>
                     <Stack direction="column">
                         <MobileDatePicker
-                            label={t(`common:Start`, { lng })}
+                            label={t(`Start`)}
                             inputFormat="dd/MM/yyyy"
                             value={after}
                             onChange={handleAfterChange}
                             renderInput={(params) => <TextField {...params} sx={{ marginBottom: 1 }} />}
                         />
                         <MobileDatePicker
-                            label={t(`common:End`, { lng })}
+                            label={t(`End`)}
                             inputFormat="dd/MM/yyyy"
                             value={before}
                             onChange={handleBeforeChange}
@@ -111,7 +108,7 @@ export const DateRangeMenu = ({
                             type="submit"
                             fullWidth
                             onClick={() => { onSubmit(after, before); onClose() }}
-                        >{t(`common:Ok`, { lng })}</Button>
+                        >{t(`Ok`)}</Button>
                     </Stack>
                 </Box>
             </LocalizationProvider>

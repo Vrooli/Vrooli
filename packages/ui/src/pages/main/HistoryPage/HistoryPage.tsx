@@ -31,7 +31,6 @@ export const HistoryPage = ({
 }: HistoryPageProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
@@ -48,14 +47,14 @@ export const HistoryPage = ({
     const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
         index: 0,
         href: APP_LINKS.Home,
-        label: t('common:ForYou', { lng }),
+        label: t('ForYou'),
         value: TabOptions.ForYou,
     }, {
         index: 1,
         href: APP_LINKS.History,
-        label: t('common:History', { lng }),
+        label: t('History'),
         value: TabOptions.History,
-    }]), [t, lng]);
+    }]), [t]);
     const currTab = useMemo(() => tabs[1], [tabs])
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
@@ -180,7 +179,6 @@ export const HistoryPage = ({
                     isEmpty={activeRuns.length === 0}
                     onClick={toSeeAllActiveRuns}
                     options={[['SeeAll', toSeeAllActiveRuns]]}
-                    session={session}
                 >
                     {activeRuns}
                 </ListTitleContainer>
@@ -190,7 +188,6 @@ export const HistoryPage = ({
                     isEmpty={completedRuns.length === 0}
                     onClick={toSeeAllCompletedRuns}
                     options={[['SeeAll', toSeeAllCompletedRuns]]}
-                    session={session}
                 >
                     {completedRuns}
                 </ListTitleContainer>
@@ -200,7 +197,6 @@ export const HistoryPage = ({
                     isEmpty={recent.length === 0}
                     onClick={toSeeAllViewed}
                     options={[['SeeAll', toSeeAllViewed]]}
-                    session={session}
                 >
                     {recent}
                 </ListTitleContainer>
@@ -210,7 +206,6 @@ export const HistoryPage = ({
                     isEmpty={bookmarked.length === 0}
                     onClick={toSeeAllBookmarked}
                     options={[['SeeAll', toSeeAllBookmarked]]}
-                    session={session}
                 >
                     {bookmarked}
                 </ListTitleContainer>

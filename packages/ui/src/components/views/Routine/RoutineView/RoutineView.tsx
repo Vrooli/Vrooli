@@ -300,7 +300,6 @@ export const RoutineView = ({
             {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
                 <ContentCollapse
                     isOpen={false}
-                    session={session}
                     title="Inputs"
                 >
                     {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
@@ -322,7 +321,7 @@ export const RoutineView = ({
                         onClick={markAsComplete}
                         color="secondary"
                         sx={{ marginTop: 2 }}
-                    >{t(`common:MarkAsComplete`, { lng: getUserLanguages(session)[0] })}</Button>}
+                    >{t(`MarkAsComplete`)}</Button>}
                 </ContentCollapse>
             </Box>}
             {/* "View Graph" button if this is a multi-step routine */}

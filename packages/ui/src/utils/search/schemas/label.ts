@@ -4,14 +4,14 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout } from "./common";
 
-export const labelSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchLabel', lng),
+export const labelSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchLabel'),
     containers: [
-        languagesContainer(lng),
+        languagesContainer(),
     ],
     fields: [
-        ...languagesFields(lng),
+        ...languagesFields(),
     ]
 })
 
-export const labelSearchParams = (lng: string) => toParams(labelSearchSchema(lng), labelFindMany, LabelSortBy, LabelSortBy.DateCreatedDesc);
+export const labelSearchParams = () => toParams(labelSearchSchema(), labelFindMany, LabelSortBy, LabelSortBy.DateCreatedDesc);

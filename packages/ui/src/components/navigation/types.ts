@@ -10,8 +10,6 @@ export interface ContactInfoProps extends Pick<CommonProps, 'session'> {
 
 export type FindInPageProps = Pick<CommonProps, 'session'>
 
-export type FooterProps = Pick<CommonProps, 'session'>
-
 export type NavbarProps = Pick<CommonProps, 'session' | 'sessionChecked'>
 
 export type NavListProps = Pick<CommonProps, 'session' | 'sessionChecked'>

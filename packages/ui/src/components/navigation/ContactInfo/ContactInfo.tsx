@@ -12,7 +12,6 @@ import { ContactInfoProps } from '../types';
 import { ColorIconButton } from 'components/buttons';
 import { CopyrightBreadcrumbs } from 'components/breadcrumbs';
 import { noSelect } from 'styles';
-import { getUserLanguages } from 'utils';
 import { openLink, useLocation } from '@shared/route';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,20 +28,19 @@ export const ContactInfo = ({
     const [, setLocation] = useLocation();
 
     const { additionalInfo, contactInfo } = useMemo(() => {
-        const lng = getUserLanguages(session)[0];
         return {
             additionalInfo: [
-                [t(`common:AboutUs`, { lng }), 'About', `${LANDING_URL}${LANDING_LINKS.AboutUs}`, InfoIcon],
-                [t(`common:DocumentationShort`, { lng }), 'Docs', 'https://docs.vrooli.com', ArticleIcon],
-                [t(`common:StatisticsShort`, { lng }), 'Stats', APP_LINKS.Stats, StatsIcon],
+                [t(`AboutUs`), 'About', `${LANDING_URL}${LANDING_LINKS.AboutUs}`, InfoIcon],
+                [t(`DocumentationShort`), 'Docs', 'https://docs.vrooli.com', ArticleIcon],
+                [t(`StatisticsShort`), 'Stats', APP_LINKS.Stats, StatsIcon],
             ] as NavActionListData[],
             contactInfo: [
-                [t(`common:ContactHelpTwitter`, { lng }), 'Twitter', SOCIALS.Twitter, TwitterIcon],
-                [t(`common:ContactHelpDiscord`, { lng }), 'Discord', SOCIALS.Discord, DiscordIcon],
-                [t(`common:ContactHelpCode`, { lng }), 'Code', SOCIALS.GitHub, GitHubIcon],
+                [t(`ContactHelpTwitter`), 'Twitter', SOCIALS.Twitter, TwitterIcon],
+                [t(`ContactHelpDiscord`), 'Discord', SOCIALS.Discord, DiscordIcon],
+                [t(`ContactHelpCode`), 'Code', SOCIALS.GitHub, GitHubIcon],
             ] as NavActionListData[],
         }
-    }, [session, t]);
+    }, [t]);
 
     const handleLink = (e: React.MouseEvent<any>, link: string) => {
         e.preventDefault();
@@ -57,7 +55,7 @@ export const ContactInfo = ({
             padding: 1,
             ...(sx ?? {})
         }} {...props}>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>Find us on...</Typography>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t('FindUsOn')}</Typography>
             <BottomNavigation
                 showLabels
                 sx={{
@@ -87,7 +85,7 @@ export const ContactInfo = ({
                     </Tooltip>
                 ))}
             </BottomNavigation>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t(`common:AdditionalResources`, { lng: getUserLanguages(session)[0] })}</Typography>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t(`AdditionalResources`)}</Typography>
             <BottomNavigation
                 showLabels
                 sx={{
@@ -116,7 +114,7 @@ export const ContactInfo = ({
                     </Tooltip>
                 ))}
             </BottomNavigation>
-            <CopyrightBreadcrumbs session={session} sx={{ color: palette.background.textPrimary }} />
+            <CopyrightBreadcrumbs sx={{ color: palette.background.textPrimary }} />
         </Box>
     );
 }
