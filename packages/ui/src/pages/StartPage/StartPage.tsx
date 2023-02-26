@@ -31,6 +31,7 @@ import { hasErrorCode } from 'api/utils';
 import { getCurrentUser } from 'utils/authentication';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { authEmailLogIn, authGuestLogIn } from 'api/generated/endpoints/auth';
+import { useTranslation } from 'react-i18next';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.\n\nChoose **ENTER AS GUEST** if you only want to view the site or execute existing routines.`
@@ -44,8 +45,10 @@ const emailTitleAria = 'email-login-dialog-title';
 export const StartPage = ({
     session,
 }: StartPageProps) => {
-    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+
     const search = useReactSearch();
     const { redirect, verificationCode } = useMemo(() => ({
         redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
@@ -61,17 +64,17 @@ export const StartPage = ({
     const [Form, formTitle] = useMemo(() => {
         switch (popupForm) {
             case Forms.ForgotPassword:
-                return [ForgotPasswordForm, 'Forgot Password'];
+                return [ForgotPasswordForm, t('ForgotPassword')];
             case Forms.LogIn:
-                return [LogInForm, 'Log In'];
+                return [LogInForm, t('LogIn')];
             case Forms.ResetPassword:
-                return [ResetPasswordForm, 'Reset Password'];
+                return [ResetPasswordForm, t('ResetPassword')];
             case Forms.SignUp:
-                return [SignUpForm, 'Sign Up'];
+                return [SignUpForm, t('SignUp')];
             default:
-                return [LogInForm, 'Log In'];
+                return [LogInForm, t('LogIn')];
         }
-    }, [popupForm])
+    }, [popupForm, t])
 
     /**
      * If verification code supplied
@@ -210,7 +213,7 @@ export const StartPage = ({
                             display: 'inline-block',
                         }}
                     >
-                        Please select your log in method
+                        {t('PleaseSelectLogInMethod')}
                     </Typography>
                     <HelpButton markdown={helpText} />
                 </Box>
@@ -218,9 +221,9 @@ export const StartPage = ({
                     direction="column"
                     spacing={2}
                 >
-                    <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>Wallet</Button>
-                    <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>Email</Button>
-                    <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>Enter As Guest</Button>
+                    <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>{t('Wallet')}</Button>
+                    <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>{t('Email')}</Button>
+                    <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>{t('EnterAsGuest')}</Button>
                 </Stack>
             </Box>
             <Dialog
