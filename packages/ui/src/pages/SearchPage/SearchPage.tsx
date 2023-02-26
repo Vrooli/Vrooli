@@ -109,7 +109,7 @@ export function SearchPage({
         return tabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
-            label: t(tab.searchType, { count: 2 }),
+            label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
     }, [t]);
@@ -202,7 +202,7 @@ export function SearchPage({
                 tabs={tabs}
             />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                <Typography component="h2" variant="h4">{t(searchType)}</Typography>
+                <Typography component="h2" variant="h4">{t(searchType as CommonKey)}</Typography>
                 <Tooltip title="Add new" placement="top">
                     <IconButton
                         size="medium"

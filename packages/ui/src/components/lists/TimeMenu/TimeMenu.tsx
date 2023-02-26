@@ -60,7 +60,7 @@ export function TimeMenu({
                 value='custom'
                 onClick={handleTimeOpen}
             >
-                {t('CutomRange')}
+                {t('CustomRange')}
             </MenuItem>
             <DateRangeMenu
                 anchorEl={customRangeAnchorEl}

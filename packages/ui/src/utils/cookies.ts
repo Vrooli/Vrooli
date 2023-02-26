@@ -1,4 +1,5 @@
 import { COOKIE, ValueOf } from "@shared/consts";
+import { getDeviceInfo } from "./display";
 
 /**
  * Handles storing and retrieving cookies, which may or 
@@ -42,7 +43,7 @@ export const setCookie = (name: Cookies, value: any) => {
 
 export const getCookiePreferences = (): CookiePreferences | null => {
     // Standalone apps don't set preferences
-    if(window.matchMedia('(display-mode: standalone)').matches) {
+    if(getDeviceInfo().isStandalone) {
         return {
             strictlyNecessary: true,
             performance: true,
@@ -62,7 +63,7 @@ export const getCookiePreferences = (): CookiePreferences | null => {
 
 export const setCookiePreferences = (preferences: CookiePreferences) => {
     // Standalone apps don't set preferences
-    if(window.matchMedia('(display-mode: standalone)').matches) return;
+    if(getDeviceInfo().isStandalone) return;
     setCookie(Cookies.Preferences, preferences);
 }
 

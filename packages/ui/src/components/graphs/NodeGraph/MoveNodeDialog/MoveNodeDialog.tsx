@@ -188,9 +188,9 @@ export const MoveNodeMenu = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                helpText={t('common:NodeMoveDialogHelp', { lng: language })}
+                helpText={t('NodeMoveDialogHelp')}
                 onClose={onClose}
-                title={t('common:NodeMove', { lng: language })}
+                title={t('NodeMove')}
             />
             <DialogContent>
                 {formContent}

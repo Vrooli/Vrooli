@@ -34,7 +34,7 @@ export const ResourceCard = ({
     const { title, subtitle } = useMemo(() => {
         const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            title: Boolean(title) ? title : t(data.usedFor ?? 'Context' as unknown as CommonKey),
+            title: Boolean(title) ? title : t((data.usedFor ?? 'Context') as CommonKey),
             subtitle,
         };
     }, [data, session, t]);

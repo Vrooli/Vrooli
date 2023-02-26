@@ -155,7 +155,6 @@ export type TimeFrame = {
 
 export interface TimeButtonProps {
     setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
-    session: Session;
     timeFrame: TimeFrame | undefined;
 }
 

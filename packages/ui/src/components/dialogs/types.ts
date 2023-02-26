@@ -14,10 +14,6 @@ export interface AccountMenuProps {
     session: Session;
 }
 
-export interface AlertDialogProps {
-    session: Session | undefined;
-}
-
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
     /**

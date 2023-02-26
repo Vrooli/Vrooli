@@ -1,6 +1,7 @@
 // Menu for selecting 
 
 import { Menu, MenuItem } from "@mui/material";
+import { CommonKey } from "@shared/translations";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SortMenuProps } from "../types";
@@ -16,7 +17,7 @@ export function SortMenu({
     const menuItems = useMemo(() => {
         let menuItems: JSX.Element[] = [];
         sortOptions.forEach(option => {
-            const optionLabel = t(`${option.value}`)
+            const optionLabel = t(`${option.value}` as CommonKey)
             if (optionLabel) {
                 menuItems.push(
                     <MenuItem

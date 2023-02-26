@@ -9,7 +9,6 @@ import { TimeMenu } from "components/lists";
 
 export const TimeButton = ({
     setTimeFrame,
-    session,
     timeFrame,
 }: TimeButtonProps) => {
     const { palette } = useTheme();

@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Stack } from '@mui/material';
-import { getUserLanguages, PubSub, translateCommonKey, TranslatedSnackMessage, translateSnackMessage, UntranslatedSnackMessage } from 'utils';
+import { getDeviceInfo, PubSub, TranslatedSnackMessage, translateSnackMessage, UntranslatedSnackMessage } from 'utils';
 import { uuid } from '@shared/uuid';
 import { BasicSnack } from '../BasicSnack/BasicSnack';
-import { BasicSnackProps, SnackStackProps } from '../types';
+import { BasicSnackProps } from '../types';
 import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Displays a stack of snack messages. 
  * Most messages disappear after a few seconds, but some are persistent (e.g. No Internet Connection).
  * No more than 3 ephemeral messages are displayed at once.
  */
-export const SnackStack = ({
-    session,
-}: SnackStackProps) => {
+export const SnackStack = () => {
+    const { t } = useTranslation();
 
     // FIFO queue of basic snackbars
     const [snacks, setSnacks] = useState<BasicSnackProps[]>([]);
@@ -35,13 +35,13 @@ export const SnackStack = ({
                 const id = o.id ?? uuid();
                 let newSnacks = [...snacks, {
                     buttonClicked: o.buttonClicked,
-                    buttonText: o.buttonKey ? translateCommonKey(o.buttonKey, o.buttonVariables, getUserLanguages(session)) : undefined,
+                    buttonText: o.buttonKey ? t(o.buttonKey, { ...o.buttonVariables, defaultValue: o.buttonKey }) : undefined,
                     data: o.data,
                     handleClose: () => handleClose(id),
                     id,
                     message: (o as UntranslatedSnackMessage).message ? 
                         (o as UntranslatedSnackMessage).message : 
-                        translateSnackMessage((o as TranslatedSnackMessage).messageKey, (o as TranslatedSnackMessage).messageVariables, getUserLanguages(session)).message,
+                        translateSnackMessage((o as TranslatedSnackMessage).messageKey, (o as TranslatedSnackMessage).messageVariables).message,
                     severity: o.severity,
                 }];
                 // Filter out same ids
@@ -56,14 +56,14 @@ export const SnackStack = ({
         // Subscribe to special snack events
         let cookiesSub = PubSub.get().subscribeCookies(() => {
             // Ignore if in standalone mode
-            if (window.matchMedia('(display-mode: standalone)').matches) return;
+            if (getDeviceInfo().isStandalone) return;
             setIsCookieSnackOpen(true);
         });
         return () => {
             PubSub.get().unsubscribe(snackSub)
             PubSub.get().unsubscribe(cookiesSub)
         };
-    }, [session])
+    }, [t])
 
     let visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
 

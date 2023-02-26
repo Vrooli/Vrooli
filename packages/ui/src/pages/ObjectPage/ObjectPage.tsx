@@ -54,7 +54,7 @@ enum PageType {
 /**
  * Maps links to object types
  */
-const typeMap: { [key in APP_LINKS]?: ObjectType } = {
+const typeMap = {
     [APP_LINKS.Api]: 'Api',
     [APP_LINKS.Note]: 'Note',
     [APP_LINKS.Organization]: 'Organization',
@@ -64,7 +64,7 @@ const typeMap: { [key in APP_LINKS]?: ObjectType } = {
     [APP_LINKS.Routine]: 'Routine',
     [APP_LINKS.SmartContract]: 'SmartContract',
     [APP_LINKS.Standard]: 'Standard',
-}
+} as const
 
 /**
  * Maps object types to create components
@@ -170,7 +170,7 @@ export const ObjectPage = ({
         }
         if (pageType === PageType.Create) {
             const Create = createMap[objectType];
-            document.title = t(`common:Create${objectType}`);
+            document.title = t(`Create${objectType}`);
             return (Create && <Create
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
                 onCreated={(data) => onAction(ObjectDialogAction.Add, data)}
@@ -180,7 +180,7 @@ export const ObjectPage = ({
         }
         if (pageType === PageType.Update) {
             const Update = updateMap[objectType];
-            document.title = t(`common:Update${objectType}`);
+            document.title = t(`Update${objectType}`);
             return (Update && <Update
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
                 onUpdated={(data) => onAction(ObjectDialogAction.Save, data)}
@@ -189,7 +189,7 @@ export const ObjectPage = ({
             />)
         }
         if (pageType === PageType.Reports) {
-            document.title = t(`common:Reports`) + '|' + t(`common:${objectType}`, { count: 1 });
+            document.title = t(`Reports`) + '|' + t(objectType, { count: 1 });
             return <ReportsView session={session} />
         }
         const View = viewMap[objectType];

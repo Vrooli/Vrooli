@@ -1,6 +1,7 @@
 import { useQuery } from "@apollo/client";
 import { Box } from "@mui/material";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
+import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award";
 import { AwardCard, AwardList, CardGrid, ContentCollapse, PageContainer, PageTitle } from "components";
 import { AwardsPageProps } from "pages/types";
@@ -26,8 +27,8 @@ export function AwardsPage({
         // 0-progress awards may not be initialized in the backend, so we need to initialize them here
         const noProgressAwards = Object.values(AwardCategory).map((category) => ({
             category: category,
-            title: t(`${category}UnearnedTitle`, { ns: 'award' }),
-            description: t(`${category}UnearnedBody`, { ns: 'award' }),
+            title: t(`${category}UnearnedTitle` as AwardKey, { ns: 'award' }),
+            description: t(`${category}UnearnedBody` as AwardKey, { ns: 'award' }),
             progress: 0,
         })) as Award[];
         return noProgressAwards.map(a => awardToDisplay(a, t));

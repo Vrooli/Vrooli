@@ -16,6 +16,7 @@ import { useQuery } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
 import { resourceCreate, resourceUpdate } from 'api/generated/endpoints/resource';
 import { feedPopular } from 'api/generated/endpoints/feed';
+import { CommonKey } from '@shared/translations';
 
 const helpText =
     `## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service`
@@ -328,7 +329,7 @@ export const ResourceDialog = ({
                                                 <ListItemIcon>
                                                     <Icon fill={palette.background.textSecondary} />
                                                 </ListItemIcon>
-                                                <ListItemText>{t(`common:${usedFor}`, { lng: language })}</ListItemText>
+                                                <ListItemText>{t(usedFor as CommonKey, { count: 2 })}</ListItemText>
                                             </MenuItem>
                                         )
                                     })}

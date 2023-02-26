@@ -9,7 +9,7 @@ import {
     PullToRefresh,
     SnackStack,
 } from 'components';
-import { getUserLanguages, PubSub, themes, useReactHash } from 'utils';
+import { getDeviceInfo, getUserLanguages, PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -184,7 +184,7 @@ export function App() {
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
-        if (!window.matchMedia('(display-mode: standalone)').matches && !cookiePreferences) {
+        if (!getDeviceInfo().isStandalone && !cookiePreferences) {
             PubSub.get().publishCookies();
         }
     }, []);
@@ -333,8 +333,8 @@ export function App() {
                             }}
                         />
                     }
-                    <AlertDialog session={session} />
-                    <SnackStack session={session} />
+                    <AlertDialog />
+                    <SnackStack />
                     <Box id="content-wrap" sx={{
                         background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
