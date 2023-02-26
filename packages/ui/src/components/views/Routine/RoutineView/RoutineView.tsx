@@ -45,13 +45,11 @@ export const RoutineView = ({
 
     const { id, isLoading, object: routineVersion, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
         query: routineVersionFindOne,
-        endpoint: 'routineVersion',
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
         },
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (routineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routineVersion?.translations]);

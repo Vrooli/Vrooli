@@ -35,9 +35,7 @@ export const StandardView = ({
 
     const { id, isLoading, object: standardVersion, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
         query: standardVersionFindOne,
-        endpoint: 'standardVersion',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (standardVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standardVersion?.translations]);

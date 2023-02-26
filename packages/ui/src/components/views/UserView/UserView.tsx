@@ -34,9 +34,7 @@ export const UserView = ({
 
     const { id, isLoading, object: user, permissions, setObject: setUser } = useObjectFromUrl<User, FindByIdOrHandleInput>({
         query: userFindOne,
-        endpoint: 'user',
         partialData,
-        session,
         idFallback: getCurrentUser(session).id,
     });
 

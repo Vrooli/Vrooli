@@ -28,9 +28,7 @@ export const ProjectView = ({
 
     const { id, isLoading, object: projectVersion, permissions, setObject: setProjectVersion } = useObjectFromUrl<ProjectVersion, FindVersionInput>({
         query: projectVersionFindOne,
-        endpoint: 'projectVersion',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (projectVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [projectVersion?.translations]);

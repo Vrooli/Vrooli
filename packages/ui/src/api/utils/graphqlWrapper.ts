@@ -101,17 +101,16 @@ export const graphqlWrapperHelper = <Output extends object>({
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
     // Call function
     call().then((response: { data?: Output | null | undefined }) => {
-        // We need to go one layer deeper to get the actual data. 
-        // If this doesn't exist, then there must be an error
-        if (!response.data ||
-            typeof response.data !== 'object' ||
-            Array.isArray(response.data) ||
-            Object.keys(response.data).length === 0) {
+        // If response is null or undefined or not an object, then there must be an error
+        if (!response || !response.data || typeof response.data !== 'object') {
             handleError();
             return;
         }
-        // Get object/primitive inside response.data
-        const data: Output = Object.values(response.data)[0];
+        // We likely need to go one layer deeper to get the actual data, since the 
+        // result from Apollo is wrapped in an object with the endpoint name as the key. 
+        // If this is not the case, then we are (hopefully) using a custom hook which already 
+        // removes the extra layer.
+        const data: Output = (Object.keys(response.data).length === 1 && !['success', 'count'].includes(Object.keys(response.data)[0])) ? Object.values(response.data)[0] : response.data;
         // If this is a Count object with count = 0, then there must be an error
         if ((data as any)?.__typename === 'Count' && (data as any)?.count === 0) {
             handleError(data);

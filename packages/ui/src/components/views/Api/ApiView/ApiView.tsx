@@ -21,9 +21,7 @@ export const ApiView = ({
 
     const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion, FindVersionInput>({
         query: apiVersionFindOne,
-        endpoint: 'apiVersion',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);

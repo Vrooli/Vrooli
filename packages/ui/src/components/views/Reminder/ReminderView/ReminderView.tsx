@@ -19,9 +19,7 @@ export const ReminderView = ({
 
     const { id, isLoading, object: reminder, permissions, setObject: setReminder } = useObjectFromUrl<Reminder, FindByIdInput>({
         query: reminderFindOne,
-        endpoint: 'reminder',
         partialData,
-        session,
     });
 
     // useEffect(() => {

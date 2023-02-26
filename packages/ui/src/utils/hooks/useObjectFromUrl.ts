@@ -1,8 +1,7 @@
 import { OperationVariables, TypedDocumentNode } from "@apollo/client";
-import { Session } from "@shared/consts";
 import { ParseSearchParamsResult } from "@shared/route";
 import { exists } from "@shared/utils";
-import { useLazyQuery } from "api";
+import { useCustomLazyQuery } from "api";
 import { DocumentNode } from "graphql";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display";
@@ -12,13 +11,10 @@ import { useDisplayApolloError } from "./useDisplayApolloError";
 
 type UseObjectFromUrlProps<
     TData extends ListObjectType,
-    TVariables extends OperationVariables | null,
-    Endpoint extends string = string
+    TVariables extends OperationVariables | undefined,
 > = {
     query: DocumentNode | TypedDocumentNode<TData, TVariables>,
-    endpoint: Endpoint,
     partialData?: Partial<TData>,
-    session: Session,
     idFallback?: string | null | undefined,
     onInvalidUrlParams?: (params: ParseSearchParamsResult) => void,
 }
@@ -39,21 +35,18 @@ export type UseObjectFromUrlReturn<TData extends object> = {
  */
 export function useObjectFromUrl<
     TData extends ListObjectType,
-    TVariables extends OperationVariables | null,
-    Endpoint extends string = string
+    TVariables extends OperationVariables | undefined,
 >({
     query,
-    endpoint,
     onInvalidUrlParams,
     partialData,
-    session,
     idFallback,
-}: UseObjectFromUrlProps<TData, TVariables, Endpoint>): UseObjectFromUrlReturn<TData> {
+}: UseObjectFromUrlProps<TData, TVariables>): UseObjectFromUrlReturn<TData> {
     // Get URL params
     const urlParams = useMemo(() => parseSingleItemUrl(), []);
 
     // Fetch data
-    const [getData, { data, error, loading: isLoading }] = useLazyQuery<TData, TVariables>(query, endpoint, { errorPolicy: 'all' });
+    const [getData, { data, error, loading: isLoading }] = useCustomLazyQuery<TData, TVariables>(query, { errorPolicy: 'all' } as any);
     const [object, setObject] = useState<TData | null | undefined>(null);
     useDisplayApolloError(error);
     useEffect(() => {
@@ -68,8 +61,8 @@ export function useObjectFromUrl<
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
     }, [getData, idFallback, onInvalidUrlParams, urlParams]);
     useEffect(() => {
-        setObject(data?.[endpoint] ?? partialData as any);
-    }, [data, endpoint, partialData]);
+        setObject(data ?? partialData as any);
+    }, [data, partialData]);
 
 
     // If object found, get permissions

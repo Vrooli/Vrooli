@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { displayDate, statsDisplay } from 'utils';
 import { StatsPageProps } from 'pages/types';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
-import { useLazyQuery } from 'api';
+import { useCustomLazyQuery } from 'api';
 import { statsSiteFindMany } from 'api/generated/endpoints/statsSite';
 import { PageTab } from 'components/types';
 
@@ -96,7 +96,7 @@ export const StatsPage = ({
     }, []);
 
     // Handle querying stats data.
-    const [getStats, { data: statsData, loading }] = useLazyQuery<StatsSiteSearchResult, StatsSiteSearchInput, 'statsSite'>(statsSiteFindMany, 'statsSite', {
+    const [getStats, { data: statsData, loading }] = useCustomLazyQuery<StatsSiteSearchResult, StatsSiteSearchInput>(statsSiteFindMany, {
         variables: ({
             periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
             periodTimeFrame: {
@@ -109,7 +109,7 @@ export const StatsPage = ({
     const [stats, setStats] = useState<StatsSite[]>([]);
     useEffect(() => {
         if (statsData) {
-            setStats(statsData.statsSite.edges.map(edge => edge.node));
+            setStats(statsData.edges.map(edge => edge.node));
         }
     }, [statsData]);
     useEffect(() => {
@@ -160,7 +160,6 @@ export const StatsPage = ({
                 onClose={handleDateRangeClose}
                 onSubmit={handleDateRangeSubmit}
                 range={period}
-                session={session}
                 strictIntervalRange={tabPeriods[currTab.value]}
             />
             {/* Date range diplay */}

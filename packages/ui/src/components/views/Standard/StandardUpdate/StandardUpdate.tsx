@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useLazyQuery } from "api/hooks";
+import { useMutation, useCustomLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -20,12 +20,11 @@ export const StandardUpdate = ({
 }: StandardUpdateProps) => {
     // Fetch existing data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(standardVersionFindOne, 'standardVersion', { errorPolicy: 'all' });
+    const [getData, { data: standardVersion, loading }] = useCustomLazyQuery<StandardVersion, FindVersionInput>(standardVersionFindOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
     }, [getData, urlData])
-    const standardVersion = useMemo(() => data?.standardVersion, [data]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));

@@ -20,9 +20,7 @@ export const QuestionView = ({
 
     const { id, isLoading, object: question, permissions, setObject: setQuestion } = useObjectFromUrl<Question, FindByIdInput>({
         query: questionFindOne,
-        endpoint: 'question',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (question?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [question?.translations]);

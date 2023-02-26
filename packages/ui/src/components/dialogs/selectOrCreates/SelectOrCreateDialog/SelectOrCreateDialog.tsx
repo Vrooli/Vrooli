@@ -10,7 +10,7 @@ import { BaseObjectDialog, DialogTitle, OrganizationCreate, ProjectCreate, Routi
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from 'api/hooks';
+import { useCustomLazyQuery } from 'api/hooks';
 import { SearchType, searchTypeToParams } from 'utils';
 import { removeSearchParams, useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
@@ -67,7 +67,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     const CreateView = useMemo<((props: CreatePageProps) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : createMap[objectType], [objectType]);
 
-    const [{ advancedSearchSchema, endpoint, query }, setSearchParams] = useState<Partial<SearchParams>>({});
+    const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[objectType];
@@ -120,14 +120,14 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
 
 
     // If item selected from search, query for full data
-    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, string>({ query, endpoint });
+    const [getItem, { data: itemData }] = useCustomLazyQuery<T, FindByIdInput>(query);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: T) => {
-        if (!endpoint || !query) return false;
+        if (!query) return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
-        if (itemData && itemData[endpoint].id === item.id) {
+        if (itemData && itemData.id === item.id) {
             console.log('before handleadd 2')
-            handleAdd(itemData[endpoint]);
+            handleAdd(itemData);
             onClose();
         } else {
             queryingRef.current = true;
@@ -135,16 +135,16 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         }
         // Return false so the list item does not navigate
         return false;
-    }, [endpoint, query, itemData, handleAdd, onClose, getItem]);
+    }, [query, itemData, handleAdd, onClose, getItem]);
     useEffect(() => {
-        if (!endpoint) return;
-        if (itemData && itemData[endpoint] && queryingRef.current) {
+        if (!query) return;
+        if (itemData && queryingRef.current) {
             console.log('before handleadd 3')
-            handleAdd(itemData[endpoint]);
+            handleAdd(itemData);
             onClose();
         }
         queryingRef.current = false;
-    }, [handleAdd, onClose, handleCreateClose, itemData, endpoint]);
+    }, [handleAdd, onClose, handleCreateClose, itemData, query]);
 
     return (
         <Dialog
@@ -199,7 +199,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             />
             <Stack direction="column" spacing={2}>
                 <Stack direction="row" alignItems="center" justifyContent="center">
-                    <Typography component="h2" variant="h4">{t(objectType, { count: 2 })}</Typography>
+                    <Typography component="h2" variant="h4">{t(objectType as CommonKey, { count: 2 })}</Typography>
                     <Tooltip title={t(`AddNew`)} placement="top">
                         <IconButton
                             size="medium"
@@ -214,7 +214,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                     id={`${objectType}-select-or-create-list`}
                     beforeNavigation={fetchFullData}
                     searchType={objectType as unknown as SearchType}
-                    searchPlaceholder={t(`SelectExisting${objectType}`)}
+                    searchPlaceholder={`SelectExisting${objectType}` as CommonKey}
                     session={session}
                     take={20}
                     where={where ?? { userId }}

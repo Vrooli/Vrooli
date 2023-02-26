@@ -5,7 +5,7 @@ import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils
 import { FixedSizeList } from 'react-window';
 import { ListMenu, MenuTitle } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
-import { useLazyQuery } from 'api/hooks';
+import { useCustomLazyQuery } from 'api/hooks';
 import { queryWrapper } from 'api/utils';
 import { Translate, TranslateInput } from '@shared/consts';
 import { translateTranslate } from 'api/generated/endpoints/translate';
@@ -65,7 +65,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyQuery<Translate, TranslateInput, 'translate'>(translateTranslate, 'translate');
+    const [getAutoTranslation] = useCustomLazyQuery<Translate, TranslateInput>(translateTranslate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);

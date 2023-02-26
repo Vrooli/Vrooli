@@ -1,6 +1,6 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, DeleteOneInput, Success } from "@shared/consts";
 import { exists } from "@shared/utils";
-import { mutationWrapper, useLazyQuery, useMutation } from "api";
+import { mutationWrapper, useCustomLazyQuery, useMutation } from "api";
 import { bookmarkCreate, bookmarkFindMany } from "api/generated/endpoints/bookmark";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany";
 import { useCallback } from "react";
@@ -25,7 +25,7 @@ export const useBookmarker = ({
     const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne')
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
-    const [getData, { data, loading }] = useLazyQuery<Bookmark, BookmarkSearchInput, 'bookmarks'>(bookmarkFindMany, 'bookmarks', { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useCustomLazyQuery<Bookmark, BookmarkSearchInput>(bookmarkFindMany, { errorPolicy: 'all' });
 
     const hasBookmarkingSupport = exists(BookmarkFor[objectType]);
 

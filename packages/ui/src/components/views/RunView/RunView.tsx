@@ -6,7 +6,7 @@ import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineVersionHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
-import { useLazyQuery, useMutation } from "api/hooks";
+import { useMutation } from "api/hooks";
 import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { base36ToUuid } from "utils/navigation/urlTools";
@@ -409,7 +409,7 @@ export const RunView = ({
     // const progressPercentage = useMemo(() => getRunPercentComplete(completedComplexity, routineVersion.complexity), [completedComplexity, routineVersion]);
 
     // // Query current subroutine, if needed. Main routine may have the data
-    // const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
+    // const [getSubroutine, { data: subroutine, loading: subroutineLoading }] = useCustomLazyQuery<RoutineVersion, FindVersionInput>(routineVersionFindMany, { errorPolicy: 'all' });
     // const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     // useEffect(() => {
     //     console.log('find step 1', currStepLocation)
@@ -466,8 +466,6 @@ export const RunView = ({
     //  * TODO not tested and likely doesn't work
     //  */
     // useEffect(() => {
-    //     // Get subroutine data
-    //     const subroutine = subroutineData?.routineVersion;
     //     if (!subroutine) return;
     //     // Convert to RoutineStep
     //     const subroutineStep = convertRoutineVersionToStep(subroutine, languages);

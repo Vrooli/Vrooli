@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Collapse, Divider, Grid, List, ListItem, ListItemIcon, ListItemText, Typography, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
-import { useLazyQuery } from 'api/hooks';
+import { useCustomLazyQuery } from 'api/hooks';
 import { APP_LINKS, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
@@ -98,13 +98,13 @@ export function SettingsPage({
     const searchOptions = useMemo(() => translateSearchItems(searchItems, session), [session]);
 
     // Fetch profile data
-    const [getData, { data, loading }] = useLazyQuery<User, null, 'profile'>(userProfile, 'profile', { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: 'all' });
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session])
     const [profile, setProfile] = useState<User | undefined>(undefined);
     useEffect(() => {
-        if (data?.profile) setProfile(data.profile);
+        if (data) setProfile(data);
     }, [data]);
     const onUpdated = useCallback((updatedProfile: User | undefined) => {
         if (updatedProfile) setProfile(updatedProfile);

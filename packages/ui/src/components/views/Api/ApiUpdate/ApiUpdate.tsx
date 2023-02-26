@@ -1,5 +1,5 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -20,9 +20,8 @@ session,
 }: ApiUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ApiVersion, FindByIdInput, 'apiVersion'>(apiVersionFindOne, 'apiVersion');
+    const [getData, { data: apiVersion, loading }] = useCustomLazyQuery<ApiVersion, FindByIdInput>(apiVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-    const apiVersion = useMemo(() => data?.apiVersion, [data]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));

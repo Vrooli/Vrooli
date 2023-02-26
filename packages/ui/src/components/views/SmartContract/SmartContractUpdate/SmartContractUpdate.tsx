@@ -1,5 +1,5 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SmartContractUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -20,9 +20,8 @@ session,
 }: SmartContractUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<SmartContractVersion, FindByIdInput, 'smartContractVersion'>(smartContractVersionFindOne, 'smartContractVersion');
+    const [getData, { data: smartContractVersion, loading }] = useCustomLazyQuery<SmartContractVersion, FindByIdInput>(smartContractVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-    const smartContractVersion = useMemo(() => data?.smartContractVersion, [data]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));

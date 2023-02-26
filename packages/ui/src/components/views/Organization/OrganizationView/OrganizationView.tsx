@@ -34,9 +34,7 @@ export const OrganizationView = ({
 
     const { id, isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization, FindByIdOrHandleInput>({
         query: organizationFindOne,
-        endpoint: 'organization',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);

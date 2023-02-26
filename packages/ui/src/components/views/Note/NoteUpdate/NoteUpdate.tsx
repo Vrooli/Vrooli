@@ -1,5 +1,5 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NoteUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -20,9 +20,8 @@ session,
 }: NoteUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<NoteVersion, FindByIdInput, 'noteVersion'>(noteVersionFindOne, 'noteVersion');
+    const [getData, { data: noteVersion, loading }] = useCustomLazyQuery<NoteVersion, FindByIdInput>(noteVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-    const noteVersion = useMemo(() => data?.noteVersion, [data]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
