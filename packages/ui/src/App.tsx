@@ -13,7 +13,7 @@ import { getDeviceInfo, getUserLanguages, PubSub, themes, useReactHash } from 'u
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
 import { guestSession } from 'utils/authentication';
@@ -84,7 +84,7 @@ export function App() {
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(authValidateSession, 'validateSession');
+    const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
 
     /**
      * Sets language

@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useCustomLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { QuestionUpdateProps } from "../types";
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
@@ -35,7 +35,7 @@ session,
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation<Question, QuestionUpdateInput, 'questionUpdate'>(questionUpdate, 'questionUpdate');
+    const [mutation] = useCustomMutation<Question, QuestionUpdateInput>(questionUpdate);
     const formik = useFormik({
         initialValues: {
             id: question?.id ?? uuid(),

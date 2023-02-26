@@ -4,7 +4,7 @@ import { ResourceDialog, ResourceListItem, ResourceListItemContextMenu } from 'c
 import { ResourceListVerticalProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { Box, Button } from '@mui/material';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { updateArray } from 'utils';
 import { AddIcon } from '@shared/icons';
@@ -42,7 +42,7 @@ export const ResourceListVertical = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(deleteOneOrManyDeleteOne, 'deleteMany');
+    const [deleteMutation] = useCustomMutation<Count, DeleteManyInput>(deleteOneOrManyDeleteOne);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];

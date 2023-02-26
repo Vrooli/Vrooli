@@ -1,4 +1,4 @@
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
@@ -39,8 +39,8 @@ export const ResourceDialog = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [addMutation, { loading: addLoading }] = useMutation<Resource, ResourceCreateInput, 'resourceCreate'>(resourceCreate, 'resourceCreate');
-    const [updateMutation, { loading: updateLoading }] = useMutation<Resource, ResourceUpdateInput, 'resourceUpdate'>(resourceUpdate, 'resourceUpdate');
+    const [addMutation, { loading: addLoading }] = useCustomMutation<Resource, ResourceCreateInput>(resourceCreate);
+    const [updateMutation, { loading: updateLoading }] = useCustomMutation<Resource, ResourceUpdateInput>(resourceUpdate);
 
     const formik = useFormik({
         initialValues: {

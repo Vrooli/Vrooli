@@ -17,7 +17,7 @@ import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { HistorySearchPageTabOption, PubSub, shapeProfile } from 'utils';
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
@@ -56,7 +56,7 @@ export const AccountMenu = ({
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false) }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(userProfileUpdate, 'profileUpdate');
+    const [mutation] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',
@@ -97,7 +97,7 @@ export const AccountMenu = ({
         closeDisplaySettings();
     }, [closeAdditionalResources, closeDisplaySettings, formik, onClose]);
 
-    const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(authSwitchCurrentAccount, 'switchCurrentAccount');
+    const [switchCurrentAccount] = useCustomMutation<Session, SwitchCurrentAccountInput>(authSwitchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu
         handleClose(event);
@@ -121,7 +121,7 @@ export const AccountMenu = ({
         handleClose(event);
     }, [handleClose, setLocation]);
 
-    const [logOut] = useMutation<Session, LogOutInput, 'logOut'>(authLogOut, 'logOut');
+    const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleClose(event);
         const user = getCurrentUser(session);

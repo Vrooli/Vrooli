@@ -4,7 +4,7 @@
 import { WalletListProps } from '../types';
 import { useCallback, useState } from 'react';
 import { Box, Button } from '@mui/material';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { PubSub, updateArray } from 'utils';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
@@ -21,7 +21,7 @@ export const WalletList = ({
     list,
 }: WalletListProps) => {
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<Wallet, WalletUpdateInput, 'walletUpdate'>(walletUpdate, 'walletUpdate');
+    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Wallet, WalletUpdateInput>(walletUpdate);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
         mutationWrapper<Wallet, WalletUpdateInput>({
@@ -36,7 +36,7 @@ export const WalletList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 

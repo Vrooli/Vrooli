@@ -4,7 +4,7 @@ import { PageTitle } from "components/text";
 import { SettingsFormData } from "pages";
 import { getUserLanguages, PubSub, shapeProfile, usePromptBeforeUnload } from "utils";
 import { mutationWrapper } from "api/utils";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { useFormik } from "formik";
 import { NotificationSettings, NotificationSettingsUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from "@shared/uuid";
@@ -16,7 +16,7 @@ export const SettingsNotifications = ({
     session,
 }: SettingsNotificationsProps) => {
     // Handle update
-    // const [mutation] = useMutation<NotificationSettings, NotificationSettingsUpdateInput, 'notificationSettingsUpdate'>(...notificationSettingsEndpoint.update);
+    // const [mutation] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',

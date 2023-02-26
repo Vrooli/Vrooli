@@ -1,6 +1,6 @@
 import { CopyInput, CopyResult, CopyType } from "@shared/consts";
 import { exists } from "@shared/utils";
-import { mutationWrapper, useMutation } from "api";
+import { mutationWrapper, useCustomMutation } from "api";
 import { copyCopy } from "api/generated/endpoints/copy";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions";
@@ -22,7 +22,7 @@ export const useCopier = ({
     objectType,
     onActionComplete
 }: UseCopierProps) => {
-    const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
+    const [copy] = useCustomMutation<CopyResult, CopyInput>(copyCopy);
 
     const hasCopyingSupport = exists(CopyType[objectType]);
 

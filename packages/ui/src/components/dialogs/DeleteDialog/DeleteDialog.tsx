@@ -10,7 +10,7 @@ import {
 import { DeleteDialogProps } from '../types';
 import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'api/utils';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
@@ -36,7 +36,7 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
+    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const handleDelete = useCallback(() => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,

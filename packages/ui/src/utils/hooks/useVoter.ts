@@ -1,6 +1,6 @@
 import { Success, VoteFor, VoteInput } from "@shared/consts";
 import { exists } from "@shared/utils";
-import { mutationWrapper, useMutation } from "api";
+import { mutationWrapper, useCustomMutation } from "api";
 import { voteVote } from "api/generated/endpoints/vote";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions";
@@ -20,7 +20,7 @@ export const useVoter = ({
     objectType,
     onActionComplete
 }: UseVoterProps) => {
-    const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
+    const [vote] = useCustomMutation<Success, VoteInput>(voteVote);
 
     const hasVotingSupport = exists(VoteFor[objectType]);
 

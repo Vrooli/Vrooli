@@ -24,7 +24,7 @@ import {
     SignUpForm,
     ResetPasswordForm,
 } from 'forms';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'api/utils';
@@ -52,8 +52,8 @@ export const StartPage = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(authEmailLogIn, 'emailLogIn');
-    const [guestLogIn] = useMutation<Session, null, 'guestLogIn'>(authGuestLogIn, 'guestLogIn');
+    const [emailLogIn] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
+    const [guestLogIn] = useCustomMutation<Session, undefined>(authGuestLogIn);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);

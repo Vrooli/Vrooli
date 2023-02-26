@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useCustomLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ReminderUpdateProps } from "../types";
 import { reminderValidation } from '@shared/validation';
@@ -22,7 +22,7 @@ session,
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     // Handle update
-    const [mutation] = useMutation<Reminder, ReminderUpdateInput, 'reminderUpdate'>(reminderUpdate, 'reminderUpdate');
+    const [mutation] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
     const formik = useFormik({
         initialValues: {
             id: reminder?.id ?? uuid(),

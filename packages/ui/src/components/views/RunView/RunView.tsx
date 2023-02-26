@@ -6,7 +6,7 @@ import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineVersionHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { base36ToUuid } from "utils/navigation/urlTools";
@@ -581,8 +581,8 @@ export const RunView = ({
     //     setCurrStepLocation(previousStep);
     // }, [previousStep, setCurrStepLocation]);
 
-    // const [logRunUpdate] = useMutation<RunRoutine, RunRoutineUpdateInput, 'runRoutineUpdate'>(...runRoutineEndpoint.update);
-    // const [logRunComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(...runRoutineEndpoint.complete);
+    // const [logRunUpdate] = useCustomMutation<RunRoutine, RunRoutineUpdateInput>(runRoutineUpdate);
+    // const [logRunComplete] = useCustomMutation<RunRoutine, RunRoutineCompleteInput>(runRoutineComplete);
     // /**
     //  * Navigate to the next subroutine, or complete the routine.
     //  * Also log progress, time elapsed, and other metrics

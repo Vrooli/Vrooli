@@ -1,5 +1,5 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useCustomLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -36,7 +36,7 @@ session,
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation<ApiVersion, ApiVersionUpdateInput, 'apiVersionUpdate'>(apiVersionUpdate, 'apiVersionUpdate');
+    const [mutation] = useCustomMutation<ApiVersion, ApiVersionUpdateInput>(apiVersionUpdate);
     const formik = useFormik({
         initialValues: {
             id: apiVersion?.id ?? uuid(),

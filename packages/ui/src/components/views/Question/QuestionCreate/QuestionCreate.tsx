@@ -1,5 +1,5 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -40,7 +40,7 @@ export const QuestionCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<Question, QuestionCreateInput, 'questionCreate'>(questionCreate, 'questionCreate');
+    const [mutation] = useCustomMutation<Question, QuestionCreateInput>(questionCreate);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useCustomLazyQuery } from "api/hooks";
+import { useCustomMutation, useCustomLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -52,7 +52,7 @@ export const StandardUpdate = ({
     }, [standardVersion]);
 
     // Handle update
-    const [mutation] = useMutation<StandardVersion, StandardVersionUpdateInput, 'standardVersionUpdate'>(standardVersionUpdate, 'standardVersionUpdate');
+    const [mutation] = useCustomMutation<StandardVersion, StandardVersionUpdateInput>(standardVersionUpdate);
     const formik = useFormik({
         initialValues: {
             translationsUpdate: standardVersion?.translations ?? [{

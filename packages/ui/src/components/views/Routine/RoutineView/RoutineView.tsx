@@ -1,7 +1,7 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel } from "components";
 import { RoutineViewProps } from "../types";
@@ -130,7 +130,7 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(runRoutineComplete, 'runRoutineComplete');
+    const [runComplete] = useCustomMutation<RunRoutine, RunRoutineCompleteInput>(runRoutineComplete);
     const markAsComplete = useCallback(() => {
         if (!routineVersion) return;
         mutationWrapper<RunRoutine, RunRoutineCompleteInput>({

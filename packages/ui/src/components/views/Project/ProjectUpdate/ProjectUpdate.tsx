@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useCustomLazyQuery } from "api/hooks";
+import { useCustomMutation, useCustomLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
@@ -43,7 +43,7 @@ export const ProjectUpdate = ({
     }, [projectVersion]);
 
     // Handle update
-    const [mutation] = useMutation<ProjectVersion, ProjectVersionUpdateInput, 'projectVersionUpdate'>(projectVersionUpdate, 'projectVersionUpdate');
+    const [mutation] = useCustomMutation<ProjectVersion, ProjectVersionUpdateInput>(projectVersionUpdate);
     const formik = useFormik({
         initialValues: {
             id: projectVersion?.id ?? uuid(),

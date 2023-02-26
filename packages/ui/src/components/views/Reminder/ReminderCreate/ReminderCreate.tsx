@@ -1,5 +1,5 @@
 import { Checkbox, FormControlLabel, Grid } from "@mui/material";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { reminderValidation } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -20,7 +20,7 @@ export const ReminderCreate = ({
 }: ReminderCreateProps) => {
 
     // Handle create
-    const [mutation] = useMutation<Reminder, ReminderCreateInput, 'reminderCreate'>(reminderCreate, 'reminderCreate');
+    const [mutation] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

@@ -1,4 +1,4 @@
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { DUMMY_ID } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
@@ -34,7 +34,7 @@ export const CommentUpdateInput = ({
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
     const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(commentUpdate, 'commentUpdate');
+    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Comment, CommentUpdateInputType>(commentUpdate);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,

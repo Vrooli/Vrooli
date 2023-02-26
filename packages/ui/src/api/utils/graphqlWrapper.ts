@@ -60,6 +60,17 @@ interface GraphqlWrapperHelperProps<Output extends object> extends BaseWrapperPr
 };
 
 /**
+ * Wraps an object in "input" key, as all GraphQL inputs follow this pattern.
+ * Ignores if input is undefined or null, or if input is already wrapped in "input" key
+ */
+const wrapInput = (input: Record<string, any> | undefined): InputType | undefined => {
+    if (!exists(input)) return undefined;
+    if (Object.keys(input).length === 1 && input.hasOwnProperty('input')) return input as InputType;
+    return { input } as InputType;
+}
+
+
+/**
  * Helper function to handle response and catch of useMutation and useLazyQuery functions.
  * @param 
  */
@@ -145,8 +156,8 @@ export const documentNodeWrapper = <Output extends object, Input extends Record<
     const isMutation = node.definitions.some((def) => def.kind === 'OperationDefinition' && def.operation === 'mutation');
     return graphqlWrapperHelper({
         call: () => isMutation ?
-            client.mutate({ mutation: node, variables: rest.input ? { input: rest.input } as InputType : undefined }) :
-            client.query({ query: node, variables: rest.input ? { input: rest.input } as InputType : undefined }),
+            client.mutate({ mutation: node, variables: wrapInput(rest.input) }) :
+            client.query({ query: node, variables: wrapInput(rest.input) }),
         ...rest
     });
 }
@@ -157,7 +168,7 @@ export const documentNodeWrapper = <Output extends object, Input extends Record<
 export const mutationWrapper = <Output extends object, Input extends Record<string, any> | never>(props: MutationWrapperProps<Output, Input>) => {
     const { mutation, ...rest } = props;
     return graphqlWrapperHelper({
-        call: () => mutation({ variables: rest.input ? { input: rest.input } as InputType : undefined }),
+        call: () => mutation({ variables: wrapInput(rest.input) }),
         ...rest
     });
 }
@@ -168,7 +179,7 @@ export const mutationWrapper = <Output extends object, Input extends Record<stri
 export const queryWrapper = <Output extends object, Input extends Record<string, any> | never>(props: QueryWrapperProps<Output, Input>) => {
     const { query, ...rest } = props;
     return graphqlWrapperHelper({
-        call: () => query({ variables: rest.input ? { input: rest.input } as InputType : undefined }),
+        call: () => query({ variables: wrapInput(rest.input) }),
         ...rest
     });
 }

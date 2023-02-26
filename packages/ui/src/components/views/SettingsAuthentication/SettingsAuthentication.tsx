@@ -1,5 +1,5 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { useCallback, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
@@ -34,7 +34,7 @@ export const SettingsAuthentication = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [logOut] = useMutation<Session, LogOutInput>(authLogOut, 'logOut');
+    const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
         mutationWrapper<Session, LogOutInput>({ 
@@ -73,7 +73,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation<User, ProfileEmailUpdateInput, 'profileEmailUpdate'>(userProfileEmailUpdate, 'profileEmailUpdate');
+    const [mutation] = useCustomMutation<User, ProfileEmailUpdateInput>(userProfileEmailUpdate);
     const formik = useFormik({
         initialValues: {
             currentPassword: '',

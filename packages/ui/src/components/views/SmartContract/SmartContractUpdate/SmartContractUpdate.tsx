@@ -1,5 +1,5 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useCustomLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SmartContractUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -36,7 +36,7 @@ session,
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation<SmartContractVersion, SmartContractVersionUpdateInput, 'smartContractVersionUpdate'>(smartContractVersionUpdate, 'smartContractVersionUpdate');
+    const [mutation] = useCustomMutation<SmartContractVersion, SmartContractVersionUpdateInput>(smartContractVersionUpdate);
     const formik = useFormik({
         initialValues: {
             id: smartContractVersion?.id ?? uuid(),

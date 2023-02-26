@@ -1,5 +1,5 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useCustomLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
@@ -58,7 +58,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(userProfileUpdate, 'profileUpdate');
+    const [mutation] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',
