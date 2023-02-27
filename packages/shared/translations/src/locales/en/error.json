@@ -126,6 +126,7 @@
     "NoVerifiedWallets": "No verified wallets associated with this account.",
     "NotLoggedIn": "Must be logged in.",
     "NotLoggedInOfficial": "Must be logged in via the official Vrooli app/website.",
+    "PageNotFound": "Page not found.",
     "PageRestricted": "Page restricted. Please log in.",
     "PhoneInUse": "Phone number taken.",
     "PhoneInUseDetails": "Phone number has already been verified by another account. If you believe this is a mistake, please contact us.",

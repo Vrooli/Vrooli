@@ -34,7 +34,7 @@ const parseData = (data: any, resolve?: (data: any) => any) => {
     if (resolve) return resolve(queryData);
     // Otherwise, treat as typically-shaped paginated data
     if (!queryData || !queryData.edges) return [];
-    return queryData.edges.map((edge, index) => edge.node);
+    return queryData.edges.map((edge: any, index: number) => edge.node);
 };
 
 /**

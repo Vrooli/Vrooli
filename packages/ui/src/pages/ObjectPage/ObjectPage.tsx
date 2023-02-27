@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { parseSearchParams, useLocation } from '@shared/route';
@@ -7,16 +7,6 @@ import { lazily } from "react-lazily";
 import { ObjectType, PubSub, uuidToBase36 } from "utils";
 import { PageContainer, ReportsView } from "components";
 import { useTranslation } from "react-i18next";
-
-const { ApiCreate, ApiUpdate, ApiView } = lazily(() => import('../../components/views/Api'));
-const { NoteCreate, NoteUpdate, NoteView } = lazily(() => import('../../components/views/Note'));
-const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
-const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('../../components/views/Project'));
-const { QuestionCreate, QuestionUpdate, QuestionView } = lazily(() => import('../../components/views/Question'));
-const { ReminderCreate, ReminderUpdate, ReminderView } = lazily(() => import('../../components/views/Reminder'));
-const { RoutineCreate, RoutineUpdate, RoutineView } = lazily(() => import('../../components/views/Routine'));
-const { SmartContractCreate, SmartContractUpdate, SmartContractView } = lazily(() => import('../../components/views/SmartContract'));
-const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('../../components/views/Standard'));
 
 export interface CreatePageProps {
     onCancel: () => void;
@@ -69,46 +59,46 @@ const typeMap = {
 /**
  * Maps object types to create components
  */
-const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element } = {
-    'Api': ApiCreate,
-    'Note': NoteCreate,
-    'Organization': OrganizationCreate,
-    'Project': ProjectCreate,
-    'Question': QuestionCreate,
-    'Reminder': ReminderCreate,
-    'Routine': RoutineCreate,
-    'SmartContract': SmartContractCreate,
-    'Standard': StandardCreate,
+const createMap = {
+    Api: async () => (await import('../../components/views/Api')).ApiCreate,
+    Note: async () => (await import('../../components/views/Note')).NoteCreate,
+    Organization: async () => (await import('../../components/views/Organization')).OrganizationCreate,
+    Project: async () => (await import('../../components/views/Project')).ProjectCreate,
+    Question: async () => (await import('../../components/views/Question')).QuestionCreate,
+    Reminder: async () => (await import('../../components/views/Reminder')).ReminderCreate,
+    Routine: async () => (await import('../../components/views/Routine')).RoutineCreate,
+    SmartContract: async () => (await import('../../components/views/SmartContract')).SmartContractCreate,
+    Standard: async () => (await import('../../components/views/Standard')).StandardCreate,
 }
 
 /**
  * Maps object types to update components
  */
-const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element } = {
-    'Api': ApiUpdate,
-    'Note': NoteUpdate,
-    'Organization': OrganizationUpdate,
-    'Project': ProjectUpdate,
-    'Question': QuestionUpdate,
-    'Reminder': ReminderUpdate,
-    'Routine': RoutineUpdate,
-    'SmartContract': SmartContractUpdate,
-    'Standard': StandardUpdate,
+const updateMap = {
+    Api: async () => (await import('../../components/views/Api')).ApiUpdate,
+    Note: async () => (await import('../../components/views/Note')).NoteUpdate,
+    Organization: async () => (await import('../../components/views/Organization')).OrganizationUpdate,
+    Project: async () => (await import('../../components/views/Project')).ProjectUpdate,
+    Question: async () => (await import('../../components/views/Question')).QuestionUpdate,
+    Reminder: async () => (await import('../../components/views/Reminder')).ReminderUpdate,
+    Routine: async () => (await import('../../components/views/Routine')).RoutineUpdate,
+    SmartContract: async () => (await import('../../components/views/SmartContract')).SmartContractUpdate,
+    Standard: async () => (await import('../../components/views/Standard')).StandardUpdate,
 }
 
 /**
  * Maps object types to view components
  */
-const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } = {
-    'Api': ApiView,
-    'Note': NoteView,
-    'Organization': OrganizationView,
-    'Project': ProjectView,
-    'Question': QuestionView,
-    'Reminder': ReminderView,
-    'Routine': RoutineView,
-    'SmartContract': SmartContractView,
-    'Standard': StandardView,
+const viewMap = {
+    Api: async () => (await import('../../components/views/Api')).ApiView,
+    Note: async () => (await import('../../components/views/Note')).NoteView,
+    Organization: async () => (await import('../../components/views/Organization')).OrganizationView,
+    Project: async () => (await import('../../components/views/Project')).ProjectView,
+    Question: async () => (await import('../../components/views/Question')).QuestionView,
+    Reminder: async () => (await import('../../components/views/Reminder')).ReminderView,
+    Routine: async () => (await import('../../components/views/Routine')).RoutineView,
+    SmartContract: async () => (await import('../../components/views/SmartContract')).SmartContractView,
+    Standard: async () => (await import('../../components/views/Standard')).StandardView,
 }
 
 export const ObjectPage = ({
@@ -159,41 +149,42 @@ export const ObjectPage = ({
         }
     }, [hasPreviousPage, setLocation]);
 
-    const displayedPage = useMemo<JSX.Element | undefined>(() => {
-        if (!objectType) return undefined;
-        // If page type is View, display the view page
-        // Also display the view page for multi-step routines, since this has special logic
-        const searchParams = parseSearchParams();
-        if (pageType === PageType.View || searchParams.build === true) {
-            const View = viewMap[objectType];
-            return View && <View session={session} zIndex={200} />
-        }
-        if (pageType === PageType.Create) {
-            const Create = createMap[objectType];
-            document.title = t(`Create${objectType}`);
-            return (Create && <Create
+    const [displayedPage, setDisplayedPage] = useState<JSX.Element | undefined>(undefined);
+    useEffect(() => {
+        const fetchDisplayedPage = async () => {
+            if (!objectType) return undefined;
+            const searchParams = parseSearchParams();
+            // If page type is reports, display reports page
+            if (pageType === PageType.Reports) {
+                document.title = t(`Reports`) + '|' + t(objectType, { count: 1 });
+                setDisplayedPage(<ReportsView session={session} />);
+                return;
+            }
+            // Otherwise, determine which object map to use (create, update, or view)
+            let pageMap: Record<string, any>;
+            // View page for View pages OR multi-step routines
+            if (pageType === PageType.View || searchParams.build === true) pageMap = viewMap;
+            // Create page for Create pages
+            else if (pageType === PageType.Create) pageMap = createMap;
+            // Update page for Update pages
+            else if (pageType === PageType.Update) pageMap = updateMap;
+            // Default to view page
+            else pageMap = viewMap;
+            // Use map to get the correct component
+            const Page = await (pageMap as any)[objectType.replace('Version', '')];
+            // If page is not found, display error
+            if (!Page) {
+                PubSub.get().publishSnack({ messageKey: 'PageNotFound', severity: 'Error' });
+            }
+            // Set displayed page
+            setDisplayedPage(<Page
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
-                onCreated={(data) => onAction(ObjectDialogAction.Add, data)}
+                onUpdated={(data: any) => onAction(ObjectDialogAction.Save, data)}
                 session={session}
                 zIndex={200}
-            />)
-        }
-        if (pageType === PageType.Update) {
-            const Update = updateMap[objectType];
-            document.title = t(`Update${objectType}`);
-            return (Update && <Update
-                onCancel={() => onAction(ObjectDialogAction.Cancel)}
-                onUpdated={(data) => onAction(ObjectDialogAction.Save, data)}
-                session={session}
-                zIndex={200}
-            />)
-        }
-        if (pageType === PageType.Reports) {
-            document.title = t(`Reports`) + '|' + t(objectType, { count: 1 });
-            return <ReportsView session={session} />
-        }
-        const View = viewMap[objectType];
-        return View && <View session={session} zIndex={200} />
+            />);
+        };
+        fetchDisplayedPage();
     }, [objectType, onAction, pageType, session, t]);
 
     return (

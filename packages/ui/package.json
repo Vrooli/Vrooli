@@ -55,7 +55,7 @@
         "build": "tsc && vite build",
         "start-development": "vite",
         "start-production": "vite preview",
-        "analyze": "source-map-explorer build/static/js/*",
+        "analyze": "source-map-explorer dist/assets/*",
         "graphql-generate": "graphql-codegen --config codegen.yml"
     },
     "browserslist": [

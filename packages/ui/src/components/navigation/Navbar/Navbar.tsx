@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import Logo from '../../../assets/img/Logo-128x128.png';
+import Logo from '../../../assets/img/Logo-128x128.png'; // Absolute path not working ever since switching to vite
 import { BUSINESS_NAME, APP_LINKS } from '@shared/consts';
 import { AppBar, Toolbar, Typography, Box, useTheme } from '@mui/material';
 import { NavList } from '../NavList/NavList';

@@ -31,8 +31,8 @@ export default defineConfig({
             { find: '@shared/validation', replacement: path.resolve(__dirname, '../shared/validation/src') },
         ]
     },
-    // Make sure we can use the "crypto" module in the browser
-    optimizeDeps: {
-        include: ['crypto'],
-    },
+    // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
+    build: {
+        sourcemap: true
+    }
 })
