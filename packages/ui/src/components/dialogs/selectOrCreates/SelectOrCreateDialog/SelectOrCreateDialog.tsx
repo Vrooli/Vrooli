@@ -6,7 +6,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, DialogTitle, OrganizationCreate, ProjectCreate, RoutineCreate, ShareSiteDialog, StandardCreate } from 'components';
+import { BaseObjectDialog, DialogTitle, ShareSiteDialog } from 'components';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 import { SearchList } from 'components/lists';
@@ -22,6 +22,14 @@ import { CreateProps } from 'components/views/types';
 import { isOfType } from '@shared/utils';
 import { SearchParams } from 'utils/search/schemas/base';
 import { CommonKey } from '@shared/translations';
+import { lazily } from 'react-lazily';
+const { ApiCreate } = lazily(() => import('../../../views/Api/ApiCreate/ApiCreate'));
+const { NoteCreate } = lazily(() => import('../../../views/Note/NoteCreate/NoteCreate'));
+const { OrganizationCreate } = lazily(() => import('../../../views/Organization/OrganizationCreate/OrganizationCreate'));
+const { ProjectCreate } = lazily(() => import('../../../views/Project/ProjectCreate/ProjectCreate'));
+const { RoutineCreate } = lazily(() => import('../../../views/Routine/RoutineCreate/RoutineCreate'));
+const { SmartContractCreate } = lazily(() => import('../../../views/SmartContract/SmartContractCreate/SmartContractCreate'));
+const { StandardCreate } = lazily(() => import('../../../views/Standard/StandardCreate/StandardCreate'));
 
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
@@ -33,12 +41,12 @@ type CreateViewTypes = ({
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
  */
 const createMap: { [K in CreateViewTypes]: (props: CreateProps<any>) => JSX.Element } = {
-    Api: {} as any,//ApiCreate,
-    Note: {} as any,//NoteCreate,
+    Api: ApiCreate,
+    Note: NoteCreate,
     Organization: OrganizationCreate,
     Project: ProjectCreate,
     Routine: RoutineCreate,
-    SmartContract: {} as any,//SmartContractCreate,
+    SmartContract: SmartContractCreate,
     Standard: StandardCreate,
 }
 
@@ -65,7 +73,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         };
     }, [help, objectType, t]);
     const CreateView = useMemo<((props: CreatePageProps) => JSX.Element) | null>(() =>
-        objectType === 'User' ? null : createMap[objectType], [objectType]);
+        objectType === 'User' ? null : (createMap as any)[objectType.replace('Version', '')], [objectType]);
 
     const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
