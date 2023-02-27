@@ -10,7 +10,6 @@ import {
     SnackStack,
 } from 'components';
 import { getDeviceInfo, getUserLanguages, PubSub, themes, useReactHash } from 'utils';
-import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useCustomMutation } from 'api/hooks';
@@ -22,6 +21,7 @@ import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth';
 import i18next from 'i18next';
+import { Routes } from 'Routes';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -166,7 +166,7 @@ export function App() {
         // Determine theme
         let theme: Theme | null | undefined;
         // Try getting theme from session
-        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme];
+        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme as 'light' | 'dark'];
         // If not found, try alternative methods
         if (!theme) theme = findThemeWithoutSession();
         // Update theme state, meta tags, and local storage

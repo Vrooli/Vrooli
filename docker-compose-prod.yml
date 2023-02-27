@@ -11,10 +11,10 @@ services:
     restart: always
     environment:
       NODE_ENV: "production"
-      REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-      REACT_APP_PORT_SERVER: ${PORT_SERVER}
-      REACT_APP_SERVER_URL: "${SERVER_URL}"
-      REACT_APP_SITE_IP: "${SITE_IP}"
+      VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
+      VITE_PORT_SERVER: ${PORT_SERVER}
+      VITE_SERVER_URL: "${SERVER_URL}"
+      VITE_SITE_IP: "${SITE_IP}"
       PROJECT_DIR: "${PROJECT_DIR}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
       VIRTUAL_PATH: "/"
@@ -44,8 +44,8 @@ services:
       NODE_ENV: "production"
       JWT_SECRET: "${JWT_SECRET}"
       PROJECT_DIR: "${PROJECT_DIR}"
-      REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-      REACT_APP_PORT_SERVER: ${PORT_SERVER}
+      VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
+      VITE_PORT_SERVER: ${PORT_SERVER}
       REDIS_CONN: "redis:${PORT_REDIS}"
       DB_CONN: "db:${PORT_DB}"
       DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
