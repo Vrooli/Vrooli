@@ -18,7 +18,7 @@ import { initSitemapCronJob } from './schedules';
 
 const debug = process.env.NODE_ENV === 'development';
 
-const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
+const SERVER_URL = process.env.VITE_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
     Boolean(process.env.SERVER_URL) ?
         process.env.SERVER_URL :
@@ -28,7 +28,7 @@ const main = async () => {
     logger.info('Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
+    const requiredEnvs = ['VITE_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);

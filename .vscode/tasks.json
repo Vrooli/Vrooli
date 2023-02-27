@@ -20,7 +20,7 @@
             "group": "build",
             "problemMatcher": [],
             "label": "npm: build - packages/ui",
-            "detail": "react-scripts build --max-old-space-size=8192 --optimize_for_size --max_executable_size=4096 --stack_size=4096"
+            "detail": "tsc && vite-build"
         }
     ]
 }

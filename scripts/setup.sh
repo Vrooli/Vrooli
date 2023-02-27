@@ -70,7 +70,7 @@ header "Installing Yarn"
 npm install -g yarn
 
 header "Installing global dependencies"
-yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.10.1 react-scripts serve
+yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.10.1 vite
 
 # If reinstalling modules, delete all node_modules directories
 if [ -z "${REINSTALL_MODULES}" ]; then

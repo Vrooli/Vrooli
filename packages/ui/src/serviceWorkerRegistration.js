@@ -33,7 +33,7 @@ export function subscribeUserToPush() {
         const subscribeOptions = {
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(
-            process.env.REACT_APP_PUSH_NOTIFICATIONS_PUBLIC_KEY
+            import.meta.env.VITE_PUSH_NOTIFICATIONS_PUBLIC_KEY
           ),
         };
   

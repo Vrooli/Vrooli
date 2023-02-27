@@ -102,10 +102,10 @@ cd ${HERE}/../packages/ui
 # Create local .env file
 touch .env
 # Set environment variables
-echo "REACT_APP_SERVER_LOCATION=${SERVER_LOCATION}" >>.env
-echo "REACT_APP_PORT_SERVER=${PORT_SERVER}" >>.env
-echo "REACT_APP_SERVER_URL=${SERVER_URL}" >>.env
-echo "REACT_APP_SITE_IP=${SITE_IP}" >>.env
+echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>.env
+echo "VITE_PORT_SERVER=${PORT_SERVER}" >>.env
+echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
+echo "VITE_SITE_IP=${SITE_IP}" >>.env
 # Set trap to remove .env file on exit
 trap "rm .env" EXIT
 
