@@ -25,7 +25,8 @@
         "resolveJsonModule": true,
         "isolatedModules": true,
         "jsx": "react-jsx",
-        "removeComments": true
+        "removeComments": true,
+        "declaration": true,
     },
     "include": [
         "src"

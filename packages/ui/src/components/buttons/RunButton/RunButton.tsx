@@ -4,9 +4,9 @@ import { PlayIcon } from "@shared/icons";
 import { parseSearchParams, setSearchParams, useLocation } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { PopoverWithArrow, RunPickerMenu, UpTransition } from "components/dialogs";
-import { RunView } from "components/views";
 import { useCallback, useMemo, useState } from "react";
 import { getProjectVersionStatus, getRoutineVersionStatus, PubSub, Status, uuidToBase36 } from "utils";
+import { RunView } from "views";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
 

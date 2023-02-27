@@ -17,19 +17,19 @@ import { AddIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { useTranslation } from 'react-i18next';
 import { FindByIdInput } from '@shared/consts';
-import { CreatePageProps } from 'pages';
-import { CreateProps } from 'components/views/types';
 import { isOfType } from '@shared/utils';
 import { SearchParams } from 'utils/search/schemas/base';
 import { CommonKey } from '@shared/translations';
 import { lazily } from 'react-lazily';
-const { ApiCreate } = lazily(() => import('../../../views/Api/ApiCreate/ApiCreate'));
-const { NoteCreate } = lazily(() => import('../../../views/Note/NoteCreate/NoteCreate'));
-const { OrganizationCreate } = lazily(() => import('../../../views/Organization/OrganizationCreate/OrganizationCreate'));
-const { ProjectCreate } = lazily(() => import('../../../views/Project/ProjectCreate/ProjectCreate'));
-const { RoutineCreate } = lazily(() => import('../../../views/Routine/RoutineCreate/RoutineCreate'));
-const { SmartContractCreate } = lazily(() => import('../../../views/SmartContract/SmartContractCreate/SmartContractCreate'));
-const { StandardCreate } = lazily(() => import('../../../views/Standard/StandardCreate/StandardCreate'));
+import { CreateProps } from 'views/objects/types';
+import { CreateViewProps } from 'views/main/types';
+const { ApiCreate } = lazily(() => import('../../../../views/objects/api/ApiCreate/ApiCreate'));
+const { NoteCreate } = lazily(() => import('../../../../views/objects/note/NoteCreate/NoteCreate'));
+const { OrganizationCreate } = lazily(() => import('../../../../views/objects/organization/OrganizationCreate/OrganizationCreate'));
+const { ProjectCreate } = lazily(() => import('../../../../views/objects/project/ProjectCreate/ProjectCreate'));
+const { RoutineCreate } = lazily(() => import('../../../../views/objects/routine/RoutineCreate/RoutineCreate'));
+const { SmartContractCreate } = lazily(() => import('../../../../views/objects/smartContract/SmartContractCreate/SmartContractCreate'));
+const { StandardCreate } = lazily(() => import('../../../../views/objects/standard/StandardCreate/StandardCreate'));
 
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
@@ -72,7 +72,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             titleAria: `select-or-create-${objectType}-dialog-title`,
         };
     }, [help, objectType, t]);
-    const CreateView = useMemo<((props: CreatePageProps) => JSX.Element) | null>(() =>
+    const CreateView = useMemo<((props: CreateViewProps) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : (createMap as any)[objectType.replace('Version', '')], [objectType]);
 
     const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
