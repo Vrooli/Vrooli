@@ -1,37 +1,44 @@
-import { Suspense, useCallback } from 'react';
+import { useCallback } from 'react';
 import { lazily } from 'react-lazily';
 import { Route, Switch } from '@shared/route';
 import { APP_LINKS as LINKS, BUSINESS_NAME } from '@shared/consts';
-// import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
     ResetPasswordForm
 } from 'forms';
 import { ScrollToTop } from 'components';
 import { CommonProps } from 'types';
-import { Page } from 'pages/wrapper/Page';
+import { Page } from './components/Page/Page';
 import { Box, CircularProgress } from '@mui/material';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
-    HomePage,
-    HistoryPage,
-    CreatePage,
-    NotificationsPage,
-    SettingsPage,
-} = lazily(() => import('./pages/main'));
-const { TutorialPage, WelcomePage } = lazily(() => import('./pages/tutorial'));
-const { AwardsPage } = lazily(() => import('./pages/AwardsPage/AwardsPage'));
-const { CalendarPage } = lazily(() => import('./pages/CalendarPage/CalendarPage'));
-const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
-const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
-const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
-const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
-const { PremiumPage } = lazily(() => import('./pages/PremiumPage/PremiumPage'));
-const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
-const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
-const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
-const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
+    HomeView,
+    HistoryView,
+    CreateView,
+    NotificationsView,
+    SettingsView,
+} = lazily(() => import('./views/main'));
+const { TutorialView, WelcomeView } = lazily(() => import('./views/tutorial'));
+const { AwardsView } = lazily(() => import('./views/AwardsView/AwardsView'));
+const { CalendarView } = lazily(() => import('./views/CalendarView/CalendarView'));
+const { FormView } = lazily(() => import('./views/wrapper/FormView'));
+const { HistorySearchView } = lazily(() => import('./views/HistorySearchView/HistorySearchView'));
+const { NotFoundView } = lazily(() => import('./views/NotFoundView/NotFoundView'));
+const { PremiumView } = lazily(() => import('./views/PremiumView/PremiumView'));
+const { SearchView } = lazily(() => import('./views/SearchView/SearchView'));
+const { StartView } = lazily(() => import('./views/StartView/StartView'));
+const { StatsView } = lazily(() => import('./views/StatsView/StatsView'));
+const { ApiCreate, ApiUpdate, ApiView } = lazily(() => import('./views/objects/api'));
+const { NoteCreate, NoteUpdate, NoteView } = lazily(() => import('./views/objects/note'));
+const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('./views/objects/organization'));
+const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('./views/objects/project'));
+const { QuestionCreate, QuestionUpdate, QuestionView } = lazily(() => import('./views/objects/question'));
+const { ReminderCreate, ReminderUpdate, ReminderView } = lazily(() => import('./views/objects/reminder'));
+const { RoutineCreate, RoutineUpdate, RoutineView } = lazily(() => import('./views/objects/routine'));
+const { SmartContractCreate, SmartContractUpdate, SmartContractView } = lazily(() => import('./views/objects/smartContract'));
+const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('./views/objects/standard'));
+const { UserView } = lazily(() => import('./views/objects/user'));
 
 const Fallback = <Box sx={{
     position: 'absolute',
@@ -50,16 +57,21 @@ export const Routes = (props: CommonProps) => {
     return (
         <>
             <ScrollToTop />
-            <Switch>
-                <Route
-                    path={`${LINKS.Api}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+            <Switch fallback={Fallback}>
+                <Route path={`${LINKS.Api}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ApiCreate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Api}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ApiUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Api}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ApiView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Awards}
@@ -67,21 +79,14 @@ export const Routes = (props: CommonProps) => {
                     priority={0.5}
                     changeFreq="weekly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Awards🏆')} {...props}>
-                            <AwardsPage {...props} />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Awards🏆')} {...props}>
+                        <AwardsView {...props} />
+                    </Page>
                 </Route>
-                <Route
-                    path={LINKS.Calendar}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Calendar')} {...props}>
-                            <CalendarPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={LINKS.Calendar} sitemapIndex={false}>
+                    <Page title={title('Calendar')} {...props}>
+                        <CalendarView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Create}
@@ -89,11 +94,9 @@ export const Routes = (props: CommonProps) => {
                     priority={0.4}
                     changeFreq="monthly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <CreatePage session={props.session} />
-                        </Page>
-                    </Suspense>
+                    <Page {...props}>
+                        <CreateView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={`${LINKS.ForgotPassword}/:code?`}
@@ -101,33 +104,21 @@ export const Routes = (props: CommonProps) => {
                     priority={0.2}
                     changeFreq="yearly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Forgot Password')} {...props}>
-                            <FormPage title="Forgot Password" maxWidth="700px">
-                                <ForgotPasswordForm />
-                            </FormPage>
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Forgot Password')} {...props}>
+                        <FormView title="Forgot Password" maxWidth="700px">
+                            <ForgotPasswordForm />
+                        </FormView>
+                    </Page>
                 </Route>
-                <Route
-                    path={LINKS.History}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('History')} mustBeLoggedIn={true} {...props}>
-                            <HistoryPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={LINKS.History} sitemapIndex={false}>
+                    <Page title={title('History')} mustBeLoggedIn={true} {...props}>
+                        <HistoryView session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.HistorySearch}/:params*`}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <HistorySearchPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.HistorySearch}/:params*`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <HistorySearchView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Home}
@@ -135,21 +126,24 @@ export const Routes = (props: CommonProps) => {
                     priority={1.0}
                     changeFreq="weekly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Home')} {...props}>
-                            <HomePage session={props.session} />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Home')} {...props}>
+                        <HomeView session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.Note}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.Note}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <NoteCreate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Note}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <NoteUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Note}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <NoteView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Notifications}
@@ -157,21 +151,24 @@ export const Routes = (props: CommonProps) => {
                     priority={0.4}
                     changeFreq="monthly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <NotificationsPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                    <Page {...props}>
+                        <NotificationsView session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.Organization}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.Organization}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <OrganizationCreate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Organization}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <OrganizationUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Organization}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <OrganizationView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Premium}
@@ -179,51 +176,59 @@ export const Routes = (props: CommonProps) => {
                     priority={0.5}
                     changeFreq="weekly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Premium😎')} {...props}>
-                            <PremiumPage {...props} />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Premium😎')} {...props}>
+                        <PremiumView {...props} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.Profile}/:id?`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each user
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <UserViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.Profile}/:id?`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <UserView session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.Project}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each project
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.Project}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ProjectCreate session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.Question}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each project
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.Project}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ProjectUpdate session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.Reminder}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.Project}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ProjectView session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Question}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <QuestionCreate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Question}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <QuestionUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Question}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <QuestionView session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Reminder}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ReminderCreate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Reminder}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ReminderUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Reminder}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <ReminderView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={`${LINKS.ResetPassword}/:userId?/:code?`}
@@ -232,24 +237,27 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="yearly"
                 >
                     {(params: any) => (
-                        <Suspense fallback={Fallback}>
-                            <Page title={title('Reset Password')} {...props}>
-                                <FormPage title="Reset Password" maxWidth="700px">
-                                    <ResetPasswordForm userId={params.userId} code={params.code} />
-                                </FormPage>
-                            </Page>
-                        </Suspense>
+                        <Page title={title('Reset Password')} {...props}>
+                            <FormView title="Reset Password" maxWidth="700px">
+                                <ResetPasswordForm userId={params.userId} code={params.code} />
+                            </FormView>
+                        </Page>
                     )}
                 </Route>
-                <Route
-                    path={`${LINKS.Routine}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each routine
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.Routine}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <RoutineCreate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Routine}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <RoutineUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Routine}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <RoutineView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={`${LINKS.Search}/:params*`}
@@ -257,41 +265,44 @@ export const Routes = (props: CommonProps) => {
                     priority={0.4}
                     changeFreq="monthly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <SearchPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                    <Page {...props}>
+                        <SearchView session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={LINKS.Settings}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Settings⚙️')} {...props} mustBeLoggedIn={true} >
-                            <SettingsPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={LINKS.Settings} sitemapIndex={false}>
+                    <Page title={title('Settings⚙️')} {...props} mustBeLoggedIn={true} >
+                        <SettingsView session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.SmartContract}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.SmartContract}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <SmartContractCreate session={props.session} />
+                    </Page>
                 </Route>
-                <Route
-                    path={`${LINKS.Standard}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each standard
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                <Route path={`${LINKS.SmartContract}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <SmartContractUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.SmartContract}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <SmartContractView session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Standard}/add`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <StandardCreate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Standard}/edit/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <StandardUpdate session={props.session} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Standard}/:id`} sitemapIndex={false}>
+                    <Page {...props}>
+                        <StandardView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Start}
@@ -299,11 +310,9 @@ export const Routes = (props: CommonProps) => {
                     priority={0.2}
                     changeFreq="yearly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Start')} {...props}>
-                            <StartPage session={props.session} />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Start')} {...props}>
+                        <StartView session={props.session} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Stats}
@@ -311,11 +320,9 @@ export const Routes = (props: CommonProps) => {
                     priority={0.5}
                     changeFreq="weekly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Stats📊')} {...props}>
-                            <StatsPage {...props} />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Stats📊')} {...props}>
+                        <StatsView {...props} />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Tutorial}
@@ -323,11 +330,9 @@ export const Routes = (props: CommonProps) => {
                     priority={0.5}
                     changeFreq="monthly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Tutorial🤔')} {...props}>
-                            <TutorialPage />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Tutorial🤔')} {...props}>
+                        <TutorialView />
+                    </Page>
                 </Route>
                 <Route
                     path={LINKS.Welcome}
@@ -335,18 +340,19 @@ export const Routes = (props: CommonProps) => {
                     priority={0.5}
                     changeFreq="monthly"
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Welcome!💙')} {...props}>
-                            <WelcomePage {...props} />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('Welcome!💙')} {...props} sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                    }}>
+                        <WelcomeView {...props} />
+                    </Page>
                 </Route>
                 <Route>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('404🥺')} {...props}>
-                            <NotFoundPage />
-                        </Page>
-                    </Suspense>
+                    <Page title={title('404🥺')} {...props}>
+                        <NotFoundView />
+                    </Page>
                 </Route>
             </Switch>
         </>

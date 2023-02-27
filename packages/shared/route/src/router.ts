@@ -1,6 +1,6 @@
 import locationHook, { HookNavigationOptions, LocationHook, Path } from "./useLocation";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
-import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, useRef, useLayoutEffect, useContext, useCallback, ReactElement, ReactNode, useEffect } from "react";
+import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, useRef, useLayoutEffect, useContext, useCallback, ReactElement, ReactNode, useEffect, Suspense } from "react";
 import { parseSearchParams } from "./searchParams";
 import { SetLocation } from "@shared/route";
 
@@ -217,9 +217,14 @@ const flattenChildren = (children: Array<any> | any): any => {
 type SwitchProps = {
     children: JSX.Element | JSX.Element[];
     location?: string;
+    /**
+     * Suspense fallback to use when a route is being resolved, so we don't 
+     * have to specify it on every Route
+     */
+    fallback?: JSX.Element;
 }
 
-export const Switch = ({ children, location }: SwitchProps) => {
+export const Switch = ({ children, location, fallback }: SwitchProps) => {
     const { matcher } = useRouter();
     const [originalLocation] = useLocation();
 
@@ -235,8 +240,14 @@ export const Switch = ({ children, location }: SwitchProps) => {
             (match = (element as any).props.path
                 ? matcher((element as any).props.path, location || originalLocation)
                 : [true, {}])[0]
-        )
+        ) {
+            // If there is a fallback, wrap the route in it
+            if (fallback) {
+                return createElement(Suspense, { fallback }, cloneElement(element, { match } as any));
+            }
+            // Otherwise, just return the route
             return cloneElement(element, { match } as any);
+        }
     }
 
     return null;

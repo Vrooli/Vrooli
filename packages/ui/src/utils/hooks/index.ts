@@ -1,5 +1,6 @@
 export * from './useBookmarker';
 export * from './useCopier';
+export * from './useCreateActions';
 export * from './useDebounce';
 export * from './useDimensions';
 export * from './useDisplayApolloError';
@@ -15,5 +16,6 @@ export * from './useReactHash';
 export * from './useReactSearch';
 export * from './useSpeech';
 export * from './useTranslatedFields';
+export * from './useUpdateActions';
 export * from './useVoter';
 export * from './useWindowSize';
