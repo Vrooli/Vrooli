@@ -1,5 +1,5 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
@@ -28,7 +28,7 @@ export const SettingsProfile = ({
     const [, setLocation] = useLocation();
 
     // Query for handles associated with the user
-    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<string[], FindHandlesInput, 'findHandles'>(walletFindHandles, 'findHandles');
+    const [findHandles, { data: handlesData, loading: handlesLoading }] = useCustomLazyQuery<string[], FindHandlesInput>(walletFindHandles);
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         const verifiedWallets = profile?.wallets?.filter(w => w.verified) ?? [];
@@ -39,8 +39,8 @@ export const SettingsProfile = ({
         }
     }, [profile, findHandles]);
     useEffect(() => {
-        if (handlesData?.findHandles) {
-            setHandles(handlesData.findHandles);
+        if (handlesData) {
+            setHandles(handlesData);
         }
     }, [handlesData])
 
@@ -58,7 +58,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(userProfileUpdate, 'profileUpdate');
+    const [mutation] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',

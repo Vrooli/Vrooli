@@ -654,56 +654,20 @@ export const removeTranslation = <
 }
 
 /**
- * Converts a common key to a translated string. 
- * @param key The key to convert
- * @param variables The variables to use for translation
- * @param languages User's preferred languages
- * @returns The translated string
- */
- export const translateCommonKey = (
-    key: CommonKey,
-    variables: { [x: string]: number | string } | undefined,
-    languages: string[]
-): string  => {
-    const lng = languages.length > 0 ? languages[0] : 'en';
-    return i18next.t(`common:${key}`, { lng, ...(variables ?? {}) });
-};
-
-/**
- * Converts an error key to a translated string. 
- * @param key The key to convert
- * @param variables The variables to use for translation
- * @param languages User's preferred languages
- * @returns The translated string
- */
- export const translateErrorKey = (
-    key: ErrorKey,
-    variables: { [x: string]: number | string } | undefined,
-    languages: string[]
-): string => {
-    const lng = languages.length > 0 ? languages[0] : 'en';
-    const translated = i18next.t(`error:${key}`, { lng, ...(variables ?? {}) })
-    return translated !== key ? translated : '';
-};
-
-/**
  * Converts a snack message code into a snack message and details. 
  * For now, details are only used for some errors
  * @param key The key to convert
  * @param variables The variables to use for translation
- * @param languages User's preferred languages
  * @returns Object with message and details
  */
- export const translateSnackMessage = (
+export const translateSnackMessage = (
     key: ErrorKey | CommonKey,
     variables: { [x: string]: number | string } | undefined,
-    languages: string[]
 ): { message: string, details: string | undefined } => {
-    const lng = languages.length > 0 ? languages[0] : 'en';
-    const messageAsError = translateErrorKey(key as ErrorKey, variables, languages);
-    const messageAsCommon = translateCommonKey(key as CommonKey, variables, languages);
+    const messageAsError = i18next.t(key as ErrorKey, { ...variables, defaultValue: key, ns: 'error' });
+    const messageAsCommon = i18next.t(key as CommonKey, { ...variables, defaultValue: key, ns: 'common' });
     if (messageAsError.length > 0) {
-        const details = i18next.t(`error:${key}Details` as any, { lng });
+        const details = i18next.t(`${key}Details` as ErrorKey, { ns: 'error' });
         return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
     }
     return { message: messageAsCommon, details: undefined };

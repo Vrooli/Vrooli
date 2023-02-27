@@ -15,7 +15,7 @@ export const CalendarView = ({
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
-    // const [eventsData, { data: pageData, loading, error }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query ?? routineFindMany, (endpoint ?? 'routines') as any, { // We have to set something as the defaults, so I picked routines
+    // const [eventsData, { data: pageData, loading, error }] = useCustomlazyQuery<QueryResult, QueryVariables>(query, {
     //     variables: ({
     //         after: after.current,
     //         take,

@@ -1,17 +1,17 @@
-import { Button, Grid, Stack, Typography, useTheme } from '@mui/material';
+import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer, PageTabs } from 'components';
+import { SiteSearchBar, TitleContainer, ListMenu, PageContainer, PageTabs } from 'components';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, HomeInput, HomeResult, PopularInput, PopularResult } from '@shared/consts';
+import { APP_LINKS, HomeInput, HomeResult } from '@shared/consts';
 import { HomePageProps } from '../types';
 import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, useDisplayApolloError, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
-import { feedHome, feedPopular } from 'api/generated/endpoints/feed';
+import { feedHome } from 'api/generated/endpoints/feed';
 import { PageTab } from 'components/types';
 import { useTranslation } from 'react-i18next';
 
@@ -40,9 +40,7 @@ const zIndex = 200;
 export const HomePage = ({
     session
 }: HomePageProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const [, setLocation] = useLocation();
 
     // TODO query should take the current user schedule into account somehow
@@ -61,14 +59,14 @@ export const HomePage = ({
     const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
         index: 0,
         href: APP_LINKS.Home,
-        label: t('common:ForYou', { lng }),
+        label: t('ForYou'),
         value: TabOptions.ForYou,
     }, {
         index: 1,
         href: APP_LINKS.History,
-        label: t('common:History', { lng }),
+        label: t('History'),
         value: TabOptions.History,
-    }]), [t, lng]);
+    }]), [t]);
     const currTab = useMemo(() => tabs[0], [tabs])
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
@@ -253,7 +251,6 @@ export const HomePage = ({
                 </Stack>
                 {/* Resources */}
                 <TitleContainer
-                    session={session}
                     titleKey="Resource"
                     titleVariables={{ count: 2 }}
                 >
@@ -261,21 +258,18 @@ export const HomePage = ({
                 </TitleContainer>
                 {/* Events */}
                 <TitleContainer
-                    session={session}
                     titleKey="Schedule"
                 >
                     {/* TODO */}
                 </TitleContainer>
                 {/* Reminders */}
                 <TitleContainer
-                    session={session}
                     titleKey="ToDo"
                 >
                     {/* TODO */}
                 </TitleContainer>
                 {/* Notes */}
                 <TitleContainer
-                    session={session}
                     titleKey="Note"
                     titleVariables={{ count: 2 }}
                 >

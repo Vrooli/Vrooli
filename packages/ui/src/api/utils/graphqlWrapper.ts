@@ -60,6 +60,17 @@ interface GraphqlWrapperHelperProps<Output extends object> extends BaseWrapperPr
 };
 
 /**
+ * Wraps an object in "input" key, as all GraphQL inputs follow this pattern.
+ * Ignores if input is undefined or null, or if input is already wrapped in "input" key
+ */
+const wrapInput = (input: Record<string, any> | undefined): InputType | undefined => {
+    if (!exists(input)) return undefined;
+    if (Object.keys(input).length === 1 && input.hasOwnProperty('input')) return input as InputType;
+    return { input } as InputType;
+}
+
+
+/**
  * Helper function to handle response and catch of useMutation and useLazyQuery functions.
  * @param 
  */
@@ -101,17 +112,16 @@ export const graphqlWrapperHelper = <Output extends object>({
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
     // Call function
     call().then((response: { data?: Output | null | undefined }) => {
-        // We need to go one layer deeper to get the actual data. 
-        // If this doesn't exist, then there must be an error
-        if (!response.data ||
-            typeof response.data !== 'object' ||
-            Array.isArray(response.data) ||
-            Object.keys(response.data).length === 0) {
+        // If response is null or undefined or not an object, then there must be an error
+        if (!response || !response.data || typeof response.data !== 'object') {
             handleError();
             return;
         }
-        // Get object/primitive inside response.data
-        const data: Output = Object.values(response.data)[0];
+        // We likely need to go one layer deeper to get the actual data, since the 
+        // result from Apollo is wrapped in an object with the endpoint name as the key. 
+        // If this is not the case, then we are (hopefully) using a custom hook which already 
+        // removes the extra layer.
+        const data: Output = (Object.keys(response.data).length === 1 && !['success', 'count'].includes(Object.keys(response.data)[0])) ? Object.values(response.data)[0] : response.data;
         // If this is a Count object with count = 0, then there must be an error
         if ((data as any)?.__typename === 'Count' && (data as any)?.count === 0) {
             handleError(data);
@@ -146,8 +156,8 @@ export const documentNodeWrapper = <Output extends object, Input extends Record<
     const isMutation = node.definitions.some((def) => def.kind === 'OperationDefinition' && def.operation === 'mutation');
     return graphqlWrapperHelper({
         call: () => isMutation ?
-            client.mutate({ mutation: node, variables: rest.input ? { input: rest.input } as InputType : undefined }) :
-            client.query({ query: node, variables: rest.input ? { input: rest.input } as InputType : undefined }),
+            client.mutate({ mutation: node, variables: wrapInput(rest.input) }) :
+            client.query({ query: node, variables: wrapInput(rest.input) }),
         ...rest
     });
 }
@@ -158,7 +168,7 @@ export const documentNodeWrapper = <Output extends object, Input extends Record<
 export const mutationWrapper = <Output extends object, Input extends Record<string, any> | never>(props: MutationWrapperProps<Output, Input>) => {
     const { mutation, ...rest } = props;
     return graphqlWrapperHelper({
-        call: () => mutation({ variables: rest.input ? { input: rest.input } as InputType : undefined }),
+        call: () => mutation({ variables: wrapInput(rest.input) }),
         ...rest
     });
 }
@@ -169,7 +179,7 @@ export const mutationWrapper = <Output extends object, Input extends Record<stri
 export const queryWrapper = <Output extends object, Input extends Record<string, any> | never>(props: QueryWrapperProps<Output, Input>) => {
     const { query, ...rest } = props;
     return graphqlWrapperHelper({
-        call: () => query({ variables: rest.input ? { input: rest.input } as InputType : undefined }),
+        call: () => query({ variables: wrapInput(rest.input) }),
         ...rest
     });
 }

@@ -2,10 +2,10 @@ import { Box, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LineGraphCard, DateRangeMenu, PageContainer, PageTabs, CardGrid } from 'components';
 import { useTranslation } from 'react-i18next';
-import { displayDate, getUserLanguages, statsDisplay } from 'utils';
+import { displayDate, statsDisplay } from 'utils';
 import { StatsPageProps } from 'pages/types';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
-import { useLazyQuery } from 'api';
+import { useCustomLazyQuery } from 'api';
 import { statsSiteFindMany } from 'api/generated/endpoints/statsSite';
 import { PageTab } from 'components/types';
 
@@ -54,7 +54,6 @@ export const StatsPage = ({
     session,
 }: StatsPageProps) => {
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Period time frame. Defaults to past 24 hours.
     const [period, setPeriod] = useState<{ after: Date, before: Date }>({
@@ -81,10 +80,10 @@ export const StatsPage = ({
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
             index: i,
-            label: t(`common:${tab}`, { lng, count: 2 }),
+            label: t(tab, { count: 2 }),
             value: tab,
         }));
-    }, [lng, t]);
+    }, [t]);
     const [currTab, setCurrTab] = useState<PageTab<typeof TabOptions[number]>>(tabs[0]);
     const handleTabChange = useCallback((e: any, tab: PageTab<typeof TabOptions[number]>) => {
         setCurrTab(tab);
@@ -97,7 +96,7 @@ export const StatsPage = ({
     }, []);
 
     // Handle querying stats data.
-    const [getStats, { data: statsData, loading }] = useLazyQuery<StatsSiteSearchResult, StatsSiteSearchInput, 'statsSite'>(statsSiteFindMany, 'statsSite', {
+    const [getStats, { data: statsData, loading }] = useCustomLazyQuery<StatsSiteSearchResult, StatsSiteSearchInput>(statsSiteFindMany, {
         variables: ({
             periodType: tabPeriodTypes[currTab.value] as StatPeriodType,
             periodTimeFrame: {
@@ -110,7 +109,7 @@ export const StatsPage = ({
     const [stats, setStats] = useState<StatsSite[]>([]);
     useEffect(() => {
         if (statsData) {
-            setStats(statsData.statsSite.edges.map(edge => edge.node));
+            setStats(statsData.edges.map(edge => edge.node));
         }
     }, [statsData]);
     useEffect(() => {
@@ -161,7 +160,6 @@ export const StatsPage = ({
                 onClose={handleDateRangeClose}
                 onSubmit={handleDateRangeSubmit}
                 range={period}
-                session={session}
                 strictIntervalRange={tabPeriods[currTab.value]}
             />
             {/* Date range diplay */}
@@ -173,7 +171,7 @@ export const StatsPage = ({
                 sx={{ cursor: 'pointer' }}
             >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
             {/* Aggregate stats for the time period */}
-            <Typography component="h1" variant="h4" textAlign="center">{t(`common:Overview`, { lng })}</Typography>
+            <Typography component="h1" variant="h4" textAlign="center">{t(`Overview`)}</Typography>
             {/* Line graph cards */}
             <Typography component="h1" variant="h4" textAlign="center">Visual</Typography>
             <CardGrid minWidth={275}>

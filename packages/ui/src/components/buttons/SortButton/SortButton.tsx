@@ -1,21 +1,20 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { SortIcon } from "@shared/icons";
+import { CommonKey } from "@shared/translations";
 import { SortMenu } from "components/lists";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages, labelledSortOptions } from "utils";
+import { labelledSortOptions } from "utils";
 import { searchButtonStyle } from "../styles";
 import { SortButtonProps } from "../types";
 
 export const SortButton = ({
     options,
     setSortBy,
-    session,
     sortBy,
 }: SortButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -28,22 +27,21 @@ export const SortButton = ({
     /**
      * Wrap options with labels
      */
-    const sortOptionsLabelled = useMemo(() => labelledSortOptions(options, lng), [options, lng]);
+    const sortOptionsLabelled = useMemo(() => labelledSortOptions(options), [options]);
 
     /**
      * Find sort by label when sortBy changes
      */
-    const sortByLabel = useMemo(() => t(`common:${sortBy}`, { lng }) ?? sortBy, [lng, sortBy, t]);
+    const sortByLabel = useMemo(() => t(sortBy as CommonKey, sortBy), [sortBy, t]);
 
     return (
         <>
             <SortMenu
                 sortOptions={sortOptionsLabelled}
                 anchorEl={sortAnchorEl}
-                lng={getUserLanguages(session)[0]}
                 onClose={handleSortClose}
             />
-            <Tooltip title={t(`common:SortBy`, { lng })} placement="top">
+            <Tooltip title={t(`SortBy`)} placement="top">
                 <Box
                     onClick={handleSortOpen}
                     sx={searchButtonStyle(palette)}

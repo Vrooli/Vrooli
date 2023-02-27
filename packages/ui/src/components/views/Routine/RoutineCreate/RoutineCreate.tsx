@@ -1,5 +1,5 @@
 import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Tooltip, Typography } from "@mui/material";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -57,7 +57,7 @@ export const RoutineCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<RoutineVersion, RoutineVersionCreateInput, 'routineVersionCreate'>(routineVersionCreate, 'routineVersionCreate');
+    const [mutation] = useCustomMutation<RoutineVersion, RoutineVersionCreateInput>(routineVersionCreate);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

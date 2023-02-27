@@ -1,8 +1,7 @@
 import { Session, TimeFrame } from "@shared/consts";
 import { addSearchParams, parseSearchParams, useLocation } from "@shared/route";
 import { exists } from "@shared/utils";
-import { useLazyQuery } from "api";
-import { routineFindMany } from "api/generated/endpoints/routine";
+import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AutocompleteOption } from "types";
@@ -28,8 +27,9 @@ type UseFindManyProps = {
 const parseData = (data: any, resolve?: (data: any) => any) => {
     if (!data) return [];
     // query result is always returned as an object with a single key (the endpoint name), where 
-    // the value is the actual data
-    const queryData: any = Object.values(data)[0];
+    // the value is the actual data. If this is not the case, then (hopefully) it was already 
+    // deconstructed earlier in the chain
+    const queryData: any = (Object.keys(data).length === 1 && !['success', 'count'].includes(Object.keys(data)[0])) ? Object.values(data)[0] : data;
     // If there is a custom resolver, use it
     if (resolve) return resolve(queryData);
     // Otherwise, treat as typically-shaped paginated data
@@ -49,17 +49,16 @@ export const useFindMany = <DataType extends Record<string, any>>({
     where,
 }: UseFindManyProps) => {
     const [, setLocation] = useLocation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
-    const [{ advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
+    const [{ advancedSearchSchema, defaultSortBy, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[searchType];
             if (!params) return;
-            setSearchParams(await params(lng));
+            setSearchParams(await params());
         };
         fetchParams();
-    }, [lng, searchType, session]);
+    }, [searchType, session]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -106,7 +105,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const after = useRef<string | undefined>(undefined);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useLazyQuery<(string | number | boolean | object), SearchQueryVariablesInput<any>, string>(query ?? routineFindMany, (endpoint ?? 'routines') as any, { // We have to set something as the defaults, so I picked routines
+    const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(query, {
         variables: ({
             after: after.current,
             take,
@@ -143,10 +142,9 @@ export const useFindMany = <DataType extends Record<string, any>>({
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
         if (!pageData || !canSearch) return;
-        const queryData: any = Object.values(pageData)[0];
-        if (!queryData || !queryData.pageInfo) return [];
-        if (queryData.pageInfo?.hasNextPage) {
-            const { endCursor } = queryData.pageInfo;
+        if (!pageData.pageInfo) return [];
+        if (pageData.pageInfo?.hasNextPage) {
+            const { endCursor } = pageData.pageInfo;
             if (endCursor) {
                 after.current = endCursor;
                 getPageData();

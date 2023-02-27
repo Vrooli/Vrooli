@@ -77,7 +77,7 @@ export const UnlinkedNodesDialog = ({
     }, [language, zIndex])
 
     return (
-        <Tooltip title={t('common:NodeUnlinked', { lng: language, count: 2 })}>
+        <Tooltip title={t('NodeUnlinked', { count: 2 })}>
             <Box id="unlinked-nodes-dialog" sx={{
                 alignSelf: open ? 'baseline' : 'auto',
                 borderRadius: 3,
@@ -111,9 +111,9 @@ export const UnlinkedNodesDialog = ({
                     width: '100%'
                 }}>
                     <UnlinkedNodesIcon fill={palette.secondary.contrastText} />
-                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? (t('common:Unlinked', { lng: language }) + ' ') : ''}({nodes.length})</Typography>
-                    <Tooltip title={t(`common:${open ? 'Shrink' : 'Expand'}`, { lng: language })}>
-                        <IconButton edge="end" color="inherit" aria-label={t(`common:${open ? 'Shrink' : 'Expand'}`, { lng: language })}>
+                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? (t('Unlinked') + ' ') : ''}({nodes.length})</Typography>
+                    <Tooltip title={t(open ? 'Shrink' : 'Expand')}>
+                        <IconButton edge="end" color="inherit" aria-label={t(open ? 'Shrink' : 'Expand')}>
                             {open ? <ExpandLessIcon fill={palette.secondary.contrastText} /> : <ExpandMoreIcon fill={palette.secondary.contrastText} />}
                         </IconButton>
                     </Tooltip>
@@ -131,12 +131,12 @@ export const UnlinkedNodesDialog = ({
                                 {/* Node title */}
                                 {node.nodeType === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).name}</Typography>)}
                                 {/* Delete node icon */}
-                                <Tooltip title={t('common:NodeDeleteWithName', { lng: language, nodeName: getTranslation(node, [language], true).name })} placement="left">
+                                <Tooltip title={t('NodeDeleteWithName', { nodeName: getTranslation(node, [language], true).name })} placement="left">
                                     <Box sx={{ marginLeft: 'auto' }}>
                                         <IconButton
                                             color="inherit"
                                             onClick={() => handleNodeDelete(node.id)}
-                                            aria-label={t('common:NodeUnlinkedDelete', { lng: language })}
+                                            aria-label={t('NodeUnlinkedDelete')}
                                         >
                                             <DeleteIcon fill={palette.background.textPrimary} />
                                         </IconButton>

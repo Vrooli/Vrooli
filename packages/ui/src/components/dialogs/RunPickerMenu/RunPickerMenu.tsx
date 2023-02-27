@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import { base36ToUuid, getRunPercentComplete, PubSub } from "utils";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
@@ -44,8 +44,8 @@ export const RunPickerMenu = ({
         }
     }, [runnableObject, onSelect, handleClose]);
 
-    const [createRunProject] = useMutation<RunProject, RunProjectCreateInput, 'runProjectCreate'>(runProjectCreate, 'runProjectCreate');
-    const [createRunRoutine] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(runRoutineCreate, 'runRoutineCreate');
+    const [createRunProject] = useCustomMutation<RunProject, RunProjectCreateInput>(runProjectCreate);
+    const [createRunRoutine] = useCustomMutation<RunRoutine, RunRoutineCreateInput>(runRoutineCreate);
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
             PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: 'Error' });
@@ -89,7 +89,7 @@ export const RunPickerMenu = ({
         }
     }, [handleClose, onAdd, onSelect, runnableObject, createRunProject, createRunRoutine, session]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne')
+    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne)
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,

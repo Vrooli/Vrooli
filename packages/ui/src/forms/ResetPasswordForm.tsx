@@ -1,4 +1,4 @@
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { emailResetPasswordSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
@@ -20,7 +20,7 @@ export const ResetPasswordForm = ({
     code,
 }: ResetPasswordFormProps) => {
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useMutation<Session, EmailResetPasswordInput, 'emailResetPassword'>(authEmailResetPassword, 'emailResetPassword');
+    const [emailResetPassword, { loading }] = useCustomMutation<Session, EmailResetPasswordInput>(authEmailResetPassword);
 
     const formik = useFormik({
         initialValues: {

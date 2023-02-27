@@ -40,14 +40,12 @@ export interface ObjectListItemProps<T extends ListObjectType> {
 export interface SortMenuProps {
     sortOptions: any[];
     anchorEl: HTMLElement | null;
-    lng: string;
     onClose: (label?: string, value?: string) => void;
 }
 
 export interface TimeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (label?: string, timeFrame?: { after?: Date, before?: Date }) => void;
-    session: Session;
 }
 
 export interface DateRangeMenuProps {
@@ -57,7 +55,6 @@ export interface DateRangeMenuProps {
     minDate?: Date;
     maxDate?: Date;
     range?: { after: Date | undefined, before: Date | undefined };
-    session: Session;
     /**
      * If set, the date range will ensure that the difference between the two dates exact
      * matches.

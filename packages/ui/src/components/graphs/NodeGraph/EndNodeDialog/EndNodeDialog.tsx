@@ -80,12 +80,12 @@ export const EndNodeDialog = ({
             <DialogTitle
                 ariaLabel={titleAria}
                 onClose={handleCancel}
-                title={t(`common:${isEditing ? 'NodeEndEdit' : 'NodeEndInfo'}`, { lng: language })}
+                title={t(isEditing ? 'NodeEndEdit' : 'NodeEndInfo')}
             />
             <form onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, ...linkColors(palette) }}>
                     <Grid item xs={12}>
-                        <Typography variant="h6">Label</Typography>
+                        <Typography variant="h6">{t('Label')}</Typography>
                         {
                             isEditing ? (
                                 <TextField
@@ -128,7 +128,7 @@ export const EndNodeDialog = ({
                         }
                     </Grid>
                     <Grid item xs={12}>
-                        <Tooltip placement={'top'} title='If a routine finishes at this node, should it be considered a success?'>
+                        <Tooltip placement={'top'} title={t('NodeWasSuccessfulHelp')}>
                             <FormControlLabel
                                 disabled={!isEditing}
                                 label='Success?'

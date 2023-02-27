@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { QuestionUpdateProps } from "../types";
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
@@ -19,9 +19,8 @@ session,
 }: QuestionUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Question, FindByIdInput, 'question'>(questionFindOne, 'question');
+    const [getData, { data: question, loading }] = useCustomLazyQuery<Question, FindByIdInput>(questionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-    const question = useMemo(() => data?.question, [data]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
@@ -36,7 +35,7 @@ session,
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation<Question, QuestionUpdateInput, 'questionUpdate'>(questionUpdate, 'questionUpdate');
+    const [mutation] = useCustomMutation<Question, QuestionUpdateInput>(questionUpdate);
     const formik = useFormik({
         initialValues: {
             id: question?.id ?? uuid(),

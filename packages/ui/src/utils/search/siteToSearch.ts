@@ -86,11 +86,11 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session): 
         let unshapedKeywords = [label];
         for (const keyword of item.keywords ?? []) {
             if (typeof keyword === 'string') {
-                const keywordText = i18next.t(`common:${keyword}`, { lng });
+                const keywordText = i18next.t(keyword);
                 keywords.push(shapeSearchText(keywordText));
                 unshapedKeywords.push(keywordText);
             } else {
-                const keywordText = i18next.t(`common:${keyword.key}`, { ...keyword, lng });
+                const keywordText = i18next.t(keyword.key, { ...keyword, lng });
                 keywords.push(shapeSearchText(keywordText));
                 unshapedKeywords.push(keywordText);
             }

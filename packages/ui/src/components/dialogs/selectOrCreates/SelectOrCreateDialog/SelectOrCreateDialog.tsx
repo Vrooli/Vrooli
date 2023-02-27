@@ -6,12 +6,12 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, DialogTitle, OrganizationCreate, ProjectCreate, RoutineCreate, ShareSiteDialog, StandardCreate } from 'components';
+import { BaseObjectDialog, DialogTitle, ShareSiteDialog } from 'components';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from 'api/hooks';
-import { SearchType, getUserLanguages, searchTypeToParams } from 'utils';
+import { useCustomLazyQuery } from 'api/hooks';
+import { SearchType, searchTypeToParams } from 'utils';
 import { removeSearchParams, useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
@@ -21,7 +21,15 @@ import { CreatePageProps } from 'pages';
 import { CreateProps } from 'components/views/types';
 import { isOfType } from '@shared/utils';
 import { SearchParams } from 'utils/search/schemas/base';
-import { routineFindOne } from 'api/generated/endpoints/routine';
+import { CommonKey } from '@shared/translations';
+import { lazily } from 'react-lazily';
+const { ApiCreate } = lazily(() => import('../../../views/Api/ApiCreate/ApiCreate'));
+const { NoteCreate } = lazily(() => import('../../../views/Note/NoteCreate/NoteCreate'));
+const { OrganizationCreate } = lazily(() => import('../../../views/Organization/OrganizationCreate/OrganizationCreate'));
+const { ProjectCreate } = lazily(() => import('../../../views/Project/ProjectCreate/ProjectCreate'));
+const { RoutineCreate } = lazily(() => import('../../../views/Routine/RoutineCreate/RoutineCreate'));
+const { SmartContractCreate } = lazily(() => import('../../../views/SmartContract/SmartContractCreate/SmartContractCreate'));
+const { StandardCreate } = lazily(() => import('../../../views/Standard/StandardCreate/StandardCreate'));
 
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
@@ -33,12 +41,12 @@ type CreateViewTypes = ({
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
  */
 const createMap: { [K in CreateViewTypes]: (props: CreateProps<any>) => JSX.Element } = {
-    Api: {} as any,//ApiCreate,
-    Note: {} as any,//NoteCreate,
+    Api: ApiCreate,
+    Note: NoteCreate,
     Organization: OrganizationCreate,
     Project: ProjectCreate,
     Routine: RoutineCreate,
-    SmartContract: {} as any,//SmartContractCreate,
+    SmartContract: SmartContractCreate,
     Standard: StandardCreate,
 }
 
@@ -58,25 +66,24 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     const [, setLocation] = useLocation();
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const { helpText, titleAria } = useMemo(() => {
         return {
-            helpText: help ?? t('common:SelectOrCreateDialogHelp', { lng, objectType: t(`common:${objectType}`, { lng, count: 1 }) }),
+            helpText: help ?? t('SelectOrCreateDialogHelp', { objectType: t(objectType, { count: 1, defaultValue: objectType }) }),
             titleAria: `select-or-create-${objectType}-dialog-title`,
         };
-    }, [help, lng, objectType, t]);
+    }, [help, objectType, t]);
     const CreateView = useMemo<((props: CreatePageProps) => JSX.Element) | null>(() =>
-        objectType === 'User' ? null : createMap[objectType], [objectType]);
+        objectType === 'User' ? null : (createMap as any)[objectType.replace('Version', '')], [objectType]);
 
-    const [{ advancedSearchSchema, endpoint, query }, setSearchParams] = useState<Partial<SearchParams>>({});
+    const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const params = searchTypeToParams[objectType];
             if (!params) return;
-            setSearchParams(await params(getUserLanguages(session)[0]));
+            setSearchParams(await params());
         };
         fetchParams();
-    }, [objectType, session]);
+    }, [objectType]);
 
     /**
      * Before closing, remove all URL search params for advanced search
@@ -121,14 +128,14 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
 
 
     // If item selected from search, query for full data
-    const [getItem, { data: itemData }] = useLazyQuery<T, FindByIdInput, string>(query ?? routineFindOne, endpoint ?? 'routine');  // We have to set something as the defaults, so I picked routine
+    const [getItem, { data: itemData }] = useCustomLazyQuery<T, FindByIdInput>(query);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: T) => {
-        if (!endpoint || !query) return false;
+        if (!query) return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
-        if (itemData && itemData[endpoint].id === item.id) {
+        if (itemData && itemData.id === item.id) {
             console.log('before handleadd 2')
-            handleAdd(itemData[endpoint]);
+            handleAdd(itemData);
             onClose();
         } else {
             queryingRef.current = true;
@@ -136,16 +143,16 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         }
         // Return false so the list item does not navigate
         return false;
-    }, [endpoint, query, itemData, handleAdd, onClose, getItem]);
+    }, [query, itemData, handleAdd, onClose, getItem]);
     useEffect(() => {
-        if (!endpoint) return;
-        if (itemData && itemData[endpoint] && queryingRef.current) {
+        if (!query) return;
+        if (itemData && queryingRef.current) {
             console.log('before handleadd 3')
-            handleAdd(itemData[endpoint]);
+            handleAdd(itemData);
             onClose();
         }
         queryingRef.current = false;
-    }, [handleAdd, onClose, handleCreateClose, itemData, endpoint]);
+    }, [handleAdd, onClose, handleCreateClose, itemData, query]);
 
     return (
         <Dialog
@@ -194,14 +201,14 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             </BaseObjectDialog>}
             <DialogTitle
                 ariaLabel={titleAria}
-                title={t(`common:Add${objectType.replace('Version', '')}`, { lng })}
+                title={t(`Add${objectType.replace('Version', '')}` as CommonKey)}
                 helpText={helpText}
                 onClose={onClose}
             />
             <Stack direction="column" spacing={2}>
                 <Stack direction="row" alignItems="center" justifyContent="center">
-                    <Typography component="h2" variant="h4">{t(`common:${objectType}`, { lng, count: 2 })}</Typography>
-                    <Tooltip title={t(`common:AddNew`, { lng })} placement="top">
+                    <Typography component="h2" variant="h4">{t(objectType as CommonKey, { count: 2 })}</Typography>
+                    <Tooltip title={t(`AddNew`)} placement="top">
                         <IconButton
                             size="medium"
                             onClick={handleCreateOrShareOpen}
@@ -215,7 +222,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                     id={`${objectType}-select-or-create-list`}
                     beforeNavigation={fetchFullData}
                     searchType={objectType as unknown as SearchType}
-                    searchPlaceholder={t(`common:SelectExisting${objectType}`, { lng })}
+                    searchPlaceholder={`SelectExisting${objectType}` as CommonKey}
                     session={session}
                     take={20}
                     where={where ?? { userId }}

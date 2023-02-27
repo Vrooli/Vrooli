@@ -12,10 +12,9 @@ import {
 import { InfoIcon, DiscordIcon, GitHubIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
 import { CopyrightBreadcrumbs } from 'components';
 import { openLink, useLocation } from '@shared/route';
-import { getDeviceInfo, getUserLanguages } from 'utils';
+import { getDeviceInfo } from 'utils';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FooterProps } from '../types';
 
 const contactLinks: [string, string, string, string, SvgComponent][] = [
     ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
@@ -26,12 +25,10 @@ const contactLinks: [string, string, string, string, SvgComponent][] = [
 const aboutUsLink = `${LANDING_URL}${LANDING_LINKS.AboutUs}`
 const viewStatsLink = APP_LINKS.Stats
 
-export const Footer = ({
-    session
-}: FooterProps) => {
+export const Footer = () => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = getUserLanguages(session)[0];
+
     const [pathname, setLocation] = useLocation();
     // Hides footer on certain pages (e.g. /routine)
     const showFooter = useMemo(() => {
@@ -59,7 +56,7 @@ export const Footer = ({
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary={t(`common:Resource`, { lng, count: 2 })} sx={{ textTransform: 'uppercase' }} />
+                            <ListItemText primary={t(`Resource`, { count: 2 })} sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
                         <ListItem
                             component="a"
@@ -70,7 +67,7 @@ export const Footer = ({
                             <ListItemIcon>
                                 <InfoIcon fill={palette.primary.contrastText} />
                             </ListItemIcon>
-                            <ListItemText primary={t(`common:AboutUs`, { lng })} sx={{ color: palette.primary.contrastText }} />
+                            <ListItemText primary={t(`AboutUs`)} sx={{ color: palette.primary.contrastText }} />
                         </ListItem>
                         <ListItem
                             component="a"
@@ -81,14 +78,14 @@ export const Footer = ({
                             <ListItemIcon>
                                 <StatsIcon fill={palette.primary.contrastText} />
                             </ListItemIcon>
-                            <ListItemText primary={t(`common:StatisticsShort`, { lng })} sx={{ color: palette.primary.contrastText }} />
+                            <ListItemText primary={t(`StatisticsShort`)} sx={{ color: palette.primary.contrastText }} />
                         </ListItem>
                     </List>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary={t(`common:Contact`, { lng })} sx={{ textTransform: 'uppercase' }} />
+                            <ListItemText primary={t(`Contact`)} sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">
@@ -109,7 +106,7 @@ export const Footer = ({
                     </List>
                 </Grid>
             </Grid>
-            <CopyrightBreadcrumbs session={session} sx={{ color: palette.primary.contrastText }} />
+            <CopyrightBreadcrumbs sx={{ color: palette.primary.contrastText }} />
         </Box>
     );
 }

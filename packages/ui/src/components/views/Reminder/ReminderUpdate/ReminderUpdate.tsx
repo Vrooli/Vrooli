@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useLazyQuery, useMutation } from "api/hooks";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ReminderUpdateProps } from "../types";
 import { reminderValidation } from '@shared/validation';
@@ -18,12 +18,11 @@ session,
 }: ReminderUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Reminder, FindByIdInput, 'reminder'>(reminderFindOne, 'reminder');
+    const [getData, { data: reminder, loading }] = useCustomLazyQuery<Reminder, FindByIdInput>(reminderFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-    const reminder = useMemo(() => data?.reminder, [data]);
 
     // Handle update
-    const [mutation] = useMutation<Reminder, ReminderUpdateInput, 'reminderUpdate'>(reminderUpdate, 'reminderUpdate');
+    const [mutation] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
     const formik = useFormik({
         initialValues: {
             id: reminder?.id ?? uuid(),

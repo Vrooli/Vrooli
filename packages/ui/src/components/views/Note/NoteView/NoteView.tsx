@@ -20,9 +20,7 @@ export const NoteView = ({
 
     const { id, isLoading, object: noteVersion, permissions, setObject: setNoteVersion } = useObjectFromUrl<NoteVersion, FindVersionInput>({
         query: noteVersionFindOne,
-        endpoint: 'noteVersion',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (noteVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [noteVersion?.translations]);

@@ -1,6 +1,7 @@
 import { useQuery } from "@apollo/client";
 import { Box } from "@mui/material";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
+import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award";
 import { AwardCard, AwardList, CardGrid, ContentCollapse, PageContainer, PageTitle } from "components";
 import { AwardsPageProps } from "pages/types";
@@ -26,18 +27,18 @@ export function AwardsPage({
         // 0-progress awards may not be initialized in the backend, so we need to initialize them here
         const noProgressAwards = Object.values(AwardCategory).map((category) => ({
             category: category,
-            title: t(`award:${category}UnearnedTitle`, { lng }),
-            description: t(`award:${category}UnearnedBody`, { lng }),
+            title: t(`${category}UnearnedTitle` as AwardKey, { ns: 'award' }),
+            description: t(`${category}UnearnedBody` as AwardKey, { ns: 'award' }),
             progress: 0,
         })) as Award[];
-        return noProgressAwards.map(a => awardToDisplay(a, t, lng));
+        return noProgressAwards.map(a => awardToDisplay(a, t));
     });
     const { data, refetch, loading, error } = useQuery<Wrap<AwardSearchResult, 'awards'>, Wrap<AwardSearchInput, 'input'>>(awardFindMany, { variables: { input: {} }, errorPolicy: 'all' });
     useDisplayApolloError(error);
     useEffect(() => {
         if (!data) return;
         // Add to awards array, and sort by award category
-        const myAwards = data.awards.edges.map(e => e.node).map(a => awardToDisplay(a, t, lng));
+        const myAwards = data.awards.edges.map(e => e.node).map(a => awardToDisplay(a, t));
         setAwards(a => [...a, ...myAwards].sort((a, b) => categoryList.indexOf(a.category) - categoryList.indexOf(b.category)));
     }, [data, lng, t]);
     console.log(awards);
@@ -48,7 +49,6 @@ export function AwardsPage({
             {/* Display earned awards as a list of tags. Press or hover to see description */}
             <ContentCollapse
                 isOpen={true}
-                session={session}
                 titleKey="Earned"
                 sxs={{
                     root: {
@@ -61,7 +61,6 @@ export function AwardsPage({
             {/* Display progress of awards as cards */}
             <ContentCollapse
                 isOpen={true}
-                session={session}
                 titleKey="InProgress"
             >
                 <CardGrid minWidth={250} disableMargin={true}>

@@ -4,24 +4,24 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
-export const projectVersionSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchProjectVersion', lng),
+export const projectVersionSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchProjectVersion'),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
-        votesRootContainer(lng),
-        bookmarksRootContainer(lng),
-        languagesContainer(lng),
-        tagsRootContainer(lng),
+        votesRootContainer(),
+        bookmarksRootContainer(),
+        languagesContainer(),
+        tagsRootContainer(),
     ],
     fields: [
-        ...isCompleteWithRootFields(lng),
-        ...isLatestFields(lng),
-        ...votesRootFields(lng),
-        ...bookmarksRootFields(lng),
-        ...languagesFields(lng),
-        ...tagsRootFields(lng),
+        ...isCompleteWithRootFields(),
+        ...isLatestFields(),
+        ...votesRootFields(),
+        ...bookmarksRootFields(),
+        ...languagesFields(),
+        ...tagsRootFields(),
     ]
 })
 
-export const projectVersionSearchParams = (lng: string) => toParams(projectVersionSearchSchema(lng), projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc)
+export const projectVersionSearchParams = () => toParams(projectVersionSearchSchema(), projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc)

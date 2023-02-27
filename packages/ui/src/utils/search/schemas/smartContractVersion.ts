@@ -4,24 +4,24 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
-export const smartContractVersionSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchSmartContractVersion', lng),
+export const smartContractVersionSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchSmartContractVersion'),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
-        votesRootContainer(lng),
-        bookmarksRootContainer(lng),
-        languagesContainer(lng),
-        tagsRootContainer(lng),
+        votesRootContainer(),
+        bookmarksRootContainer(),
+        languagesContainer(),
+        tagsRootContainer(),
     ],
     fields: [
-        ...isCompleteWithRootFields(lng),
-        ...isLatestFields(lng),
-        ...votesRootFields(lng),
-        ...bookmarksRootFields(lng),
-        ...languagesFields(lng),
-        ...tagsRootFields(lng),
+        ...isCompleteWithRootFields(),
+        ...isLatestFields(),
+        ...votesRootFields(),
+        ...bookmarksRootFields(),
+        ...languagesFields(),
+        ...tagsRootFields(),
     ]
 })
 
-export const smartContractVersionSearchParams = (lng: string) => toParams(smartContractVersionSearchSchema(lng), smartContractVersionFindMany, SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc);
+export const smartContractVersionSearchParams = () => toParams(smartContractVersionSearchSchema(), smartContractVersionFindMany, SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc);

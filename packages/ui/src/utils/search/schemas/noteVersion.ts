@@ -4,22 +4,22 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
-export const noteVersionSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchNoteVersion', lng),
+export const noteVersionSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchNoteVersion'),
     containers: [
         isLatestContainer,
-        votesRootContainer(lng),
-        bookmarksRootContainer(lng),
-        languagesContainer(lng),
-        tagsRootContainer(lng),
+        votesRootContainer(),
+        bookmarksRootContainer(),
+        languagesContainer(),
+        tagsRootContainer(),
     ],
     fields: [
-        ...isLatestFields(lng),
-        ...votesRootFields(lng),
-        ...bookmarksRootFields(lng),
-        ...languagesFields(lng),
-        ...tagsRootFields(lng),
+        ...isLatestFields(),
+        ...votesRootFields(),
+        ...bookmarksRootFields(),
+        ...languagesFields(),
+        ...tagsRootFields(),
     ]
 })
 
-export const noteVersionSearchParams = (lng: string) => toParams(noteVersionSearchSchema(lng), noteVersionFindMany, NoteVersionSortBy, NoteVersionSortBy.DateCreatedDesc);
+export const noteVersionSearchParams = () => toParams(noteVersionSearchSchema(), noteVersionFindMany, NoteVersionSortBy, NoteVersionSortBy.DateCreatedDesc);

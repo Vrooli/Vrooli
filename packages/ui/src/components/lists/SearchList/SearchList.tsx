@@ -6,7 +6,7 @@ import { SearchButtonsList, SiteSearchBar } from "components";
 import { useCallback, useEffect, useMemo } from "react";
 import { PlusIcon } from '@shared/icons';
 import { SearchListProps } from "../types";
-import { getUserLanguages, listToListItems, openObject, useFindMany } from "utils";
+import { listToListItems, openObject, useFindMany } from "utils";
 import { useLocation } from '@shared/route';
 import { useTranslation } from "react-i18next";
 import { NavigableObject } from "types";
@@ -28,7 +28,6 @@ export function SearchList<DataType extends NavigableObject>({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     const {
         advancedSearchParams,
@@ -119,11 +118,11 @@ export function SearchList<DataType extends NavigableObject>({
                         <List sx={{ padding: 0 }}>
                             {listItems}
                         </List>
-                    ) : (<Typography variant="h6" textAlign="center">{t(`error:NoResults`, { lng })}</Typography>)
+                    ) : (<Typography variant="h6" textAlign="center">{t(`NoResults`, { ns: 'error' })}</Typography>)
                 }
             </Box>
         )
-    }, [listItems, lng, palette.background.paper, t]);
+    }, [listItems, palette.background.paper, t]);
 
 
     return (
@@ -161,7 +160,7 @@ export function SearchList<DataType extends NavigableObject>({
                 margin: 'auto',
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t(`common:AddNew`, { lng })}</Button>
+                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t(`AddNew`)}</Button>
             </Box>}
         </>
     )

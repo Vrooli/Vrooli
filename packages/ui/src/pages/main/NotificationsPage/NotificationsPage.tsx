@@ -67,7 +67,7 @@ export const NotificationsPage = ({
                                 </ListItem>
                             ))}
                         </List>
-                    ) : (<Typography variant="h6" textAlign="center">{t(`error:NoResults`, { lng: getUserLanguages(session)[0] })}</Typography>)
+                    ) : (<Typography variant="h6" textAlign="center">{t(`NoResults`, { ns: 'error' })}</Typography>)
                 }
             </Box>
         </PageContainer>

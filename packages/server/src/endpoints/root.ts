@@ -50,6 +50,7 @@ export const typeDef = gql`
         Premium
         Project
         ProjectVersion
+        ProjectVersionContentsSearchResult
         ProjectVersionDirectory
         ProjectOrRoutineSearchResult
         ProjectOrOrganizationSearchResult

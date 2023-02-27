@@ -1,5 +1,5 @@
 import { Grid, TextField } from "@mui/material";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { projectVersionTranslationValidation, projectVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -41,7 +41,7 @@ export const ProjectCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<ProjectVersion, ProjectVersionCreateInput, 'projectVersionCreate'>(projectVersionCreate, 'projectVersionCreate');
+    const [mutation] = useCustomMutation<ProjectVersion, ProjectVersionCreateInput>(projectVersionCreate);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

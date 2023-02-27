@@ -1,5 +1,5 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { smartContractVersionValidation, smartContractVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -40,7 +40,7 @@ export const SmartContractCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<SmartContractVersion, SmartContractVersionCreateInput, 'smartContractVersionCreate'>(smartContractVersionCreate, 'smartContractVersionCreate');
+    const [mutation] = useCustomMutation<SmartContractVersion, SmartContractVersionCreateInput>(smartContractVersionCreate);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

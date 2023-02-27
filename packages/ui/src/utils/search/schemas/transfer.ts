@@ -4,10 +4,10 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const transferSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchTransfer', lng),
+export const transferSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchTransfer'),
     containers: [], //TODO
     fields: [], //TODO
 })
 
-export const transferSearchParams = (lng: string) => toParams(transferSearchSchema(lng), transferFindMany, TransferSortBy, TransferSortBy.DateCreatedDesc);
+export const transferSearchParams = () => toParams(transferSearchSchema(), transferFindMany, TransferSortBy, TransferSortBy.DateCreatedDesc);

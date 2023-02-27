@@ -20,9 +20,7 @@ export const SmartContractView = ({
 
     const { id, isLoading, object: smartContractVersion, permissions, setObject: setSmartContractVersion } = useObjectFromUrl<SmartContractVersion, FindVersionInput>({
         query: smartContractVersionFindOne,
-        endpoint: 'smartContractVersion',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (smartContractVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [smartContractVersion?.translations]);

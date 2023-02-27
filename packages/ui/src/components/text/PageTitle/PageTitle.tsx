@@ -3,7 +3,6 @@ import { HelpButton } from "components/buttons";
 import { noSelect } from "styles";
 import { PageTitleProps } from "../types";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils";
 
 export const PageTitle = ({
     helpKey,
@@ -15,6 +14,7 @@ export const PageTitle = ({
 }: PageTitleProps) => {
     const { t } = useTranslation();
 
+    // If no help data, return a simple title
     if (!helpKey) {
         return (
             <Typography
@@ -27,9 +27,10 @@ export const PageTitle = ({
                     ...noSelect,
                     ...(sxs?.text || {}),
                 }}
-            >{t(`common:${titleKey}`, { lng: getUserLanguages(session)[0], ...(titleVariables ?? {}) })}</Typography>
+            >{t(titleKey, {...titleVariables, defaultValue: titleKey })}</Typography>
         )
     }
+    // Otherwise, return a stack with the title and help button
     return (
         <Stack
             direction="row"
@@ -50,9 +51,9 @@ export const PageTitle = ({
                     fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
                     ...(sxs?.text || {}),
                 }}
-            >{t(`common:${titleKey}`, titleVariables)}</Typography>
+            >{t(titleKey, {...titleVariables, defaultValue: titleKey })}</Typography>
             <HelpButton
-                markdown={t(`common:${helpKey}`, { lng: getUserLanguages(session)[0], ...(helpVariables ?? {}) })}
+                markdown={t(helpKey, {...helpVariables, defaultValue: helpKey })}
                 sx={{ width: '40px', height: '40px' }}
             />
         </Stack>

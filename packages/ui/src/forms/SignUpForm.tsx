@@ -1,4 +1,4 @@
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { APP_LINKS, BUSINESS_NAME, EmailSignUpInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
@@ -29,7 +29,7 @@ export const SignUpForm = ({
 }: FormProps) => {
     const theme = useTheme();
     const [, setLocation] = useLocation();
-    const [emailSignUp, { loading }] = useMutation<Session, EmailSignUpInput, 'emailSignUp'>(authEmailSignUp, 'emailSignUp');
+    const [emailSignUp, { loading }] = useCustomMutation<Session, EmailSignUpInput>(authEmailSignUp);
 
     const formik = useFormik({
         initialValues: {

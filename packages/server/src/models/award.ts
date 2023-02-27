@@ -56,7 +56,7 @@ export const AwardModel: ModelLogic<{
                     const { name, nameVariables, body, bodyVariables } = awardNames[award.category](award.progress);
                     if (userData && name) titles.push(i18next.t(`award:${name as AwardKey}`, { lng: userData!.languages[0], ...(nameVariables ?? {}) }) as any);
                     else titles.push(null);
-                    if (userData && body) descriptions.push(i18next.t<any>(`award:${body as AwardKey}`, { lng: userData!.languages[0], ...(bodyVariables ?? {}) }) as any);
+                    if (userData && body) descriptions.push(i18next.t(`award:${body as AwardKey}`, { lng: userData!.languages[0], ...(bodyVariables ?? {}) }) as any);
                     else descriptions.push(null);
                 }
                 return {

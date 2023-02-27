@@ -12,7 +12,7 @@ import {
 import { DeleteAccountDialogProps } from '../types';
 import { useCallback, useMemo } from 'react';
 import { mutationWrapper } from 'api/utils';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { APP_LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle, PasswordTextField } from 'components';
@@ -40,7 +40,7 @@ export const DeleteAccountDialog = ({
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
 
-    const [deleteAccount] = useMutation<Success, UserDeleteInput, 'userDeleteOne'>(userDeleteOne, 'userDeleteOne');
+    const [deleteAccount] = useCustomMutation<Success, UserDeleteInput>(userDeleteOne);
     const formik = useFormik({
         initialValues: {
             password: '',

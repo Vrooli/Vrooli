@@ -4,7 +4,7 @@
 import { PushListProps } from '../types';
 import { useCallback } from 'react';
 import { Box, Stack, TextField, useTheme } from '@mui/material';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { getDeviceInfo, PubSub, updateArray } from 'utils';
 import { useFormik } from 'formik';
@@ -24,7 +24,7 @@ export const PushList = ({
     const { palette } = useTheme();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation<PushDevice, PushDeviceCreateInput, 'pushDeviceCreate'>(pushDeviceCreate, 'pushDeviceCreate');
+    const [addMutation, { loading: loadingAdd }] = useCustomMutation<PushDevice, PushDeviceCreateInput>(pushDeviceCreate);
     const formik = useFormik({
         initialValues: {
             endpoint: '',
@@ -56,7 +56,7 @@ export const PushList = ({
         },
     });
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<PushDevice, PushDeviceUpdateInput, 'pushDeviceUpdate'>(pushDeviceUpdate, 'pushDeviceUpdate');
+    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<PushDevice, PushDeviceUpdateInput>(pushDeviceUpdate);
     const onUpdate = useCallback((index: number, updatedDevice: PushDevice) => {
         if (loadingUpdate) return;
         mutationWrapper<PushDevice, PushDeviceUpdateInput>({
@@ -71,7 +71,7 @@ export const PushList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const onDelete = useCallback((device: PushDevice) => {
         if (loadingDelete) return;
         mutationWrapper<Success, DeleteOneInput>({

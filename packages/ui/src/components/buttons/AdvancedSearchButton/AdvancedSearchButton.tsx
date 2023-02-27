@@ -2,9 +2,8 @@ import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { BuildIcon } from "@shared/icons";
 import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "@shared/route";
 import { AdvancedSearchDialog } from "components/dialogs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils";
 import { searchButtonStyle } from "../styles";
 import { AdvancedSearchButtonProps } from "../types";
 
@@ -19,7 +18,6 @@ export const AdvancedSearchButton = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Update params when schema changes
     useEffect(() => {
@@ -69,7 +67,7 @@ export const AdvancedSearchButton = ({
                 session={session}
                 zIndex={zIndex + 1}
             />
-            {advancedSearchParams && <Tooltip title={t(`common:SeeAllSearchSettings`, { lng })} placement="top">
+            {advancedSearchParams && <Tooltip title={t(`SeeAllSearchSettings`)} placement="top">
                 <Box
                     onClick={handleAdvancedSearchDialogOpen}
                     sx={searchButtonStyle(palette)}

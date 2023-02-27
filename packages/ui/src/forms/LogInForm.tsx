@@ -1,5 +1,5 @@
 import { useLocation } from '@shared/route';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
@@ -31,7 +31,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(authEmailLogIn, 'emailLogIn');  
+    const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);

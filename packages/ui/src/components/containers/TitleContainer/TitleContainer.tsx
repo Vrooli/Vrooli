@@ -4,8 +4,6 @@ import { TitleContainerProps } from '../types';
 import { clickSize } from 'styles';
 import { HelpButton } from 'components';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages } from 'utils';
-import { useMemo } from 'react';
 
 export function TitleContainer({
     id,
@@ -17,13 +15,11 @@ export function TitleContainer({
     loading = false,
     tooltip = '',
     options = [],
-    session,
     sx,
     children,
 }: TitleContainerProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     return (
         <Tooltip placement="bottom" title={tooltip}>
@@ -53,8 +49,8 @@ export function TitleContainer({
                     >
                         {/* Title */}
                         <Stack direction="row" justifyContent="center" alignItems="center">
-                            <Typography component="h2" variant="h4" textAlign="center">{t(`common:${titleKey}`, { lng, ...(titleVariables ?? {}) })}</Typography>
-                            {Boolean(helpKey) ? <HelpButton markdown={t(`common:${helpKey}`, { lng, ...(helpVariables ?? {}) })} /> : null}
+                            <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, {...titleVariables, defaultValue: titleKey })}</Typography>
+                            {Boolean(helpKey) ? <HelpButton markdown={t(helpKey!, {...helpVariables, defaultValue: helpKey })} /> : null}
                         </Stack>
                     </Box>
                     {/* Main content */}
@@ -88,7 +84,7 @@ export function TitleContainer({
                                             <Typography sx={{
                                                 color: palette.mode === 'light' ? palette.secondary.dark : palette.secondary.light
                                             }}
-                                            >{typeof labelData === 'string' ? t(`common:${labelData}`, { lng }) : t(`common:${labelData.key}`, { lng, ...labelData.variables })}</Typography>
+                                            >{typeof labelData === 'string' ? t(labelData) : t(labelData.key, { ...labelData.variables, defaultValue: labelData.key })}</Typography>
                                         </Link>
                                     ))}
                                 </Stack>

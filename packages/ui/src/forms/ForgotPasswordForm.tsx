@@ -1,4 +1,4 @@
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
@@ -23,7 +23,7 @@ export const ForgotPasswordForm = ({
     onFormChange = () => { }
 }: FormProps) => {
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useMutation<Success, EmailRequestPasswordChangeInput, 'emailRequestPasswordChange'>(authEmailRequestPasswordChange, 'emailRequestPasswordChange');
+    const [emailRequestPasswordChange, { loading }] = useCustomMutation<Success, EmailRequestPasswordChangeInput>(authEmailRequestPasswordChange);
 
     const formik = useFormik({
         initialValues: {

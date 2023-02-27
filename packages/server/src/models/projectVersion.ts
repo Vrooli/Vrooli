@@ -1,5 +1,5 @@
 import { projectVersionValidation } from "@shared/validation";
-import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString, MaxObjects } from '@shared/consts';
+import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString, MaxObjects, ProjectVersionContentsSearchInput, ProjectVersionContentsSearchResult } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -157,6 +157,116 @@ export const ProjectVersionModel: ModelLogic<{
         },
         yup: projectVersionValidation,
     },
+    // query: {
+    //     /**
+    //      * Custom search query for querying items in a project version
+    //      */
+    //     async searchContents(
+    //         prisma: PrismaType,
+    //         req: Request,
+    //         input: ProjectVersionContentsSearchInput,
+    //         info: GraphQLInfo | PartialGraphQLInfo,
+    //         nestLimit: number = 2,
+    //     ): Promise<ProjectVersionContentsSearchResult> {
+    //         // Partially convert info type
+    //         const partial = toPartialGraphQLInfo(info, {
+    //             __typename: 'ProjectVersionContentsSearchResult',
+    //             meetings: 'Meeting',
+    //             notes: 'Note',
+    //             reminders: 'Reminder',
+    //             resources: 'Resource',
+    //             runProjectSchedules: 'RunProjectSchedule',
+    //             runRoutineSchedules: 'RunRoutineSchedule',
+    //         }, req.languages, true);
+    //         // Determine text search query
+    //         const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
+    //         // Loop through search fields and add each to the search query, 
+    //         // if the field is specified in the input
+    //         const customQueries: { [x: string]: any }[] = [];
+    //         for (const field of Object.keys(CommentModel.search!.searchFields)) {
+    //             if (input[field as string] !== undefined) {
+    //                 customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
+    //             }
+    //         }
+    //         // Combine queries
+    //         const where = combineQueries([searchQuery, ...customQueries]);
+    //         // Determine sort order
+    //         // Make sure sort field is valid
+    //         const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
+    //         const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined
+    //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search!.defaultSort] : undefined;
+    //         // Find requested search array
+    //         const searchResults = await prisma.comment.findMany({
+    //             where,
+    //             orderBy,
+    //             take: input.take ?? 10,
+    //             skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
+    //             cursor: input.after ? {
+    //                 id: input.after
+    //             } : undefined,
+    //             ...selectHelper(partialInfo)
+    //         });
+    //         // If there are no results
+    //         if (searchResults.length === 0) return {
+    //             __typename: 'CommentSearchResult' as const,
+    //             totalThreads: 0,
+    //             threads: [],
+    //         }
+    //         // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
+    //         const totalInThread = input.after ? undefined : await prisma.comment.count({
+    //             where: { ...where }
+    //         });
+    //         // Calculate end cursor
+    //         const endCursor = searchResults[searchResults.length - 1].id;
+    //         // If not as nestLimit, recurse with all result IDs
+    //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req), {
+    //             ids: searchResults.map(r => r.id),
+    //             take: input.take ?? 10,
+    //             sortBy: input.sortBy ?? CommentModel.search!.defaultSort,
+    //         }, info, nestLimit) : [];
+    //         // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
+    //         const flattenThreads = (threads: CommentThread[]) => {
+    //             const result: Comment[] = [];
+    //             for (const thread of threads) {
+    //                 result.push(thread.comment);
+    //                 result.push(...flattenThreads(thread.childThreads));
+    //             }
+    //             return result;
+    //         }
+    //         let comments: any = flattenThreads(childThreads);
+    //         // Shape comments and add supplemental fields
+    //         comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
+    //         comments = await addSupplementalFields(prisma, getUser(req), comments, partialInfo);
+    //         // Put comments back into "threads" object, using another helper function. 
+    //         // Comments can be matched by their ID
+    //         const shapeThreads = (threads: CommentThread[]) => {
+    //             const result: CommentThread[] = [];
+    //             for (const thread of threads) {
+    //                 // Find current-level comment
+    //                 const comment = comments.find((c: any) => c.id === thread.comment.id);
+    //                 // Recurse
+    //                 const children = shapeThreads(thread.childThreads);
+    //                 // Add thread to result
+    //                 result.push({
+    //                     __typename: 'CommentThread' as const,
+    //                     comment,
+    //                     childThreads: children,
+    //                     endCursor: thread.endCursor,
+    //                     totalInThread: thread.totalInThread,
+    //                 });
+    //             }
+    //             return result;
+    //         }
+    //         const threads = shapeThreads(childThreads);
+    //         // Return result
+    //         return {
+    //             __typename: 'CommentSearchResult' as const,
+    //             totalThreads: totalInThread,
+    //             threads,
+    //             endCursor,
+    //         }
+    //     }
+    // },
     search: {
         defaultSort: ProjectVersionSortBy.DateCompletedDesc,
         sortBy: ProjectVersionSortBy,

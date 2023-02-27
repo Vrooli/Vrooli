@@ -1,2 +1,2 @@
-export * from './useLazyQuery';
-export * from './useMutation';
+export * from './useCustomLazyQuery';
+export * from './useCustomMutation';

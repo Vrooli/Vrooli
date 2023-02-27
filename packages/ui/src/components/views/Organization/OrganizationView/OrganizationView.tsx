@@ -34,9 +34,7 @@ export const OrganizationView = ({
 
     const { id, isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization, FindByIdOrHandleInput>({
         query: organizationFindOne,
-        endpoint: 'organization',
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
@@ -89,10 +87,10 @@ export const OrganizationView = ({
         return tabs.map((tab, i) => ({
             color: tab === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
             index: i,
-            label: t(`common:${tab}`, { lng: getUserLanguages(session)[0], count: 2 }),
+            label: t(tab, { count: 2 }),
             value: tab,
         }));
-    }, [permissions.canUpdate, resources, session, t]);
+    }, [permissions.canUpdate, resources, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 

@@ -1,14 +1,14 @@
 import { Box, CircularProgress, Collapse, Divider, Grid, List, ListItem, ListItemIcon, ListItemText, Typography, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
-import { useLazyQuery } from 'api/hooks';
+import { useCustomLazyQuery } from 'api/hooks';
 import { APP_LINKS, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
-import { getUserLanguages, PreSearchItem, translateSearchItems, useReactSearch, useWindowSize } from 'utils';
+import { PreSearchItem, translateSearchItems, useReactSearch, useWindowSize } from 'utils';
 import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
 import { PageContainer, SettingsSearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
@@ -78,7 +78,6 @@ export function SettingsPage({
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
     const [selectedPage, setSelectedPage] = useState<SettingsForm>('profile');
@@ -99,13 +98,13 @@ export function SettingsPage({
     const searchOptions = useMemo(() => translateSearchItems(searchItems, session), [session]);
 
     // Fetch profile data
-    const [getData, { data, loading }] = useLazyQuery<User, null, 'profile'>(userProfile, 'profile', { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: 'all' });
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session])
     const [profile, setProfile] = useState<User | undefined>(undefined);
     useEffect(() => {
-        if (data?.profile) setProfile(data.profile);
+        if (data) setProfile(data);
     }, [data]);
     const onUpdated = useCallback((updatedProfile: User | undefined) => {
         if (updatedProfile) setProfile(updatedProfile);
@@ -136,11 +135,11 @@ export function SettingsPage({
                     <ListItemIcon>
                         <Icon fill={selected ? palette.primary.contrastText : palette.background.textSecondary} />
                     </ListItemIcon>
-                    <ListItemText primary={t(`common:${label}`, { lng, count: 2 })} />
+                    <ListItemText primary={t(label, { count: 2 })} />
                 </ListItem>
             )
         });
-    }, [closeList, lng, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, selectedPage, setLocation, t]);
+    }, [closeList, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, selectedPage, setLocation, t]);
 
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
@@ -187,7 +186,7 @@ export function SettingsPage({
                         ...noSelect,
                     }}>
                         {isListOpen ? <ExpandLessIcon fill={palette.background.textPrimary} /> : <ExpandMoreIcon fill={palette.background.textPrimary} />}
-                        <Typography variant="h6" sx={{ marginLeft: 1 }}>{t(`common:Settings`, { lng })}</Typography>
+                        <Typography variant="h6" sx={{ marginLeft: 1 }}>{t(`Settings`)}</Typography>
                     </Box>}
                     <Collapse in={!isMobile || isListOpen}>
                         <List>

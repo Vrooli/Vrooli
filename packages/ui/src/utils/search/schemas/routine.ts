@@ -4,22 +4,22 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { hasCompleteVersionContainer, hasCompleteVersionFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields, languagesVersionContainer, languagesVersionFields } from "./common";
 
-export const routineSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchRoutine', lng),
+export const routineSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchRoutine'),
     containers: [
         hasCompleteVersionContainer,
-        votesContainer(lng),
-        bookmarksContainer(lng),
-        languagesVersionContainer(lng),
-        tagsContainer(lng),
+        votesContainer(),
+        bookmarksContainer(),
+        languagesVersionContainer(),
+        tagsContainer(),
     ],
     fields: [
-        ...hasCompleteVersionFields(lng),
-        ...votesFields(lng),
-        ...bookmarksFields(lng),
-        ...languagesVersionFields(lng),
-        ...tagsFields(lng),
+        ...hasCompleteVersionFields(),
+        ...votesFields(),
+        ...bookmarksFields(),
+        ...languagesVersionFields(),
+        ...tagsFields(),
     ]
 })
 
-export const routineSearchParams = (lng: string) => toParams(routineSearchSchema(lng), routineFindMany, RoutineSortBy, RoutineSortBy.ScoreDesc)
+export const routineSearchParams = () => toParams(routineSearchSchema(), routineFindMany, RoutineSortBy, RoutineSortBy.ScoreDesc)

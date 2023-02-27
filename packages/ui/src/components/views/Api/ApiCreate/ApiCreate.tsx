@@ -1,5 +1,5 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -40,7 +40,7 @@ export const ApiCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<ApiVersion, ApiVersionCreateInput, 'apiVersionCreate'>(apiVersionCreate, 'apiVersionCreate');
+    const [mutation] = useCustomMutation<ApiVersion, ApiVersionCreateInput>(apiVersionCreate);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

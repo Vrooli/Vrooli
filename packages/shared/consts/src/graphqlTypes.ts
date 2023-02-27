@@ -777,6 +777,7 @@ export enum GqlModelType {
   ProjectOrOrganizationSearchResult = 'ProjectOrOrganizationSearchResult',
   ProjectOrRoutineSearchResult = 'ProjectOrRoutineSearchResult',
   ProjectVersion = 'ProjectVersion',
+  ProjectVersionContentsSearchResult = 'ProjectVersionContentsSearchResult',
   ProjectVersionDirectory = 'ProjectVersionDirectory',
   PullRequest = 'PullRequest',
   PushDevice = 'PushDevice',
@@ -3772,6 +3773,37 @@ export type ProjectVersion = {
   you: ProjectVersionYou;
 };
 
+export type ProjectVersionContentsSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  directoryIds?: InputMaybe<Array<Scalars['ID']>>;
+  projectVersionId: Scalars['ID'];
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ProjectVersionContentsSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ProjectVersionContentsSearchResult = {
+  __typename: 'ProjectVersionContentsSearchResult';
+  apiVersion?: Maybe<ApiVersion>;
+  directory?: Maybe<ProjectVersionDirectory>;
+  noteVersion?: Maybe<NoteVersion>;
+  organization?: Maybe<Organization>;
+  projectVersion?: Maybe<ProjectVersion>;
+  routineVersion?: Maybe<RoutineVersion>;
+  smartContractVersion?: Maybe<SmartContractVersion>;
+  standardVersion?: Maybe<StandardVersion>;
+};
+
+export enum ProjectVersionContentsSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
 export type ProjectVersionCreateInput = {
   directoryListingsCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
   id: Scalars['ID'];
@@ -4169,6 +4201,7 @@ export type Query = {
   projectOrOrganizations: ProjectOrOrganizationSearchResult;
   projectOrRoutines: ProjectOrRoutineSearchResult;
   projectVersion?: Maybe<ProjectVersion>;
+  projectVersionContents: ProjectVersionContentsSearchResult;
   projectVersions: ProjectVersionSearchResult;
   projects: ProjectSearchResult;
   pullRequest?: Maybe<PullRequest>;
@@ -4458,6 +4491,11 @@ export type QueryProjectOrRoutinesArgs = {
 
 export type QueryProjectVersionArgs = {
   input: FindVersionInput;
+};
+
+
+export type QueryProjectVersionContentsArgs = {
+  input: ProjectVersionContentsSearchInput;
 };
 
 
@@ -9336,6 +9374,9 @@ export type ResolversTypes = {
   ProjectSortBy: ProjectSortBy;
   ProjectUpdateInput: ProjectUpdateInput;
   ProjectVersion: ResolverTypeWrapper<ProjectVersion>;
+  ProjectVersionContentsSearchInput: ProjectVersionContentsSearchInput;
+  ProjectVersionContentsSearchResult: ResolverTypeWrapper<ProjectVersionContentsSearchResult>;
+  ProjectVersionContentsSortBy: ProjectVersionContentsSortBy;
   ProjectVersionCreateInput: ProjectVersionCreateInput;
   ProjectVersionDirectory: ResolverTypeWrapper<ProjectVersionDirectory>;
   ProjectVersionDirectoryCreateInput: ProjectVersionDirectoryCreateInput;
@@ -10006,6 +10047,8 @@ export type ResolversParentTypes = {
   ProjectSearchResult: ProjectSearchResult;
   ProjectUpdateInput: ProjectUpdateInput;
   ProjectVersion: ProjectVersion;
+  ProjectVersionContentsSearchInput: ProjectVersionContentsSearchInput;
+  ProjectVersionContentsSearchResult: ProjectVersionContentsSearchResult;
   ProjectVersionCreateInput: ProjectVersionCreateInput;
   ProjectVersionDirectory: ProjectVersionDirectory;
   ProjectVersionDirectoryCreateInput: ProjectVersionDirectoryCreateInput;
@@ -11661,6 +11704,18 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ProjectVersionContentsSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionContentsSearchResult'] = ResolversParentTypes['ProjectVersionContentsSearchResult']> = {
+  apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
+  directory?: Resolver<Maybe<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
+  noteVersion?: Resolver<Maybe<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
+  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
+  projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
+  routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
+  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
+  standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type ProjectVersionDirectoryResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectory'] = ResolversParentTypes['ProjectVersionDirectory']> = {
   childApiVersions?: Resolver<Array<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
   childNoteVersions?: Resolver<Array<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
@@ -11839,6 +11894,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   projectOrOrganizations?: Resolver<ResolversTypes['ProjectOrOrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryProjectOrOrganizationsArgs, 'input'>>;
   projectOrRoutines?: Resolver<ResolversTypes['ProjectOrRoutineSearchResult'], ParentType, ContextType, RequireFields<QueryProjectOrRoutinesArgs, 'input'>>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType, RequireFields<QueryProjectVersionArgs, 'input'>>;
+  projectVersionContents?: Resolver<ResolversTypes['ProjectVersionContentsSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionContentsArgs, 'input'>>;
   projectVersions?: Resolver<ResolversTypes['ProjectVersionSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionsArgs, 'input'>>;
   projects?: Resolver<ResolversTypes['ProjectSearchResult'], ParentType, ContextType, RequireFields<QueryProjectsArgs, 'input'>>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType, RequireFields<QueryPullRequestArgs, 'input'>>;
@@ -13805,6 +13861,7 @@ export type Resolvers<ContextType = any> = {
   ProjectOrRoutineSearchResult?: ProjectOrRoutineSearchResultResolvers<ContextType>;
   ProjectSearchResult?: ProjectSearchResultResolvers<ContextType>;
   ProjectVersion?: ProjectVersionResolvers<ContextType>;
+  ProjectVersionContentsSearchResult?: ProjectVersionContentsSearchResultResolvers<ContextType>;
   ProjectVersionDirectory?: ProjectVersionDirectoryResolvers<ContextType>;
   ProjectVersionDirectoryTranslation?: ProjectVersionDirectoryTranslationResolvers<ContextType>;
   ProjectVersionEdge?: ProjectVersionEdgeResolvers<ContextType>;

@@ -1,5 +1,5 @@
 import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
@@ -65,7 +65,7 @@ export const SettingsDisplay = ({
     }, [profile]);
 
     // Handle update
-    // const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...endpoints.user().profileUpdate);
+    // const [mutation] = useCustomMutation<User, ProfileUpdateInput>(...endpoints.user().profileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',

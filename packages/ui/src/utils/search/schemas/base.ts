@@ -1,11 +1,9 @@
-import { getOperationName } from '@apollo/client/utilities';
 import { FormSchema } from 'forms/types';
 import { DocumentNode } from 'graphql';
 
 export type SearchParams = {
     advancedSearchSchema: FormSchema | null;
     defaultSortBy: any;
-    endpoint: string;
     sortByOptions: any;
     query: DocumentNode;
 }
@@ -21,7 +19,6 @@ export const toParams = (
 ): SearchParams => ({
     advancedSearchSchema,
     defaultSortBy,
-    endpoint: getOperationName(query) ?? '',
     query,
     sortByOptions,
 })

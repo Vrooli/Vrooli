@@ -49,7 +49,7 @@ COPY --from=stage0 ${PROJECT_DIR} ./
 RUN yarn install
 
 # Install global packages
-RUN yarn global add typescript ts-node nodemon prisma@4.9.0
+RUN yarn global add typescript ts-node nodemon prisma@4.10.1
 
 # Stage 2. Copy files from stage 1, and install required unix tools
 FROM node:16-alpine3.16 as stage2

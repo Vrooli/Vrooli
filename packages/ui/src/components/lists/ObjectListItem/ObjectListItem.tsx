@@ -331,7 +331,7 @@ export function ObjectListItem<T extends ListObjectType>({
                     <Stack direction="row" spacing={1} sx={{ pointerEvents: 'none' }}>
                         {/* Incomplete chip */}
                         {
-                            data && (data as any).isComplete === false && <Tooltip placement="top" title={t('common:MarkedIncomplete', { lng: getUserLanguages(session)[0] })}>
+                            data && (data as any).isComplete === false && <Tooltip placement="top" title={t('MarkedIncomplete')}>
                                 <Chip
                                     label="Incomplete"
                                     size="small"
@@ -344,7 +344,7 @@ export function ObjectListItem<T extends ListObjectType>({
                         }
                         {/* Internal chip */}
                         {
-                            data && (data as any).isInternal === true && <Tooltip placement="top" title={t('common:MarkedInternal', { lng: getUserLanguages(session)[0] })}>
+                            data && (data as any).isInternal === true && <Tooltip placement="top" title={t('MarkedInternal')}>
                                 <Chip
                                     label="Internal"
                                     size="small"

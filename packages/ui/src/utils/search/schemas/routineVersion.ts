@@ -4,28 +4,28 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, complexityContainer, complexityFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
-export const routineVersionSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchRoutineVersion', lng),
+export const routineVersionSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchRoutineVersion'),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
-        simplicityContainer(lng),
-        complexityContainer(lng),
-        votesRootContainer(lng),
-        bookmarksRootContainer(lng),
-        languagesContainer(lng),
-        tagsRootContainer(lng),
+        simplicityContainer(),
+        complexityContainer(),
+        votesRootContainer(),
+        bookmarksRootContainer(),
+        languagesContainer(),
+        tagsRootContainer(),
     ],
     fields: [
-        ...isCompleteWithRootFields(lng),
-        ...isLatestFields(lng),
-        ...simplicityFields(lng),
-        ...complexityFields(lng),
-        ...votesRootFields(lng),
-        ...bookmarksRootFields(lng),
-        ...languagesFields(lng),
-        ...tagsRootFields(lng),
+        ...isCompleteWithRootFields(),
+        ...isLatestFields(),
+        ...simplicityFields(),
+        ...complexityFields(),
+        ...votesRootFields(),
+        ...bookmarksRootFields(),
+        ...languagesFields(),
+        ...tagsRootFields(),
     ]
 })
 
-export const routineVersionSearchParams = (lng: string) => toParams(routineVersionSearchSchema(lng), routineVersionFindMany, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc);
+export const routineVersionSearchParams = () => toParams(routineVersionSearchSchema(), routineVersionFindMany, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc);

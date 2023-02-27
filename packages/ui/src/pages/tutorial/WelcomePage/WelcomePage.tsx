@@ -2,8 +2,8 @@ import { APP_LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import { openLink, useLocation } from '@shared/route';
 import { clickSize } from 'styles';
-import { useEffect, useMemo } from 'react';
-import { getUserLanguages, PubSub } from 'utils';
+import { useEffect } from 'react';
+import { PubSub } from 'utils';
 import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
 import { PageContainer } from 'components';
 import { getCurrentUser } from 'utils/authentication';
@@ -31,7 +31,6 @@ export const WelcomePage = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
     // Show confetti on page load, if it's the user's first time
     useEffect(() => {
@@ -59,29 +58,29 @@ export const WelcomePage = ({
                 background: palette.mode === 'light' ? palette.primary.dark : palette.background.paper,
                 color: palette.mode === 'light' ? palette.primary.contrastText : palette.background.textPrimary,
             }}>
-                <Typography component="h1" variant="h2" mb={1}>{t(`common:WelcomeToVrooli`, { lng })}</Typography>
-                <Typography component="h2" variant="h4" mb={3}>{t(`common:NotSureWhereToStart`, { lng })}</Typography>
+                <Typography component="h1" variant="h2" mb={1}>{t(`WelcomeToVrooli`)}</Typography>
+                <Typography component="h2" variant="h4" mb={3}>{t(`NotSureWhereToStart`)}</Typography>
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                     <Button
                         onClick={() => setLocation(APP_LINKS.Tutorial)}
                         startIcon={<LearnIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >{t(`common:WelcomeToVrooli`, { lng })}</Button>
+                    >{t(`Tutorial`)}</Button>
                     <Button
                         onClick={() => setLocation(APP_LINKS.Example)}
                         startIcon={<PlayIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >{t(`common:RunExample`, { lng })}</Button>
+                    >{t(`RunExample`)}</Button>
                     {Boolean(getCurrentUser(session).id) && <Button
                         onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
                         startIcon={<ProfileIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >{t(`common:SetUpProfile`, { lng })}</Button>}
+                    >{t(`SetUpProfile`)}</Button>}
                     <Button
                         onClick={() => openLink(setLocation, WHITE_PAPER_URL)}
                         startIcon={<ArticleIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >{t(`common:ReadWhitePaper`, { lng })}</Button>
+                    >{t(`ReadWhitePaper`)}</Button>
                 </Stack>
                 <Box sx={{
                     ...clickSize,
@@ -94,7 +93,7 @@ export const WelcomePage = ({
                             brightness: '120%',
                         }
                     }}>
-                        <Typography sx={{ marginRight: 2, color: palette.secondary.light }}>{t(`common:IKnowWhatImDoing`, { lng })}</Typography>
+                        <Typography sx={{ marginRight: 2, color: palette.secondary.light }}>{t(`IKnowWhatImDoing`)}</Typography>
                     </Link>
                 </Box>
             </Box>

@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useLazyQuery } from "api/hooks";
+import { useCustomMutation, useCustomLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
@@ -20,9 +20,8 @@ export const ProjectUpdate = ({
 }: ProjectUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(projectVersionFindOne, 'projectVersion');
+    const [getData, { data: projectVersion, loading }] = useCustomLazyQuery<ProjectVersion, FindVersionInput>(projectVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-    const projectVersion = useMemo(() => data?.projectVersion, [data]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
@@ -44,7 +43,7 @@ export const ProjectUpdate = ({
     }, [projectVersion]);
 
     // Handle update
-    const [mutation] = useMutation<ProjectVersion, ProjectVersionUpdateInput, 'projectVersionUpdate'>(projectVersionUpdate, 'projectVersionUpdate');
+    const [mutation] = useCustomMutation<ProjectVersion, ProjectVersionUpdateInput>(projectVersionUpdate);
     const formik = useFormik({
         initialValues: {
             id: projectVersion?.id ?? uuid(),

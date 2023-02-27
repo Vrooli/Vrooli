@@ -9,11 +9,10 @@ import {
     PullToRefresh,
     SnackStack,
 } from 'components';
-import { PubSub, themes, useReactHash } from 'utils';
-import { Routes } from 'Routes';
+import { getDeviceInfo, getUserLanguages, PubSub, themes, useReactHash } from 'utils';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
 import { guestSession } from 'utils/authentication';
@@ -21,6 +20,8 @@ import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cook
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth';
+import i18next from 'i18next';
+import { Routes } from 'Routes';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -83,7 +84,15 @@ export function App() {
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(authValidateSession, 'validateSession');
+    const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
+
+    /**
+     * Sets language
+     */
+    useEffect(() => {
+        const lng = getUserLanguages(session)[0]
+        i18next.changeLanguage(lng);
+    }, [session]);
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
@@ -157,7 +166,7 @@ export function App() {
         // Determine theme
         let theme: Theme | null | undefined;
         // Try getting theme from session
-        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme];
+        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme as 'light' | 'dark'];
         // If not found, try alternative methods
         if (!theme) theme = findThemeWithoutSession();
         // Update theme state, meta tags, and local storage
@@ -175,7 +184,7 @@ export function App() {
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
-        if (!window.matchMedia('(display-mode: standalone)').matches && !cookiePreferences) {
+        if (!getDeviceInfo().isStandalone && !cookiePreferences) {
             PubSub.get().publishCookies();
         }
     }, []);
@@ -324,8 +333,8 @@ export function App() {
                             }}
                         />
                     }
-                    <AlertDialog session={session} />
-                    <SnackStack session={session} />
+                    <AlertDialog />
+                    <SnackStack />
                     <Box id="content-wrap" sx={{
                         background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
@@ -350,7 +359,7 @@ export function App() {
                         />
                     </Box>
                     <BottomNav session={session ?? guestSession} />
-                    <Footer session={session ?? guestSession} />
+                    <Footer />
                 </Box>
             </ThemeProvider>
         </StyledEngineProvider>

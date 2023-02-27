@@ -5,12 +5,12 @@ import i18next from "i18next";
 import { toParams } from "./base";
 import { searchFormLayout, yesNoDontCare } from "./common";
 
-export const bookmarkSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchBookmark', lng),
+export const bookmarkSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchBookmark'),
     containers: [
         {
-            title: i18next.t(`common:ExcludeLinkedToTag`, { lng }),
-            description: i18next.t(`common:ExcludeLinkedToTagHelp`, { lng }),
+            title: i18next.t(`ExcludeLinkedToTag`),
+            description: i18next.t(`ExcludeLinkedToTagHelp`),
             totalItems: 1,
             spacing: 2,
         }
@@ -18,10 +18,10 @@ export const bookmarkSearchSchema = (lng: string): FormSchema => ({
     fields: [
         {
             fieldName: "excludeLinkedToTag",
-            label: i18next.t(`common:ExcludeLinkedToTagLabel`, { lng }),
-            ...yesNoDontCare(lng),
+            label: i18next.t(`ExcludeLinkedToTagLabel`),
+            ...yesNoDontCare(),
         },
     ]
 })
 
-export const bookmarkSearchParams = (lng: string) => toParams(bookmarkSearchSchema(lng), bookmarkFindMany, BookmarkSortBy, BookmarkSortBy.DateUpdatedDesc);
+export const bookmarkSearchParams = () => toParams(bookmarkSearchSchema(), bookmarkFindMany, BookmarkSortBy, BookmarkSortBy.DateUpdatedDesc);

@@ -1,18 +1,26 @@
 #!/bin/bash
 # Sets up NPM, Yarn, global dependencies, and anything else 
 # required to get the project up and running.
+#
+# Arguments (all optional):
+# -f: Force install (y/N) - If set to "y", will delete all node_modules directories and reinstall
+# -r: Run on remote server (y/N) - If set to "y", will run additional commands to set up the remote server
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":r" opt; do
+while getopts ":f:h:r" opt; do
     case $opt in
+    f)
+        REINSTALL_MODULES=$OPTARG
+        ;;
     r)
         ON_REMOTE=$OPTARG
         ;;
     h)
-        echo "Usage: $0 [-h HELP] [-r REMOTE]"
+        echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE]"
         echo "  -h --help: Show this help message"
+        echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
         exit 0
         ;;
@@ -62,8 +70,19 @@ header "Installing Yarn"
 npm install -g yarn
 
 header "Installing global dependencies"
-yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.9.0 react-scripts serve
+yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.10.1 vite
 
+# If reinstalling modules, delete all node_modules directories
+if [ -z "${REINSTALL_MODULES}" ]; then
+    prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
+    read -r REINSTALL_MODULES
+fi
+if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
+    header "Deleting all node_modules directories"
+    find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
+    header "Deleting yarn.lock"
+    rm "${HERE}/../yarn.lock"
+fi
 header "Installing local dependencies"
 cd "${HERE}/.." && yarn cache clean && yarn
 

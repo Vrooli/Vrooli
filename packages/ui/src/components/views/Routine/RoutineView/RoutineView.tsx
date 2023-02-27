@@ -1,7 +1,7 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel } from "components";
 import { RoutineViewProps } from "../types";
@@ -45,13 +45,11 @@ export const RoutineView = ({
 
     const { id, isLoading, object: routineVersion, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion, FindVersionInput>({
         query: routineVersionFindOne,
-        endpoint: 'routineVersion',
         onInvalidUrlParams: ({ build }) => {
             // Throw error if we are not creating a new routine
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
         },
         partialData,
-        session,
     });
 
     const availableLanguages = useMemo<string[]>(() => (routineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routineVersion?.translations]);
@@ -132,7 +130,7 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(runRoutineComplete, 'runRoutineComplete');
+    const [runComplete] = useCustomMutation<RunRoutine, RunRoutineCompleteInput>(runRoutineComplete);
     const markAsComplete = useCallback(() => {
         if (!routineVersion) return;
         mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
@@ -300,7 +298,6 @@ export const RoutineView = ({
             {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
                 <ContentCollapse
                     isOpen={false}
-                    session={session}
                     title="Inputs"
                 >
                     {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
@@ -322,7 +319,7 @@ export const RoutineView = ({
                         onClick={markAsComplete}
                         color="secondary"
                         sx={{ marginTop: 2 }}
-                    >{t(`common:MarkAsComplete`, { lng: getUserLanguages(session)[0] })}</Button>}
+                    >{t(`MarkAsComplete`)}</Button>}
                 </ContentCollapse>
             </Box>}
             {/* "View Graph" button if this is a multi-step routine */}

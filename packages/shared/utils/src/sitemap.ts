@@ -2,7 +2,7 @@
  * Custom sitemap generator based on react-dynamic-sitemap. 
  * We use this because react-dynamic-sitemap only supports react-router, but we use custom routing.
  */
-import builder from "xmlbuilder";
+import builder from "xmlbuilder2";
 
 /**
  * A sitemap entry for main route pages (e.g. /home, /search, /about, /contact)
@@ -35,35 +35,41 @@ export const generateSitemap = (siteName: string, entries: {
     main?: SitemapEntryMain[];
     content?: SitemapEntryContent[];
 }): string => {
-    // Create urlset
-    let xml = builder.create("urlset", { encoding: "utf-8" }).att("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9");
+    // Create xml tag with encoding and version
+    let xml = builder.create({ encoding: "UTF-8", version: "1.0" })
+    // Open urlset tag
+    xml = xml.ele("urlset", { xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9" });
     // If main entries exist, add them
     if (entries.main) {
         // Loop through entries
         entries.main.forEach(function (entry: SitemapEntryMain) {
             // For each entry, create a url element with loc, priority, and changefreq
-            var item = xml.ele("url");
-            item.ele("loc", siteName + entry.path);
-            item.ele("priority", entry.priority || 0);
-            item.ele("changefreq", entry.changeFreq || "never");
+            xml.ele('url')
+                .ele('loc', siteName + entry.path).up()
+                .ele('priority', (entry.priority || 0) + '').up()
+                .ele('changefreq', entry.changeFreq || "never").up()
+                .up();
         });
     }
     // If content entries exist, add them
     if (entries.content) {
         // Loop through entries
         entries.content.forEach(function (entry: SitemapEntryContent) {
-            var item = xml.ele("url");
             const link =`${siteName}${entry.objectLink}/${entry.rootHandle ?? entry.rootId ?? ''}${entry.handle ?? entry.id}`;
-            // Create loc link with x-default hreflang
-            item.ele("loc", { hreflang: "x-default" }, link);
+            xml.ele('url')
+                // Create loc link with x-default hreflang
+                .ele("loc", { hreflang: "x-default", href: link }).up()
             // Create alternate links for each language
             entry.languages.forEach(function (language) {
-                var link = item.ele("link", { rel: "alternate", hreflang: language });
-                link.att("href", `${link}?lang=${language}`); // Only a search param is needed to specify the language
-            });
+                xml.ele("link", { rel: "alternate", hreflang: language, href: `${link}?lang=${language}` }).up();
+            })
+            xml.up();
         });
     }
-    return xml.end({ pretty: true });
+    // Close urlset tag
+    xml = xml.up();
+    // Return xml string
+    return xml.end({ prettyPrint: true });
 };
 
 /**
@@ -73,10 +79,19 @@ export const generateSitemap = (siteName: string, entries: {
  * @returns An xml string representing the sitemap index
  */
 export const generateSitemapIndex = (sitemapDir: string, fileNames: string[]): string => {
-    let xml = builder.create("sitemapindex", { encoding: "utf-8" }).att("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9");
+    // Create xml tag with encoding and version
+    let xml = builder.create({ encoding: "UTF-8", version: "1.0" })
+    // Open sitemapindex tag
+    xml = xml.ele("sitemapindex", { xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9" });
+    // Loop through file names
     fileNames.forEach(function (fileName) {
-        var item = xml.ele("sitemap");
-        item.ele("loc", `${sitemapDir}/${fileName}`);
+        // For each file name, create a sitemap element with loc
+        xml.ele('sitemap')
+            .ele('loc', `${sitemapDir}/${fileName}`).up()
+            .up();
     });
-    return xml.end({ pretty: true });
+    // Close sitemapindex tag
+    xml = xml.up();
+    // Return xml string
+    return xml.end({ prettyPrint: true });
 }

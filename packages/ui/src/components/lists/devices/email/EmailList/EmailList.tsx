@@ -4,7 +4,7 @@
 import { EmailListProps } from '../types';
 import { useCallback } from 'react';
 import { Box, Stack, TextField, useTheme } from '@mui/material';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
@@ -24,7 +24,7 @@ export const EmailList = ({
     const { palette } = useTheme();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation<Email, EmailCreateInput, 'emailCreate'>(emailCreate, 'emailCreate');
+    const [addMutation, { loading: loadingAdd }] = useCustomMutation<Email, EmailCreateInput>(emailCreate);
     const formik = useFormik({
         initialValues: {
             emailAddress: '',
@@ -48,7 +48,7 @@ export const EmailList = ({
         },
     });
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -79,7 +79,7 @@ export const EmailList = ({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
-    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<Success, SendVerificationEmailInput, 'sendVerificationEmail'>(emailVerify, 'sendVerificationEmail');
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useCustomMutation<Success, SendVerificationEmailInput>(emailVerify);
     const sendVerificationEmail = useCallback((email: Email) => {
         if (loadingVerifyEmail) return;
         mutationWrapper<Success, SendVerificationEmailInput>({

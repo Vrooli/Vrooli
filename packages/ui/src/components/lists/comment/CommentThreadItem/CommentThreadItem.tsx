@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { TextLoading } from '../..';
 import { displayDate, getTranslation, getUserLanguages, getYou, ObjectType, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { CommentFor, DeleteOneInput, DeleteType, ReportFor, BookmarkFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
@@ -42,7 +42,7 @@ export function CommentThreadItem({
         return { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog

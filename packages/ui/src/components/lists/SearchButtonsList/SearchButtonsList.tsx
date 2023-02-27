@@ -20,12 +20,10 @@ export const SearchButtonsList = ({
             <SortButton
                 options={sortByOptions}
                 setSortBy={setSortBy}
-                session={session}
                 sortBy={sortBy}
             />
             <TimeButton
                 setTimeFrame={setTimeFrame}
-                session={session}
                 timeFrame={timeFrame}
             />
             <AdvancedSearchButton

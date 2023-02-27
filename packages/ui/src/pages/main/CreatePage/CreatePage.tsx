@@ -1,10 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { CardGrid, PageContainer } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, Typography, useTheme } from '@mui/material';
 import { CreatePageProps } from '../types';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages } from 'utils';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
@@ -70,7 +69,6 @@ export const CreatePage = ({
 }: CreatePageProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const { palette } = useTheme();
 
     const onSelect = useCallback((objectType: CreateType) => {
@@ -122,10 +120,10 @@ export const CreatePage = ({
                             display: 'contents',
                         }}>
                             <Typography variant='h6' component='div'>
-                                {t(`common:${objectType}`, { lng, count: 1 })}
+                                {t(objectType, { count: 1 })}
                             </Typography>
                             <Typography variant='body2' color={palette.background.textSecondary}>
-                                {t(`common:${description}`, { lng })}
+                                {t(description)}
                             </Typography>
                             {/* Bottom of card is button */}
                             <Button
@@ -135,7 +133,7 @@ export const CreatePage = ({
                                     marginLeft: 'auto',
                                     display: 'flex',
                                 }}
-                            >{t(`common:Create`, { lng })}</Button>
+                            >{t(`Create`)}</Button>
                         </Box>
                     </Box>
                 ))}

@@ -8,14 +8,13 @@ import { TranscriptDialogProps } from "../types";
 export const TranscriptDialog = ({
     handleClose,
     isListening,
-    lng,
     transcript
 }: TranscriptDialogProps) => {
     const { t } = useTranslation();
 
     return (
         <Dialog onClose={handleClose} open={isListening}>
-            <DialogTitle>{t(`common:Listening`, { lng })}</DialogTitle>
+            <DialogTitle>{t(`Listening`)}</DialogTitle>
             <DialogContent>
                 {/* Centered transcript */}
                 <Typography align="center" variant="h6">

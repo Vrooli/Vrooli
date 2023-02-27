@@ -4,16 +4,16 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields } from "./common";
 
-export const userSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchUser', lng),
+export const userSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchUser'),
     containers: [
-        bookmarksContainer(lng),
-        languagesContainer(lng),
+        bookmarksContainer(),
+        languagesContainer(),
     ],
     fields: [
-        ...bookmarksFields(lng),
-        ...languagesFields(lng),
+        ...bookmarksFields(),
+        ...languagesFields(),
     ]
 })
 
-export const userSearchParams = (lng: string) => toParams(userSearchSchema(lng), userFindMany, UserSortBy, UserSortBy.BookmarksDesc)
+export const userSearchParams = () => toParams(userSearchSchema(), userFindMany, UserSortBy, UserSortBy.BookmarksDesc)

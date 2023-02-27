@@ -1,8 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { ProjectVersionSortBy, ProjectVersion, ProjectVersionSearchInput, ProjectVersionCreateInput, ProjectVersionUpdateInput, FindVersionInput } from '@shared/consts';
+import { ProjectVersionSortBy, ProjectVersion, ProjectVersionSearchInput, ProjectVersionCreateInput, ProjectVersionUpdateInput, FindVersionInput, ProjectVersionContentsSortBy, ProjectVersionContentsSearchInput, ProjectVersionContentsSearchResult } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { CustomError } from '../events';
 
 export const typeDef = gql`
     enum ProjectVersionSortBy {
@@ -24,6 +25,15 @@ export const typeDef = gql`
         RunProjectsDesc
         SimplicityAsc
         SimplicityDesc
+    }
+
+    # NOTE: This sort only applies to directories, not their items. We must order them on the client side, 
+    # since Prisma only supports relationship ordering by _count
+    enum ProjectVersionContentsSortBy {
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
     }
 
     input ProjectVersionCreateInput {
@@ -164,9 +174,35 @@ export const typeDef = gql`
         node: ProjectVersion!
     }
 
+    # NOTE: Search works different for directories than for other objects. 
+    # Search edges can be a directory, or any of the items in a directory.
+    input ProjectVersionContentsSearchInput {
+        after: String
+        createdTimeFrame: TimeFrame
+        directoryIds: [ID!] # Limit results to these directories
+        projectVersionId: ID! # Limit results to one project version
+        searchString: String
+        sortBy: ProjectVersionContentsSortBy
+        take: Int
+        updatedTimeFrame: TimeFrame
+        visibility: VisibilityType
+    }
+
+    type ProjectVersionContentsSearchResult {
+        directory: ProjectVersionDirectory
+        apiVersion: ApiVersion
+        noteVersion: NoteVersion
+        organization: Organization
+        projectVersion: ProjectVersion
+        routineVersion: RoutineVersion
+        smartContractVersion: SmartContractVersion
+        standardVersion: StandardVersion
+    }
+
     extend type Query {
         projectVersion(input: FindVersionInput!): ProjectVersion
         projectVersions(input: ProjectVersionSearchInput!): ProjectVersionSearchResult!
+        projectVersionContents(input: ProjectVersionContentsSearchInput!): ProjectVersionContentsSearchResult!
     }
 
     extend type Mutation {
@@ -178,9 +214,11 @@ export const typeDef = gql`
 const objectType = 'ProjectVersion';
 export const resolvers: {
     ProjectVersionSortBy: typeof ProjectVersionSortBy;
+    ProjectVersionContentsSortBy: typeof ProjectVersionContentsSortBy;
     Query: {
         projectVersion: GQLEndpoint<FindVersionInput, FindOneResult<ProjectVersion>>;
         projectVersions: GQLEndpoint<ProjectVersionSearchInput, FindManyResult<ProjectVersion>>;
+        projectVersionContents: GQLEndpoint<ProjectVersionContentsSearchInput, FindManyResult<ProjectVersionContentsSearchResult>>;
     },
     Mutation: {
         projectVersionCreate: GQLEndpoint<ProjectVersionCreateInput, CreateOneResult<ProjectVersion>>;
@@ -188,6 +226,7 @@ export const resolvers: {
     }
 } = {
     ProjectVersionSortBy,
+    ProjectVersionContentsSortBy,
     Query: {
         projectVersion: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
@@ -196,6 +235,11 @@ export const resolvers: {
         projectVersions: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req })
+        },
+        projectVersionContents: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            throw new CustomError('0000', 'NotImplemented', ['en'])
+            // return ProjectVersionModel.query.searchContents(prisma, req, input, info);
         },
     },
     Mutation: {

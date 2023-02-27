@@ -8,7 +8,7 @@ import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSu
 import { SiteSearchBar } from 'components/inputs';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { AutocompleteOption } from 'types';
-import { useLazyQuery } from 'api/hooks';
+import { useCustomLazyQuery } from 'api/hooks';
 import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
@@ -61,7 +61,7 @@ export const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading, error }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(feedPopular, 'popular', {
+    const [refetch, { data, loading, error }] = useCustomLazyQuery<PopularResult, PopularInput>(feedPopular, {
         variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') },
         errorPolicy: 'all'
     });
@@ -72,25 +72,25 @@ export const CommandPalette = ({
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
         // If "help" typed (or your language's equivalent), add help and faq shortcuts as first result
-        const lowercaseHelp = t(`common:Help`, { lng: languages[0] }).toLowerCase();
+        const lowercaseHelp = t(`Help`).toLowerCase();
         if (searchString.toLowerCase().startsWith(lowercaseHelp)) {
             firstResults.push({
                 __typename: "Shortcut",
-                label: t(`common:ShortcutBeginnersGuide`, { lng: languages[0] }),
+                label: t(`ShortcutBeginnersGuide`),
                 id: APP_LINKS.Welcome,
             }, {
                 __typename: "Shortcut",
-                label: t(`common:ShortcutFaq`, { lng: languages[0] }),
+                label: t(`ShortcutFaq`),
                 id: APP_LINKS.FAQ,
             });
         }
         // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
-        const flattened = (Object.values(data?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(data ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [searchString, data?.popular, languages, t]);
+    }, [searchString, data, languages, t]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -129,8 +129,8 @@ export const CommandPalette = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                helpText={t(`common:CommandPaletteHelp`, { lng: languages[0] })}
-                title={t(`common:CommandPaletteTitle`, { lng: languages[0] })}
+                helpText={t(`CommandPaletteHelp`)}
+                title={t(`CommandPaletteTitle`)}
                 onClose={close}
             />
             <DialogContent sx={{

@@ -1,36 +1,27 @@
-import { InputType, OrganizationSortBy } from "@shared/consts";
+import { OrganizationSortBy } from "@shared/consts";
 import { organizationFindMany } from "api/generated/endpoints/organization";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
-import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields } from "./common";
+import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, yesNoDontCare } from "./common";
 
-export const organizationSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchOrganization', lng),
+export const organizationSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchOrganization'),
     containers: [
         { totalItems: 1 },
-        bookmarksContainer(lng),
-        languagesContainer(lng),
-        tagsContainer(lng),
+        bookmarksContainer(),
+        languagesContainer(),
+        tagsContainer(),
     ],
     fields: [
         {
             fieldName: "isOpenToNewMembers",
             label: "Accepting new members?",
-            type: InputType.Radio,
-            props: {
-                defaultValue: 'undefined',
-                row: true,
-                options: [
-                    { label: "Yes", value: 'true' },
-                    { label: "No", value: 'false' },
-                    { label: "Don't Care", value: 'undefined' },
-                ]
-            }
+            ...yesNoDontCare(),
         },
-        ...bookmarksFields(lng),
-        ...languagesFields(lng),
-        ...tagsFields(lng),
+        ...bookmarksFields(),
+        ...languagesFields(),
+        ...tagsFields(),
     ]
 })
 
-export const organizationSearchParams = (lng: string) => toParams(organizationSearchSchema(lng), organizationFindMany, OrganizationSortBy, OrganizationSortBy.BookmarksDesc);
+export const organizationSearchParams = () => toParams(organizationSearchSchema(), organizationFindMany, OrganizationSortBy, OrganizationSortBy.BookmarksDesc);

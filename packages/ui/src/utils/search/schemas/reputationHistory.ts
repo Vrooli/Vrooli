@@ -4,10 +4,10 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const reputationHistorySearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchReputationHistory', lng),
+export const reputationHistorySearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchReputationHistory'),
     containers: [], //TODO
     fields: [], //TODO
 })
 
-export const reputationHistorySearchParams = (lng: string) => toParams(reputationHistorySearchSchema(lng), reputationHistoryFindMany, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc)
+export const reputationHistorySearchParams = () => toParams(reputationHistorySearchSchema(), reputationHistoryFindMany, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc)

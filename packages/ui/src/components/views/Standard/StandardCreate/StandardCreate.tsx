@@ -1,5 +1,5 @@
 import { Box, Grid, TextField } from "@mui/material";
-import { useMutation } from "api/hooks";
+import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -67,7 +67,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(standardVersionCreate, 'standardVersionCreate');
+    const [mutation] = useCustomMutation<StandardVersion, StandardVersionCreateInput>(standardVersionCreate);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

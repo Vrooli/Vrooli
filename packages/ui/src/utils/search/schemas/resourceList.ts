@@ -4,10 +4,10 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const resourceListSearchSchema = (lng: string): FormSchema => ({
-    formLayout: searchFormLayout('SearchResourceList', lng),
+export const resourceListSearchSchema = (): FormSchema => ({
+    formLayout: searchFormLayout('SearchResourceList'),
     containers: [], //TODO
     fields: [], //TODO
 })
 
-export const resourceListSearchParams = (lng: string) => toParams(resourceListSearchSchema(lng), resourceListFindMany, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc)
+export const resourceListSearchParams = () => toParams(resourceListSearchSchema(), resourceListFindMany, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc)

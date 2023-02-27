@@ -1,6 +1,6 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { Api, Comment, DeleteType, Node, NodeRoutineList, NodeRoutineListItem, Organization, Project, ProjectVersion, Quiz, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Session, SmartContract, Standard, User } from '@shared/consts';
+import { Comment, DeleteType, Node, NodeRoutineList, NodeRoutineListItem, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Session } from '@shared/consts';
 import { NavigableObject, RoutineStep } from 'types';
 import { ListObjectType, NodeLinkShape, NodeShape, SearchType, UseObjectActionsReturn } from 'utils';
 import { SvgComponent } from '@shared/icons';
@@ -12,10 +12,6 @@ export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (event: React.MouseEvent<HTMLElement>) => void;
     session: Session;
-}
-
-export interface AlertDialogProps {
-    session: Session | undefined;
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
@@ -38,7 +34,6 @@ export interface CommentDialogProps {
     language: string;
     onTranslationChange: (e: { target: { name: string; value: string; }; }) => void;
     parent: Comment | null;
-    session: Session;
     text: string;
     zIndex: number;
 }
@@ -177,7 +172,6 @@ export interface ShareSiteDialogProps extends DialogProps {
 export interface TranscriptDialogProps {
     handleClose: () => void;
     isListening: boolean;
-    lng: string;
     transcript: string;
 }
 

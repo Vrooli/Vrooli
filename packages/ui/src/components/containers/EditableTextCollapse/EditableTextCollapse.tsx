@@ -15,7 +15,6 @@ export function EditableTextCollapse({
     onOpenChange,
     propsTextField,
     propsMarkdownInput,
-    session,
     showOnNoText,
     title,
     text,
@@ -28,7 +27,6 @@ export function EditableTextCollapse({
             helpText={helpText}
             isOpen={isOpen}
             onOpenChange={onOpenChange}
-            session={session}
             title={title}
             sxs={{
                 root: { ...linkColors(palette) },

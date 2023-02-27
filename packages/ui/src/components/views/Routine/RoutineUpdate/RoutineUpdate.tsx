@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, Dialog, Grid, Stack, TextField, Typography } from "@mui/material"
-import { useMutation, useLazyQuery } from "api/hooks";
+import { useCustomMutation, useCustomLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
@@ -24,12 +24,11 @@ export const RoutineUpdate = ({
 }: RoutineUpdateProps) => {
     // Fetch existing data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(routineVersionFindOne, 'routineVersion', { errorPolicy: 'all' });
+    const [getData, { data: routineVersion, loading }] = useCustomLazyQuery<RoutineVersion, FindVersionInput>(routineVersionFindOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
     }, [getData, urlData])
-    const routineVersion = useMemo(() => data?.routineVersion, [data]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
@@ -71,7 +70,7 @@ export const RoutineUpdate = ({
     }, [routineVersion]);
 
     // Handle update
-    const [mutation] = useMutation<RoutineVersion, RoutineVersionUpdateInput, 'routineVersionUpdate'>(routineVersionUpdate, 'routineVersionUpdate');
+    const [mutation] = useCustomMutation<RoutineVersion, RoutineVersionUpdateInput>(routineVersionUpdate);
     const formik = useFormik({
         initialValues: {
             id: routineVersion?.id ?? DUMMY_ID,

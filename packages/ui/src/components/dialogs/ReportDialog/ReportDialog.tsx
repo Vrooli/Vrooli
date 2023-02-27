@@ -1,4 +1,4 @@
-import { useMutation } from 'api/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { reportCreateForm as validationSchema } from '@shared/validation';
 import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
@@ -45,7 +45,7 @@ export const ReportDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
-    const [mutation, { loading }] = useMutation<Report, ReportCreateInput, 'reportCreate'>(reportCreate, 'reportCreate');
+    const [mutation, { loading }] = useCustomMutation<Report, ReportCreateInput>(reportCreate);
     const formik = useFormik({
         initialValues: {
             createdFor: reportFor,
