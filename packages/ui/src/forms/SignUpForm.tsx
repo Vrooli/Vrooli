@@ -22,7 +22,7 @@ import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
-import { authEmailSignUp } from 'api/generated/endpoints/auth';
+import { authEmailSignUp } from 'api/generated/endpoints/auth_emailSignUp';
 
 export const SignUpForm = ({
     onFormChange = () => { },

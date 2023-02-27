@@ -1,5 +1,5 @@
 import { InputType, ProjectOrRoutineSortBy } from "@shared/consts";
-import { projectOrRoutineFindMany } from "api/generated/endpoints/projectOrRoutine";
+import { projectOrRoutineFindMany } from "api/generated/endpoints/projectOrRoutine_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { complexityContainer, complexityFields, searchFormLayout, simplicityContainer, simplicityFields, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields, languagesVersionContainer, languagesVersionFields, hasCompleteVersionContainer, hasCompleteVersionFields } from "./common";

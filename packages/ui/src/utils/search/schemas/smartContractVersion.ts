@@ -1,5 +1,5 @@
 import { SmartContractVersionSortBy } from "@shared/consts";
-import { smartContractVersionFindMany } from "api/generated/endpoints/smartContractVersion";
+import { smartContractVersionFindMany } from "api/generated/endpoints/smartContractVersion_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";

@@ -10,7 +10,8 @@ import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
 import { FindVersionInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
-import { projectVersionFindOne, projectVersionUpdate } from "api/generated/endpoints/projectVersion";
+import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
+import { projectVersionUpdate } from "api/generated/endpoints/projectVersion_update";
 
 export const ProjectUpdate = ({
     onCancel,

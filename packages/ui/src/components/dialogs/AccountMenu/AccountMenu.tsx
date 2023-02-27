@@ -26,9 +26,10 @@ import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 import { ContactInfo } from 'components/navigation';
 import { userValidation } from '@shared/validation';
-import { userProfileUpdate } from 'api/generated/endpoints/user';
-import { authLogOut, authSwitchCurrentAccount } from 'api/generated/endpoints/auth';
+import { userProfileUpdate } from 'api/generated/endpoints/user_profileUpdate';
 import { useTranslation } from 'react-i18next';
+import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCurrentAccount';
+import { authLogOut } from 'api/generated/endpoints/auth_logOut';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;

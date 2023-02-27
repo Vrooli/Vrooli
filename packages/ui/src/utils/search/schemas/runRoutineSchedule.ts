@@ -1,5 +1,5 @@
 import { RunRoutineScheduleSortBy } from "@shared/consts";
-import { runRoutineScheduleFindMany } from "api/generated/endpoints/runRoutineSchedule";
+import { runRoutineScheduleFindMany } from "api/generated/endpoints/runRoutineSchedule_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

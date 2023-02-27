@@ -14,7 +14,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
-import { standardVersionCreate } from "api/generated/endpoints/standardVersion";
+import { standardVersionCreate } from "api/generated/endpoints/standardVersion_create";
 import { parseSearchParams } from "@shared/route";
 
 export const StandardCreate = ({

@@ -6,8 +6,9 @@ import { PageTitle } from "components/text";
 import { ReportsViewPageProps } from "pages/view/types";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { Wrap } from "types";
-import { reportFindMany } from "api/generated/endpoints/report";
+import { reportFindMany } from "api/generated/endpoints/report_findMany";
 import { getLastUrlPart } from "@shared/route";
+import { useTranslation } from "react-i18next";
 
 /**
  * Maps object types to the correct id fields
@@ -26,12 +27,14 @@ export const ReportsView = ({
     session
 }: ReportsViewPageProps): JSX.Element => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+    
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
     const { data } = useQuery<Wrap<ReportSearchResult, 'reports'>, Wrap<ReportSearchInput, 'input'>>(
         reportFindMany,
-        { variables: { input: { [objectTypeToIdField[objectType]]: id } } },
+        { variables: { input: { [(objectTypeToIdField as any)[objectType]]: id } } },
     );
     const reports = useMemo<Report[]>(() => {
         if (!data) return []
@@ -54,10 +57,10 @@ export const ReportsView = ({
                     }}
                 >
                     <p style={{ margin: "0" }}>
-                        <b>Reason:</b> {report.reason}
+                        <b>{t('Reason')}:</b> {report.reason}
                     </p>
                     <p style={{ margin: "1rem 0 0 0" }}>
-                        <b>Details:</b>  {report.details}
+                        <b>{t('Details')}:</b>  {report.details}
                     </p>
                 </Box>
             })}

@@ -10,7 +10,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
-import { organizationFindOne, organizationUpdate } from "api/generated/endpoints/organization";
+import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
+import { organizationUpdate } from "api/generated/endpoints/organization_update";
 
 export const OrganizationUpdate = ({
     onCancel,

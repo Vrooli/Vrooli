@@ -1,5 +1,5 @@
 import { NoteSortBy } from "@shared/consts";
-import { noteFindMany } from "api/generated/endpoints/note";
+import { noteFindMany } from "api/generated/endpoints/note_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";

@@ -19,7 +19,7 @@ import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
-import { authValidateSession } from 'api/generated/endpoints/auth';
+import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
 import i18next from 'i18next';
 import { Routes } from 'Routes';
 

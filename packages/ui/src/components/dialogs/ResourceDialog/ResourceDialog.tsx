@@ -14,8 +14,9 @@ import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceLis
 import { mutationWrapper } from 'api/utils';
 import { useQuery } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
-import { resourceCreate, resourceUpdate } from 'api/generated/endpoints/resource';
-import { feedPopular } from 'api/generated/endpoints/feed';
+import { resourceCreate } from 'api/generated/endpoints/resource_create';
+import { resourceUpdate } from 'api/generated/endpoints/resource_update';
+import { feedPopular } from 'api/generated/endpoints/feed_popular';
 import { CommonKey } from '@shared/translations';
 
 const helpText =

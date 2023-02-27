@@ -1,5 +1,5 @@
 import { NoteVersionSortBy } from "@shared/consts";
-import { noteVersionFindMany } from "api/generated/endpoints/noteVersion";
+import { noteVersionFindMany } from "api/generated/endpoints/noteVersion_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";

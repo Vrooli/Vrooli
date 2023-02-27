@@ -19,35 +19,31 @@ for (const folder of [outputFolder, fragmentsFolder, endpointsFolder]) {
     }
 }
 
-// Step 2: Find data and write endoints to files
+// Step 2: Find data and write endpoints to files
 // Initialize fragments list to store all fragment definitions
 const allFragments: { [name: string]: string } = {};
 // Unlazy each endpoint property and write it to a separate file
 for (const objectType of Object.keys(endpoints)) {
-    const endpointGroup = await endpoints[objectType]();
-    const outputPath = `${outputFolder}/endpoints/${objectType}.ts`;
+    const endpointGroup = await (endpoints as any)[objectType]();
     console.log(`generating endpoints for ${objectType}...`);
-    let endpointString = '';
-    let currFragmentNames: string[] = [];
-    // For each endpoint in the group
     for (const endpointName of Object.keys(endpointGroup)) {
         // Get the endpoint data
         const { fragments, tag } = await endpointGroup[endpointName] as { fragments: [string, string][], tag: string };
-        // Add the fragments to the endpoint list and total fragment object
-        currFragmentNames.push(...fragments.map(f => f[0]));
+        // Add the fragments to the total fragment object
         for (const [name, fragment] of fragments) {
             allFragments[name] = fragment;
         }
-        endpointString += `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${tag}\`;\n\n`;
+        // Calculate imports, startig with the gql import
+        let importsString = `import gql from 'graphql-tag';`;
+        // Add import for each fragment
+        for (const [fragmentName] of fragments) {
+            importsString += `\nimport { ${fragmentName} } from '../fragments/${fragmentName}';`;
+        }
+        // Write imports and endpoint to file
+        const endpointString = `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${tag}\`;\n\n`;
+        const outputPath = `${outputFolder}/endpoints/${objectType}_${endpointName}.ts`;
+        fs.writeFileSync(outputPath, `${importsString}\n\n${endpointString}`);
     }
-    // Calculate imports, startig with the gql import
-    let importsString = `import gql from 'graphql-tag';`;
-    // Add import for each fragment
-    for (const fragmentName of new Set(currFragmentNames)) {
-        importsString += `\nimport { ${fragmentName} } from '../fragments/${fragmentName}';`;
-    }
-    // Write imports and endpoints to file
-    fs.writeFileSync(outputPath, `${importsString}\n\n${endpointString}`);
 }
 
 // Step 3: Write fragments to files

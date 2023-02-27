@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { Organization, OrganizationCreateInput, ResourceList } from "@shared/consts";
-import { organizationCreate } from "api/generated/endpoints/organization";
+import { organizationCreate } from "api/generated/endpoints/organization_create";
 import { parseSearchParams } from "@shared/route";
 
 export const OrganizationCreate = ({

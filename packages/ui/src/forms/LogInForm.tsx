@@ -19,7 +19,7 @@ import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
 import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
 import { emailLogInFormValidation } from '@shared/validation';
-import { authEmailLogIn } from 'api/generated/endpoints/auth';
+import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
 
 export const LogInForm = ({
     onFormChange = () => { }

@@ -1,5 +1,5 @@
 import { QuestionSortBy } from "@shared/consts";
-import { questionFindMany } from "api/generated/endpoints/question";
+import { questionFindMany } from "api/generated/endpoints/question_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

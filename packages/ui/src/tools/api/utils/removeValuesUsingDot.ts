@@ -5,9 +5,9 @@ import { exists } from "@shared/utils";
  * NOTE 1: Supports lazy values, but removes the lazy part
  * NOTE 2: Modifies the original object
  */
-export const removeValuesUsingDot = async (obj, ...keys) => {
+export const removeValuesUsingDot = async (obj: Record<string | number | symbol, any>, ...keys: (string | number | symbol)[]) => {
     keys.forEach(async key => {
-        const keyArr = key.split('.'); // split the key into an array of keys
+        const keyArr = typeof key === 'string' ? key.split('.') : [key]; // split the key into an array of keys
         // loop through the keys, checking if each level is lazy-loaded
         let currentObject = obj;
         let currentKey;

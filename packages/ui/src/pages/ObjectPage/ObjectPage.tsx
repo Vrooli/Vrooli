@@ -3,8 +3,7 @@ import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { parseSearchParams, useLocation } from '@shared/route';
 import { Api, APP_LINKS, GqlModelType, Note, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, User } from "@shared/consts";
-import { lazily } from "react-lazily";
-import { ObjectType, PubSub, uuidToBase36 } from "utils";
+import { PubSub, uuidToBase36 } from "utils";
 import { PageContainer, ReportsView } from "components";
 import { useTranslation } from "react-i18next";
 

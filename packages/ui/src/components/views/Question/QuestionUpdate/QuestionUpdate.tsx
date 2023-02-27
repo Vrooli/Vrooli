@@ -9,7 +9,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSe
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Question, QuestionUpdateInput, ResourceList } from "@shared/consts";
-import { questionFindOne, questionUpdate } from "api/generated/endpoints/question";
+import { questionFindOne } from "api/generated/endpoints/question_findOne";
+import { questionUpdate } from "api/generated/endpoints/question_update";
 
 export const QuestionUpdate = ({
     onCancel,

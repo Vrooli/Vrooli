@@ -1,8 +1,9 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, DeleteOneInput, Success } from "@shared/consts";
 import { exists } from "@shared/utils";
 import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
-import { bookmarkCreate, bookmarkFindMany } from "api/generated/endpoints/bookmark";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany";
+import { bookmarkCreate } from "api/generated/endpoints/bookmark_create";
+import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions";
 import { PubSub } from "utils/pubsub";

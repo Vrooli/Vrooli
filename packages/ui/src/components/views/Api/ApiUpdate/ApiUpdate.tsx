@@ -10,7 +10,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, ApiVersion, ApiVersionUpdateInput, ResourceList } from "@shared/consts";
-import { apiVersionFindOne, apiVersionUpdate } from "api/generated/endpoints/apiVersion";
+import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
+import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
 
 export const ApiUpdate = ({
     onCancel,

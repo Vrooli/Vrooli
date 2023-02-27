@@ -1,5 +1,5 @@
 import { RunProjectSortBy } from "@shared/consts";
-import { runProjectFindMany } from "api/generated/endpoints/runProject";
+import { runProjectFindMany } from "api/generated/endpoints/runProject_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

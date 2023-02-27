@@ -9,7 +9,7 @@ import { Wrap } from 'types';
 import { APP_LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useQuery } from '@apollo/client';
-import { notificationFindMany } from 'api/generated/endpoints/notification';
+import { notificationFindMany } from 'api/generated/endpoints/notification_findMany';
 
 export const NotificationsPage = ({
     session

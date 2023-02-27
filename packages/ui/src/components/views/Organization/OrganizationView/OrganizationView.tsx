@@ -10,7 +10,7 @@ import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { organizationFindOne } from "api/generated/endpoints/organization";
+import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { useTranslation } from "react-i18next";
 import { PageTab } from "components/types";
 

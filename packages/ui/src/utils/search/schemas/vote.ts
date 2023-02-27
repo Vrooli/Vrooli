@@ -1,5 +1,5 @@
 import { VoteSortBy } from "@shared/consts";
-import { voteFindMany } from "api/generated/endpoints/vote";
+import { voteFindMany } from "api/generated/endpoints/vote_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

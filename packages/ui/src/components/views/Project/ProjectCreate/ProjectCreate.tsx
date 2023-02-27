@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
-import { projectVersionCreate } from "api/generated/endpoints/projectVersion";
+import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { parseSearchParams } from "@shared/route";
 
 export const ProjectCreate = ({

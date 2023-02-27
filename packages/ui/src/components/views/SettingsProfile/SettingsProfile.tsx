@@ -15,8 +15,8 @@ import { DUMMY_ID, uuid } from '@shared/uuid';
 import { PageTitle } from "components";
 import { SettingsFormData } from "pages";
 import { userTranslationValidation, userValidation } from "@shared/validation";
-import { walletFindHandles } from "api/generated/endpoints/wallet";
-import { userProfileUpdate } from "api/generated/endpoints/user";
+import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
+import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 
 export const SettingsProfile = ({
     onUpdated,

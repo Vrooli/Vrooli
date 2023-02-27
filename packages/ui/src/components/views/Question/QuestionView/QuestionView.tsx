@@ -7,7 +7,7 @@ import { QuestionViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { questionFindOne } from "api/generated/endpoints/question";
+import { questionFindOne } from "api/generated/endpoints/question_findOne";
 
 export const QuestionView = ({
     partialData,

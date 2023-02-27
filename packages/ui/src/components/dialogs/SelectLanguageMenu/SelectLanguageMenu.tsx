@@ -8,7 +8,7 @@ import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageI
 import { useCustomLazyQuery } from 'api/hooks';
 import { queryWrapper } from 'api/utils';
 import { Translate, TranslateInput } from '@shared/consts';
-import { translateTranslate } from 'api/generated/endpoints/translate';
+import { translateTranslate } from 'api/generated/endpoints/translate_translate';
 
 /**
  * Languages which support auto-translations through LibreTranslate. 

@@ -15,7 +15,7 @@ import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { DeleteIcon } from '@shared/icons';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 export const DeleteDialog = ({
     handleClose,

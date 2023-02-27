@@ -1,5 +1,5 @@
 import { RoleSortBy } from "@shared/consts";
-import { roleFindMany } from "api/generated/endpoints/role";
+import { roleFindMany } from "api/generated/endpoints/role_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

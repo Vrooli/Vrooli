@@ -1,5 +1,5 @@
 import { StatsUserSortBy } from "@shared/consts";
-import { statsUserFindMany } from "api/generated/endpoints/statsUser";
+import { statsUserFindMany } from "api/generated/endpoints/statsUser_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

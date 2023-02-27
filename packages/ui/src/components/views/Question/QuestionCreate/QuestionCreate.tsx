@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { Question, QuestionCreateInput, ResourceList } from "@shared/consts";
-import { questionCreate } from "api/generated/endpoints/question";
+import { questionCreate } from "api/generated/endpoints/question_create";
 import { parseSearchParams } from "@shared/route";
 
 export const QuestionCreate = ({

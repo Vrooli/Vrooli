@@ -12,7 +12,7 @@ import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { Comment, CommentCreateInput as CommentCreateInputType } from "@shared/consts";
-import { commentCreate } from "api/generated/endpoints/comment";
+import { commentCreate } from "api/generated/endpoints/comment_create";
 import { useTranslation } from "react-i18next";
 
 /**

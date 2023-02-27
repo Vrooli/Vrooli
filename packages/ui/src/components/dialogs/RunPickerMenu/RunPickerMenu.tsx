@@ -12,9 +12,9 @@ import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject,
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
-import { runProjectCreate } from "api/generated/endpoints/runProject";
-import { runRoutineCreate } from "api/generated/endpoints/runRoutine";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany";
+import { runProjectCreate } from "api/generated/endpoints/runProject_create";
+import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { parseSearchParams } from "@shared/route";
 
 const titleAria = 'run-picker-dialog-title';

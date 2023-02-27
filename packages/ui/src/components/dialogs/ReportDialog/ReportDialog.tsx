@@ -10,7 +10,7 @@ import { DialogTitle, GridSubmitButtons, Selector } from 'components';
 import { uuid } from '@shared/uuid';
 import { Report, ReportCreateInput } from '@shared/consts';
 import { mutationWrapper } from 'api/utils';
-import { reportCreate } from 'api/generated/endpoints/report';
+import { reportCreate } from 'api/generated/endpoints/report_create';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators.\n\nIn the future, we would like to implement a community governance system.`

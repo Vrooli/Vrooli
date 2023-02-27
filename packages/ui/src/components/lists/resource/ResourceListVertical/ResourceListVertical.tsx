@@ -9,7 +9,7 @@ import { mutationWrapper } from 'api/utils';
 import { updateArray } from 'utils';
 import { AddIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',

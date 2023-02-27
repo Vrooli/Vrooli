@@ -11,6 +11,7 @@
         "skipLibCheck": true,
         "esModuleInterop": false,
         "allowSyntheticDefaultImports": true,
+        "suppressImplicitAnyIndexErrors": true,
         "strict": true,
         "forceConsistentCasingInFileNames": true,
         "module": "ESNext",

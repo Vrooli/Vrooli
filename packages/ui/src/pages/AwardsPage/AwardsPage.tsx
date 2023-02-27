@@ -2,7 +2,7 @@ import { useQuery } from "@apollo/client";
 import { Box } from "@mui/material";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
 import { AwardKey } from "@shared/translations";
-import { awardFindMany } from "api/generated/endpoints/award";
+import { awardFindMany } from "api/generated/endpoints/award_findMany";
 import { AwardCard, AwardList, CardGrid, ContentCollapse, PageContainer, PageTitle } from "components";
 import { AwardsPageProps } from "pages/types";
 import { useEffect, useMemo, useState } from "react";

@@ -17,7 +17,7 @@ import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { CSSProperties } from '@mui/styles';
-import { authEmailRequestPasswordChange } from 'api/generated/endpoints/auth';
+import { authEmailRequestPasswordChange } from 'api/generated/endpoints/auth_emailRequestPasswordChange';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }

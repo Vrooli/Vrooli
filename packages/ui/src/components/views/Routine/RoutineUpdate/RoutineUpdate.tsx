@@ -12,7 +12,8 @@ import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
 import { RoutineIcon } from "@shared/icons";
 import { FindVersionInput, Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionUpdateInput } from "@shared/consts";
-import { routineVersionFindOne, routineVersionUpdate } from "api/generated/endpoints/routineVersion";
+import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
+import { routineVersionUpdate } from "api/generated/endpoints/routineVersion_update";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 

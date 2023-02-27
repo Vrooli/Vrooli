@@ -8,7 +8,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { ResourceListVertical } from "components/lists";
 import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { apiVersionFindOne } from "api/generated/endpoints/apiVersion";
+import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 
 export const ApiView = ({
     partialData,

@@ -6,7 +6,7 @@ import { ObjectActionMenu } from "components";
 import { ReminderViewProps } from "../types";
 import { placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { EllipsisIcon, HelpIcon } from "@shared/icons";
-import { reminderFindOne } from "api/generated/endpoints/reminder";
+import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 
 export const ReminderView = ({
     partialData,

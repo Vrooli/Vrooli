@@ -6,7 +6,7 @@ import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from 
 import { BookmarkButton } from 'components';
 import { PubSub, TagShape } from 'utils';
 import { Wrap } from 'types';
-import { tagFindMany } from 'api/generated/endpoints/tag';
+import { tagFindMany } from 'api/generated/endpoints/tag_findMany';
 
 export const TagSelector = ({
     disabled,

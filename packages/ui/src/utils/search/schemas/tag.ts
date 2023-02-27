@@ -1,5 +1,5 @@
 import { TagSortBy } from "@shared/consts";
-import { tagFindMany } from "api/generated/endpoints/tag";
+import { tagFindMany } from "api/generated/endpoints/tag_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

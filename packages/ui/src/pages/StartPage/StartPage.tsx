@@ -30,7 +30,8 @@ import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'api/utils';
 import { getCurrentUser } from 'utils/authentication';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
-import { authEmailLogIn, authGuestLogIn } from 'api/generated/endpoints/auth';
+import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
+import { authGuestLogIn } from 'api/generated/endpoints/auth_guestLogIn';
 import { useTranslation } from 'react-i18next';
 
 const helpText =

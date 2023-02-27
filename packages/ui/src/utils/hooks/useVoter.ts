@@ -1,7 +1,7 @@
 import { Success, VoteFor, VoteInput } from "@shared/consts";
 import { exists } from "@shared/utils";
 import { mutationWrapper, useCustomMutation } from "api";
-import { voteVote } from "api/generated/endpoints/vote";
+import { voteVote } from "api/generated/endpoints/vote_vote";
 import { useCallback } from "react";
 import { ObjectActionComplete } from "utils/actions";
 import { PubSub } from "utils/pubsub";

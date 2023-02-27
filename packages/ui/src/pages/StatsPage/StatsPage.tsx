@@ -6,7 +6,7 @@ import { displayDate, statsDisplay } from 'utils';
 import { StatsPageProps } from 'pages/types';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useCustomLazyQuery } from 'api';
-import { statsSiteFindMany } from 'api/generated/endpoints/statsSite';
+import { statsSiteFindMany } from 'api/generated/endpoints/statsSite_findMany';
 import { PageTab } from 'components/types';
 
 /**

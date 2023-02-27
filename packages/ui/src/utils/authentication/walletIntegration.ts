@@ -5,7 +5,8 @@
 import { WalletComplete } from '@shared/consts';
 import { errorToCode, initializeApollo } from 'api/utils';
 import { PubSub } from 'utils';
-import { authWalletComplete, authWalletInit } from 'api/generated/endpoints/auth';
+import { authWalletComplete } from 'api/generated/endpoints/auth_walletComplete';
+import { authWalletInit } from 'api/generated/endpoints/auth_walletInit';
 import { ApolloError } from '@apollo/client';
 
 /**

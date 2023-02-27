@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ApiVersion, ApiVersionCreateInput, ResourceList } from "@shared/consts";
-import { apiVersionCreate } from "api/generated/endpoints/apiVersion";
+import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { parseSearchParams } from "@shared/route";
 
 export const ApiCreate = ({

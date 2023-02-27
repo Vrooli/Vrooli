@@ -10,7 +10,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, SmartContractVersion, SmartContractVersionUpdateInput, ResourceList } from "@shared/consts";
-import { smartContractVersionFindOne, smartContractVersionUpdate } from "api/generated/endpoints/smartContractVersion";
+import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
+import { smartContractVersionUpdate } from "api/generated/endpoints/smartContractVersion_update";
 
 export const SmartContractUpdate = ({
     onCancel,

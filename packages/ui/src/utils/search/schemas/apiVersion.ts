@@ -1,5 +1,5 @@
 import { ApiVersionSortBy } from "@shared/consts";
-import { apiVersionFindMany } from "api/generated/endpoints/apiVersion";
+import { apiVersionFindMany } from "api/generated/endpoints/apiVersion_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { isCompleteWithRootContainer, isCompleteWithRootFields, votesRootContainer, votesRootFields, bookmarksRootContainer, bookmarksRootFields, languagesContainer, languagesFields, tagsRootContainer, tagsRootFields, searchFormLayout, isLatestContainer, isLatestFields } from "./common";

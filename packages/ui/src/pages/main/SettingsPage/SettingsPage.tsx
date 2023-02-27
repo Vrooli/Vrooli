@@ -14,7 +14,7 @@ import { PageContainer, SettingsSearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
 import { useTranslation } from 'react-i18next';
-import { userProfile } from 'api/generated/endpoints/user';
+import { userProfile } from 'api/generated/endpoints/user_profile';
 import { CommonKey } from '@shared/translations';
 
 /**

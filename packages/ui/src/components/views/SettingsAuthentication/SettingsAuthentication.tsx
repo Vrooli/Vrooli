@@ -14,8 +14,8 @@ import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { SettingsFormData } from "pages";
 import { userValidation } from "@shared/validation";
-import { authLogOut } from "api/generated/endpoints/auth";
-import { userProfileEmailUpdate } from "api/generated/endpoints/user";
+import { authLogOut } from "api/generated/endpoints/auth_logOut";
+import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
 
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, the wallet's reward address will be displayed.\n\nYou may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`

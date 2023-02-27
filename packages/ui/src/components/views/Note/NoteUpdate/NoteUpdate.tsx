@@ -10,7 +10,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSe
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, NoteVersion, NoteVersionUpdateInput, ResourceList } from "@shared/consts";
-import { noteVersionFindOne, noteVersionUpdate } from "api/generated/endpoints/noteVersion";
+import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
+import { noteVersionUpdate } from "api/generated/endpoints/noteVersion_update";
 
 export const NoteUpdate = ({
     onCancel,

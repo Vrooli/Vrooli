@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
-import { noteVersionCreate } from "api/generated/endpoints/noteVersion";
+import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { parseSearchParams } from "@shared/route";
 
 export const NoteCreate = ({

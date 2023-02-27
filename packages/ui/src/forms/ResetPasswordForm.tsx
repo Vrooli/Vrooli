@@ -13,7 +13,7 @@ import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
 import { PasswordTextField } from 'components';
 import { PubSub } from 'utils';
-import { authEmailResetPassword } from 'api/generated/endpoints/auth';
+import { authEmailResetPassword } from 'api/generated/endpoints/auth_emailResetPassword';
 
 export const ResetPasswordForm = ({
     userId,

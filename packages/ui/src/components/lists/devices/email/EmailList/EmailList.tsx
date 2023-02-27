@@ -13,8 +13,9 @@ import { AddIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success } from '@shared/consts';
 import { emailValidation } from '@shared/validation';
-import { emailCreate, emailVerify } from 'api/generated/endpoints/email';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
+import { emailCreate } from 'api/generated/endpoints/email_create';
+import { emailVerify } from 'api/generated/endpoints/email_verify';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 export const EmailList = ({
     handleUpdate,

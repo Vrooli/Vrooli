@@ -1,5 +1,5 @@
 import { IssueSortBy } from "@shared/consts";
-import { issueFindMany } from "api/generated/endpoints/issue";
+import { issueFindMany } from "api/generated/endpoints/issue_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, votesContainer, votesFields } from "./common";

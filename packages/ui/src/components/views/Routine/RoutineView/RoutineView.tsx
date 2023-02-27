@@ -16,8 +16,8 @@ import { getCurrentUser } from "utils/authentication";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { RelationshipsObject } from "components/inputs/types";
 import { setDotNotationValue } from "@shared/utils";
-import { runRoutineComplete } from "api/generated/endpoints/runRoutine";
-import { routineVersionFindOne } from "api/generated/endpoints/routineVersion";
+import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
+import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { useTranslation } from "react-i18next";
 
 const statsHelpText =

@@ -13,8 +13,9 @@ import { AddIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from '@shared/consts';
 import { pushDeviceValidation } from '@shared/validation';
-import { pushDeviceCreate, pushDeviceUpdate } from 'api/generated/endpoints/pushDevice';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
+import { pushDeviceCreate } from 'api/generated/endpoints/pushDevice_create';
+import { pushDeviceUpdate } from 'api/generated/endpoints/pushDevice_update';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 //TODO copied from emaillist. need to rewrite
 export const PushList = ({

@@ -1,5 +1,5 @@
 import { StatsOrganizationSortBy } from "@shared/consts";
-import { statsOrganizationFindMany } from "api/generated/endpoints/statsOrganization";
+import { statsOrganizationFindMany } from "api/generated/endpoints/statsOrganization_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

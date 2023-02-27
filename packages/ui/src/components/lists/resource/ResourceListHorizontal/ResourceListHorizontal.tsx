@@ -11,7 +11,7 @@ import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { AddIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany';
+import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',

@@ -12,7 +12,7 @@ import { PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
-import { standardVersionFindOne } from "api/generated/endpoints/standardVersion";
+import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { GeneratedInputComponent } from "components/inputs/generated";
 
 const containerProps = (palette: Palette) => ({

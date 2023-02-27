@@ -9,7 +9,7 @@ const { merge } = pkg;
 /**
  * Adds a relation to an GraphQL selection set, while optionally omitting one or more fields.
  * @param partial The GqlPartial object containing the selection set
- * @param selection Which selection from GqlPartial to use
+ * @param selectionType Which selection from GqlPartial to use
  * @param exceptions Exceptions object containing fields to omit. Supports dot notation.
  */
 export const rel = async <

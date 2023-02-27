@@ -13,7 +13,7 @@ import { ReportButton, BookmarkButton, VoteButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 export function CommentThreadItem({
     data,

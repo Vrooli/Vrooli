@@ -7,7 +7,7 @@ import { SmartContractViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion";
+import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 
 export const SmartContractView = ({
     partialData,

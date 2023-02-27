@@ -1,5 +1,5 @@
 import { TransferSortBy } from "@shared/consts";
-import { transferFindMany } from "api/generated/endpoints/transfer";
+import { transferFindMany } from "api/generated/endpoints/transfer_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

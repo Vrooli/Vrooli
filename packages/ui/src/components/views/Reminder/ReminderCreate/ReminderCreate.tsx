@@ -10,7 +10,7 @@ import { GridSubmitButtons, PageTitle } from "components";
 import { uuid } from '@shared/uuid';
 import { getCurrentUser } from "utils/authentication";
 import { Reminder, ReminderCreateInput } from "@shared/consts";
-import { reminderCreate } from "api/generated/endpoints/reminder";
+import { reminderCreate } from "api/generated/endpoints/reminder_create";
 
 export const ReminderCreate = ({
     onCreated,

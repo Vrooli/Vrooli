@@ -8,7 +8,7 @@ import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
+import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
 import { useTranslation } from "react-i18next";
 import { PageTab } from "components/types";
 

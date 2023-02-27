@@ -14,7 +14,7 @@ import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
 import { useTranslation } from 'react-i18next';
-import { feedPopular } from 'api/generated/endpoints/feed';
+import { feedPopular } from 'api/generated/endpoints/feed_popular';
 
 /**
  * Strips URL for comparison against the current URL.

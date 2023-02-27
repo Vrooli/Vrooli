@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { SmartContractVersion, SmartContractVersionCreateInput, ResourceList } from "@shared/consts";
-import { smartContractVersionCreate } from "api/generated/endpoints/smartContractVersion";
+import { smartContractVersionCreate } from "api/generated/endpoints/smartContractVersion_create";
 import { parseSearchParams } from "@shared/route";
 
 export const SmartContractCreate = ({

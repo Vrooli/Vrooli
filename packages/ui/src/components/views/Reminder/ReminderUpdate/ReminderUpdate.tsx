@@ -8,7 +8,8 @@ import { parseSingleItemUrl, PubSub, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, PageTitle } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { FindByIdInput, Reminder, ReminderUpdateInput } from "@shared/consts";
-import { reminderFindOne, reminderUpdate } from "api/generated/endpoints/reminder";
+import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
+import { reminderUpdate } from "api/generated/endpoints/reminder_update";
 
 export const ReminderUpdate = ({
     onCancel,

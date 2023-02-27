@@ -8,7 +8,7 @@ import { HistoryPageProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
-import { historyHistory } from 'api/generated/endpoints/history';
+import { historyHistory } from 'api/generated/endpoints/history_history';
 import { useTranslation } from 'react-i18next';
 import { PageTab } from 'components/types';
 

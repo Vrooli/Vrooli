@@ -12,8 +12,8 @@ import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
-import { walletUpdate } from 'api/generated/endpoints/wallet';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
+import { walletUpdate } from 'api/generated/endpoints/wallet_update';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 export const WalletList = ({
     handleUpdate,

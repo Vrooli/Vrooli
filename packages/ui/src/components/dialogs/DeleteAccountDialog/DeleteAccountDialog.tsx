@@ -21,7 +21,7 @@ import { getCurrentUser } from 'utils/authentication';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
-import { userDeleteOne } from 'api/generated/endpoints/user';
+import { userDeleteOne } from 'api/generated/endpoints/user_deleteOne';
 
 const titleAria = 'delete-object-dialog-title';
 

@@ -13,7 +13,7 @@ import { getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
 import { Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
 import { mutationWrapper } from "api/utils";
-import { routineVersionCreate } from "api/generated/endpoints/routineVersion";
+import { routineVersionCreate } from "api/generated/endpoints/routineVersion_create";
 import { parseSearchParams } from "@shared/route";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`

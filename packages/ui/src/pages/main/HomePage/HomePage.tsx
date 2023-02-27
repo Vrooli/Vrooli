@@ -11,7 +11,7 @@ import { AutocompleteOption, NavigableObject, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
-import { feedHome } from 'api/generated/endpoints/feed';
+import { feedHome } from 'api/generated/endpoints/feed_home';
 import { PageTab } from 'components/types';
 import { useTranslation } from 'react-i18next';
 

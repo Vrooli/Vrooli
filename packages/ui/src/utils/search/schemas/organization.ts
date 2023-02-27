@@ -1,5 +1,5 @@
 import { OrganizationSortBy } from "@shared/consts";
-import { organizationFindMany } from "api/generated/endpoints/organization";
+import { organizationFindMany } from "api/generated/endpoints/organization_findMany";
 import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, yesNoDontCare } from "./common";

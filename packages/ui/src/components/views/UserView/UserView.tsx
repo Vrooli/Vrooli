@@ -10,7 +10,7 @@ import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
-import { userFindOne } from "api/generated/endpoints/user";
+import { userFindOne } from "api/generated/endpoints/user_findOne";
 import { useTranslation } from "react-i18next";
 import { PageTab } from "components/types";
 

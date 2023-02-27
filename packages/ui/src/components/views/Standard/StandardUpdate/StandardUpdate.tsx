@@ -10,7 +10,8 @@ import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
 import { standardVersionValidation } from "@shared/validation";
-import { standardVersionFindOne, standardVersionUpdate } from "api/generated/endpoints/standardVersion";
+import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
+import { standardVersionUpdate } from "api/generated/endpoints/standardVersion_update";
 
 export const StandardUpdate = ({
     onCancel,
