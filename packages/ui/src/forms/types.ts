@@ -20,10 +20,6 @@ export interface FormProps extends Partial<CommonProps> {
 export interface LogInFormProps extends FormProps {
 }
 
-export interface ResetPasswordFormProps extends FormProps {
-    userId?: string;
-    code?: string;
-}
 //==============================================================
 /* #endregion Specific Form Props */
 //==============================================================

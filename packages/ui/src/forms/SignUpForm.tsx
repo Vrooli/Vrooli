@@ -165,7 +165,7 @@ export const SignUpForm = ({
                     color="secondary"
                     sx={{ ...formSubmit }}
                 >
-                    Sign Up
+                    {t('Sign Up')}
                 </Button>
                 <Grid container spacing={2}>
                     <Grid item xs={6}>
@@ -176,7 +176,7 @@ export const SignUpForm = ({
                                     ...formNavLink,
                                 } as CSSProperties}
                             >
-                                Already have an account? Log in
+                                {t('AlreadyHaveAccountLogIn')}
                             </Typography>
                         </Link>
                     </Grid>
@@ -189,7 +189,7 @@ export const SignUpForm = ({
                                     flexDirection: 'row-reverse',
                                 } as CSSProperties}
                             >
-                                Forgot Password?
+                                {t('ForgotPassword')}
                             </Typography>
                         </Link>
                     </Grid>

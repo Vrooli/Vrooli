@@ -1,15 +1,18 @@
 import { useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from '@shared/route';
+import { Route, RouteProps, Switch } from '@shared/route';
 import { APP_LINKS as LINKS, BUSINESS_NAME } from '@shared/consts';
 import {
     ForgotPasswordForm,
     ResetPasswordForm
 } from 'forms';
-import { ScrollToTop } from 'components';
+import { Navbar, ScrollToTop } from 'components';
 import { CommonProps } from 'types';
 import { Page } from './components/Page/Page';
 import { Box, CircularProgress } from '@mui/material';
+import { guestSession } from 'utils/authentication';
+import { PageProps } from 'views/wrapper/types';
+import { NavbarProps } from 'components/navigation/types';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
@@ -40,6 +43,9 @@ const { SmartContractCreate, SmartContractUpdate, SmartContractView } = lazily((
 const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('./views/objects/standard'));
 const { UserView } = lazily(() => import('./views/objects/user'));
 
+/**
+ * Loading spinner displayed when route is being loaded.
+ */
 const Fallback = <Box sx={{
     position: 'absolute',
     top: '50%',
@@ -50,6 +56,25 @@ const Fallback = <Box sx={{
     <CircularProgress size={100} />
 </Box>
 
+/**
+ * Wrapper to define Navbar within each route. This allows us to 
+ * customize the Navbar for each route, without it flashing on
+ * the screen before the route is loaded.
+ */
+//TODO once this is verified to work (including sitemap generation), pass in ViewUI instead of normal children
+const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
+    return (
+        <Route {...props}>
+            <>
+                <Navbar session={props.session ?? guestSession} sessionChecked={props.session !== undefined} />
+                <Page {...props}>
+                    {props.children}
+                </Page>
+            </>
+        </Route>
+    )
+}
+
 export const Routes = (props: CommonProps) => {
     // Tab title for static (non-dynamic) pages (e.g. Home, Search, Create, Notifications).
     const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
@@ -58,302 +83,225 @@ export const Routes = (props: CommonProps) => {
         <>
             <ScrollToTop />
             <Switch fallback={Fallback}>
-                <Route path={`${LINKS.Api}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ApiCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Api}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ApiUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Api}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ApiView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
+                    <ApiCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Api}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <ApiUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Api}/:id`} {...props}>
+                    <ApiView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Awards}
                     sitemapIndex
                     priority={0.5}
                     changeFreq="weekly"
+                    {...props}
                 >
-                    <Page title={title('Awards🏆')} {...props}>
-                        <AwardsView {...props} />
-                    </Page>
-                </Route>
-                <Route path={LINKS.Calendar} sitemapIndex={false}>
-                    <Page title={title('Calendar')} {...props}>
-                        <CalendarView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <AwardsView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.Calendar} {...props}>
+                    <CalendarView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Create}
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
+                    mustBeLoggedIn={true}
+                    {...props}
                 >
-                    <Page {...props}>
-                        <CreateView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <CreateView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={`${LINKS.ForgotPassword}/:code?`}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    {...props}
                 >
-                    <Page title={title('Forgot Password')} {...props}>
-                        <FormView title="Forgot Password" maxWidth="700px">
-                            <ForgotPasswordForm />
-                        </FormView>
-                    </Page>
-                </Route>
-                <Route path={LINKS.History} sitemapIndex={false}>
-                    <Page title={title('History')} mustBeLoggedIn={true} {...props}>
-                        <HistoryView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.HistorySearch}/:params*`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <HistorySearchView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <FormView title="Forgot Password" maxWidth="700px">
+                        <ForgotPasswordForm />
+                    </FormView>
+                </NavRoute>
+                <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
+                    <HistoryView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.HistorySearch}/:params*`} mustBeLoggedIn={true} {...props}>
+                    <HistorySearchView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Home}
                     sitemapIndex
                     priority={1.0}
                     changeFreq="weekly"
+                    {...props}
                 >
-                    <Page title={title('Home')} {...props}>
-                        <HomeView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Note}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <NoteCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Note}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <NoteUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Note}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <NoteView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <HomeView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
+                    <NoteCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Note}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <NoteUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Note}/:id`} {...props}>
+                    <NoteView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Notifications}
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
+                    mustBeLoggedIn={true}
+                    {...props}
                 >
-                    <Page {...props}>
-                        <NotificationsView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Organization}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <OrganizationCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Organization}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <OrganizationUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Organization}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <OrganizationView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <NotificationsView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Organization}/add`} mustBeLoggedIn={true} {...props}>
+                    <OrganizationCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Organization}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <OrganizationUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Organization}/:id`} {...props}>
+                    <OrganizationView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Premium}
                     sitemapIndex
                     priority={0.5}
                     changeFreq="weekly"
+                    {...props}
                 >
-                    <Page title={title('Premium😎')} {...props}>
-                        <PremiumView {...props} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Profile}/:id?`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <UserView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Project}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ProjectCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Project}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ProjectUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Project}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ProjectView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Question}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <QuestionCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Question}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <QuestionUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Question}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <QuestionView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Reminder}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ReminderCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Reminder}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ReminderUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Reminder}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <ReminderView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
-                    path={`${LINKS.ResetPassword}/:userId?/:code?`}
+                    <PremiumView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Profile}/:id?`} {...props}>
+                    <UserView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
+                    <ProjectCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Project}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <ProjectUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Project}/:id`} {...props}>
+                    <ProjectView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
+                    <QuestionCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Question}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <QuestionUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Question}/:id`} {...props}>
+                    <QuestionView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
+                    <ReminderCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <ReminderUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
+                    <ReminderView session={props.session} />
+                </NavRoute>
+                <NavRoute
+                    path={`${LINKS.ResetPassword}/:params*`}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    {...props}
                 >
-                    {(params: any) => (
-                        <Page title={title('Reset Password')} {...props}>
-                            <FormView title="Reset Password" maxWidth="700px">
-                                <ResetPasswordForm userId={params.userId} code={params.code} />
-                            </FormView>
-                        </Page>
-                    )}
-                </Route>
-                <Route path={`${LINKS.Routine}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <RoutineCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Routine}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <RoutineUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Routine}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <RoutineView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <FormView title="Reset Password" maxWidth="700px">
+                        <ResetPasswordForm />
+                    </FormView>
+                </NavRoute>
+                <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
+                    <RoutineCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Routine}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <RoutineUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Routine}/:id`} {...props}>
+                    <RoutineView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={`${LINKS.Search}/:params*`}
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
+                    {...props}
                 >
-                    <Page {...props}>
-                        <SearchView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={LINKS.Settings} sitemapIndex={false}>
-                    <Page title={title('Settings⚙️')} {...props} mustBeLoggedIn={true} >
-                        <SettingsView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.SmartContract}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <SmartContractCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.SmartContract}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <SmartContractUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.SmartContract}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <SmartContractView session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Standard}/add`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <StandardCreate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Standard}/edit/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <StandardUpdate session={props.session} />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Standard}/:id`} sitemapIndex={false}>
-                    <Page {...props}>
-                        <StandardView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <SearchView session={props.session} />
+                </NavRoute>
+                <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
+                    <SettingsView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
+                    <SmartContractCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <SmartContractUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/:id`} {...props}>
+                    <SmartContractView session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
+                    <StandardCreate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Standard}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <StandardUpdate session={props.session} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Standard}/:id`} {...props}>
+                    <StandardView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Start}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    {...props}
                 >
-                    <Page title={title('Start')} {...props}>
-                        <StartView session={props.session} />
-                    </Page>
-                </Route>
-                <Route
+                    <StartView session={props.session} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Stats}
                     sitemapIndex
                     priority={0.5}
                     changeFreq="weekly"
+                    {...props}
                 >
-                    <Page title={title('Stats📊')} {...props}>
-                        <StatsView {...props} />
-                    </Page>
-                </Route>
-                <Route
+                    <StatsView {...props} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Tutorial}
                     sitemapIndex
                     priority={0.5}
                     changeFreq="monthly"
+                    {...props}
                 >
-                    <Page title={title('Tutorial🤔')} {...props}>
-                        <TutorialView />
-                    </Page>
-                </Route>
-                <Route
+                    <TutorialView />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Welcome}
                     sitemapIndex
                     priority={0.5}
                     changeFreq="monthly"
-                >
-                    <Page title={title('Welcome!💙')} {...props} sx={{
+                    sx={{
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
                         textAlign: 'center',
-                    }}>
-                        <WelcomeView {...props} />
-                    </Page>
-                </Route>
-                <Route>
-                    <Page title={title('404🥺')} {...props}>
-                        <NotFoundView />
-                    </Page>
-                </Route>
+                    }}
+                    {...props}
+                >
+                    <WelcomeView {...props} />
+                </NavRoute>
+                <NavRoute  {...props}>
+                    <NotFoundView />
+                </NavRoute>
             </Switch>
         </>
     );

@@ -1,4 +1,4 @@
-import { useLocation } from '@shared/route';
+import { parseSearchParams, useLocation } from '@shared/route';
 import { useCustomMutation } from 'api/hooks';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
@@ -10,7 +10,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { Forms, PubSub, useReactSearch } from 'utils';
+import { Forms, PubSub } from 'utils';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
@@ -25,11 +25,13 @@ export const LogInForm = ({
     onFormChange = () => { }
 }: LogInFormProps) => {
     const [, setLocation] = useLocation();
-    const search = useReactSearch();
-    const { redirect, verificationCode } = useMemo(() => ({
-        redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
-        verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
-    }), [search]);
+    const { redirect, verificationCode } = useMemo(() => {
+        const params = parseSearchParams();
+        return {
+            redirect: typeof params.redirect === 'string' ? params.redirect : undefined,
+            verificationCode: typeof params.code === 'string' ? params.code : undefined,
+        }
+    }, []);
 
     const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);  
 
@@ -119,7 +121,7 @@ export const LogInForm = ({
                     color="secondary"
                     sx={{ ...formSubmit }}
                 >
-                    Log In
+                    {t('LogIn')}
                 </Button>
                 <Grid container spacing={2}>
                     <Grid item xs={6}>
@@ -130,7 +132,7 @@ export const LogInForm = ({
                                     ...formNavLink,
                                 } as CSSProperties}
                             >
-                                Forgot Password?
+                                {t('ForgotPassword')}
                             </Typography>
                         </Link>
                     </Grid>
@@ -143,7 +145,7 @@ export const LogInForm = ({
                                     flexDirection: 'row-reverse',
                                 } as CSSProperties}
                             >
-                                Don't have an account? Sign up
+                                {t('DontHaveAccountSignUp')}
                             </Typography>
                         </Link>
                     </Grid>

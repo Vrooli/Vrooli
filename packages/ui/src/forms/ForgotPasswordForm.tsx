@@ -18,10 +18,12 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { CSSProperties } from '@mui/styles';
 import { authEmailRequestPasswordChange } from 'api/generated/endpoints/auth_emailRequestPasswordChange';
+import { useTranslation } from 'react-i18next';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }
 }: FormProps) => {
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailRequestPasswordChange, { loading }] = useCustomMutation<Success, EmailRequestPasswordChangeInput>(authEmailRequestPasswordChange);
 
@@ -72,7 +74,7 @@ export const ForgotPasswordForm = ({
                     color="secondary"
                     sx={{ ...formSubmit }}
                 >
-                    Submit
+                    {t('Submit')}
                 </Button>
                 <Grid container spacing={2}>
                     <Grid item xs={6}>
@@ -83,7 +85,7 @@ export const ForgotPasswordForm = ({
                                     ...formNavLink,
                                 } as CSSProperties}
                             >
-                                Remember? Back to Log In
+                                {t('RememberLogBackIn')}
                             </Typography>
                         </Link>
                     </Grid>
@@ -96,7 +98,7 @@ export const ForgotPasswordForm = ({
                                     flexDirection: 'row-reverse',
                                 } as CSSProperties}
                             >
-                                Don't have an account? Sign up
+                                {t('DontHaveAccountSignUp')}
                             </Typography>
                         </Link>
                     </Grid>

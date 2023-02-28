@@ -7,7 +7,7 @@ import {
     IconButton,
 } from '@mui/material';
 import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
-import { getCurrentUser, guestSession } from 'utils/authentication';
+import { guestSession } from 'utils/authentication';
 import { openLink, SetLocation } from '@shared/route';
 
 export enum ACTION_TAGS {
@@ -34,14 +34,21 @@ interface GetUserActionsProps {
     exclude?: ACTION_TAGS[] | null | undefined;
 }
 export function getUserActions({ session = guestSession, exclude = [] }: GetUserActionsProps): Action[] {
-    const { id: userId } = getCurrentUser(session);
+    // Check if user is logged in using session
+    let isLoggedIn = session?.isLoggedIn;
+    // // If session is not provided, check for last logged in user in local storage. 
+    // // This is used to avoid flickering of BottomNav actions on page load
+    // if (isLoggedIn === undefined) {
+    //     const storedIsLoggedIn = localStorage.getItem('isLoggedIn');
+    //     isLoggedIn = storedIsLoggedIn !== null;
+    // }
     // Home action always available
     let actions: ActionArray[] = [
         ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
         ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
     ];
     // Actions for logged in users
-    if (userId) {
+    if (isLoggedIn) {
         actions.push(
             ['Create', ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
             ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],

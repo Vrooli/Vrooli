@@ -340,7 +340,16 @@ export function App() {
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
                     }}>
 
-                        <Navbar session={session ?? guestSession} sessionChecked={session !== undefined} />
+                        {/* A blank Navbar to display before the actual one (which is dynamic depending on the page) is rendered. */}
+                        <Box sx={{
+                            background: theme.palette.primary.dark,
+                            height: '64px!important',
+                            zIndex: 100,
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                        }} />
                         {/* Progress bar */}
                         {
                             loading && <Box sx={{
