@@ -15,14 +15,10 @@ fi
 
 PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 
-# TODO shouldn't need these 2 lines, but for some reason we do. Otherwise, prisma not found
-yarn global add prisma@4.10.1
-yarn global bin
-
 cd ${PROJECT_DIR}/packages/server
 if [ "${DB_PULL}" = true ]; then
     info 'Generating schema.prisma file from database...'
-    /usr/local/bin/prisma db pull
+    yarn dlx prisma@4.10.1 db pull
     if [ $? -ne 0 ]; then
         error "Failed to generate schema.prisma file from database"
         exit 1
@@ -30,7 +26,7 @@ if [ "${DB_PULL}" = true ]; then
     success 'Schema.prisma file generated'
 else 
     info 'Running migrations...'
-    /usr/local/bin/prisma migrate deploy
+    yarn dlx prisma@4.10.1 migrate deploy
     if [ $? -ne 0 ]; then
         error "Failed to run migrations"
         exit 1
@@ -39,7 +35,7 @@ else
 fi
 
 info 'Generating Prisma schema...'
-/usr/local/bin/prisma generate
+yarn dlx prisma@4.10.1 generate
 if [ $? -ne 0 ]; then
     error "Failed to generate Prisma schema"
     exit 1
