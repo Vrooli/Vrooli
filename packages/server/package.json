@@ -15,10 +15,10 @@
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "yarn tsc && yarn post-build",
+        "build": "npm tsc && npm post-build",
         "post-build": "wasmPath=\"auth/message_signing/rust/pkg\" && cp src/$wasmPath/*.wasm dist/$wasmPath/ 2>/dev/null && cp src/$wasmPath/*.json dist/$wasmPath/ 2>/dev/null && [ -f dist/$wasmPath/emurgo_message_signing.js ] && mv dist/$wasmPath/emurgo_message_signing.js dist/$wasmPath/emurgo_message_signing.js && cp -R src/notify/email/templates dist/notify/email/",
-        "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
-        "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
+        "start-development": "npm build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
+        "start-production": "npm build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
         "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/consts/src/graphqlTypes.ts"
     },

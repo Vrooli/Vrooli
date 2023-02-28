@@ -6,10 +6,10 @@ ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Install global packages
-RUN yarn global add serve
+RUN npm global add serve
 
 # Copy required files
-COPY --chown=node:node package.json yarn.lock ./
+COPY --chown=node:node package.json package-lock.json ./
 COPY --chown=node:node packages/ui/package.json packages/ui/dist packages/ui/
 COPY --chown=node:node scripts/* scripts/
 

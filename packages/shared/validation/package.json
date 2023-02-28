@@ -9,12 +9,12 @@
     "typings": "src/types.d.ts",
     "type": "module",
     "scripts": {
-        "build": "yarn tsc"
+        "build": "npm tsc"
     },
     "dependencies": {
         "@shared/consts": "*",
-        "react": "^18.0.0",
-        "react-dom": "^18.0.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
         "yup": "^0.32.9"
     },
     "devDependencies": {

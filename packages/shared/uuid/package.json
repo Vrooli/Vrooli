@@ -9,7 +9,7 @@
     "typings": "src/types.d.ts",
     "type": "module",
     "scripts": {
-        "build": "yarn tsc"
+        "build": "npm tsc"
     },
     "dependencies": {
         "uuid": "^9.0.0"

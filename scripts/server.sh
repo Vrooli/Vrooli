@@ -16,8 +16,8 @@ fi
 PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 
 # TODO shouldn't need these 2 lines, but for some reason we do. Otherwise, prisma not found
-yarn global add prisma@4.10.1
-yarn global bin
+npm global add prisma@4.10.1
+npm global bin
 
 cd ${PROJECT_DIR}/packages/server
 if [ "${DB_PULL}" = true ]; then
@@ -48,5 +48,5 @@ success 'Prisma schema generated'
 
 info 'Starting server...'
 cd ${PROJECT_DIR}/packages/server
-yarn start-${NODE_ENV}
+npm start-${NODE_ENV}
 success 'Server started'

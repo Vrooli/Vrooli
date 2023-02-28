@@ -6,6 +6,6 @@
         "ts": "ts-node"
     },
     "events": {
-        "restart": "yarn build"
+        "restart": "npm build"
       }
   }

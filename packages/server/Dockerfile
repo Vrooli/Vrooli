@@ -8,7 +8,7 @@ ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Copy main package.json, as well as packages this container will use. Doing this first helps with caching (I think).
-COPY --chown=node:node package.json yarn.lock ./
+COPY --chown=node:node package.json package-lock.json ./
 COPY --chown=node:node packages/server/package.json packages/server/
 COPY --chown=node:node packages/shared/consts/package.json packages/shared/consts/
 COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
@@ -35,21 +35,21 @@ COPY --chown=node:node scripts/* scripts/
 # Assign working directory to node
 RUN chown -R node:node .
 
-# Stage 1. Copy files from stage 0, and install yarn packages
+# Stage 1. Copy files from stage 0, and install npm packages
 FROM node:16-alpine3.16 as stage1
 
 # Set working directory
 ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
 
-# Copy entire working directory contents from stage 2, and install yarn packages
+# Copy entire working directory contents from stage 2, and install npm packages
 COPY --from=stage0 ${PROJECT_DIR} ./
 
 # Install local packages
-RUN yarn install
+RUN npm install
 
 # Install global packages
-RUN yarn global add typescript ts-node nodemon prisma@4.10.1
+RUN npm global add typescript ts-node nodemon prisma@4.10.1
 
 # Stage 2. Copy files from stage 1, and install required unix tools
 FROM node:16-alpine3.16 as stage2
@@ -61,8 +61,8 @@ WORKDIR ${PROJECT_DIR}
 # Copy entire working directory contents from stage 3
 COPY --from=stage1 ${PROJECT_DIR} ./
 
-# Copy global yarn packages from stage 3
-COPY --from=stage1 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
+# Copy global npm packages from stage 3
+COPY --from=stage1 /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 # Update and install unix packages
 RUN apk update

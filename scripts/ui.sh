@@ -16,5 +16,5 @@ cd ${PROJECT_DIR}/packages/ui
 
 # Finally, start project
 info 'Starting app...'
-yarn start-${NODE_ENV}
+npm start-${NODE_ENV}
 success 'App started'

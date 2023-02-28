@@ -8,7 +8,7 @@ cd "${HERE}/../packages/shared"
 for package in $(ls -d ./*); do
     info "Converting typescript to javascript in ${HERE}/../packages/shared/${package}..."
     cd ${package}
-    yarn tsc 
+    npm tsc 
     if [ $? -ne 0 ]; then
         error "Failed to convert typescript to javascript in ${HERE}/../packages/shared/${package}"
         exit 1

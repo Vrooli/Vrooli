@@ -27,7 +27,7 @@
             * [components](./packages/ui/src/components) - Reusable React components
             * [forms](./packages/ui/src/forms) - User input forms
             * [graphql](./packages/ui/src/graphql)
-                * [generated](./packages/ui/src/graphql/generated) - Code automatically generated from `yarn graphql-generate` script
+                * [generated](./packages/ui/src/graphql/generated) - Code automatically generated from `npm graphql-generate` script
                 * [endpoints](./packages/ui/src/graphql/endpoints) - GraphQL endpoints
                 * [partial](./packages/ui/src/graphql/partial) - Partial GraphQL selections
                 * [utils](./packages/ui/src/graphql/utils) - GraphQL-specific utility functions

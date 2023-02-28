@@ -66,32 +66,29 @@ header "Installing Node (includes npm)"
 nvm install 16.16.0
 nvm alias default v16.16.0
 
-header "Installing Yarn"
-npm install -g yarn
-
 header "Installing global dependencies"
-yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.10.1 vite
+npm global add apollo@2.34.0 typescript ts-node nodemon prisma@4.10.1 vite
 
 # If reinstalling modules, delete all node_modules directories
 if [ -z "${REINSTALL_MODULES}" ]; then
-    prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
+    prompt "Force install node_modules? This will delete all node_modules and the package-json.lock file. (y/N)"
     read -r REINSTALL_MODULES
 fi
 if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
     header "Deleting all node_modules directories"
     find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
-    header "Deleting yarn.lock"
-    rm "${HERE}/../yarn.lock"
+    header "Deleting package-json.lock"
+    rm "${HERE}/../package-json.lock"
 fi
 header "Installing local dependencies"
-cd "${HERE}/.." && yarn cache clean && yarn
+cd "${HERE}/.." && npm install --legacy-peer-deps
 
 "${HERE}/shared.sh"
 
 # header "Combining node_modules from all packages into one"
 
 header "Generating type models for Prisma"
-cd "${HERE}/../packages/server" && yarn prisma-generate
+cd "${HERE}/../packages/server" && npm prisma-generate
 
 info "Done! You may need to restart your editor for syntax highlighting to work correctly." 
 info "If you haven't already, copy .env-example to .env and edit it to match your environment."
