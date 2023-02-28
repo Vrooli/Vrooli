@@ -68,6 +68,7 @@ nvm alias default v16.16.0
 
 header "Installing Yarn"
 npm install -g yarn
+yarn set version berry
 
 header "Installing global dependencies"
 yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.10.1 vite
