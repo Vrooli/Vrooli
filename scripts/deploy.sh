@@ -82,7 +82,7 @@ cd ${HERE}/..
 DB_TMP="/var/tmp/${VERSION}/postgres"
 DB_CURR="${HERE}/../data/postgres"
 BUILD_TMP="/var/tmp/${VERSION}/old-build"
-BUILD_CURR="${HERE}/../packages/ui/build"
+BUILD_CURR="${HERE}/../packages/ui/dist"
 # Don't copy database if it already exists in /var/tmp, or it doesn't exist in DB_CURR
 if [ -d "${DB_TMP}" ]; then
     info "Old database already exists at ${DB_TMP}, so not copying it"
@@ -132,7 +132,7 @@ fi
 
 # Move and decompress build created by build.sh to the correct location.
 info "Moving and decompressing new build to correct location..."
-rm -rf ${HERE}/../packages/ui/build
+rm -rf ${HERE}/../packages/ui/dist
 tar -xzf /var/tmp/${VERSION}/build.tar.gz -C ${HERE}/../packages/ui
 if [ $? -ne 0 ]; then
     error "Could not move and decompress build to correct location"
