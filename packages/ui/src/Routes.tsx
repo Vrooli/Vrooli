@@ -92,13 +92,7 @@ export const Routes = (props: CommonProps) => {
                 <NavRoute path={`${LINKS.Api}/:id`} {...props}>
                     <ApiView session={props.session} />
                 </NavRoute>
-                <NavRoute
-                    path={LINKS.Awards}
-                    sitemapIndex
-                    priority={0.5}
-                    changeFreq="weekly"
-                    {...props}
-                >
+                <NavRoute path={LINKS.Awards} {...props}>
                     <AwardsView {...props} />
                 </NavRoute>
                 <NavRoute path={LINKS.Calendar} {...props}>

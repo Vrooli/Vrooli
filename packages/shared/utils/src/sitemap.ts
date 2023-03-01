@@ -35,6 +35,7 @@ export const generateSitemap = (siteName: string, entries: {
     main?: SitemapEntryMain[];
     content?: SitemapEntryContent[];
 }): string => {
+    console.log('yeeee', entries)
     // Create xml tag with encoding and version
     let xml = builder.create({ encoding: "UTF-8", version: "1.0" })
     // Open urlset tag
@@ -44,18 +45,18 @@ export const generateSitemap = (siteName: string, entries: {
         // Loop through entries
         entries.main.forEach(function (entry: SitemapEntryMain) {
             // For each entry, create a url element with loc, priority, and changefreq
-            xml.ele('url')
-                .ele('loc', siteName + entry.path).up()
-                .ele('priority', (entry.priority || 0) + '').up()
-                .ele('changefreq', entry.changeFreq || "never").up()
-                .up();
+            xml.ele('url', {
+                loc: siteName + entry.path,
+                priority: (entry.priority || 0) + '',
+                changefreq: entry.changeFreq || "never"
+            }).up();
         });
     }
     // If content entries exist, add them
     if (entries.content) {
         // Loop through entries
         entries.content.forEach(function (entry: SitemapEntryContent) {
-            const link =`${siteName}${entry.objectLink}/${entry.rootHandle ?? entry.rootId ?? ''}${entry.handle ?? entry.id}`;
+            const link = `${siteName}${entry.objectLink}/${entry.rootHandle ?? entry.rootId ?? ''}${entry.handle ?? entry.id}`;
             xml.ele('url')
                 // Create loc link with x-default hreflang
                 .ele("loc", { hreflang: "x-default", href: link }).up()
