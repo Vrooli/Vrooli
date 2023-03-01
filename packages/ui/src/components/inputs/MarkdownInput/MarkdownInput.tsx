@@ -175,12 +175,12 @@ export const MarkdownInput = ({
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
     const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
-    const openHeaderSelect = (event) => { setHeaderAnchorEl(event.currentTarget) };
+    const openHeaderSelect = (event: any) => { setHeaderAnchorEl(event.currentTarget) };
     const closeHeader = () => { setHeaderAnchorEl(null) };
     const headerSelectOpen = Boolean(headerAnchorEl);
 
     const [listAnchorEl, setListAnchorEl] = useState<HTMLElement | null>(null);
-    const openListSelect = (event) => { setListAnchorEl(event.currentTarget) };
+    const openListSelect = (event: any) => { setListAnchorEl(event.currentTarget) };
     const closeList = () => { setListAnchorEl(null) };
     const listSelectOpen = Boolean(listAnchorEl);
 

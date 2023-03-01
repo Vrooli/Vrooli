@@ -2,6 +2,7 @@ import { useLocation } from '@shared/route';
 import { BottomNavigation, useTheme } from '@mui/material';
 import { actionsToBottomNav, getUserActions, useKeyboardOpen } from 'utils';
 import { BottomNavProps } from '../types';
+import { checkIfLoggedIn } from 'utils/authentication';
 
 export const BottomNav = ({
     session,
@@ -10,6 +11,7 @@ export const BottomNav = ({
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
 
+    console.log('actionsssss', session)
     let actions = actionsToBottomNav({
         actions: getUserActions({ session }),
         setLocation,

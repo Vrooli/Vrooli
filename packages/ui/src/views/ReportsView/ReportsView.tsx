@@ -43,7 +43,7 @@ export const ReportsView = ({
 
     return (
         <>
-            <PageTitle titleKey='Reports' helpKey='ReportsHelp' session={session} />
+            <PageTitle titleKey='Reports' helpKey='ReportsHelp' />
             {reports.map((report, i) => {
                 return <Box
                     key={i}

@@ -22,7 +22,7 @@ export const Page = ({
 
     // If this page has restricted access
     if (mustBeLoggedIn) {
-        if (session.isLoggedIn) return children;
+        if (session?.isLoggedIn) return children;
         if (sessionChecked && location !== redirect) { 
             PubSub.get().publishSnack({ messageKey: 'PageRestricted', severity: 'Error' });
             return <Redirect to={redirect} />

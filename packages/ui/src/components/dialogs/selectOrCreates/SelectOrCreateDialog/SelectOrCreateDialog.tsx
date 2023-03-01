@@ -22,7 +22,6 @@ import { SearchParams } from 'utils/search/schemas/base';
 import { CommonKey } from '@shared/translations';
 import { lazily } from 'react-lazily';
 import { CreateProps } from 'views/objects/types';
-import { CreateViewProps } from 'views/main/types';
 const { ApiCreate } = lazily(() => import('../../../../views/objects/api/ApiCreate/ApiCreate'));
 const { NoteCreate } = lazily(() => import('../../../../views/objects/note/NoteCreate/NoteCreate'));
 const { OrganizationCreate } = lazily(() => import('../../../../views/objects/organization/OrganizationCreate/OrganizationCreate'));
@@ -72,7 +71,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             titleAria: `select-or-create-${objectType}-dialog-title`,
         };
     }, [help, objectType, t]);
-    const CreateView = useMemo<((props: CreateViewProps) => JSX.Element) | null>(() =>
+    const CreateView = useMemo<((props: CreateProps<any>) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : (createMap as any)[objectType.replace('Version', '')], [objectType]);
 
     const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
@@ -193,8 +192,8 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                 zIndex={zIndex + 1}
             >
                 <CreateView
-                    onCreated={handleCreated as any}
-                    onCancel={handleCreateClose}
+                    // onCreated={handleCreated as any}
+                    // onCancel={handleCreateClose}
                     session={session}
                     zIndex={zIndex + 1}
                 />

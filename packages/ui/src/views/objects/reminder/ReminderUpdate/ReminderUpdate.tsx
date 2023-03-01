@@ -50,7 +50,7 @@ export const ReminderUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <PageTitle titleKey='UpdateReminder' session={session} />
+                <PageTitle titleKey='UpdateReminder' />
             </Grid>
             {/* TODO */}
             <GridSubmitButtons

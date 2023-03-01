@@ -158,7 +158,7 @@ export const AccountMenu = ({
     }, [handleOpen]);
 
 
-    const accounts = useMemo(() => session.users ?? [], [session.users]);
+    const accounts = useMemo(() => session?.users ?? [], [session?.users]);
     const profileListItems = accounts.map((account) => (
         <ListItem
             button

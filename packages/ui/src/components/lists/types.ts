@@ -9,7 +9,7 @@ export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
     object: T | null | undefined;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -33,7 +33,7 @@ export interface ObjectListItemProps<T extends ListObjectType> {
     loading: boolean;
     data: T | null;
     objectType: GqlModelType | `${GqlModelType}`;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -66,7 +66,7 @@ export interface SearchButtonsListProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
     searchType: SearchType | `${SearchType}`;
-    session: Session;
+    session: Session | undefined;
     setAdvancedSearchParams: (params: object | null) => void;
     setSortBy: (sortBy: string) => void;
     setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
@@ -103,7 +103,7 @@ export interface SearchListProps {
     searchType: SearchType | `${SearchType}`;
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -120,7 +120,7 @@ export interface TagListProps {
      * Maximum characters to display before tags are truncated
      */
     maxCharacters?: number;
-    session: Session;
+    session: Session | undefined;
     parentId: string;
     sx?: { [x: string]: any };
     tags: Partial<Tag>[];

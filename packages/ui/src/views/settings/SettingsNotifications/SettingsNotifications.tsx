@@ -1,5 +1,5 @@
 import { Grid, Stack, Switch, Typography } from "@mui/material"
-import { SettingsNotificationsProps } from "../../types";
+import { SettingsNotificationsProps } from "../types";
 import { PageTitle } from "components/text";
 import { getUserLanguages, PubSub, shapeProfile, usePromptBeforeUnload } from "utils";
 import { mutationWrapper } from "api/utils";
@@ -57,7 +57,7 @@ export const SettingsNotifications = ({
 
     return (
         <form style={{ overflow: 'hidden' }}>
-            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} session={session} />
+            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} />
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     {/* Toggle all notifications */}

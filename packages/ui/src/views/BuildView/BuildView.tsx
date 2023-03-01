@@ -42,7 +42,7 @@ export const BuildView = ({
     routineVersion,
     session,
     translationData,
-    zIndex,
+    zIndex = 200,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();

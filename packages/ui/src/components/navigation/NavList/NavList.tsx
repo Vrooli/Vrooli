@@ -11,6 +11,7 @@ import { NavListProps } from '../types';
 import { APP_LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
+import { checkIfLoggedIn } from 'utils/authentication';
 
 const navItemStyle = (palette: Palette) => ({
     background: 'transparent',
@@ -32,6 +33,7 @@ export const NavList = ({
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
+    console.log('action navlist', session);
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     // Handle account menu
@@ -45,6 +47,7 @@ export const NavList = ({
         setAccountMenuAnchor(null)
     }, []);
 
+    console.log('action navlist', session)
     return (
         <Container sx={{
             display: 'flex',
@@ -96,7 +99,7 @@ export const NavList = ({
                 </Button>
             )}
             {/* Profile icon */}
-            {session?.isLoggedIn === true && (
+            {checkIfLoggedIn(session) && (
                 <IconButton
                     color="inherit"
                     onClick={openAccountMenu}

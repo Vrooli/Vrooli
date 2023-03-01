@@ -78,7 +78,7 @@ export const shapeSearchText = (text: string) => {
  * @param items The list of PreSearchItems to convert.
  * @param session The current session.
  */
-export const translateSearchItems = (items: PreSearchItem[], session: Session): SearchItem[] => {
+export const translateSearchItems = (items: PreSearchItem[], session: Session | null | undefined): SearchItem[] => {
     const lng = getUserLanguages(session)[0];
     return items.map(item => {
         const label = i18next.t(`common:${item.label}`, { ...(item.labelArgs ?? {}), lng });

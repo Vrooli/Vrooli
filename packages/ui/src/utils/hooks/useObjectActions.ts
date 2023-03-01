@@ -19,7 +19,7 @@ export type UseObjectActionsProps = {
     object: ListObjectType | null | undefined;
     objectType: GqlModelType | `${GqlModelType}`;
     openAddCommentDialog?: () => void;
-    session: Session;
+    session: Session | undefined;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
 }

@@ -14,7 +14,7 @@ type UseFindManyProps = {
     canSearch: boolean;
     searchType: SearchType | `${SearchType}`;
     resolve?: (data: any) => any;
-    session: Session;
+    session: Session | undefined;
     take?: number;
     where?: any;
 }

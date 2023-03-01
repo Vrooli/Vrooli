@@ -11,37 +11,37 @@ type PageProps = {
 
 // const Page0 = () => {
 //     return (<>
-//         <PageTitle title="What is Vrooli?" session={session} />
+//         <PageTitle title="What is Vrooli?" />
 //     </>)
 // }
 
 // const Page1 = () => {
 //     return (<>
-//         <PageTitle title="How does it work?" session={session} />
+//         <PageTitle title="How does it work?" />
 //     </>)
 // }
 
 // const Page2 = () => {
 //     return (<>
-//         <PageTitle title="What is a routine?" session={session} />
+//         <PageTitle title="What is a routine?" />
 //     </>)
 // }
 
 // const Page3 = () => {
 //     return (<>
-//         <PageTitle title="How is work structured?" session={session} />
+//         <PageTitle title="How is work structured?" />
 //     </>)
 // }
 
 // const Page4 = () => {
 //     return (<>
-//         <PageTitle title="LRD Process" session={session} />
+//         <PageTitle title="LRD Process" />
 //     </>)
 // }
 
 // const Page5 = () => {
 //     return (<>
-//         <PageTitle title="That's the gist!" session={session} />
+//         <PageTitle title="That's the gist!" />
 //     </>)
 // }
 

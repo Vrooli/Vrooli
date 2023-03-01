@@ -20,11 +20,14 @@ import { CSSProperties } from '@mui/styles';
 import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
 import { emailLogInFormValidation } from '@shared/validation';
 import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
+import { useTranslation } from 'react-i18next';
 
 export const LogInForm = ({
     onFormChange = () => { }
 }: LogInFormProps) => {
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    
     const { redirect, verificationCode } = useMemo(() => {
         const params = parseSearchParams();
         return {
@@ -33,7 +36,7 @@ export const LogInForm = ({
         }
     }, []);
 
-    const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);  
+    const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);
@@ -49,9 +52,10 @@ export const LogInForm = ({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
                 successCondition: (data) => data !== null,
-                onSuccess: (data) => { 
+                onSuccess: (data) => {
                     if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
-                    PubSub.get().publishSession(data); setLocation(redirect ?? APP_LINKS.Home) 
+                    PubSub.get().publishSession(data);
+                    setLocation(redirect ?? APP_LINKS.Home);
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {
@@ -66,9 +70,9 @@ export const LogInForm = ({
                     }
                     // Custom snack for invalid email, that has sign up link
                     else if (hasErrorCode(response, 'EmailNotFound')) {
-                        PubSub.get().publishSnack({ 
-                            messageKey: 'EmailNotFound', 
-                            severity: 'Error', 
+                        PubSub.get().publishSnack({
+                            messageKey: 'EmailNotFound',
+                            severity: 'Error',
                             buttonKey: 'SignUp',
                             buttonClicked: () => { toSignUp() }
                         });

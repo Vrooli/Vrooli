@@ -11,7 +11,7 @@ import { FieldData } from "forms/types";
 import { BaseStandardInput, GeneratedInputComponent, PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
-import { getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
 import { standardVersionCreate } from "api/generated/endpoints/standardVersion_create";
@@ -149,7 +149,7 @@ export const StandardCreate = ({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
@@ -163,7 +163,7 @@ export const StandardCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <PageTitle titleKey='CreateStandard' session={session} />
+                    <PageTitle titleKey='CreateStandard' />
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons

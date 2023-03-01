@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
 import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { parseSearchParams } from "@shared/route";
@@ -91,7 +91,7 @@ export const NoteCreate = ({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
@@ -102,7 +102,7 @@ export const NoteCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <PageTitle titleKey='CreateNote' session={session} />
+                    <PageTitle titleKey='CreateNote' />
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons

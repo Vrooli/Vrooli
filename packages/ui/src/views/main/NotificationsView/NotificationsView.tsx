@@ -44,7 +44,7 @@ export const NotificationsView = ({
 
     return (
         <>
-            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} session={session} />
+            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }}/>
             <Box sx={{
                 marginTop: 2,
                 maxWidth: '1000px',

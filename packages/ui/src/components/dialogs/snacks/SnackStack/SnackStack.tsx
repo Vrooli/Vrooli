@@ -29,6 +29,7 @@ export const SnackStack = () => {
     useEffect(() => {
         // Subscribe to basic snacks
         let snackSub = PubSub.get().subscribeSnack((o) => {
+            console.log('got snack!', o)
             // Add the snack to the queue
             setSnacks((snacks) => {
                 // event can define an id, or we generate one

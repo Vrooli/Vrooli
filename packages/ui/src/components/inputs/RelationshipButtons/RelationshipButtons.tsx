@@ -187,7 +187,7 @@ export function RelationshipButtons({
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
-            onRelationshipsChange({ owner: userFromSession(session) });
+            onRelationshipsChange({ owner: session ? userFromSession(session) : undefined });
         }
         closeOwnerDialog();
     }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);

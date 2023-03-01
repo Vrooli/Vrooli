@@ -21,13 +21,15 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
-import { subscribeUserToPush } from 'serviceWorkerRegistration';
+import { subscribeUserToPush } from 'serviceWorkerRegistration'
 import { authEmailSignUp } from 'api/generated/endpoints/auth_emailSignUp';
+import { useTranslation } from 'react-i18next';
 
 export const SignUpForm = ({
     onFormChange = () => { },
 }: FormProps) => {
     const theme = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailSignUp, { loading }] = useCustomMutation<Session, EmailSignUpInput>(authEmailSignUp);
 
@@ -165,7 +167,7 @@ export const SignUpForm = ({
                     color="secondary"
                     sx={{ ...formSubmit }}
                 >
-                    {t('Sign Up')}
+                    {t('SignUp')}
                 </Button>
                 <Grid container spacing={2}>
                     <Grid item xs={6}>

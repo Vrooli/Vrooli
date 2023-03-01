@@ -14,7 +14,7 @@ export interface DateDisplayProps extends BoxProps {
 export interface ObjectTitleProps extends BoxProps {
     language: string;
     loading: boolean;
-    session: Session;
+    session: Session | undefined;
     setLanguage: (language: string) => void;
     translations: { language: string }[];
     title: string | undefined;
@@ -26,7 +26,7 @@ export interface OwnerLabelProps {
     language?: string
     objectType: ObjectType;
     owner: Routine['owner'] | null | undefined
-    session: Session;
+    session: Session | undefined;
     sxs?: {
         label?: { [x: string]: any };
     }
@@ -37,7 +37,6 @@ export interface PageTitleProps {
     helpVariables?: { [x: string]: string | number };
     titleKey: CommonKey;
     titleVariables?: { [x: string]: string | number };
-    session: Session;
     sxs?: { 
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
@@ -49,7 +48,7 @@ export interface StatsCompactProps<T extends StatsCompactPropsObject> {
     handleObjectUpdate: (object: T) => void;
     loading: boolean;
     object: T | null | undefined;
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface TextShrinkProps extends TypographyProps {

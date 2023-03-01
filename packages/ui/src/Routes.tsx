@@ -66,7 +66,7 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
     return (
         <Route {...props}>
             <>
-                <Navbar session={props.session ?? guestSession} sessionChecked={props.session !== undefined} />
+                <Navbar session={props.session} sessionChecked={props.session !== undefined} />
                 <Page {...props}>
                     {props.children}
                 </Page>

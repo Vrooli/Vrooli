@@ -5,7 +5,7 @@ import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { useFormik } from 'formik';
 import { PubSub, usePromptBeforeUnload } from "utils";
-import { SettingsAuthenticationProps } from "../../types";
+import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
@@ -15,6 +15,7 @@ import { getCurrentUser, guestSession } from "utils/authentication";
 import { userValidation } from "@shared/validation";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
+import { SettingsFormData } from "views/main";
 
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, the wallet's reward address will be displayed.\n\nYou may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
@@ -113,7 +114,7 @@ export const SettingsAuthentication = ({
                 session={session}
                 zIndex={100}
             />
-            <PageTitle titleKey='Authentication' helpKey='AuthenticationHelp' session={session} />
+            <PageTitle titleKey='Authentication' helpKey='AuthenticationHelp' />
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Wallets</Typography>

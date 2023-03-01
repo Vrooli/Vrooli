@@ -1,21 +1,21 @@
 import { Session } from "@shared/consts";
 
 export interface CreateViewProps {
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface HomeViewProps {
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface HistoryViewProps {
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface NotificationsViewProps {
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface SettingsViewProps {
-    session: Session;
+    session: Session | undefined;
 }

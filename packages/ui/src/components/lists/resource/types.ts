@@ -6,7 +6,7 @@ export interface ResourceListHorizontalProps {
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
     loading?: boolean;
-    session: Session;
+    session: Session | undefined;
     mutate?: boolean;
     zIndex: number;
 }
@@ -17,7 +17,7 @@ export interface ResourceListVerticalProps {
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null | undefined;
     loading: boolean;
-    session: Session
+    session: Session | undefined;
     mutate: boolean;
     zIndex: number;
 }
@@ -30,7 +30,7 @@ export interface ResourceListItemProps {
     handleDelete: (index: number) => void;
     index: number;
     loading: boolean;
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface ResourceListItemContextMenuProps {

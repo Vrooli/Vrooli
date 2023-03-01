@@ -9,7 +9,7 @@ import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle,
 import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
-import { getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
 import { Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
 import { mutationWrapper } from "api/utils";
@@ -200,7 +200,7 @@ export const RoutineCreate = ({
         }
     }, [formik.values.nodes.length, formik.values.nodeLinks.length, inputsList.length, outputsList.length, handleGraphClose, handleGraphOpen]);
 
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
@@ -212,7 +212,7 @@ export const RoutineCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <PageTitle titleKey='CreateRoutine' session={session} />
+                    <PageTitle titleKey='CreateRoutine' />
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons

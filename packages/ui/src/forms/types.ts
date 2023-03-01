@@ -8,7 +8,7 @@ import { InputType, Session } from "@shared/consts";
 //==============================================================
 export interface BaseFormProps {
     schema: FormSchema;
-    session: Session;
+    session: Session | undefined;
     onSubmit: (values: any) => any;
     zIndex: number;
 }

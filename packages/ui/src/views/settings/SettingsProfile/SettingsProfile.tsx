@@ -5,7 +5,7 @@ import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfile, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { SettingsProfileProps } from "../../types";
+import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
 import { ColorIconButton, GridSubmitButtons } from "components/buttons";
@@ -142,7 +142,7 @@ export const SettingsProfile = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            <PageTitle titleKey='UpdateProfile' helpKey='UpdateProfileHelp' session={session} />
+            <PageTitle titleKey='UpdateProfile' helpKey='UpdateProfileHelp' />
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>
                     <Grid item xs={12}>

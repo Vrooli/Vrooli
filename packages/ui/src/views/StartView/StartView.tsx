@@ -149,7 +149,6 @@ export const StartView = ({
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
             PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: 'Success' })
-            // Set actor role
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));

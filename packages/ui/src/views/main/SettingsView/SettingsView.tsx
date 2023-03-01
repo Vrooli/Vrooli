@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { userProfile } from 'api/generated/endpoints/user_profile';
 import { CommonKey } from '@shared/translations';
 import { SettingsAuthentication, SettingsDisplay, SettingsNotifications, SettingsProfile } from 'views/settings';
+import { SettingsViewProps } from '../types';
 
 /**
  * Describes a settings page button

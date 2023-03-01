@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import { handleTranslationChange, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
 import { CommentUpdateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
-import { getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { mutationWrapper } from "api/utils";
 import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
@@ -32,7 +32,7 @@ export const CommentUpdateInput = ({
     const { breakpoints } = useTheme();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
     const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Comment, CommentUpdateInputType>(commentUpdate);
     const formik = useFormik({

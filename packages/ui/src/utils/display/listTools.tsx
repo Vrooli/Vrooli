@@ -392,7 +392,7 @@ export interface ListToListItemProps {
     /**
      * Current session
      */
-    session: Session,
+    session: Session | undefined,
     zIndex: number,
 }
 

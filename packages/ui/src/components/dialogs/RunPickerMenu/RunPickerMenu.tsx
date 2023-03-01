@@ -106,7 +106,7 @@ export const RunPickerMenu = ({
     useEffect(() => {
         if (!open) return;
         // If not logged in, open without creating a new run
-        if (!session.isLoggedIn) {
+        if (session?.isLoggedIn !== true) {
             onSelect(null);
             handleClose();
         }
@@ -114,7 +114,7 @@ export const RunPickerMenu = ({
         else if (runnableObject && (runnableObject.you?.runs as (RunRoutine | RunProject)[])?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
             createNewRun();
         }
-    }, [open, runnableObject, createNewRun, onSelect, session.isLoggedIn, handleClose]);
+    }, [open, runnableObject, createNewRun, onSelect, session?.isLoggedIn, handleClose]);
 
     const runOptions: ListMenuItemData<RunProject | RunRoutine>[] = useMemo(() => {
         if (!runnableObject || !runnableObject.you.runs) return [];

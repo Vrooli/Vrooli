@@ -10,7 +10,7 @@ export const uuid = () => uuidv4();
 /**
  * Validates a v4 UUID
  */
-export const uuidValidate = (uuid) => {
+export const uuidValidate = (uuid: any) => {
     if (!uuid || typeof uuid !== 'string') return false;
     return validateRegex.test(uuid);
 }

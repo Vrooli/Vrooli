@@ -9,7 +9,6 @@ export const PageTitle = ({
     helpVariables,
     titleKey,
     titleVariables,
-    session,
     sxs,
 }: PageTitleProps) => {
     const { t } = useTranslation();

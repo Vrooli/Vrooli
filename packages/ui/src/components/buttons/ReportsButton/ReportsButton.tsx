@@ -14,7 +14,7 @@ export const ReportsButton = ({
     const [, setLocation] = useLocation();
 
     const link = useMemo(() => object ? getObjectReportUrl(object) : '', [object]);
-    const handleClick = useCallback((event) => {
+    const handleClick = useCallback((event: any) => {
         // Stop propagation to prevent list item from being selected
         event.stopPropagation();
         // Prevent default to stop href from being used

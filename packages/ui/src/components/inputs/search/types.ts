@@ -12,7 +12,7 @@ export type SiteSearchBarProps = InputProps & {
     onInputChange: (newValue: AutocompleteOption) => any;
     options?: AutocompleteOption[];
     placeholder?: CommonKey;
-    session: Session;
+    session: Session | undefined;
     showSecondaryLabel?: boolean;
     value: string;
     sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
@@ -25,6 +25,6 @@ export type SettingsSearchBarProps = InputProps & {
     onChange: (updatedText: string) => any;
     onInputChange: (newValue: SearchItem) => any;
     placeholder?: string;
-    session: Session;
+    session: Session | undefined;
     value: string;
 }

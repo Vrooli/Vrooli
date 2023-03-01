@@ -104,6 +104,8 @@ export class PubSub {
         this.publish('AlertDialog', data);
     }
     publishSession(session: Session | undefined) {
+        // When session is published, also set "isLoggedIn" flag in localStorage
+        localStorage.setItem('isLoggedIn', session?.isLoggedIn === true ? 'true' : 'false');
         this.publish('Session', session);
     }
     publishSnack(data: SnackPub) {

@@ -5,9 +5,9 @@ import { clickSize } from 'styles';
 import { useEffect } from 'react';
 import { PubSub } from 'utils';
 import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
-import { getCurrentUser } from 'utils/authentication';
-import { WelcomeViewProps } from '../types';
+import { checkIfLoggedIn } from 'utils/authentication';
 import { useTranslation } from 'react-i18next';
+import { WelcomeViewProps } from '../types';
 
 const buttonProps = {
     height: "48px",
@@ -64,7 +64,7 @@ export const WelcomeView = ({
                     startIcon={<PlayIcon fill="black" />}
                     sx={{ ...buttonProps, marginBottom: 0 }}
                 >{t(`RunExample`)}</Button>
-                {Boolean(getCurrentUser(session).id) && <Button
+                {checkIfLoggedIn(session) && <Button
                     onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
                     startIcon={<ProfileIcon fill="black" />}
                     sx={{ ...buttonProps, marginBottom: 0 }}

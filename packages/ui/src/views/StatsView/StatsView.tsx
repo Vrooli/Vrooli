@@ -62,7 +62,7 @@ export const StatsView = ({
     });
     // Menu for picking date range.
     const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-    const handleDateRangeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
+    const handleDateRangeOpen = (event: any) => setCustomRangeAnchorEl(event.currentTarget);
     const handleDateRangeClose = () => {
         setCustomRangeAnchorEl(null)
     };

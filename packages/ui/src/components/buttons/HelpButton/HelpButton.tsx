@@ -17,7 +17,7 @@ export const HelpButton = ({
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
 
-    const openMenu = useCallback((event) => {
+    const openMenu = useCallback((event: any) => {
         if (onClick) onClick(event);
         if (!anchorEl) setAnchorEl(event.currentTarget);
     }, [anchorEl, onClick]);

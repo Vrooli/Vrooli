@@ -241,11 +241,13 @@ export function App() {
                 }
                 // If not logged in as guest and failed to log in as user, set guest session
                 if (!session) {
+                    console.log('action bad set session');
                     setSession(guestSession)
                 }
             },
         })
     }, [validateSession])
+    console.log('action app session', session)
 
     useEffect(() => {
         checkSession();
@@ -270,6 +272,7 @@ export function App() {
             setTimeout(() => setCelebrating(false), duration);
         });
         let sessionSub = PubSub.get().subscribeSession((session) => {
+            console.log('action setting session from sub', session)
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -317,9 +320,9 @@ export function App() {
                     {/* Pull-to-refresh for PWAs */}
                     <PullToRefresh />
                     {/* Command palette */}
-                    <CommandPalette session={session ?? guestSession} />
+                    <CommandPalette session={session} />
                     {/* Find in page */}
-                    <FindInPage session={session ?? guestSession} />
+                    <FindInPage session={session} />
                     {/* Celebratory confetti. To be used sparingly */}
                     {
                         celebrating && <Confetti
@@ -363,11 +366,11 @@ export function App() {
                             </Box>
                         }
                         <Routes
-                            session={session ?? guestSession}
+                            session={session}
                             sessionChecked={session !== undefined}
                         />
                     </Box>
-                    <BottomNav session={session ?? guestSession} />
+                    <BottomNav session={session} />
                     <Footer />
                 </Box>
             </ThemeProvider>

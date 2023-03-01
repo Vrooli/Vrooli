@@ -44,7 +44,7 @@ export function AwardsView({
 
     return (
         <>
-            <PageTitle titleKey='Award' titleVariables={{ count: 2 }} session={session} />
+            <PageTitle titleKey='Award' titleVariables={{ count: 2 }} />
             {/* Display earned awards as a list of tags. Press or hover to see description */}
             <ContentCollapse
                 isOpen={true}

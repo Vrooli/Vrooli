@@ -1,11 +1,11 @@
 import { Session } from "@shared/consts";
 
 export interface CreateProps<T> {
-    session: Session;
+    session: Session | undefined;
     zIndex?: number;
 }
 export interface UpdateProps<T> {
-    session: Session;
+    session: Session | undefined;
     zIndex?: number;
 }
 export interface ViewProps<T> {
@@ -14,6 +14,6 @@ export interface ViewProps<T> {
      * such as its name. Can be displayed while fetching the full object
      */
     partialData?: Partial<T>;
-    session: Session;
+    session: Session | undefined;
     zIndex?: number;
 }

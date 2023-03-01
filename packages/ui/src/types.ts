@@ -6,7 +6,7 @@ import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException,
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
 export interface CommonProps {
-    session: Session;
+    session: Session | undefined;
     sessionChecked: SessionChecked;
 }
 

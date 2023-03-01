@@ -31,6 +31,6 @@ export const CalendarView = ({
     //     errorPolicy: 'all',
     // });
 
-    // <PageTitle titleKey='Calendar' session={session} />
+    // <PageTitle titleKey='Calendar' />
     return null as any
 }

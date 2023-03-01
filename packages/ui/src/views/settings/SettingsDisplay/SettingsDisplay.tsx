@@ -12,6 +12,8 @@ import { getCurrentUser } from "utils/authentication";
 import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
 import { userValidation } from "@shared/validation";
 import { currentSchedules } from "utils/display/scheduleTools";
+import { SettingsDisplayProps } from "../types";
+import { useTranslation } from "react-i18next";
 
 const interestsHelpText =
     `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`
@@ -25,6 +27,7 @@ export const SettingsDisplay = ({
     onUpdated,
 }: SettingsDisplayProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // Handle filters
     const [filters, setFilters] = useState<UserScheduleFilterShape[]>([]);
@@ -121,7 +124,7 @@ export const SettingsDisplay = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' session={session} />
+            <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' />
             <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
                     theme={formik.values.theme as 'light' | 'dark'}
@@ -130,7 +133,7 @@ export const SettingsDisplay = ({
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <HeartFilledIcon fill={palette.background.textPrimary} />
-                <Typography component="h2" variant="h5" textAlign="center" ml={1}>Favorite Topics</Typography>
+                <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsFavorite')}</Typography>
                 <HelpButton markdown={interestsHelpText} />
             </Stack>
             <Box id="favorite-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
@@ -143,7 +146,7 @@ export const SettingsDisplay = ({
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <InvisibleIcon fill={palette.background.textPrimary} />
-                <Typography component="h2" variant="h5" textAlign="center" ml={1}>Hidden Topics</Typography>
+                <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsHidden')}</Typography>
                 <HelpButton markdown={hiddenHelpText} />
             </Stack>
             <Box id="hidden-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
@@ -155,10 +158,10 @@ export const SettingsDisplay = ({
                 /> */}
             </Box>
             <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
-                <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
+                <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
                     marginLeft: 'auto',
                     marginRight: 'auto',
-                }}>Clear Search History</Button>
+                }}>{t('ClearSearchHistory')}</Button>
             </Box>
             <Grid container spacing={2} p={2}>
                 <GridSubmitButtons

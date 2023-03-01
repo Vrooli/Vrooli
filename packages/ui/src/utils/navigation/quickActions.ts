@@ -286,10 +286,10 @@ export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label
  * Maps action ids to their corresponding action. 
  * Actions cannot be stored in the options themselves because localStorage cannot store functions.
  */
-export const performAction = async (option: ActionOption, session: Session): Promise<void> => {
+export const performAction = async (option: ActionOption, session: Session | null | undefined): Promise<void> => {
     switch (option.id) {
         case 'clear-search-history':
-            clearSearchHistory(session);
+            session && clearSearchHistory(session);
             break;
         case 'activate-dark-mode':
             documentNodeWrapper<User, ProfileUpdateInput>({

@@ -1,4 +1,5 @@
 import { Session } from "@shared/consts";
+import { exists } from "@shared/utils";
 import { userFromSession } from "components";
 import { RelationshipsObject } from "components/inputs/types";
 
@@ -11,10 +12,10 @@ import { RelationshipsObject } from "components/inputs/types";
  */
 export const defaultRelationships = <
     IsEditing extends boolean = false
->(isEditing: IsEditing, session: IsEditing extends true ? Session : null): RelationshipsObject => ({
+>(isEditing: IsEditing, session: IsEditing extends true ? (Session | null | undefined) : (null | undefined)): RelationshipsObject => ({
     isComplete: false,
     isPrivate: false,
-    owner: isEditing ? userFromSession(session as Session) : null,
+    owner: (isEditing && exists(session)) ? userFromSession(session!) : null,
     parent: null,
     project: null,
 })
