@@ -147,6 +147,7 @@ export const SmartContractUpdate = ({
             </Grid>
             {/* TODO */}
             <GridSubmitButtons
+                display={display}
                 errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}

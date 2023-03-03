@@ -10,6 +10,7 @@ import { useWindowSize } from "utils";
 export const PageTabs = <T extends any>({
     ariaLabel,
     currTab,
+    fullWidth = false,
     onChange,
     tabs,
 }: PageTabsProps<T>) => {
@@ -27,7 +28,7 @@ export const PageTabs = <T extends any>({
                 onChange={handleTabChange}
                 indicatorColor="secondary"
                 textColor="inherit"
-                variant="scrollable"
+                variant={(fullWidth && isMobile) ? "fullWidth" : "scrollable"}
                 scrollButtons="auto"
                 allowScrollButtonsMobile
                 aria-label={ariaLabel}
@@ -35,6 +36,7 @@ export const PageTabs = <T extends any>({
                     marginBottom: 1,
                     paddingLeft: '1em',
                     paddingRight: '1em',
+                    width: (fullWidth && isMobile) ? '100%' : undefined,
                 }}
             >
                 {tabs.map(({ color, href, Icon, label }, index) => {

@@ -156,6 +156,7 @@ export const HistoryView = ({
         below: <PageTabs
             ariaLabel="history-tabs"
             currTab={currTab}
+            fullWidth
             onChange={handleTabChange}
             tabs={tabs}
         />

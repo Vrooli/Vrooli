@@ -206,17 +206,18 @@ export const OrganizationCreate = ({
                             />
                         </Tooltip>
                     </Grid>
-                    <GridSubmitButtons
-                        disabledSubmit={!isLoggedIn}
-                        errors={translations.errorsWithTranslations}
-                        isCreate={true}
-                        loading={formik.isSubmitting}
-                        onCancel={onCancel}
-                        onSetSubmitting={formik.setSubmitting}
-                        onSubmit={formik.handleSubmit}
-                    />
                 </Grid>
             </form >
+            <GridSubmitButtons
+                disabledSubmit={!isLoggedIn}
+                display={display}
+                errors={translations.errorsWithTranslations}
+                isCreate={true}
+                loading={formik.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={formik.setSubmitting}
+                onSubmit={formik.handleSubmit}
+            />
         </>
     )
 }

@@ -31,7 +31,7 @@ export const SettingsDisplay = ({
 
     // Handle filters
     const [filters, setFilters] = useState<UserScheduleFilterShape[]>([]);
-    const handleFiltersUpdate = useCallback((updatedList: UserScheduleFilterShape[], filterType: UserScheduleFilterType) => { 
+    const handleFiltersUpdate = useCallback((updatedList: UserScheduleFilterShape[], filterType: UserScheduleFilterType) => {
         // Hidden tags are wrapped in a shape that includes an isBlur flag. 
         // Because of this, we must loop through the updatedList to see which tags have been added or removed.
         // const updatedFilters = updatedList.map((tag) => {
@@ -165,6 +165,7 @@ export const SettingsDisplay = ({
             </Box>
             <Grid container spacing={2} p={2}>
                 <GridSubmitButtons
+                    display={display}
                     errors={formik.errors}
                     isCreate={false}
                     loading={formik.isSubmitting}

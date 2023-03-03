@@ -118,6 +118,7 @@ export const CommentUpdateInput = ({
                 }}>
                     <GridSubmitButtons
                         disabledSubmit={!isLoggedIn}
+                        display="dialog"
                         errors={translations.errorsWithTranslations}
                         isCreate={true}
                         loading={formik.isSubmitting || loadingUpdate}

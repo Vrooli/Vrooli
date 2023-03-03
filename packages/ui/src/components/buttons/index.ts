@@ -4,6 +4,7 @@ export * from './BuildEditButtons/BuildEditButtons';
 export * from './CameraButton/CameraButton';
 export * from './ColorIconButton/ColorIconButton';
 export * from './CommentsButton/CommentsButton';
+export * from './GridActionButtons/GridActionButtons';
 export * from './GridSubmitButtons/GridSubmitButtons';
 export * from './PopupMenu/PopupMenu';
 export * from './HelpButton/HelpButton';

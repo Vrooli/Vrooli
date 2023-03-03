@@ -13,7 +13,7 @@ type UseNavbarProps = {
 }
 
 /**
- * Hook for generating a dynamic navbar/appbar
+ * Hook for generating a dynamic navbar/appbar for a view
  */
 export const useTopBar = ({
     below,

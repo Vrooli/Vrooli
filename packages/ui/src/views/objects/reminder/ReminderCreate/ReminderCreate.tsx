@@ -63,6 +63,7 @@ export const ReminderCreate = ({
                     {/* TODO */}
                     <GridSubmitButtons
                         disabledSubmit={!isLoggedIn}
+                        display={display}
                         errors={formik.errors}
                         isCreate={true}
                         loading={formik.isSubmitting}

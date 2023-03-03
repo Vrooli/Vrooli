@@ -194,6 +194,7 @@ export const HomeView = ({
             <PageTabs
                 ariaLabel="home-tabs"
                 currTab={currTab}
+                fullWidth
                 onChange={handleTabChange}
                 tabs={tabs}
             />

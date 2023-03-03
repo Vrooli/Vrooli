@@ -122,9 +122,9 @@ export const ResourceDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description', 'name'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: resourceTranslationValidation.update({}),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
@@ -323,7 +323,7 @@ export const ResourceDialog = ({
                                         },
                                     }}
                                 >
-                                     {(Object.keys(ResourceUsedFor) as Array<keyof typeof ResourceUsedFor>).map((usedFor) => {
+                                    {(Object.keys(ResourceUsedFor) as Array<keyof typeof ResourceUsedFor>).map((usedFor) => {
                                         const Icon = getResourceIcon(usedFor as ResourceUsedFor);
                                         return (
                                             <MenuItem key={usedFor} value={usedFor}>
@@ -365,6 +365,7 @@ export const ResourceDialog = ({
                             {/* Action buttons */}
                             <Grid container spacing={1}>
                                 <GridSubmitButtons
+                                    display="dialog"
                                     errors={translations.errorsWithTranslations}
                                     isCreate={index < 0}
                                     loading={formik.isSubmitting || addLoading || updateLoading}

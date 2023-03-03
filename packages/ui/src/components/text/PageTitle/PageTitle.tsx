@@ -2,8 +2,6 @@ import { Stack, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons";
 import { noSelect } from "styles";
 import { PageTitleProps } from "../types";
-import { useMemo } from "react";
-import { getTranslatedTitleAndHelp } from "utils";
 
 export const PageTitle = ({
     help,
@@ -17,7 +15,7 @@ export const PageTitle = ({
         sx={{
             textAlign: 'center',
             sx: { marginTop: 2, marginBottom: 2 },
-            fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
             ...noSelect,
             ...(sxs?.text || {}),
         }}

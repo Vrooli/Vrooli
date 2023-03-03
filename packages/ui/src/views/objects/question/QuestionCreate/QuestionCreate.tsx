@@ -139,6 +139,7 @@ export const QuestionCreate = ({
                     {/* TODO */}
                     <GridSubmitButtons
                         disabledSubmit={!isLoggedIn}
+                        display={display}
                         errors={translations.errorsWithTranslations}
                         isCreate={true}
                         loading={formik.isSubmitting}

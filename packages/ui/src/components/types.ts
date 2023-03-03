@@ -15,6 +15,7 @@ export type PageTab<T extends any> = {
 export interface PageTabsProps<T extends any> {
     ariaLabel: string,
     currTab: PageTab<T>,
+    fullWidth?: boolean,
     onChange: (event: React.ChangeEvent<{}>, value: any) => void,
     tabs: PageTab<T>[],
 }

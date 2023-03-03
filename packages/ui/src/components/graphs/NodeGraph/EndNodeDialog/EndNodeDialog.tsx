@@ -146,6 +146,7 @@ export const EndNodeDialog = ({
                         </Tooltip>
                     </Grid>
                     {isEditing && <GridSubmitButtons
+                        display="dialog"
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}

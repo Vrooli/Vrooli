@@ -32,7 +32,7 @@ export const SettingsProfile = ({
     const fetchHandles = useCallback(() => {
         const verifiedWallets = profile?.wallets?.filter(w => w.verified) ?? [];
         if (verifiedWallets.length > 0) {
-            findHandles({ variables: { } }); // Intentionally empty
+            findHandles({ variables: {} }); // Intentionally empty
         } else {
             PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: 'Error' })
         }
@@ -101,9 +101,9 @@ export const SettingsProfile = ({
     // Current bio info, as well as errors
     const translations = useTranslatedFields({
         fields: ['bio'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: userTranslationValidation.update({}),
     });
     // Handles blur on translation fields
@@ -221,6 +221,7 @@ export const SettingsProfile = ({
             </Container>
             <Grid container spacing={2} p={3}>
                 <GridSubmitButtons
+                    display={display}
                     errors={translations.errorsWithTranslations}
                     isCreate={false}
                     loading={formik.isSubmitting}

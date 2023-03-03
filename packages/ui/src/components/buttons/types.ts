@@ -5,6 +5,7 @@ import { FormSchema } from 'forms/types';
 import React from 'react';
 import { NavigableObject} from 'types';
 import { SearchType, Status } from 'utils';
+import { ViewDisplayType } from 'views/types';
 
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
@@ -47,9 +48,15 @@ export interface CommentsButtonProps {
     object: NavigableObject | null | undefined;
 }
 
+export interface GridActionButtonsProps {
+    children: JSX.Element | JSX.Element[];
+    display: ViewDisplayType;
+}
+
 export interface GridSubmitButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
+    display: ViewDisplayType;
     errors?: { [key: string]: string | string[] | null | undefined };
     isCreate: boolean;
     loading?: boolean;

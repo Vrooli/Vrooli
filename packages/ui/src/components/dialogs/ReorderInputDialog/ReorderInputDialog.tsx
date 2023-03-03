@@ -97,6 +97,7 @@ export const ReorderInputDialog = ({
                 {/* Action buttons */}
                 <Grid container spacing={2} sx={{ padding: 0, paddingTop: '24px' }}>
                     <GridSubmitButtons
+                        display="dialog"
                         isCreate={false}
                         onCancel={handleCancel}
                         onSubmit={onSubmit}

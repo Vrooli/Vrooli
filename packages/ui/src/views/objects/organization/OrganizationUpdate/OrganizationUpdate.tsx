@@ -210,6 +210,7 @@ export const OrganizationUpdate = ({
                 </Tooltip>
             </Grid>
             <GridSubmitButtons
+                display={display}
                 errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}

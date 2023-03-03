@@ -104,6 +104,7 @@ export const EditableLabel = ({
                 {/* Save and cancel buttons */}
                 <Grid container spacing={1} padding={1}>
                     <GridSubmitButtons
+                        display="dialog"
                         errors={formik.errors}
                         isCreate={false}
                         loading={formik.isSubmitting}

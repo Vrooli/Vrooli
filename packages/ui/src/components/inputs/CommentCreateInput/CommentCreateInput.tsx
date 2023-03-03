@@ -116,6 +116,7 @@ export const CommentCreateInput = ({
                     marginTop: 1,
                 }}>
                     <GridSubmitButtons
+                        display="dialog"
                         disabledSubmit={!isLoggedIn}
                         errors={translations.errorsWithTranslations}
                         isCreate={true}

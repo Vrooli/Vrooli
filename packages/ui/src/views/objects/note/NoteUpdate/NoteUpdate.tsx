@@ -141,6 +141,7 @@ export const NoteUpdate = ({
             </Grid>
             {/* TODO */}
             <GridSubmitButtons
+                display={display}
                 errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}

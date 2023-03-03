@@ -212,6 +212,7 @@ export const LinkDialog = ({
                 {/* Action buttons */}
                 <Grid container spacing={2} mt={2}>
                     <GridSubmitButtons
+                        display="dialog"
                         errors={errors}
                         isCreate={isAdd}
                         onCancel={handleCancel}

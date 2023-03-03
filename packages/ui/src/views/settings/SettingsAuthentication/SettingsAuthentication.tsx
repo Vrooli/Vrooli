@@ -37,7 +37,7 @@ export const SettingsAuthentication = ({
     const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
-        mutationWrapper<Session, LogOutInput>({ 
+        mutationWrapper<Session, LogOutInput>({
             mutation: logOut,
             input: { id },
             onSuccess: (data) => { PubSub.get().publishSession(data) },
@@ -192,6 +192,7 @@ export const SettingsAuthentication = ({
                     <GridSubmitButtons
                         disabledCancel={!formik.dirty}
                         disabledSubmit={!formik.dirty}
+                        display={display}
                         errors={formik.errors}
                         isCreate={false}
                         loading={formik.isSubmitting}

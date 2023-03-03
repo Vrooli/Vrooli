@@ -60,9 +60,9 @@ export const SubroutineInfoDialog = ({
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
-   // Handle resources
-   const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-   const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -437,6 +437,7 @@ export const SubroutineInfoDialog = ({
                     {
                         canUpdate && <Grid container spacing={1}>
                             <GridSubmitButtons
+                                display="dialog"
                                 errors={translations.errorsWithTranslations}
                                 isCreate={false}
                                 loading={formik.isSubmitting}

@@ -60,6 +60,7 @@ export const ReminderUpdate = ({
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             {/* TODO */}
             <GridSubmitButtons
+                display={display}
                 errors={formik.errors}
                 isCreate={false}
                 loading={formik.isSubmitting}

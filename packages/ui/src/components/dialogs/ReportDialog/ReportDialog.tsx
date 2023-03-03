@@ -167,6 +167,7 @@ export const ReportDialog = ({
                         {/* Action buttons */}
                         <Grid container spacing={1}>
                             <GridSubmitButtons
+                                display="dialog"
                                 errors={formik.errors}
                                 isCreate={true}
                                 loading={formik.isSubmitting}

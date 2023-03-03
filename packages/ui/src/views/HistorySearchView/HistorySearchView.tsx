@@ -85,6 +85,7 @@ export const HistorySearchView = ({
         below: <PageTabs
             ariaLabel="history-search-tabs"
             currTab={currTab}
+            fullWidth
             onChange={handleTabChange}
             tabs={tabs}
         />

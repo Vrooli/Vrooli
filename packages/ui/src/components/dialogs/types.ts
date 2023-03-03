@@ -7,6 +7,7 @@ import { SvgComponent } from '@shared/icons';
 import { ObjectAction } from 'utils/actions/objectActions';
 import { CookiePreferences } from 'utils/cookies';
 import { StatsCompactPropsObject } from 'components/text/types';
+import { BaseViewProps } from 'views/types';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
@@ -293,6 +294,8 @@ export interface RunPickerMenuProps {
     runnableObject?: RoutineVersion | ProjectVersion | null;
     session: Session | undefined;
 }
+
+export interface ViewDialogProps extends Omit<BaseViewProps, 'display'> {};
 
 export interface WalletInstallDialogProps {
     onClose: () => any;

@@ -14,7 +14,7 @@ import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateYupSchema } from 'forms/generators';
 import { convertFormikForSearch, convertSearchForFormik, searchTypeToParams } from 'utils';
-import { DialogTitle, GeneratedGrid } from 'components';
+import { DialogTitle, GeneratedGrid, GridActionButtons } from 'components';
 import { CancelIcon, SearchIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
 import { parseSearchParams } from '@shared/route';
@@ -88,9 +88,6 @@ export const AdvancedSearchDialog = ({
     useEffect(() => {
         console.log('session changed', session);
     }, [session])
-    useEffect(() => {
-        console.log('theme changed', theme);
-    }, [theme])
 
     return (
         <Dialog
@@ -102,7 +99,7 @@ export const AdvancedSearchDialog = ({
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': {
-                    minWidth: 'min(400px, 100%)',
+                    minWidth: `min(${theme.breakpoints.values.sm}px, 100%)`,
                 },
                 '& .MuiPaper-root': {
                     margin: { xs: 0, sm: 2, md: 4 },
@@ -142,13 +139,44 @@ export const AdvancedSearchDialog = ({
                         zIndex={zIndex}
                     />}
                 </Box>
-                {/* Search/Cancel buttons */}
-                <Grid container spacing={1} sx={{
-                    background: theme.palette.primary.dark,
-                    maxWidth: 'min(700px, 100%)',
-                    margin: 0,
-                    paddingBottom: 'env(safe-area-inset-bottom)',
+                <Box sx={{
+                    padding: { xs: 1, sm: 2 },
+                    margin: 'auto',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
                 }}>
+                    {schema && <GeneratedGrid
+                        childContainers={schema.containers}
+                        fields={schema.fields}
+                        formik={formik}
+                        layout={schema.formLayout}
+                        onUpload={() => { }}
+                        session={session}
+                        theme={theme}
+                        zIndex={zIndex}
+                    />}
+                </Box>
+                <Box sx={{
+                    padding: { xs: 1, sm: 2 },
+                    margin: 'auto',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}>
+                    {schema && <GeneratedGrid
+                        childContainers={schema.containers}
+                        fields={schema.fields}
+                        formik={formik}
+                        layout={schema.formLayout}
+                        onUpload={() => { }}
+                        session={session}
+                        theme={theme}
+                        zIndex={zIndex}
+                    />}
+                </Box>
+                {/* Search/Cancel buttons */}
+                <GridActionButtons display="dialog">
                     <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button
                             fullWidth
@@ -163,7 +191,7 @@ export const AdvancedSearchDialog = ({
                             onClick={handleClose}
                         >{t(`Cancel`)}</Button>
                     </Grid>
-                </Grid>
+                </GridActionButtons>
             </form>
         </Dialog>
     )
