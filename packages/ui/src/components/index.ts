@@ -4,6 +4,7 @@ export * from './cards';
 export * from './containers';
 export * from './dialogs';
 export * from './ErrorBoundary/ErrorBoundary';
+export * from './FullPageSpinner/FullPageSpinner';
 export * from './graphs';
 export * from './inputs';
 export * from './lists';

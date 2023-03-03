@@ -6,10 +6,10 @@ import {
     ForgotPasswordForm,
     ResetPasswordForm
 } from 'forms';
-import { Navbar, ScrollToTop } from 'components';
+import { FullPageSpinner, ScrollToTop } from 'components';
 import { CommonProps } from 'types';
 import { Page } from './components/Page/Page';
-import { Box, CircularProgress } from '@mui/material';
+import { Box } from '@mui/material';
 import { PageProps } from 'views/wrapper/types';
 import { NavbarProps } from 'components/navigation/types';
 
@@ -57,15 +57,7 @@ const Fallback = <Box>
         right: 0,
     }} />
     {/* Loading spinner */}
-    <Box sx={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 100000,
-    }}>
-        <CircularProgress size={100} />
-    </Box>
+    <FullPageSpinner />
 </Box>
 
 /**

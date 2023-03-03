@@ -13,6 +13,7 @@ import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { ApiVersion, ApiVersionCreateInput, ResourceList } from "@shared/consts";
 import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { parseSearchParams } from "@shared/route";
+import { BaseForm } from "forms";
 
 export const ApiCreate = ({
     display = 'page',
@@ -108,12 +109,7 @@ export const ApiCreate = ({
                     titleKey: 'CreateApi',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-            >
+            <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
                         <RelationshipButtons
@@ -148,7 +144,7 @@ export const ApiCreate = ({
                         onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-            </form >
+            </BaseForm>
         </>
     )
 }

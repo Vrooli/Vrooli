@@ -11,6 +11,7 @@ import { uuid } from '@shared/uuid';
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { Reminder, ReminderCreateInput } from "@shared/consts";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
+import { BaseForm } from "forms";
 
 export const ReminderCreate = ({
     display = 'page',
@@ -52,12 +53,7 @@ export const ReminderCreate = ({
                     titleKey: 'CreateReminder',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-            >
+            <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     {/* TODO */}
                     <GridSubmitButtons
@@ -71,7 +67,7 @@ export const ReminderCreate = ({
                         onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-            </form>
+            </BaseForm>
         </>
     )
 }

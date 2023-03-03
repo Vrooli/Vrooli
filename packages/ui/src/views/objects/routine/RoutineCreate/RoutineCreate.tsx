@@ -16,6 +16,7 @@ import { mutationWrapper } from "api/utils";
 import { routineVersionCreate } from "api/generated/endpoints/routineVersion_create";
 import { parseSearchParams } from "@shared/route";
 import { BuildView } from "views/BuildView/BuildView";
+import { BaseForm } from "forms";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 
@@ -213,13 +214,7 @@ export const RoutineCreate = ({
                     titleKey: 'CreateRoutine',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex,
-            }}
-            >
+            <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
                         <RelationshipButtons
@@ -434,7 +429,7 @@ export const RoutineCreate = ({
                         onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-            </form>
+            </BaseForm>
         </>
     )
 }

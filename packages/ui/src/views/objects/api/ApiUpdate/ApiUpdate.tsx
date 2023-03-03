@@ -12,6 +12,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, ApiVersion, ApiVersionUpdateInput, ResourceList } from "@shared/consts";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
+import { BaseForm } from "forms";
 
 export const ApiUpdate = ({
     display = 'page',
@@ -114,42 +115,6 @@ export const ApiUpdate = ({
         }
     }, [apiVersion, session]);
 
-    const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-            <Grid item xs={12} mb={4}>
-                <RelationshipButtons
-                    isEditing={true}
-                    objectType={'Api'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
-                    session={session}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12}>
-                <LanguageInput
-                    currentLanguage={language}
-                    handleAdd={handleAddLanguage}
-                    handleDelete={handleLanguageDelete}
-                    handleCurrent={setLanguage}
-                    session={session}
-                    translations={formik.values.translationsUpdate}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            {/* TODO */}
-            <GridSubmitButtons
-                display={display}
-                errors={translations.errorsWithTranslations}
-                isCreate={false}
-                loading={formik.isSubmitting}
-                onCancel={onCancel}
-                onSetSubmitting={formik.setSubmitting}
-                onSubmit={formik.handleSubmit}
-            />
-        </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, translations, onCancel]);
-
     return (
         <>
             <TopBar
@@ -160,26 +125,41 @@ export const ApiUpdate = ({
                     titleKey: 'UpdateApi',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-            >
-                {loading ? (
-                    <Box sx={{
-                        position: 'absolute',
-                        top: '-5vh', // Half of toolbar height
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                    }}>
-                        <CircularProgress size={100} color="secondary" />
-                    </Box>
-                ) : formInput}
-            </form>
+            <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'Api'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleLanguageDelete}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsUpdate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    {/* TODO */}
+                    <GridSubmitButtons
+                        display={display}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={false}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
+                </Grid>
+            </BaseForm>
         </>
     )
 }

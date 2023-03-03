@@ -22,13 +22,14 @@ export const LargeDialog = ({
                 zIndex,
                 '& .MuiDialogContent-root': {
                     // Full width on small screens
-                    minWidth: `min(${breakpoints.values.sm}px, 100%)`,
                 },
                 '& .MuiPaper-root': {
                     margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
-                    // Full height on small screens
-                    minHeight: { xs: '100vh', sm: 'auto' },
+                    minWidth: `min(${breakpoints.values.sm}px, 100%)`,
+                    maxWidth: { xs: '100vw', sm: 'calc(100vw - 64px)' },
+                    bottom: { xs: 0, sm: 'auto' },
+                    top: { xs: 'auto', sm: undefined },
+                    position: { xs: 'absolute', sm: 'inherit' },
                     display: { xs: 'block', sm: 'inline-block' },
                     background: palette.background.default,
                     color: palette.background.textPrimary,

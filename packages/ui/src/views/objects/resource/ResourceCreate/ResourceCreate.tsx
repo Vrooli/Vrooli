@@ -13,6 +13,7 @@ import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { Resource, ResourceCreateInput, ResourceList } from "@shared/consts";
 import { resourceCreate } from "api/generated/endpoints/resource_create";
 import { parseSearchParams } from "@shared/route";
+import { BaseForm } from "forms";
 
 export const ResourceCreate = ({
     display = 'dialog',
@@ -90,12 +91,7 @@ export const ResourceCreate = ({
                     titleKey: 'CreateResource',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-            >
+            <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12}>
                         <LanguageInput
@@ -120,7 +116,7 @@ export const ResourceCreate = ({
                         onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-            </form>
+            </BaseForm>
         </>
     )
 }

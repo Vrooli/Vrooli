@@ -13,6 +13,7 @@ import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
 import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { parseSearchParams } from "@shared/route";
+import { BaseForm } from "forms";
 
 export const NoteCreate = ({
     display = 'page',
@@ -104,12 +105,7 @@ export const NoteCreate = ({
                     titleKey: 'CreateNote',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-            >
+            <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
                         <RelationshipButtons
@@ -144,7 +140,7 @@ export const NoteCreate = ({
                         onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-            </form >
+            </BaseForm>
         </>
     )
 }

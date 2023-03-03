@@ -2,11 +2,18 @@ import { CommonProps } from "types";
 import { Forms, TagShape } from "utils";
 import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { InputType, Session } from "@shared/consts";
+import { FormEvent } from "react";
 
 //==============================================================
 /* #region Specific Form Props */
 //==============================================================
 export interface BaseFormProps {
+    children: JSX.Element | JSX.Element[];
+    isLoading?: boolean;
+    onSubmit: (e?: FormEvent<HTMLFormElement> | undefined) => void;
+}
+
+export interface BaseGeneratedFormProps {
     schema: FormSchema;
     session: Session | undefined;
     onSubmit: (values: any) => any;

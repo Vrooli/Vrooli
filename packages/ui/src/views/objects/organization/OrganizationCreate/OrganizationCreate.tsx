@@ -14,6 +14,7 @@ import { Organization, OrganizationCreateInput, ResourceList } from "@shared/con
 import { organizationCreate } from "api/generated/endpoints/organization_create";
 import { parseSearchParams } from "@shared/route";
 import { useCreateActions } from "utils/hooks/useCreateActions";
+import { BaseForm } from "forms";
 
 export const OrganizationCreate = ({
     display = 'page',
@@ -113,12 +114,7 @@ export const OrganizationCreate = ({
                     titleKey: 'CreateOrganization',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-            >
+            <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
                         <RelationshipButtons
@@ -206,7 +202,7 @@ export const OrganizationCreate = ({
                         </Tooltip>
                     </Grid>
                 </Grid>
-            </form >
+            </BaseForm>
             <GridSubmitButtons
                 disabledSubmit={!isLoggedIn}
                 display={display}

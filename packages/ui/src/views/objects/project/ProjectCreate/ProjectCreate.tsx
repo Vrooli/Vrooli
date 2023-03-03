@@ -13,6 +13,7 @@ import { checkIfLoggedIn } from "utils/authentication";
 import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
 import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { parseSearchParams } from "@shared/route";
+import { BaseForm } from "forms";
 
 export const ProjectCreate = ({
     display = 'page',
@@ -121,13 +122,7 @@ export const ProjectCreate = ({
                     titleKey: 'CreateProject',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex,
-            }}
-            >
+            <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
                         <RelationshipButtons
@@ -227,7 +222,7 @@ export const ProjectCreate = ({
                         onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-            </form>
+            </BaseForm>
         </>
     )
 }

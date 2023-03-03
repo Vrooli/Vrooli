@@ -12,6 +12,7 @@ import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, Standard
 import { standardVersionValidation } from "@shared/validation";
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { standardVersionUpdate } from "api/generated/endpoints/standardVersion_update";
+import { BaseForm } from "forms";
 
 export const StandardUpdate = ({
     display = 'page',
@@ -134,77 +135,6 @@ export const StandardUpdate = ({
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
 
-    const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-            <Grid item xs={12} mb={4}>
-                <RelationshipButtons
-                    isEditing={true}
-                    objectType={'Standard'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
-                    session={session}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12}>
-                <LanguageInput
-                    currentLanguage={language}
-                    handleAdd={handleAddLanguage}
-                    handleDelete={handleLanguageDelete}
-                    handleCurrent={setLanguage}
-                    session={session}
-                    translations={formik.values.translationsUpdate}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12} mb={4}>
-                <TextField
-                    fullWidth
-                    id="description"
-                    name="description"
-                    label="description"
-                    multiline
-                    minRows={4}
-                    value={translations.description}
-                    onBlur={onTranslationBlur}
-                    onChange={onTranslationChange}
-                    error={translations.touchedDescription && Boolean(translations.errorDescription)}
-                    helperText={translations.touchedDescription && translations.errorDescription}
-                />
-            </Grid>
-            {/* TODO versioning */}
-            <Grid item xs={12}>
-                <ResourceListHorizontal
-                    title={'Resources'}
-                    list={resourceList}
-                    canUpdate={true}
-                    handleUpdate={handleResourcesUpdate}
-                    loading={loading}
-                    session={session}
-                    mutate={false}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12} marginBottom={4}>
-                <TagSelector
-                    handleTagsUpdate={handleTagsUpdate}
-                    session={session}
-                    tags={tags}
-                />
-            </Grid>
-            <GridSubmitButtons
-                display={display}
-                errors={translations.errorsWithTranslations}
-                isCreate={false}
-                loading={formik.isSubmitting}
-                onCancel={onCancel}
-                onSetSubmitting={formik.setSubmitting}
-                onSubmit={formik.handleSubmit}
-            />
-        </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, onTranslationBlur, onTranslationChange, translations, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
-
-
     return (
         <>
             <TopBar
@@ -215,26 +145,75 @@ export const StandardUpdate = ({
                     titleKey: 'UpdateStandard',
                 }}
             />
-            <form onSubmit={formik.handleSubmit} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-            >
-                {loading ? (
-                    <Box sx={{
-                        position: 'absolute',
-                        top: '-5vh', // Half of toolbar height
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                    }}>
-                        <CircularProgress size={100} color="secondary" />
-                    </Box>
-                ) : formInput}
-            </form>
+            <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'Standard'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleLanguageDelete}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsUpdate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12} mb={4}>
+                        <TextField
+                            fullWidth
+                            id="description"
+                            name="description"
+                            label="description"
+                            multiline
+                            minRows={4}
+                            value={translations.description}
+                            onBlur={onTranslationBlur}
+                            onChange={onTranslationChange}
+                            error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                            helperText={translations.touchedDescription && translations.errorDescription}
+                        />
+                    </Grid>
+                    {/* TODO versioning */}
+                    <Grid item xs={12}>
+                        <ResourceListHorizontal
+                            title={'Resources'}
+                            list={resourceList}
+                            canUpdate={true}
+                            handleUpdate={handleResourcesUpdate}
+                            loading={loading}
+                            session={session}
+                            mutate={false}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12} marginBottom={4}>
+                        <TagSelector
+                            handleTagsUpdate={handleTagsUpdate}
+                            session={session}
+                            tags={tags}
+                        />
+                    </Grid>
+                    <GridSubmitButtons
+                        display={display}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={false}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
+                </Grid>
+            </BaseForm>
         </>
     )
 }

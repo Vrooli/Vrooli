@@ -45,14 +45,6 @@ export const FormView = ({
                 transform: 'translateX(-50%)',
                 marginBottom: '20px'
             }}>
-                <Container sx={{
-                    backgroundColor: palette.primary.main,
-                    color: palette.primary.contrastText,
-                    padding: '1em',
-                    textAlign: 'center',
-                }}>
-                    <Typography variant="h3" >{title}</Typography>
-                </Container>
                 <Container>
                     {children}
                 </Container>
