@@ -5,8 +5,8 @@ import { ApiUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeApiVersion, TagShape, usePromptBeforeUnload, useTopBar, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeApiVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, ApiVersion, ApiVersionUpdateInput, ResourceList } from "@shared/consts";
@@ -114,14 +114,6 @@ export const ApiUpdate = ({
         }
     }, [apiVersion, session]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'UpdateApi',
-        },
-    })
-
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12} mb={4}>
@@ -147,7 +139,7 @@ export const ApiUpdate = ({
             </Grid>
             {/* TODO */}
             <GridSubmitButtons
-            display={display}
+                display={display}
                 errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}
@@ -160,7 +152,14 @@ export const ApiUpdate = ({
 
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'UpdateApi',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

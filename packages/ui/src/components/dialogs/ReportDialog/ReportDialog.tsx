@@ -31,7 +31,7 @@ const ReportReasons = {
     [ReportOptions.Other]: 'Other',
 }
 
-const titleAria = "report-dialog-title";
+const titleId = "report-dialog-title";
 
 export const ReportDialog = ({
     forId,
@@ -92,7 +92,7 @@ export const ReportDialog = ({
         <Dialog
             onClose={handleCancel}
             open={open}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiPaper-root': {
@@ -106,7 +106,7 @@ export const ReportDialog = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={title}
                 helpText={helpText}
                 onClose={handleCancel}

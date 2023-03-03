@@ -3,10 +3,10 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeQuestion, TagShape, useCreateActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeQuestion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { QuestionCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
@@ -97,17 +97,16 @@ export const QuestionCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'CreateQuestion',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'CreateQuestion',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

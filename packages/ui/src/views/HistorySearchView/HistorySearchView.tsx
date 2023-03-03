@@ -1,11 +1,7 @@
-/**
- * Search page for personal objects (active runs, completed runs, views, bookmarks)
- */
-import { Stack, Typography } from "@mui/material";
-import { PageTabs, SearchList } from "components";
+import { PageTabs, SearchList, TopBar } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { SearchType, HistorySearchPageTabOption as TabOptions, useTopBar } from "utils";
+import { SearchType, HistorySearchPageTabOption as TabOptions } from "utils";
 import { PageTab } from "components/types";
 import { useTranslation } from "react-i18next";
 import { CommonKey } from "@shared/translations";
@@ -37,6 +33,9 @@ const tabParams: BaseParams[] = [{
     where: {},
 }]
 
+/**
+ * Search page for personal objects (active runs, completed runs, views, bookmarks)
+ */
 export const HistorySearchView = ({
     display = 'page',
     session,
@@ -75,25 +74,24 @@ export const HistorySearchView = ({
         }
     }, [currTab.index, currTab.label, t]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            hideOnDesktop: true,
-            title,
-        },
-        below: <PageTabs
-            ariaLabel="history-search-tabs"
-            currTab={currTab}
-            fullWidth
-            onChange={handleTabChange}
-            tabs={tabs}
-        />
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    hideOnDesktop: true,
+                    title,
+                }}
+                below={<PageTabs
+                    ariaLabel="history-search-tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
             {searchType && <SearchList
                 id="history-search-page-list"
                 take={20}

@@ -1,11 +1,11 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
-import { getTranslation, getUserLanguages, useTopBar } from "utils";
+import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
-import { HelpButton } from "components/buttons";
 import { OpenInNewIcon } from "@shared/icons";
 import { Node, NodeLink, NodeType } from "@shared/consts";
+import { TopBar } from "components";
 
 type Decision = {
     node: Node;
@@ -46,18 +46,17 @@ export const DecisionView = ({
         handleDecisionSelect(decision.node);
     }, [decisions, handleDecisionSelect]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Decision',
-            helpKey: 'DecisionHelp',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Decision',
+                    helpKey: 'DecisionHelp',
+                }}
+            />
             <Stack direction="column" spacing={4} p={2}>
                 {/* Title and help button */}
                 <Stack

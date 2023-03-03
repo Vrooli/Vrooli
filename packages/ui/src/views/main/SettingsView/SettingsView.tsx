@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCustomLazyQuery } from 'api/hooks';
 import { APP_LINKS, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { PreSearchItem, translateSearchItems, useReactSearch, useTopBar, useWindowSize } from 'utils';
+import { PreSearchItem, translateSearchItems, useReactSearch, useWindowSize } from 'utils';
 import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
-import { SettingsSearchBar } from 'components';
+import { SettingsSearchBar, TopBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
 import { useTranslation } from 'react-i18next';
@@ -152,34 +152,33 @@ export const SettingsView = ({
         }
     }, [selectedPage, session, profile, onUpdated]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Settings',
-        },
-        // Search bar to find settings
-        below: <Box sx={{
-            width: 'min(100%, 700px)',
-            margin: 'auto',
-            marginTop: 2,
-            marginBottom: 2,
-            paddingLeft: 2,
-            paddingRight: 2,
-        }}>
-            <SettingsSearchBar
-                value={searchString}
-                onChange={updateSearch}
-                onInputChange={onInputSelect}
-                options={searchOptions}
-                session={session}
-            />
-        </Box>
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Settings',
+                }}
+                // Search bar to find settings
+                below={<Box sx={{
+                    width: 'min(100%, 700px)',
+                    margin: 'auto',
+                    marginTop: 2,
+                    marginBottom: 2,
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                }}>
+                    <SettingsSearchBar
+                        value={searchString}
+                        onChange={updateSearch}
+                        onInputChange={onInputSelect}
+                        options={searchOptions}
+                        session={session}
+                    />
+                </Box>}
+            />
             {/* Forms list and currnet form */}
             <Grid container spacing={0}>
                 {/* List of settings forms, which is collapsible only on mobile */}

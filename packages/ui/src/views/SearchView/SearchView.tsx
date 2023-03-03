@@ -2,12 +2,12 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { PageTabs, SearchList, ShareSiteDialog } from "components";
+import { PageTabs, SearchList, ShareSiteDialog, TopBar } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { SearchViewProps } from "../types";
-import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions, useTopBar } from "utils";
+import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions } from "utils";
 import { APP_LINKS, GqlModelType } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
@@ -191,25 +191,25 @@ export const SearchView = ({
         </Box>
     ), [onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            hideOnDesktop: true,
-            titleKey: 'Search',
-        },
-        below: <PageTabs
-            ariaLabel="search-tabs"
-            currTab={currTab}
-            onChange={handleTabChange}
-            tabs={tabs}
-        />
-    })
-    console.log('search typeeee', searchType)
+    console.log('search typeeee', searchType, currTab)
 
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    hideOnDesktop: true,
+                    titleKey: 'Search',
+                }}
+                below={<PageTabs
+                    ariaLabel="search-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
             {/* Invite dialog for organizations and users */}
             <ShareSiteDialog
                 onClose={closeShareDialog}

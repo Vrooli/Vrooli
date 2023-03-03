@@ -2,11 +2,11 @@ import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, TitleContainer, ListMenu, PageTabs } from 'components';
+import { SiteSearchBar, TitleContainer, ListMenu, PageTabs, TopBar } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HomeInput, HomeResult } from '@shared/consts';
 import { HomeViewProps } from '../types';
-import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, useDisplayApolloError, useReactSearch, useTopBar } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, useDisplayApolloError, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
@@ -186,24 +186,23 @@ export const HomeView = ({
         else setLocation(path);
     }, [session, setLocation]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        // Navigate between for you and history pages
-        below: showTabs && (
-            <PageTabs
-                ariaLabel="home-tabs"
-                currTab={currTab}
-                fullWidth
-                onChange={handleTabChange}
-                tabs={tabs}
-            />
-        )
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                // Navigate between for you and history pages
+                below={showTabs && (
+                    <PageTabs
+                        ariaLabel="home-tabs"
+                        currTab={currTab}
+                        fullWidth
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />
+                )}
+            />
             {/* Advanced search dialog */}
             <ListMenu
                 id={`open-advanced-search-menu`}

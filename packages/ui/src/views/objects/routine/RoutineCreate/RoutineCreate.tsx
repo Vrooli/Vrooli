@@ -2,10 +2,10 @@ import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Too
 import { useCustomMutation } from "api/hooks";
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, VersionInput } from "components";
+import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar, UpTransition, VersionInput } from "components";
 import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
@@ -203,17 +203,16 @@ export const RoutineCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'CreateRoutine',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'CreateRoutine',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

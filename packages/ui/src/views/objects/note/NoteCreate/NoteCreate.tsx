@@ -3,10 +3,10 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeNoteVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeNoteVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { NoteCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
@@ -94,17 +94,16 @@ export const NoteCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'CreateNote',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'CreateNote',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

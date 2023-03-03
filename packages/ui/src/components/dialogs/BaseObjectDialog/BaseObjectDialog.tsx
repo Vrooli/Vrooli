@@ -1,13 +1,13 @@
 import {
     Box,
-    Dialog,
     useTheme,
 } from '@mui/material';
 import { useCallback } from 'react';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { BaseObjectDialogProps, ObjectDialogAction } from '../types';
 
-const titleAria = 'base-object-dialog-title';
+const titleId = 'base-object-dialog-title';
 
 /**
  * Dialog for displaying any "Add" form
@@ -25,17 +25,15 @@ export const BaseObjectDialog = ({
     const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
 
     return (
-        <Dialog
-            fullScreen
-            open={open}
+        <LargeDialog
+            id="object-dialog"
+            isOpen={open}
             onClose={onClose}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 onClose={onClose}
                 title={title}
             />
@@ -49,6 +47,6 @@ export const BaseObjectDialog = ({
             >
                 {children}
             </Box>
-        </Dialog>
+        </LargeDialog>
     );
 }

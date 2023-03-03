@@ -1,4 +1,6 @@
-import { CommonProps } from 'types';
+import { Session } from '@shared/consts';
+import { CommonProps, OptionalTranslation } from 'types';
+import { ViewDisplayType } from 'views/types';
 
 export type BottomNavProps = CommonProps;
 
@@ -28,4 +30,12 @@ export type NavListProps = CommonProps;
 export interface HideOnScrollProps {
     target?: any;
     children: JSX.Element;
+}
+
+export type TopBarProps = {
+    display: ViewDisplayType
+    onClose: () => void,
+    session?: Session,
+    titleData?: OptionalTranslation & { hideOnDesktop?: boolean },
+    below?: JSX.Element | boolean
 }

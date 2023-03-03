@@ -3,9 +3,9 @@ import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel } from "components";
+import { ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel, TopBar } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsCreate, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsCreate, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -101,14 +101,6 @@ export const RoutineView = ({
         setObject: setRoutineVersion,
     });
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Routine',
-        },
-    })
-
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
         if (!routineVersion) return null;
@@ -198,7 +190,14 @@ export const RoutineView = ({
 
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Routine',
+                }}
+            />
             <Box sx={{
                 marginLeft: 'auto',
                 marginRight: 'auto',

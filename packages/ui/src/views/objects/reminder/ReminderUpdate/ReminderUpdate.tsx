@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ReminderUpdateProps } from "../types";
 import { reminderValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { parseSingleItemUrl, PubSub, usePromptBeforeUnload, useTopBar, useUpdateActions } from "utils";
-import { GridSubmitButtons, PageTitle } from "components";
+import { parseSingleItemUrl, PubSub, usePromptBeforeUnload, useUpdateActions } from "utils";
+import { GridSubmitButtons, PageTitle, TopBar } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { FindByIdInput, Reminder, ReminderUpdateInput } from "@shared/consts";
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
@@ -48,14 +48,6 @@ export const ReminderUpdate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'UpdateReminder',
-        },
-    })
-
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             {/* TODO */}
@@ -73,7 +65,14 @@ export const ReminderUpdate = ({
 
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'UpdateReminder',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

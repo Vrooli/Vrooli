@@ -2,9 +2,9 @@ import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme }
 import { useLocation } from '@shared/route';
 import { SmartContractVersion, BookmarkFor, FindVersionInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
 import { SmartContractViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
@@ -58,14 +58,6 @@ export const SmartContractView = ({
         setLocation,
         setObject: setSmartContractVersion,
     });
-
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'SmartContract',
-        },
-    })
 
     /**
      * Displays name, avatar, description, and quick links
@@ -182,7 +174,14 @@ export const SmartContractView = ({
 
     return (
         <>
-        {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'SmartContract',
+                }}
+            />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

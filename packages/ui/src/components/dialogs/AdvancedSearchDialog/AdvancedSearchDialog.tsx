@@ -14,12 +14,12 @@ import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateYupSchema } from 'forms/generators';
 import { convertFormikForSearch, convertSearchForFormik, searchTypeToParams } from 'utils';
-import { DialogTitle, GeneratedGrid, GridActionButtons } from 'components';
+import { DialogTitle, GeneratedGrid, GridActionButtons, LargeDialog } from 'components';
 import { CancelIcon, SearchIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
 import { parseSearchParams } from '@shared/route';
 
-const titleAria = 'advanced-search-dialog-title';
+const titleId = 'advanced-search-dialog-title';
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -90,73 +90,19 @@ export const AdvancedSearchDialog = ({
     }, [session])
 
     return (
-        <Dialog
+        <LargeDialog
             id="advanced-search-dialog"
-            open={isOpen}
+            isOpen={isOpen}
             onClose={handleClose}
-            scroll="body"
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': {
-                    minWidth: `min(${theme.breakpoints.values.sm}px, 100%)`,
-                },
-                '& .MuiPaper-root': {
-                    margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
-                    minHeight: { xs: '100vh', sm: 'auto' },
-                    display: { xs: 'block', sm: 'inline-block' },
-                    background: theme.palette.background.default,
-                    color: theme.palette.background.textPrimary,
-                },
-                // Remove ::after element that is added to the dialog
-                '& .MuiDialog-container::after': {
-                    content: 'none',
-                },
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={t(`AdvancedSearch`)}
                 onClose={handleClose}
             />
             <form onSubmit={formik.handleSubmit}>
-                <Box sx={{
-                    padding: { xs: 1, sm: 2 },
-                    margin: 'auto',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    {schema && <GeneratedGrid
-                        childContainers={schema.containers}
-                        fields={schema.fields}
-                        formik={formik}
-                        layout={schema.formLayout}
-                        onUpload={() => { }}
-                        session={session}
-                        theme={theme}
-                        zIndex={zIndex}
-                    />}
-                </Box>
-                <Box sx={{
-                    padding: { xs: 1, sm: 2 },
-                    margin: 'auto',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    {schema && <GeneratedGrid
-                        childContainers={schema.containers}
-                        fields={schema.fields}
-                        formik={formik}
-                        layout={schema.formLayout}
-                        onUpload={() => { }}
-                        session={session}
-                        theme={theme}
-                        zIndex={zIndex}
-                    />}
-                </Box>
                 <Box sx={{
                     padding: { xs: 1, sm: 2 },
                     margin: 'auto',
@@ -193,6 +139,6 @@ export const AdvancedSearchDialog = ({
                     </Grid>
                 </GridActionButtons>
             </form>
-        </Dialog>
+        </LargeDialog>
     )
 }

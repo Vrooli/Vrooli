@@ -4,7 +4,7 @@ import { StatsCompactPropsObject } from "components/text/types"
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { StatsDialogProps } from "../types"
 
-const titleAria = 'stats-object-dialog-title';
+const titleId = 'stats-object-dialog-title';
 
 /**
  * Displays basic stats about an object, in a short format.
@@ -23,7 +23,7 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
         <Dialog
             onClose={onClose}
             open={isOpen}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': {
@@ -36,7 +36,7 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title="Share"
                 onClose={onClose}
             />

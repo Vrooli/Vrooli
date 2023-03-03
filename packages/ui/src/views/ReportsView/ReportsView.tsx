@@ -1,14 +1,14 @@
 import { useQuery } from "@apollo/client";
 import { useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
-import { parseSingleItemUrl, useTopBar } from "utils";
-import { PageTitle } from "components/text";
+import { parseSingleItemUrl } from "utils";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { Wrap } from "types";
 import { reportFindMany } from "api/generated/endpoints/report_findMany";
 import { getLastUrlPart } from "@shared/route";
 import { useTranslation } from "react-i18next";
 import { ReportsViewProps } from "../types";
+import { TopBar } from "components";
 
 /**
  * Maps object types to the correct id fields
@@ -42,18 +42,17 @@ export const ReportsView = ({
         return data.reports.edges.map(edge => edge.node);
     }, [data]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Reports',
-            helpKey: 'ReportsHelp',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Reports',
+                    helpKey: 'ReportsHelp',
+                }}
+            />
             {reports.map((report, i) => {
                 return <Box
                     key={i}

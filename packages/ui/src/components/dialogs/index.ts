@@ -28,6 +28,6 @@ export * from './snacks';
 export * from './StatsDialog/StatsDialog';
 export * from './TranscriptDialog/TranscriptDialog';
 export * from './UnlinkedNodesDialog/UnlinkedNodesDialog';
-export * from './ViewDialog/ViewDialog';
+export * from './LargeDialog/LargeDialog';
 export * from './WalletInstallDialog/WalletInstallDialog';
 export * from './WalletSelectDialog/WalletSelectDialog';

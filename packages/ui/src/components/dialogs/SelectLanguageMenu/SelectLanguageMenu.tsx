@@ -46,7 +46,7 @@ const autoTranslateLanguages = [
     'eo', // Esperanto
 ];
 
-const titleAria = 'select-language-dialog-title';
+const titleId = 'select-language-dialog-title';
 
 export const SelectLanguageMenu = ({
     currentLanguage,
@@ -191,7 +191,7 @@ export const SelectLanguageMenu = ({
                 open={open}
                 anchorEl={anchorEl}
                 onClose={onClose}
-                aria-labelledby={titleAria}
+                aria-labelledby={titleId}
                 sx={{
                     zIndex: zIndex + 1,
                     '& .MuiPopover-paper': {
@@ -211,7 +211,7 @@ export const SelectLanguageMenu = ({
             >
                 {/* Title */}
                 <MenuTitle
-                    ariaLabel={titleAria}
+                    id={titleId}
                     title={'Select Language'}
                     onClose={onClose}
                 />

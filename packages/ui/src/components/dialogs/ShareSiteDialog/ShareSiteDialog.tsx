@@ -26,7 +26,7 @@ const buttonProps = (palette: Palette) => ({
     width: '48px',
 })
 
-const titleAria = 'share-site-dialog-title';
+const titleId = 'share-site-dialog-title';
 
 export const ShareSiteDialog = ({
     open,
@@ -90,7 +90,7 @@ export const ShareSiteDialog = ({
                 },
             }}
         >
-            <DialogTitle ariaLabel={titleAria} title="Spread the Word 🌍" onClose={onClose} />
+            <DialogTitle id={titleId} title="Spread the Word 🌍" onClose={onClose} />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
                     <Tooltip title="Copy invite link">

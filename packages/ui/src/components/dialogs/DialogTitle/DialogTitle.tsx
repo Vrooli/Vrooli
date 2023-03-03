@@ -10,8 +10,8 @@ import { noSelect } from 'styles';
 import { DialogTitleProps } from '../types';
 
 export const DialogTitle = ({
-    ariaLabel,
     helpText,
+    id,
     onClose,
     title,
 }: DialogTitleProps) => {
@@ -19,7 +19,7 @@ export const DialogTitle = ({
 
     return (
         <MuiDialogTitle
-            id={ariaLabel}
+            id={id}
             sx={{
                 ...noSelect,
                 display: 'flex',

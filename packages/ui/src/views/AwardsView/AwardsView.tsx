@@ -2,11 +2,11 @@ import { useQuery } from "@apollo/client";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
 import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award_findMany";
-import { AwardCard, AwardList, CardGrid, ContentCollapse } from "components";
+import { AwardCard, AwardList, CardGrid, ContentCollapse, TopBar } from "components";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay, Wrap } from "types";
-import { awardToDisplay, getUserLanguages, useDisplayApolloError, useTopBar } from "utils";
+import { awardToDisplay, getUserLanguages, useDisplayApolloError } from "utils";
 import { AwardsViewProps } from "views/types";
 
 // Category array for sorting
@@ -43,18 +43,17 @@ export const AwardsView = ({
     }, [data, lng, t]);
     console.log(awards);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Award',
-            titleVariables: { count: 2 },
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Award',
+                    titleVariables: { count: 2 },
+                }}
+            />
             {/* Display earned awards as a list of tags. Press or hover to see description */}
             <ContentCollapse
                 isOpen={true}

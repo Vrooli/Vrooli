@@ -2,10 +2,10 @@ import { Box, Grid, TextField } from "@mui/material";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, removeTranslation, shapeStandardVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, removeTranslation, shapeStandardVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, GeneratedInputComponent, PreviewSwitch, RelationshipButtons } from "components/inputs";
@@ -155,17 +155,16 @@ export const StandardCreate = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'CreateStandard',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'CreateStandard',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

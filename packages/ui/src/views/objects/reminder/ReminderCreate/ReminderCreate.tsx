@@ -3,10 +3,10 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { reminderValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { useCreateActions, usePromptBeforeUnload, useTopBar } from "utils";
+import { useCreateActions, usePromptBeforeUnload } from "utils";
 import { ReminderCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, PageTitle } from "components";
+import { GridSubmitButtons, PageTitle, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { Reminder, ReminderCreateInput } from "@shared/consts";
@@ -42,17 +42,16 @@ export const ReminderCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'CreateReminder',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'CreateReminder',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

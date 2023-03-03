@@ -37,7 +37,7 @@ const stripUrl = (url: string) => {
     return urlParts.join('/');
 }
 
-const titleAria = 'command-palette-dialog-title';
+const titleId = 'command-palette-dialog-title';
 
 export const CommandPalette = ({
     session
@@ -116,7 +116,7 @@ export const CommandPalette = ({
         <Dialog
             open={open}
             onClose={close}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 '& .MuiDialog-paper': {
                     minWidth: 'min(100%, 600px)',
@@ -128,7 +128,7 @@ export const CommandPalette = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 helpText={t(`CommandPaletteHelp`)}
                 title={t(`CommandPaletteTitle`)}
                 onClose={close}

@@ -1,6 +1,6 @@
 import { Box, Container, Typography, useTheme } from '@mui/material';
 import { Session } from '@shared/consts';
-import { useTopBar } from 'utils';
+import { TopBar } from 'components';
 import { ViewDisplayType } from 'views/types';
 
 interface Props {
@@ -22,17 +22,16 @@ export const FormView = ({
 }: Props) => {
     const { palette } = useTheme();
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            title,
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    title,
+                }}
+            />
             <Box sx={{
                 backgroundColor: palette.background.paper,
                 display: 'grid',

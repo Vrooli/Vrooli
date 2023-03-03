@@ -3,11 +3,12 @@ import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import { openLink, useLocation } from '@shared/route';
 import { clickSize } from 'styles';
 import { useEffect } from 'react';
-import { PubSub, useTopBar } from 'utils';
+import { PubSub } from 'utils';
 import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
 import { checkIfLoggedIn } from 'utils/authentication';
 import { useTranslation } from 'react-i18next';
 import { WelcomeViewProps } from '../types';
+import { TopBar } from 'components';
 
 const buttonProps = {
     height: "48px",
@@ -42,14 +43,13 @@ export const WelcomeView = ({
         }
     }, []);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+            />
             <Box sx={{
                 boxShadow: 12,
                 padding: 2,

@@ -2,9 +2,9 @@ import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
+import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton, TopBar } from "components";
 import { StandardViewProps } from "../types";
-import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
+import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl } from "utils";
 import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -86,14 +86,6 @@ export const StandardView = ({
         setObject: setStandardVersion,
     });
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Standard',
-        },
-    })
-
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
@@ -122,7 +114,14 @@ export const StandardView = ({
 
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'Standard',
+                }}
+            />
             <Box sx={{
                 marginLeft: 'auto',
                 marginRight: 'auto',

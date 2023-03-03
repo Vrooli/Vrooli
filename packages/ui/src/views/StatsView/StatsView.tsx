@@ -1,8 +1,8 @@
 import { Box, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LineGraphCard, DateRangeMenu, PageTabs, CardGrid } from 'components';
+import { LineGraphCard, DateRangeMenu, PageTabs, CardGrid, TopBar } from 'components';
 import { useTranslation } from 'react-i18next';
-import { displayDate, statsDisplay, useTopBar } from 'utils';
+import { displayDate, statsDisplay } from 'utils';
 import { StatsViewProps } from '../types';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useCustomLazyQuery } from 'api';
@@ -145,23 +145,22 @@ export const StatsView = ({
         })
     ), [visual]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'StatisticsShort',
-        },
-        below: <PageTabs
-            ariaLabel="stats-period-tabs"
-            currTab={currTab}
-            onChange={handleTabChange}
-            tabs={tabs}
-        />
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'StatisticsShort',
+                }}
+                below={<PageTabs
+                    ariaLabel="stats-period-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
             {/* Date range picker */}
             <DateRangeMenu
                 anchorEl={dateRangeAnchorEl}

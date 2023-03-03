@@ -1,26 +1,25 @@
 import { Link } from '@shared/route';
 import { Box, Button } from '@mui/material';
 import { APP_LINKS } from '@shared/consts';
-import { useTopBar } from 'utils';
 import { NotFoundViewProps } from 'views/types';
 import { useTranslation } from 'react-i18next';
+import { TopBar } from 'components';
 
 export const NotFoundView = ({
     session
 }: NotFoundViewProps) => {
     const { t } = useTranslation();
 
-    const TopBar = useTopBar({
-        display: 'page',
-        session,
-        titleData: {
-            title: t('PageNotFound', { ns: 'error', defaultValue: 'Page Not Found' }),
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display="page"
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    title: t('PageNotFound', { ns: 'error', defaultValue: 'Page Not Found' }),
+                }}
+            />
             < Box
                 sx={{
                     position: 'absolute',

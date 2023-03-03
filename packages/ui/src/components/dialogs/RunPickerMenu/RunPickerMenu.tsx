@@ -17,7 +17,7 @@ import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { parseSearchParams } from "@shared/route";
 
-const titleAria = 'run-picker-dialog-title';
+const titleId = 'run-picker-dialog-title';
 
 export const RunPickerMenu = ({
     anchorEl,
@@ -162,7 +162,7 @@ export const RunPickerMenu = ({
     return (
         <Menu
             id='select-run-dialog'
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             disableScrollLock={true}
             autoFocus={true}
             open={open}
@@ -186,7 +186,7 @@ export const RunPickerMenu = ({
             }}
         >
             <MenuTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 onClose={handleClose}
                 title={'Continue Existing Run?'}
             />

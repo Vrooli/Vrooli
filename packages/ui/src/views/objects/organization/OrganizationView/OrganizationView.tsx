@@ -2,10 +2,10 @@ import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useT
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, BookmarkFor, VisibilityType } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
@@ -122,14 +122,6 @@ export const OrganizationView = ({
         setLocation,
         setObject: setOrganization,
     });
-
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Organization',
-        },
-    })
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -269,7 +261,14 @@ export const OrganizationView = ({
 
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Organization',
+                }}
+            />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

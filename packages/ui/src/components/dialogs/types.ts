@@ -61,8 +61,8 @@ export interface DeleteDialogProps {
 }
 
 export interface DialogTitleProps {
-    ariaLabel: string;
     helpText?: string;
+    id: string;
     onClose: () => void;
     title?: string;
 }
@@ -295,7 +295,14 @@ export interface RunPickerMenuProps {
     session: Session | undefined;
 }
 
-export interface ViewDialogProps extends Omit<BaseViewProps, 'display'> {};
+export interface LargeDialogProps {
+    children: JSX.Element | null | undefined | (JSX.Element | null | undefined)[] ;
+    id: string;
+    isOpen: boolean;
+    onClose: () => any;
+    titleId?: string;
+    zIndex: number;
+};
 
 export interface WalletInstallDialogProps {
     onClose: () => any;

@@ -3,13 +3,13 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { projectVersionTranslationValidation, projectVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProjectVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProjectVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, VersionInput } from "components";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar, VersionInput } from "components";
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication";
 import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
 import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { parseSearchParams } from "@shared/route";
@@ -111,17 +111,16 @@ export const ProjectCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'CreateProject',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'CreateProject',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

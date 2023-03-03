@@ -13,11 +13,11 @@ import {
     SxProps,
     Typography,
 } from '@mui/material';
-import { Forms, PubSub, useReactSearch, useTopBar } from 'utils';
+import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { DialogTitle, HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
+import { DialogTitle, HelpButton, TopBar, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -41,7 +41,7 @@ const buttonProps: SxProps = {
     height: '4em',
 }
 
-const emailTitleAria = 'email-login-dialog-title';
+const emailTitleId = 'email-login-dialog-title';
 
 export const StartView = ({
     display = 'page',
@@ -177,17 +177,16 @@ export const StartView = ({
 
     const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false) }, []);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Start',
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'Start',
+                }}
+            />
             <Box
                 sx={{
                     padding: '1em',
@@ -241,10 +240,10 @@ export const StartView = ({
                     open={emailPopupOpen}
                     disableScrollLock={true}
                     onClose={closeEmailPopup}
-                    aria-labelledby={emailTitleAria}
+                    aria-labelledby={emailTitleId}
                 >
                     <DialogTitle
-                        ariaLabel={emailTitleAria}
+                        id={emailTitleId}
                         title={formTitle}
                         onClose={closeEmailPopup}
                     />

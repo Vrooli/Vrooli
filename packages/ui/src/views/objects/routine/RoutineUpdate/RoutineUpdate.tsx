@@ -5,8 +5,8 @@ import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTopBar, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, VersionInput } from "components";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar, UpTransition, VersionInput } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
@@ -214,14 +214,6 @@ export const RoutineUpdate = ({
         }
     }, [formik.values.nodes.length, formik.values.nodeLinks.length, inputsList.length, outputsList.length, handleGraphClose, handleGraphOpen]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'UpdateRoutine',
-        },
-    })
-
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12} mb={4}>
@@ -420,11 +412,18 @@ export const RoutineUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid >
-    ), [session, formik, onRelationshipsChange, relationships, zIndex, language, handleAddLanguage, handleDeleteLanguage, translations.name, translations.touchedName, translations.errorName, translations.description, translations.touchedDescription, translations.errorDescription, translations.instructions, translations.touchedInstructions, translations.errorInstructions, translations.errorsWithTranslations, onTranslationBlur, onTranslationChange, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, routineVersion?.root?.versions, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, onCancel, handleMultiStepChange]);
+    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleDeleteLanguage, translations.name, translations.touchedName, translations.errorName, translations.description, translations.touchedDescription, translations.errorDescription, translations.instructions, translations.touchedInstructions, translations.errorInstructions, translations.errorsWithTranslations, onTranslationBlur, onTranslationChange, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, routineVersion?.root?.versions, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, display, onCancel, handleMultiStepChange]);
 
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'UpdateRoutine',
+                }}
+            />
             <form onSubmit={formik.handleSubmit} style={{
                 display: 'flex',
                 alignItems: 'center',

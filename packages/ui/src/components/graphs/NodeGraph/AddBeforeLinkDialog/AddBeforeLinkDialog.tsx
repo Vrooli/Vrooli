@@ -10,7 +10,7 @@ import { DialogTitle } from 'components/dialogs';
 import { useTranslation } from 'react-i18next';
 import { NodeLink } from '@shared/consts';
 
-const titleAria = 'add-before-link-dialog-title';
+const titleId = 'add-before-link-dialog-title';
 
 export const AddBeforeLinkDialog = ({
     isOpen,
@@ -46,13 +46,13 @@ export const AddBeforeLinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleClose}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 onClose={handleClose}
                 title={t('LinkSelect')}
             />

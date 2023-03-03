@@ -12,7 +12,7 @@ import { linkColors } from 'styles';
 import { useTranslation } from 'react-i18next';
 import { GqlModelType, Node } from '@shared/consts';
 
-const titleAria = 'end-node-dialog-title';
+const titleId = 'end-node-dialog-title';
 
 export const EndNodeDialog = ({
     handleClose,
@@ -72,13 +72,13 @@ export const EndNodeDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 onClose={handleCancel}
                 title={t(isEditing ? 'NodeEndEdit' : 'NodeEndInfo')}
             />

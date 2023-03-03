@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { PageTitle } from 'components';
+import { PageTitle, TopBar } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, List, ListItem, Typography, useTheme } from '@mui/material';
 import { NotificationsViewProps } from '../types';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages, useDisplayApolloError, useTopBar } from 'utils';
+import { getUserLanguages, useDisplayApolloError } from 'utils';
 import { Wrap } from 'types';
 import { APP_LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
@@ -43,18 +43,17 @@ export const NotificationsView = ({
     const onMarkAllAsRead = useCallback(() => {
     }, []);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Notification',
-            titleVariables: { count: 2 },
-        },
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'Notification',
+                    titleVariables: { count: 2 },
+                }}
+            />
             <Box sx={{
                 marginTop: 2,
                 maxWidth: '1000px',

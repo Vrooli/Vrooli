@@ -27,7 +27,7 @@ const buttonProps = (palette: Palette) => ({
 
 const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
 
-const titleAria = 'share-object-dialog-title';
+const titleId = 'share-object-dialog-title';
 
 export const ShareObjectDialog = ({
     object,
@@ -85,7 +85,7 @@ export const ShareObjectDialog = ({
         <Dialog
             onClose={onClose}
             open={open}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': {
@@ -98,7 +98,7 @@ export const ShareObjectDialog = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title="Share"
                 onClose={onClose}
             />

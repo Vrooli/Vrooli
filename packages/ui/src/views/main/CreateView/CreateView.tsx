@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { CardGrid } from 'components';
+import { CardGrid, TopBar } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, Typography, useTheme } from '@mui/material';
 import { CreateViewProps } from '../types';
@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
-import { useTopBar } from 'utils';
 
 type CreateType = 'Api' | 'Note' | 'Organization' | 'Project' | 'Question' | 'Reminder' | 'Routine' | 'SmartContract' | 'Standard';
 
@@ -77,17 +76,16 @@ export const CreateView = ({
         setLocation(`${APP_LINKS[objectType]}/add`);
     }, [setLocation]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'Create',
-        },
-    })
-
     return (
         <>
-        {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Create',
+                }}
+            />
             <CardGrid minWidth={300}>
                 {createCards.map(({ objectType, description, Icon }, index) => (
                     <Box

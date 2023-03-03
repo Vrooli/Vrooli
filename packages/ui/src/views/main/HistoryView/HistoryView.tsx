@@ -1,11 +1,11 @@
-import { Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, ListTitleContainer, PageTabs } from 'components';
+import { SiteSearchBar, ListTitleContainer, PageTabs, TopBar } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
 import { HistoryViewProps } from '../types';
-import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch, useTopBar } from 'utils';
+import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
 import { historyHistory } from 'api/generated/endpoints/history_history';
@@ -20,11 +20,7 @@ enum TabOptions {
 const zIndex = 200;
 
 /**
- * Containers a search bar, lists of routines, projects, tags, and organizations, 
- * and a FAQ section.
- * If a search string is entered, each list is filtered by the search string. 
- * Otherwise, each list shows popular items. Each list has a "See more" button, 
- * which opens a full search page for that object type.
+ * Shows items you've bookmarked, viewed, or run recently.
  */
 export const HistoryView = ({
     display = 'page',
@@ -147,24 +143,23 @@ export const HistoryView = ({
         setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Bookmarked } });
     }, [setLocation]);
 
-    const TopBar = useTopBar({
-        display,
-        session,
-        titleData: {
-            titleKey: 'History',
-        },
-        below: <PageTabs
-            ariaLabel="history-tabs"
-            currTab={currTab}
-            fullWidth
-            onChange={handleTabChange}
-            tabs={tabs}
-        />
-    })
-
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'History',
+                }}
+                below={<PageTabs
+                    ariaLabel="history-tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Prompt stack */}

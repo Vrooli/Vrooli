@@ -1,7 +1,7 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentContainer, ContentCollapse, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
+import { CommentContainer, ContentCollapse, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, TopBar, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions, useTopBar } from "utils";
+import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -196,15 +196,14 @@ export const SubroutineView = ({
         setResourceList(internalRoutineVersion?.resourceList ?? { id: uuid() } as any);
         setTags(internalRoutineVersion?.root?.tags ?? []);
     }, [internalRoutineVersion]);
-
-    const TopBar = useTopBar({
-        display,
-        session,
-    })
-
+    
     return (
         <>
-            {TopBar}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+            />
             <Box sx={{
                 marginLeft: 'auto',
                 marginRight: 'auto',
