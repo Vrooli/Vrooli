@@ -5,6 +5,7 @@ import { getCurrentUser } from "utils/authentication";
 import i18next from 'i18next';
 import { Session } from "@shared/consts";
 import { CommonKey, ErrorKey } from "@shared/translations";
+import { OptionalTranslation } from "types";
 
 export type TranslationObject = {
     id: string,
@@ -673,3 +674,23 @@ export const translateSnackMessage = (
     }
     return { message: messageAsCommon, details: undefined };
 };
+
+/**
+ * Finds the translated title and help text for a component
+ * @param data Data required to find the title and help text
+ * @returns Object with title and help text, each of which can be undefined
+ */
+export const getTranslatedTitleAndHelp = (data: OptionalTranslation | null | undefined): { title?: string, help?: string } => {
+    if (!data) return {};
+    let title: string | undefined = data.title;
+    let help: string | undefined = data.help;
+    if (!title && data.titleKey) {
+        title = i18next.t(data.titleKey, { ...data.titleVariables, ns: 'common', defaultValue: '' });
+        if (title === '') title = undefined;
+    }
+    if (!help && data.helpKey) {
+        help = i18next.t(data.helpKey, { ...data.helpVariables, ns: 'common', defaultValue: '' });
+        if (help === '') help = undefined;
+    }
+    return { title, help };
+}

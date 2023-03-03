@@ -1,7 +1,7 @@
 import { BoxProps, TypographyProps } from "@mui/material";
 import { Api, Organization, Project, Quiz, Routine, Session, SmartContract, Standard, User } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
-import { VersionInfo } from "types";
+import { OptionalTranslation, VersionInfo } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {
@@ -33,14 +33,12 @@ export interface OwnerLabelProps {
 }
 
 export interface PageTitleProps {
-    helpKey?: CommonKey;
-    helpVariables?: { [x: string]: string | number };
-    titleKey: CommonKey;
-    titleVariables?: { [x: string]: string | number };
+    help: string | undefined;
     sxs?: { 
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
     }
+    title: string | undefined;
 }
 
 export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Routine | SmartContract | Standard | User;

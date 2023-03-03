@@ -235,6 +235,7 @@ const convertRoutineVersionToStep = (
 }
 
 export const RunView = ({
+    display = 'page',
     handleClose,
     runnableObject,
     session,

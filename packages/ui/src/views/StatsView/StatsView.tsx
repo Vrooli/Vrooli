@@ -2,7 +2,7 @@ import { Box, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LineGraphCard, DateRangeMenu, PageTabs, CardGrid } from 'components';
 import { useTranslation } from 'react-i18next';
-import { displayDate, statsDisplay } from 'utils';
+import { displayDate, statsDisplay, useTopBar } from 'utils';
 import { StatsViewProps } from '../types';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useCustomLazyQuery } from 'api';
@@ -51,6 +51,7 @@ const MIN_DATE = new Date(2023, 1, 1);
  * Displays site-wide statistics, organized by time period.
  */
 export const StatsView = ({
+    display = 'page',
     session,
 }: StatsViewProps) => {
     const { t } = useTranslation();
@@ -144,14 +145,23 @@ export const StatsView = ({
         })
     ), [visual]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'StatisticsShort',
+        },
+        below: <PageTabs
+            ariaLabel="stats-period-tabs"
+            currTab={currTab}
+            onChange={handleTabChange}
+            tabs={tabs}
+        />
+    })
+
     return (
         <>
-            <PageTabs
-                ariaLabel="stats-period-tabs"
-                currTab={currTab}
-                onChange={handleTabChange}
-                tabs={tabs}
-            />
+            {TopBar}
             {/* Date range picker */}
             <DateRangeMenu
                 anchorEl={dateRangeAnchorEl}

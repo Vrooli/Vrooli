@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
+import { useTopBar } from 'utils';
 
 type CreateType = 'Api' | 'Note' | 'Organization' | 'Project' | 'Question' | 'Reminder' | 'Routine' | 'SmartContract' | 'Standard';
 
@@ -65,6 +66,7 @@ const createCards: CreateInfo[] = [
 ]
 
 export const CreateView = ({
+    display = 'page',
     session
 }: CreateViewProps) => {
     const [, setLocation] = useLocation();
@@ -75,8 +77,17 @@ export const CreateView = ({
         setLocation(`${APP_LINKS[objectType]}/add`);
     }, [setLocation]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Create',
+        },
+    })
+
     return (
         <>
+        {TopBar}
             <CardGrid minWidth={300}>
                 {createCards.map(({ objectType, description, Icon }, index) => (
                     <Box

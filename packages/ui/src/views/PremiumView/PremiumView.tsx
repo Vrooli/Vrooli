@@ -1,11 +1,20 @@
+import { useTopBar } from "utils";
 import { PremiumViewProps } from "../types";
 
-export function PremiumView({
+export const PremiumView = ({
+    display = 'page',
     session,
-}: PremiumViewProps) {
+}: PremiumViewProps) => {
+
+    const TopBar = useTopBar({
+        display,
+        session,
+    })
+
     // TODO convert MaxObjects to list of limit increases 
     return (
         <>
+        {TopBar}
         </>
     )
 }

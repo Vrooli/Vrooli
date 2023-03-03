@@ -57,7 +57,7 @@ export const SettingsNotifications = ({
 
     return (
         <form style={{ overflow: 'hidden' }}>
-            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} />
+            {/* <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} /> */}
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     {/* Toggle all notifications */}

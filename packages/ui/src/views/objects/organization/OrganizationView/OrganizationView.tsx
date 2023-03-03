@@ -5,7 +5,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
@@ -23,6 +23,7 @@ enum TabOptions {
 }
 
 export const OrganizationView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -121,6 +122,14 @@ export const OrganizationView = ({
         setLocation,
         setObject: setOrganization,
     });
+
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Organization',
+        },
+    })
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -260,6 +269,7 @@ export const OrganizationView = ({
 
     return (
         <>
+            {TopBar}
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

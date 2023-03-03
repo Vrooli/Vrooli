@@ -4,7 +4,7 @@ import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl } from "utils";
+import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
 import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -26,6 +26,7 @@ const containerProps = (palette: Palette) => ({
 })
 
 export const StandardView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -85,6 +86,14 @@ export const StandardView = ({
         setObject: setStandardVersion,
     });
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Standard',
+        },
+    })
+
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
@@ -112,153 +121,156 @@ export const StandardView = ({
     }, [standardVersion]);
 
     return (
-        <Box sx={{
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            width: 'min(100%, 700px)',
-            padding: 2,
-        }}>
-            {/* Edit button, positioned at bottom corner of screen */}
-            <Stack direction="row" spacing={2} sx={{
-                position: 'fixed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: zIndex + 2,
-                bottom: 0,
-                right: 0,
-                // Accounts for BottomNav
-                marginBottom: {
-                    xs: 'calc(56px + 16px + env(safe-area-inset-bottom))',
-                    md: 'calc(16px + env(safe-area-inset-bottom))'
-                },
-                marginLeft: 'calc(16px + env(safe-area-inset-left))',
-                marginRight: 'calc(16px + env(safe-area-inset-right))',
-                height: 'calc(64px + env(safe-area-inset-bottom))',
+        <>
+            {TopBar}
+            <Box sx={{
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                width: 'min(100%, 700px)',
+                padding: 2,
             }}>
-                {/* Edit button */}
-                {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                ) : null}
-            </Stack>
-            <ObjectTitle
-                language={language}
-                loading={isLoading}
-                title={name}
-                session={session}
-                setLanguage={setLanguage}
-                translations={standardVersion?.translations ?? partialData?.translations ?? []}
-                zIndex={zIndex}
-            />
-            {/* Relationships */}
-            <RelationshipButtons
-                isEditing={false}
-                objectType={'Routine'}
-                onRelationshipsChange={onRelationshipsChange}
-                relationships={relationships}
-                session={session}
-                zIndex={zIndex}
-            />
-            {/* Resources */}
-            {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                title={'Resources'}
-                list={resourceList}
-                canUpdate={false}
-                handleUpdate={() => { }} // Intentionally blank
-                loading={isLoading}
-                session={session}
-                zIndex={zIndex}
-            />}
-            {/* Box with description */}
-            <Box sx={containerProps(palette)}>
-                <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
-            </Box>
-            {/* Box with standard */}
-            <Stack direction="column" spacing={4} sx={containerProps(palette)}>
-                {/* Build/Preview switch */}
-                <PreviewSwitch
-                    isPreviewOn={isPreviewOn}
-                    onChange={onPreviewChange}
-                />
-                {
-                    isPreviewOn ?
-                        schema ? <GeneratedInputComponent
-                            disabled={true}
-                            fieldData={schema}
-                            formik={previewFormik}
-                            session={session}
-                            onUpload={() => { }}
-                            zIndex={zIndex}
-                        /> :
-                            <Box sx={{
-                                minHeight: 'min(300px, 25vh)',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}>
-                                <CircularProgress color="secondary" />
-                            </Box> :
-                        <BaseStandardInput
-                            fieldName="preview"
-                            inputType={schema?.type ?? InputType.TextField}
-                            isEditing={false}
-                            schema={schema}
-                            onChange={() => { }} // Intentionally blank
-                            storageKey={''} // Intentionally blank
-                        />
-                }
-            </Stack>
-            {/* Tags */}
-            {tags.length > 0 && <TagList
-                maxCharacters={30}
-                parentId={standardVersion?.id ?? ''}
-                session={session}
-                tags={tags as any[]}
-                sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
-            />}
-            {/* Date and version labels */}
-            <Stack direction="row" spacing={1} mt={2} mb={1}>
-                {/* Date created */}
-                <DateDisplay
+                {/* Edit button, positioned at bottom corner of screen */}
+                <Stack direction="row" spacing={2} sx={{
+                    position: 'fixed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: zIndex + 2,
+                    bottom: 0,
+                    right: 0,
+                    // Accounts for BottomNav
+                    marginBottom: {
+                        xs: 'calc(56px + 16px + env(safe-area-inset-bottom))',
+                        md: 'calc(16px + env(safe-area-inset-bottom))'
+                    },
+                    marginLeft: 'calc(16px + env(safe-area-inset-left))',
+                    marginRight: 'calc(16px + env(safe-area-inset-right))',
+                    height: 'calc(64px + env(safe-area-inset-bottom))',
+                }}>
+                    {/* Edit button */}
+                    {permissions.canUpdate ? (
+                        <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                            <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </ColorIconButton>
+                    ) : null}
+                </Stack>
+                <ObjectTitle
+                    language={language}
                     loading={isLoading}
-                    showIcon={true}
-                    timestamp={standardVersion?.created_at}
+                    title={name}
+                    session={session}
+                    setLanguage={setLanguage}
+                    translations={standardVersion?.translations ?? partialData?.translations ?? []}
+                    zIndex={zIndex}
                 />
-                <VersionDisplay
-                    currentVersion={standardVersion}
-                    prefix={" - "}
-                    versions={standardVersion?.root?.versions}
+                {/* Relationships */}
+                <RelationshipButtons
+                    isEditing={false}
+                    objectType={'Routine'}
+                    onRelationshipsChange={onRelationshipsChange}
+                    relationships={relationships}
+                    session={session}
+                    zIndex={zIndex}
                 />
-            </Stack>
-            {/* Votes, reports, and other basic stats */}
-            {/* <StatsCompact
+                {/* Resources */}
+                {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                    title={'Resources'}
+                    list={resourceList}
+                    canUpdate={false}
+                    handleUpdate={() => { }} // Intentionally blank
+                    loading={isLoading}
+                    session={session}
+                    zIndex={zIndex}
+                />}
+                {/* Box with description */}
+                <Box sx={containerProps(palette)}>
+                    <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
+                </Box>
+                {/* Box with standard */}
+                <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    {/* Build/Preview switch */}
+                    <PreviewSwitch
+                        isPreviewOn={isPreviewOn}
+                        onChange={onPreviewChange}
+                    />
+                    {
+                        isPreviewOn ?
+                            schema ? <GeneratedInputComponent
+                                disabled={true}
+                                fieldData={schema}
+                                formik={previewFormik}
+                                session={session}
+                                onUpload={() => { }}
+                                zIndex={zIndex}
+                            /> :
+                                <Box sx={{
+                                    minHeight: 'min(300px, 25vh)',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}>
+                                    <CircularProgress color="secondary" />
+                                </Box> :
+                            <BaseStandardInput
+                                fieldName="preview"
+                                inputType={schema?.type ?? InputType.TextField}
+                                isEditing={false}
+                                schema={schema}
+                                onChange={() => { }} // Intentionally blank
+                                storageKey={''} // Intentionally blank
+                            />
+                    }
+                </Stack>
+                {/* Tags */}
+                {tags.length > 0 && <TagList
+                    maxCharacters={30}
+                    parentId={standardVersion?.id ?? ''}
+                    session={session}
+                    tags={tags as any[]}
+                    sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                />}
+                {/* Date and version labels */}
+                <Stack direction="row" spacing={1} mt={2} mb={1}>
+                    {/* Date created */}
+                    <DateDisplay
+                        loading={isLoading}
+                        showIcon={true}
+                        timestamp={standardVersion?.created_at}
+                    />
+                    <VersionDisplay
+                        currentVersion={standardVersion}
+                        prefix={" - "}
+                        versions={standardVersion?.root?.versions}
+                    />
+                </Stack>
+                {/* Votes, reports, and other basic stats */}
+                {/* <StatsCompact
                 handleObjectUpdate={updateStandard}
                 loading={loading}
                 object={standardVersion}
                 session={session}
             /> */}
-            {/* Action buttons */}
-            <ObjectActionsRow
-                actionData={actionData}
-                exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                object={standardVersion}
-                session={session}
-                zIndex={zIndex}
-            />
-            {/* Comments */}
-            <Box sx={containerProps(palette)}>
-                <CommentContainer
-                    forceAddCommentOpen={isAddCommentOpen}
-                    language={language}
-                    objectId={standardVersion?.id ?? ''}
-                    objectType={CommentFor.StandardVersion}
-                    onAddCommentClose={closeAddCommentDialog}
+                {/* Action buttons */}
+                <ObjectActionsRow
+                    actionData={actionData}
+                    exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                    object={standardVersion}
                     session={session}
                     zIndex={zIndex}
                 />
+                {/* Comments */}
+                <Box sx={containerProps(palette)}>
+                    <CommentContainer
+                        forceAddCommentOpen={isAddCommentOpen}
+                        language={language}
+                        objectId={standardVersion?.id ?? ''}
+                        objectType={CommentFor.StandardVersion}
+                        onAddCommentClose={closeAddCommentDialog}
+                        session={session}
+                        zIndex={zIndex}
+                    />
+                </Box>
             </Box>
-        </Box >
+        </>
     )
 }

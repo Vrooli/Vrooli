@@ -1,4 +1,3 @@
-export * from './AwardsView/AwardsView';
 export * from './BuildView/BuildView';
 export * from './CalendarView/CalendarView';
 export * from './HistorySearchView/HistorySearchView';

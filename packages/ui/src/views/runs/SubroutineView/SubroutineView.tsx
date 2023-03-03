@@ -1,7 +1,7 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentContainer, ContentCollapse, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
+import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions, useTopBar } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -23,6 +23,7 @@ const containerProps = (palette: Palette) => ({
 })
 
 export const SubroutineView = ({
+    display = 'page',
     loading,
     handleUserInputsUpdate,
     handleSaveProgress,
@@ -196,109 +197,117 @@ export const SubroutineView = ({
         setTags(internalRoutineVersion?.root?.tags ?? []);
     }, [internalRoutineVersion]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+    })
+
     return (
-        <Box sx={{
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            width: 'min(100%, 700px)',
-            padding: 2,
-        }}>
-            <ObjectTitle
-                language={language}
-                loading={loading}
-                title={name}
-                session={session}
-                setLanguage={setLanguage}
-                translations={internalRoutineVersion?.translations ?? []}
-                zIndex={zIndex}
-            />
-            {/* Resources */}
-            {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                title={'Resources'}
-                list={resourceList}
-                canUpdate={false}
-                handleUpdate={() => { }} // Intentionally blank
-                loading={loading}
-                session={session}
-                zIndex={zIndex}
-            />}
-            {/* Box with description and instructions */}
-            <Stack direction="column" spacing={4} sx={containerProps(palette)}>
-                {/* Description */}
-                <TextCollapse session={session} title="Description" text={description} loading={loading} loadingLines={2} />
-                {/* Instructions */}
-                <TextCollapse session={session} title="Instructions" text={instructions} loading={loading} loadingLines={4} />
-            </Stack>
-            <Box sx={containerProps(palette)}>
-                <ContentCollapse title="Inputs">
-                    {inputComponents}
-                    <Button startIcon={<SuccessIcon />} fullWidth onClick={() => { }} color="secondary" sx={{ marginTop: 2 }}>Submit</Button>
-                </ContentCollapse>
-            </Box>
-            {/* Action buttons */}
-            <ObjectActionsRow
-                actionData={actionData}
-                exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                object={internalRoutineVersion}
-                session={session}
-                zIndex={zIndex}
-            />
-            <Box sx={containerProps(palette)}>
-                <ContentCollapse isOpen={false} title="Additional Information">
-                    {/* Relationships */}
-                    <RelationshipButtons
-                        isEditing={false}
-                        objectType={'Routine'}
-                        onRelationshipsChange={onRelationshipsChange}
-                        relationships={relationships}
-                        session={session}
-                        zIndex={zIndex}
-                    />
-                    {/* Tags */}
-                    {tags.length > 0 && <TagList
-                        maxCharacters={30}
-                        parentId={routineVersion?.root?.id ?? ''}
-                        session={session}
-                        tags={tags as any[]}
-                        sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
-                    />}
-                    {/* Date and version labels */}
-                    <Stack direction="row" spacing={1} mt={2} mb={1}>
-                        {/* Date created */}
-                        <DateDisplay
-                            loading={loading}
-                            showIcon={true}
-                            timestamp={internalRoutineVersion?.created_at}
+        <>
+            {TopBar}
+            <Box sx={{
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                width: 'min(100%, 700px)',
+                padding: 2,
+            }}>
+                <ObjectTitle
+                    language={language}
+                    loading={loading}
+                    title={name}
+                    session={session}
+                    setLanguage={setLanguage}
+                    translations={internalRoutineVersion?.translations ?? []}
+                    zIndex={zIndex}
+                />
+                {/* Resources */}
+                {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                    title={'Resources'}
+                    list={resourceList}
+                    canUpdate={false}
+                    handleUpdate={() => { }} // Intentionally blank
+                    loading={loading}
+                    session={session}
+                    zIndex={zIndex}
+                />}
+                {/* Box with description and instructions */}
+                <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    {/* Description */}
+                    <TextCollapse session={session} title="Description" text={description} loading={loading} loadingLines={2} />
+                    {/* Instructions */}
+                    <TextCollapse session={session} title="Instructions" text={instructions} loading={loading} loadingLines={4} />
+                </Stack>
+                <Box sx={containerProps(palette)}>
+                    <ContentCollapse title="Inputs">
+                        {inputComponents}
+                        <Button startIcon={<SuccessIcon />} fullWidth onClick={() => { }} color="secondary" sx={{ marginTop: 2 }}>Submit</Button>
+                    </ContentCollapse>
+                </Box>
+                {/* Action buttons */}
+                <ObjectActionsRow
+                    actionData={actionData}
+                    exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                    object={internalRoutineVersion}
+                    session={session}
+                    zIndex={zIndex}
+                />
+                <Box sx={containerProps(palette)}>
+                    <ContentCollapse isOpen={false} title="Additional Information">
+                        {/* Relationships */}
+                        <RelationshipButtons
+                            isEditing={false}
+                            objectType={'Routine'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
                         />
-                        <VersionDisplay
-                            confirmVersionChange={confirmLeave}
-                            currentVersion={internalRoutineVersion}
-                            prefix={" - "}
-                            versions={internalRoutineVersion?.root?.versions}
-                        />
-                    </Stack>
-                    {/* Votes, reports, and other basic stats */}
-                    {/* <StatsCompact
+                        {/* Tags */}
+                        {tags.length > 0 && <TagList
+                            maxCharacters={30}
+                            parentId={routineVersion?.root?.id ?? ''}
+                            session={session}
+                            tags={tags as any[]}
+                            sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                        />}
+                        {/* Date and version labels */}
+                        <Stack direction="row" spacing={1} mt={2} mb={1}>
+                            {/* Date created */}
+                            <DateDisplay
+                                loading={loading}
+                                showIcon={true}
+                                timestamp={internalRoutineVersion?.created_at}
+                            />
+                            <VersionDisplay
+                                confirmVersionChange={confirmLeave}
+                                currentVersion={internalRoutineVersion}
+                                prefix={" - "}
+                                versions={internalRoutineVersion?.root?.versions}
+                            />
+                        </Stack>
+                        {/* Votes, reports, and other basic stats */}
+                        {/* <StatsCompact
                         handleObjectUpdate={updateRoutine}
                         loading={loading}
                         object={internalRoutineVersion ?? null}
                         session={session}
                     /> */}
-                </ContentCollapse>
+                    </ContentCollapse>
+                </Box>
+                {/* Comments */}
+                <Box sx={containerProps(palette)}>
+                    <CommentContainer
+                        forceAddCommentOpen={isAddCommentOpen}
+                        isOpen={false}
+                        language={language}
+                        objectId={internalRoutineVersion?.id ?? ''}
+                        objectType={CommentFor.RoutineVersion}
+                        onAddCommentClose={closeAddCommentDialog}
+                        session={session}
+                        zIndex={zIndex}
+                    />
+                </Box>
             </Box>
-            {/* Comments */}
-            <Box sx={containerProps(palette)}>
-                <CommentContainer
-                    forceAddCommentOpen={isAddCommentOpen}
-                    isOpen={false}
-                    language={language}
-                    objectId={internalRoutineVersion?.id ?? ''}
-                    objectType={CommentFor.RoutineVersion}
-                    onAddCommentClose={closeAddCommentDialog}
-                    session={session}
-                    zIndex={zIndex}
-                />
-            </Box>
-        </Box>
+        </>
     )
 }

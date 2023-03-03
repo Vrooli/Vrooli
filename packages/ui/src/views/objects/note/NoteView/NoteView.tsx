@@ -4,12 +4,13 @@ import { NoteVersion, BookmarkFor, FindVersionInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { NoteViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, NoteIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 
 export const NoteView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -57,6 +58,14 @@ export const NoteView = ({
         setLocation,
         setObject: setNoteVersion,
     });
+
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Note',
+        },
+    })
 
     /**
      * Displays name, avatar, description, and quick links
@@ -173,6 +182,7 @@ export const NoteView = ({
 
     return (
         <>
+        {TopBar}
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

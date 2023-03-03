@@ -25,7 +25,6 @@ const navItemStyle = (palette: Palette) => ({
 
 export const NavList = ({
     session,
-    sessionChecked,
 }: NavListProps) => {
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
@@ -78,7 +77,7 @@ export const NavList = ({
                 sx: navItemStyle(palette),
             })}
             {/* Enter button displayed when not logged in */}
-            {sessionChecked && session?.isLoggedIn !== true && (
+            {!checkIfLoggedIn(session) && (
                 <Button
                     href={APP_LINKS.Start}
                     onClick={(e) => { e.preventDefault(); openLink(setLocation, APP_LINKS.Start) }}
@@ -95,7 +94,7 @@ export const NavList = ({
                         },
                     }}
                 >
-                    Log In
+                    {t('LogIn')}
                 </Button>
             )}
             {/* Profile icon */}

@@ -3,7 +3,7 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { reminderValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { useCreateActions, usePromptBeforeUnload } from "utils";
+import { useCreateActions, usePromptBeforeUnload, useTopBar } from "utils";
 import { ReminderCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, PageTitle } from "components";
@@ -13,6 +13,7 @@ import { Reminder, ReminderCreateInput } from "@shared/consts";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
 
 export const ReminderCreate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: ReminderCreateProps) => {
@@ -41,28 +42,36 @@ export const ReminderCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'CreateReminder',
+        },
+    })
+
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                <Grid item xs={12}>
-                    <PageTitle titleKey='CreateReminder' />
+        <>
+            {TopBar}
+            <form onSubmit={formik.handleSubmit} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+            >
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    {/* TODO */}
+                    <GridSubmitButtons
+                        disabledSubmit={!isLoggedIn}
+                        errors={formik.errors}
+                        isCreate={true}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
                 </Grid>
-                {/* TODO */}
-                <GridSubmitButtons
-                    disabledSubmit={!isLoggedIn}
-                    errors={formik.errors}
-                    isCreate={true}
-                    loading={formik.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={formik.setSubmitting}
-                    onSubmit={formik.handleSubmit}
-                />
-            </Grid>
-        </form >
+            </form>
+        </>
     )
 }

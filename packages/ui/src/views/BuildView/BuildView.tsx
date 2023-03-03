@@ -33,6 +33,7 @@ const generateNewLink = (fromId: string, toId: string, routineVersionId: string)
 type BuildRoutineVersion = Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>
 
 export const BuildView = ({
+    display = 'dialog',
     handleCancel,
     handleClose,
     handleSubmit,

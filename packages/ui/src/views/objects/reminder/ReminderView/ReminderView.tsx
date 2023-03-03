@@ -4,11 +4,12 @@ import { FindByIdInput, Reminder } from "@shared/consts";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { ObjectActionMenu } from "components";
 import { ReminderViewProps } from "../types";
-import { placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { placeholderColor, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
 import { EllipsisIcon, HelpIcon } from "@shared/icons";
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 
 export const ReminderView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -41,6 +42,14 @@ export const ReminderView = ({
         setLocation,
         setObject: setReminder,
     });
+
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Reminder',
+        },
+    })
 
     /**
      * Displays name, avatar, description, and quick links
@@ -95,6 +104,7 @@ export const ReminderView = ({
 
     return (
         <>
+        {TopBar}
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

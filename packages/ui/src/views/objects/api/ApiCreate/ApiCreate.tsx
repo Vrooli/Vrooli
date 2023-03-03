@@ -3,7 +3,7 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeApiVersion, TagShape, useCreateActions, useObjectActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeApiVersion, TagShape, useCreateActions, useObjectActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
 import { ApiCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
@@ -15,6 +15,7 @@ import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { parseSearchParams } from "@shared/route";
 
 export const ApiCreate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: ApiCreateProps) => {
@@ -97,49 +98,57 @@ export const ApiCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'CreateApi',
+        },
+    })
+
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                <Grid item xs={12}>
-                    <PageTitle titleKey='CreateApi' />
-                </Grid>
-                <Grid item xs={12} mb={4}>
-                    <RelationshipButtons
-                        isEditing={true}
-                        objectType={'Api'}
-                        onRelationshipsChange={onRelationshipsChange}
-                        relationships={relationships}
-                        session={session}
-                        zIndex={zIndex}
+        <>
+            {TopBar}
+            <form onSubmit={formik.handleSubmit} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+            >
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'Api'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleLanguageDelete}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsCreate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    {/* TODO */}
+                    <GridSubmitButtons
+                        disabledSubmit={!isLoggedIn}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={true}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-                <Grid item xs={12}>
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleLanguageDelete}
-                        handleCurrent={setLanguage}
-                        session={session}
-                        translations={formik.values.translationsCreate}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                {/* TODO */}
-                <GridSubmitButtons
-                    disabledSubmit={!isLoggedIn}
-                    errors={translations.errorsWithTranslations}
-                    isCreate={true}
-                    loading={formik.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={formik.setSubmitting}
-                    onSubmit={formik.handleSubmit}
-                />
-            </Grid>
-        </form >
+            </form >
+        </>
     )
 }

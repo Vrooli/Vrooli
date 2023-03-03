@@ -13,7 +13,7 @@ import {
     SxProps,
     Typography,
 } from '@mui/material';
-import { Forms, PubSub, useReactSearch } from 'utils';
+import { Forms, PubSub, useReactSearch, useTopBar } from 'utils';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
@@ -44,6 +44,7 @@ const buttonProps: SxProps = {
 const emailTitleAria = 'email-login-dialog-title';
 
 export const StartView = ({
+    display = 'page',
     session,
 }: StartViewProps) => {
     const [, setLocation] = useLocation();
@@ -176,71 +177,82 @@ export const StartView = ({
 
     const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false) }, []);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Start',
+        },
+    })
+
     return (
-        <Box
-            sx={{
-                padding: '1em',
-                paddingTop: '20vh',
-                minHeight: '100vh', //Fullscreen
-            }}
-        >
-            <WalletSelectDialog
-                handleOpenInstall={openWalletInstallDialog}
-                open={connectOpen}
-                onClose={closeWalletConnectDialog}
-                zIndex={200}
-            />
-            <WalletInstallDialog
-                open={installOpen}
-                onClose={closeWalletInstallDialog}
-                zIndex={connectOpen ? 201 : 200}
-            />
+        <>
+            {TopBar}
             <Box
                 sx={{
-                    width: 'min(100%, 500px)',
-                    margin: 'auto',
-                    paddingTop: { xs: '5vh', sm: '20vh' },
+                    padding: '1em',
+                    paddingTop: '20vh',
+                    minHeight: '100vh', //Fullscreen
                 }}
             >
-                <Box sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            display: 'inline-block',
-                        }}
-                    >
-                        {t('PleaseSelectLogInMethod')}
-                    </Typography>
-                    <HelpButton markdown={helpText} />
-                </Box>
-                <Stack
-                    direction="column"
-                    spacing={2}
-                >
-                    <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>{t('Wallet')}</Button>
-                    <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>{t('Email')}</Button>
-                    <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>{t('EnterAsGuest')}</Button>
-                </Stack>
-            </Box>
-            <Dialog
-                open={emailPopupOpen}
-                disableScrollLock={true}
-                onClose={closeEmailPopup}
-                aria-labelledby={emailTitleAria}
-            >
-                <DialogTitle
-                    ariaLabel={emailTitleAria}
-                    title={formTitle}
-                    onClose={closeEmailPopup}
+                <WalletSelectDialog
+                    handleOpenInstall={openWalletInstallDialog}
+                    open={connectOpen}
+                    onClose={closeWalletConnectDialog}
+                    zIndex={200}
                 />
-                <Box sx={{ padding: 1 }}>
-                    <Form onFormChange={handleFormChange} />
+                <WalletInstallDialog
+                    open={installOpen}
+                    onClose={closeWalletInstallDialog}
+                    zIndex={connectOpen ? 201 : 200}
+                />
+                <Box
+                    sx={{
+                        width: 'min(100%, 500px)',
+                        margin: 'auto',
+                        paddingTop: { xs: '5vh', sm: '20vh' },
+                    }}
+                >
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                display: 'inline-block',
+                            }}
+                        >
+                            {t('PleaseSelectLogInMethod')}
+                        </Typography>
+                        <HelpButton markdown={helpText} />
+                    </Box>
+                    <Stack
+                        direction="column"
+                        spacing={2}
+                    >
+                        <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>{t('Wallet')}</Button>
+                        <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>{t('Email')}</Button>
+                        <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>{t('EnterAsGuest')}</Button>
+                    </Stack>
                 </Box>
-            </Dialog>
-        </Box>
+                <Dialog
+                    open={emailPopupOpen}
+                    disableScrollLock={true}
+                    onClose={closeEmailPopup}
+                    aria-labelledby={emailTitleAria}
+                >
+                    <DialogTitle
+                        ariaLabel={emailTitleAria}
+                        title={formTitle}
+                        onClose={closeEmailPopup}
+                    />
+                    <Box sx={{ padding: 1 }}>
+                        <Form onFormChange={handleFormChange} />
+                    </Box>
+                </Dialog>
+            </Box>
+        </>
     );
 }

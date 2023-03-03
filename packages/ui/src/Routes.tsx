@@ -10,7 +10,6 @@ import { Navbar, ScrollToTop } from 'components';
 import { CommonProps } from 'types';
 import { Page } from './components/Page/Page';
 import { Box, CircularProgress } from '@mui/material';
-import { guestSession } from 'utils/authentication';
 import { PageProps } from 'views/wrapper/types';
 import { NavbarProps } from 'components/navigation/types';
 
@@ -44,16 +43,29 @@ const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('./
 const { UserView } = lazily(() => import('./views/objects/user'));
 
 /**
- * Loading spinner displayed when route is being loaded.
+ * Fallback displayed while route is being loaded.
  */
-const Fallback = <Box sx={{
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    zIndex: 100000,
-}}>
-    <CircularProgress size={100} />
+const Fallback = <Box>
+    {/* A blank Navbar to display before the actual one (which is dynamic depending on the page) is rendered. */}
+    <Box sx={{
+        background: (t) => t.palette.primary.dark,
+        height: '64px!important',
+        zIndex: 100,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+    }} />
+    {/* Loading spinner */}
+    <Box sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 100000,
+    }}>
+        <CircularProgress size={100} />
+    </Box>
 </Box>
 
 /**
@@ -61,21 +73,17 @@ const Fallback = <Box sx={{
  * customize the Navbar for each route, without it flashing on
  * the screen before the route is loaded.
  */
-//TODO once this is verified to work (including sitemap generation), pass in ViewUI instead of normal children
 const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
     return (
         <Route {...props}>
-            <>
-                <Navbar session={props.session} sessionChecked={props.session !== undefined} />
-                <Page {...props}>
-                    {props.children}
-                </Page>
-            </>
+            <Page {...props}>
+                {props.children}
+            </Page>
         </Route>
     )
 }
 
-export const Routes = (props: CommonProps) => {
+export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
     // Tab title for static (non-dynamic) pages (e.g. Home, Search, Create, Notifications).
     const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
 
@@ -84,19 +92,19 @@ export const Routes = (props: CommonProps) => {
             <ScrollToTop />
             <Switch fallback={Fallback}>
                 <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
-                    <ApiCreate session={props.session} />
+                    <ApiCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ApiUpdate session={props.session} />
+                    <ApiUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/:id`} {...props}>
-                    <ApiView session={props.session} />
+                    <ApiView {...props} />
                 </NavRoute>
                 <NavRoute path={LINKS.Awards} {...props}>
                     <AwardsView {...props} />
                 </NavRoute>
                 <NavRoute path={LINKS.Calendar} {...props}>
-                    <CalendarView session={props.session} />
+                    <CalendarView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Create}
@@ -106,7 +114,7 @@ export const Routes = (props: CommonProps) => {
                     mustBeLoggedIn={true}
                     {...props}
                 >
-                    <CreateView session={props.session} />
+                    <CreateView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ForgotPassword}/:code?`}
@@ -115,15 +123,15 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Forgot Password" maxWidth="700px">
+                    <FormView title="Forgot Password" maxWidth="700px" {...props}>
                         <ForgotPasswordForm />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
-                    <HistoryView session={props.session} />
+                    <HistoryView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.HistorySearch}/:params*`} mustBeLoggedIn={true} {...props}>
-                    <HistorySearchView session={props.session} />
+                    <HistorySearchView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Home}
@@ -132,16 +140,16 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="weekly"
                     {...props}
                 >
-                    <HomeView session={props.session} />
+                    <HomeView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
-                    <NoteCreate session={props.session} />
+                    <NoteCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <NoteUpdate session={props.session} />
+                    <NoteUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/:id`} {...props}>
-                    <NoteView session={props.session} />
+                    <NoteView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Notifications}
@@ -151,16 +159,16 @@ export const Routes = (props: CommonProps) => {
                     mustBeLoggedIn={true}
                     {...props}
                 >
-                    <NotificationsView session={props.session} />
+                    <NotificationsView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/add`} mustBeLoggedIn={true} {...props}>
-                    <OrganizationCreate session={props.session} />
+                    <OrganizationCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpdate session={props.session} />
+                    <OrganizationUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/:id`} {...props}>
-                    <OrganizationView session={props.session} />
+                    <OrganizationView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Premium}
@@ -172,34 +180,34 @@ export const Routes = (props: CommonProps) => {
                     <PremiumView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/:id?`} {...props}>
-                    <UserView session={props.session} />
+                    <UserView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
-                    <ProjectCreate session={props.session} />
+                    <ProjectCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpdate session={props.session} />
+                    <ProjectUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/:id`} {...props}>
-                    <ProjectView session={props.session} />
+                    <ProjectView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
-                    <QuestionCreate session={props.session} />
+                    <QuestionCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <QuestionUpdate session={props.session} />
+                    <QuestionUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/:id`} {...props}>
-                    <QuestionView session={props.session} />
+                    <QuestionView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderCreate session={props.session} />
+                    <ReminderCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpdate session={props.session} />
+                    <ReminderUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
-                    <ReminderView session={props.session} />
+                    <ReminderView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ResetPassword}/:params*`}
@@ -208,18 +216,18 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <FormView title="Reset Password" maxWidth="700px">
+                    <FormView title="Reset Password" maxWidth="700px" {...props}>
                         <ResetPasswordForm />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
-                    <RoutineCreate session={props.session} />
+                    <RoutineCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <RoutineUpdate session={props.session} />
+                    <RoutineUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/:id`} {...props}>
-                    <RoutineView session={props.session} />
+                    <RoutineView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.Search}/:params*`}
@@ -228,28 +236,28 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="monthly"
                     {...props}
                 >
-                    <SearchView session={props.session} />
+                    <SearchView {...props} />
                 </NavRoute>
                 <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
-                    <SettingsView session={props.session} />
+                    <SettingsView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractCreate session={props.session} />
+                    <SmartContractCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractUpdate session={props.session} />
+                    <SmartContractUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/:id`} {...props}>
-                    <SmartContractView session={props.session} />
+                    <SmartContractView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
-                    <StandardCreate session={props.session} />
+                    <StandardCreate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <StandardUpdate session={props.session} />
+                    <StandardUpdate {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/:id`} {...props}>
-                    <StandardView session={props.session} />
+                    <StandardView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Start}
@@ -258,7 +266,7 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="yearly"
                     {...props}
                 >
-                    <StartView session={props.session} />
+                    <StartView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Stats}
@@ -276,7 +284,7 @@ export const Routes = (props: CommonProps) => {
                     changeFreq="monthly"
                     {...props}
                 >
-                    <TutorialView />
+                    <TutorialView {...props} />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Welcome}
@@ -293,8 +301,8 @@ export const Routes = (props: CommonProps) => {
                 >
                     <WelcomeView {...props} />
                 </NavRoute>
-                <NavRoute  {...props}>
-                    <NotFoundView />
+                <NavRoute {...props}>
+                    <NotFoundView {...props} />
                 </NavRoute>
             </Switch>
         </>

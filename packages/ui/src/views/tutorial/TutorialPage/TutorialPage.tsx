@@ -3,6 +3,8 @@ import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon } from '@shared/icons';
 import { SetLocation, useLocation } from '@shared/route';
 import { PageTitle } from 'components';
 import { useCallback, useMemo, useState } from 'react';
+import { useTopBar } from 'utils';
+import { TutorialViewProps } from '../types';
 
 type PageProps = {
     palette: Palette;
@@ -49,7 +51,10 @@ type PageProps = {
  * A 6-page tutorial for new users. Goes through the basics of Vrooli.
  * At the bottom of the page, there is a row of buttons to navigate between pages
  */
-export const TutorialView = () => {
+export const TutorialView = ({
+    display = 'page',
+    session,
+}: TutorialViewProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
 
@@ -73,8 +78,17 @@ export const TutorialView = () => {
         return null;
     }, [page]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Tutorial',
+        },
+    })
+
     return (
         <>
+        {TopBar}
             {currentPage}
             {/* Buttons */}
             <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', marginTop: '1em' }}>

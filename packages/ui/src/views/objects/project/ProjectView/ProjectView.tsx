@@ -5,7 +5,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, toSearchListData, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
@@ -18,6 +18,7 @@ enum TabOptions {
 }
 
 export const ProjectView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -80,6 +81,14 @@ export const ProjectView = ({
         setLocation,
         setObject: setProjectVersion,
     });
+
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Project',
+        },
+    })
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -199,6 +208,7 @@ export const ProjectView = ({
 
     return (
         <>
+        {TopBar}
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

@@ -2,11 +2,11 @@ import { useQuery } from "@apollo/client";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
 import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award_findMany";
-import { AwardCard, AwardList, CardGrid, ContentCollapse, PageTitle } from "components";
+import { AwardCard, AwardList, CardGrid, ContentCollapse } from "components";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay, Wrap } from "types";
-import { awardToDisplay, getUserLanguages, useDisplayApolloError } from "utils";
+import { awardToDisplay, getUserLanguages, useDisplayApolloError, useTopBar } from "utils";
 import { AwardsViewProps } from "views/types";
 
 // Category array for sorting
@@ -15,9 +15,10 @@ const categoryList = Object.values(AwardCategory);
 //TODO store tiers in @shared/consts, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
-export function AwardsView({
+export const AwardsView = ({
+    display = 'page',
     session,
-}: AwardsViewProps) {
+}: AwardsViewProps) => {
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
@@ -42,9 +43,18 @@ export function AwardsView({
     }, [data, lng, t]);
     console.log(awards);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Award',
+            titleVariables: { count: 2 },
+        },
+    })
+
     return (
         <>
-            <PageTitle titleKey='Award' titleVariables={{ count: 2 }} />
+            {TopBar}
             {/* Display earned awards as a list of tags. Press or hover to see description */}
             <ContentCollapse
                 isOpen={true}

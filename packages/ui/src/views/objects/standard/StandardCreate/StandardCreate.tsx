@@ -2,7 +2,7 @@ import { Box, Grid, TextField } from "@mui/material";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, removeTranslation, shapeStandardVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, removeTranslation, shapeStandardVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
@@ -18,6 +18,7 @@ import { standardVersionCreate } from "api/generated/endpoints/standardVersion_c
 import { parseSearchParams } from "@shared/route";
 
 export const StandardCreate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: StandardCreateProps) => {
@@ -154,67 +155,74 @@ export const StandardCreate = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'CreateStandard',
+        },
+    })
+
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                <Grid item xs={12}>
-                    <PageTitle titleKey='CreateStandard' />
-                </Grid>
-                <Grid item xs={12} mb={4}>
-                    <RelationshipButtons
-                        isEditing={true}
-                        objectType={'Standard'}
-                        onRelationshipsChange={onRelationshipsChange}
-                        relationships={relationships}
-                        session={session}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleLanguageDelete}
-                        handleCurrent={setLanguage}
-                        session={session}
-                        translations={formik.values.translationsCreate}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="name"
-                        name="name"
-                        label="Name"
-                        value={formik.values.name}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.name && Boolean(formik.errors.name)}
-                        helperText={formik.touched.name && formik.errors.name}
-                    />
-                </Grid>
-                <Grid item xs={12} mb={4}>
-                    <TextField
-                        fullWidth
-                        id="description"
-                        name="description"
-                        label="description"
-                        multiline
-                        minRows={4}
-                        value={translations.description}
-                        onBlur={onTranslationBlur}
-                        onChange={onTranslationChange}
-                        error={translations.touchedDescription && Boolean(translations.errorDescription)}
-                        helperText={translations.touchedDescription && translations.errorDescription}
-                    />
-                </Grid>
-                {/* <Grid item xs={12}>
+        <>
+            {TopBar}
+            <form onSubmit={formik.handleSubmit} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+            >
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'Standard'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleLanguageDelete}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsCreate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="name"
+                            name="name"
+                            label="Name"
+                            value={formik.values.name}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.name && Boolean(formik.errors.name)}
+                            helperText={formik.touched.name && formik.errors.name}
+                        />
+                    </Grid>
+                    <Grid item xs={12} mb={4}>
+                        <TextField
+                            fullWidth
+                            id="description"
+                            name="description"
+                            label="description"
+                            multiline
+                            minRows={4}
+                            value={translations.description}
+                            onBlur={onTranslationBlur}
+                            onChange={onTranslationChange}
+                            error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                            helperText={translations.touchedDescription && translations.errorDescription}
+                        />
+                    </Grid>
+                    {/* <Grid item xs={12}>
                     <TextField
                         fullWidth
                         id="version"
@@ -227,76 +235,77 @@ export const StandardCreate = ({
                         helperText={formik.touched.version && formik.errors.version}
                     />
                 </Grid> */}
-                {/* Standard build/preview */}
-                <Grid item xs={12}>
-                    <PreviewSwitch
-                        isPreviewOn={isPreviewOn}
-                        onChange={onPreviewChange}
-                        sx={{
-                            marginBottom: 2
-                        }}
+                    {/* Standard build/preview */}
+                    <Grid item xs={12}>
+                        <PreviewSwitch
+                            isPreviewOn={isPreviewOn}
+                            onChange={onPreviewChange}
+                            sx={{
+                                marginBottom: 2
+                            }}
+                        />
+                        {
+                            isPreviewOn ?
+                                (schema && <GeneratedInputComponent
+                                    disabled={true}
+                                    fieldData={schema}
+                                    formik={previewFormik}
+                                    session={session}
+                                    onUpload={() => { }}
+                                    zIndex={zIndex}
+                                />) :
+                                <Box>
+                                    <Selector
+                                        fullWidth
+                                        options={InputTypeOptions}
+                                        selected={inputType}
+                                        handleChange={handleInputTypeSelect}
+                                        getOptionLabel={(option: InputTypeOption) => option.label}
+                                        inputAriaLabel='input-type-selector'
+                                        label="Type"
+                                        sx={{ marginBottom: 2 }}
+                                    />
+                                    <BaseStandardInput
+                                        fieldName="preview"
+                                        inputType={inputType.value}
+                                        isEditing={true}
+                                        schema={schema}
+                                        onChange={handleSchemaUpdate}
+                                        storageKey={schemaKey}
+                                    />
+                                </Box>
+                        }
+                    </Grid>
+                    <Grid item xs={12}>
+                        <ResourceListHorizontal
+                            title={'Resources'}
+                            list={resourceList}
+                            canUpdate={true}
+                            handleUpdate={handleResourcesUpdate}
+                            loading={false}
+                            session={session}
+                            mutate={false}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12} mb={4}>
+                        <TagSelector
+                            handleTagsUpdate={handleTagsUpdate}
+                            session={session}
+                            tags={tags}
+                        />
+                    </Grid>
+                    <GridSubmitButtons
+                        disabledSubmit={!isLoggedIn}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={true}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
                     />
-                    {
-                        isPreviewOn ?
-                            (schema && <GeneratedInputComponent
-                                disabled={true}
-                                fieldData={schema}
-                                formik={previewFormik}
-                                session={session}
-                                onUpload={() => { }}
-                                zIndex={zIndex}
-                            />) :
-                            <Box>
-                                <Selector
-                                    fullWidth
-                                    options={InputTypeOptions}
-                                    selected={inputType}
-                                    handleChange={handleInputTypeSelect}
-                                    getOptionLabel={(option: InputTypeOption) => option.label}
-                                    inputAriaLabel='input-type-selector'
-                                    label="Type"
-                                    sx={{ marginBottom: 2 }}
-                                />
-                                <BaseStandardInput
-                                    fieldName="preview"
-                                    inputType={inputType.value}
-                                    isEditing={true}
-                                    schema={schema}
-                                    onChange={handleSchemaUpdate}
-                                    storageKey={schemaKey}
-                                />
-                            </Box>
-                    }
                 </Grid>
-                <Grid item xs={12}>
-                    <ResourceListHorizontal
-                        title={'Resources'}
-                        list={resourceList}
-                        canUpdate={true}
-                        handleUpdate={handleResourcesUpdate}
-                        loading={false}
-                        session={session}
-                        mutate={false}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                <Grid item xs={12} mb={4}>
-                    <TagSelector
-                        handleTagsUpdate={handleTagsUpdate}
-                        session={session}
-                        tags={tags}
-                    />
-                </Grid>
-                <GridSubmitButtons
-                    disabledSubmit={!isLoggedIn}
-                    errors={translations.errorsWithTranslations}
-                    isCreate={true}
-                    loading={formik.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={formik.setSubmitting}
-                    onSubmit={formik.handleSubmit}
-                />
-            </Grid>
-        </form>
+            </form>
+        </>
     )
 }

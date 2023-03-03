@@ -5,7 +5,7 @@ import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTopBar, useTranslatedFields, useUpdateActions } from "utils";
 import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, VersionInput } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
@@ -19,6 +19,7 @@ import { BuildView } from "views/BuildView/BuildView";
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 
 export const RoutineUpdate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: RoutineUpdateProps) => {
@@ -213,11 +214,16 @@ export const RoutineUpdate = ({
         }
     }, [formik.values.nodes.length, formik.values.nodeLinks.length, inputsList.length, outputsList.length, handleGraphClose, handleGraphOpen]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'UpdateRoutine',
+        },
+    })
+
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-            <Grid item xs={12}>
-                <PageTitle titleKey='UpdateRoutine'/>
-            </Grid>
             <Grid item xs={12} mb={4}>
                 <RelationshipButtons
                     isEditing={true}
@@ -416,26 +422,29 @@ export const RoutineUpdate = ({
     ), [session, formik, onRelationshipsChange, relationships, zIndex, language, handleAddLanguage, handleDeleteLanguage, translations.name, translations.touchedName, translations.errorName, translations.description, translations.touchedDescription, translations.errorDescription, translations.instructions, translations.touchedInstructions, translations.errorInstructions, translations.errorsWithTranslations, onTranslationBlur, onTranslationChange, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, routineVersion?.root?.versions, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, onCancel, handleMultiStepChange]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex,
-        }}
-        >
-            {loading ? (
-                <Box sx={{
-                    position: 'absolute',
-                    top: '-5vh', // Half of toolbar height
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <CircularProgress size={100} color="secondary" />
-                </Box>
-            ) : formInput}
-        </form>
+        <>
+            {TopBar}
+            <form onSubmit={formik.handleSubmit} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex,
+            }}
+            >
+                {loading ? (
+                    <Box sx={{
+                        position: 'absolute',
+                        top: '-5vh', // Half of toolbar height
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}>
+                        <CircularProgress size={100} color="secondary" />
+                    </Box>
+                ) : formInput}
+            </form>
+        </>
     )
 }

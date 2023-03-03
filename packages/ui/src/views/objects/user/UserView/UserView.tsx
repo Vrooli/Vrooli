@@ -4,7 +4,7 @@ import { APP_LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, Visi
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs } from "components";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
@@ -23,6 +23,7 @@ enum TabOptions {
 }
 
 export const UserView = ({
+    display = 'page',
     session,
     partialData,
     zIndex = 200,
@@ -127,6 +128,14 @@ export const UserView = ({
         setLocation,
         setObject: setUser,
     });
+
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'User',
+        },
+    })
 
     /**
      * Displays name, handle, avatar, bio, and quick links
@@ -265,6 +274,7 @@ export const UserView = ({
 
     return (
         <>
+            {TopBar}
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

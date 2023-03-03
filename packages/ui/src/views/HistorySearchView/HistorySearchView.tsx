@@ -5,7 +5,7 @@ import { Stack, Typography } from "@mui/material";
 import { PageTabs, SearchList } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { SearchType, HistorySearchPageTabOption as TabOptions } from "utils";
+import { SearchType, HistorySearchPageTabOption as TabOptions, useTopBar } from "utils";
 import { PageTab } from "components/types";
 import { useTranslation } from "react-i18next";
 import { CommonKey } from "@shared/translations";
@@ -37,9 +37,10 @@ const tabParams: BaseParams[] = [{
     where: {},
 }]
 
-export function HistorySearchView({
+export const HistorySearchView = ({
+    display = 'page',
     session,
-}: HistorySearchViewProps) {
+}: HistorySearchViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -74,17 +75,24 @@ export function HistorySearchView({
         }
     }, [currTab.index, currTab.label, t]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            hideOnDesktop: true,
+            title,
+        },
+        below: <PageTabs
+            ariaLabel="history-search-tabs"
+            currTab={currTab}
+            onChange={handleTabChange}
+            tabs={tabs}
+        />
+    })
+
     return (
         <>
-            <PageTabs
-                ariaLabel="history-search-tabs"
-                currTab={currTab}
-                onChange={handleTabChange}
-                tabs={tabs}
-            />
-            <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                <Typography component="h2" variant="h4">{title}</Typography>
-            </Stack>
+            {TopBar}
             {searchType && <SearchList
                 id="history-search-page-list"
                 take={20}

@@ -3,7 +3,7 @@ import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from '@sh
 import { TranscriptDialog } from 'components/dialogs';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSpeech } from 'utils';
+import { PubSub, useSpeech } from 'utils';
 import { MicrophoneButtonProps } from '../types';
 
 type MicrophoneStatus = 'On' | 'Off' | 'Disabled';
@@ -37,12 +37,15 @@ export const MicrophoneButton = ({
     }, [status]);
 
     const handleClick = useCallback(() => {
+        console.log('microphone button clicked', status)
         if (status === 'On') {
             stopListening();
             onTranscriptChange(transcript);
         } else if (status === 'Off') {
             startListening();
             transcript && resetTranscript();
+        } else {
+            PubSub.get().publishSnack({ messageKey: 'SpeechNotAvailable' });
         }
         return true
     }, [status, startListening, stopListening, transcript, onTranscriptChange, resetTranscript]);

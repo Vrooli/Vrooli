@@ -24,6 +24,7 @@ export const VersionInput = ({
     const { palette } = useTheme();
 
     const [internalValue, setInternalValue] = useState<Partial<VersionInfo>>(versionInfo);
+    console.log('versioninputtttt', versionInfo, internalValue)
     useEffect(() => {
         setInternalValue(versionInfo);
     }, [versionInfo]);
@@ -100,7 +101,7 @@ export const VersionInput = ({
                 id={id}
                 name={name}
                 label={label}
-                value={internalValue}
+                value={internalValue.versionLabel}
                 onBlur={handleBlur}
                 onChange={handleChange}
                 error={error}

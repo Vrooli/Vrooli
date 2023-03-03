@@ -1,5 +1,5 @@
-import { Session } from "@shared/consts";
+import { BaseViewProps } from "views/types";
 
-export interface WelcomeViewProps {
-    session: Session | undefined;
-}
+export interface TutorialViewProps extends BaseViewProps {};
+
+export interface WelcomeViewProps extends BaseViewProps {};

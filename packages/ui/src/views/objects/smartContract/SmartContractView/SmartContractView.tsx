@@ -4,12 +4,13 @@ import { SmartContractVersion, BookmarkFor, FindVersionInput } from "@shared/con
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
 import { SmartContractViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl, useTopBar } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 
 export const SmartContractView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -57,6 +58,14 @@ export const SmartContractView = ({
         setLocation,
         setObject: setSmartContractVersion,
     });
+
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'SmartContract',
+        },
+    })
 
     /**
      * Displays name, avatar, description, and quick links
@@ -173,6 +182,7 @@ export const SmartContractView = ({
 
     return (
         <>
+        {TopBar}
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

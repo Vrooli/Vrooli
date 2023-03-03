@@ -30,7 +30,6 @@ export const useSpeech = () => {
 
     // Function to start listening to speech
     const startListening = () => {
-        console.log('starting?', isSpeechSupported);
         if (isSpeechSupported) {
             // Create a new instance of SpeechRecognition
             const sr: any = new ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)();

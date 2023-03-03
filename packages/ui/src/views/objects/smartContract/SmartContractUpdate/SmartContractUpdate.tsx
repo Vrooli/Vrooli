@@ -5,7 +5,7 @@ import { SmartContractUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { smartContractVersionValidation, smartContractVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeSmartContractVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeSmartContractVersion, TagShape, usePromptBeforeUnload, useTopBar, useTranslatedFields, useUpdateActions } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
@@ -14,6 +14,7 @@ import { smartContractVersionFindOne } from "api/generated/endpoints/smartContra
 import { smartContractVersionUpdate } from "api/generated/endpoints/smartContractVersion_update";
 
 export const SmartContractUpdate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: SmartContractUpdateProps) => {
@@ -113,11 +114,16 @@ export const SmartContractUpdate = ({
         }
     }, [smartContractVersion, session]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'UpdateSmartContract',
+        },
+    })
+
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-            <Grid item xs={12}>
-                <PageTitle titleKey='UpdateSmartContract' />
-            </Grid>
             <Grid item xs={12} mb={4}>
                 <RelationshipButtons
                     isEditing={true}
@@ -152,25 +158,28 @@ export const SmartContractUpdate = ({
     ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, translations, onCancel]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            {loading ? (
-                <Box sx={{
-                    position: 'absolute',
-                    top: '-5vh', // Half of toolbar height
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <CircularProgress size={100} color="secondary" />
-                </Box>
-            ) : formInput}
-        </form>
+        <>
+            {TopBar}
+            <form onSubmit={formik.handleSubmit} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+            >
+                {loading ? (
+                    <Box sx={{
+                        position: 'absolute',
+                        top: '-5vh', // Half of toolbar height
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}>
+                        <CircularProgress size={100} color="secondary" />
+                    </Box>
+                ) : formInput}
+            </form>
+        </>
     )
 }

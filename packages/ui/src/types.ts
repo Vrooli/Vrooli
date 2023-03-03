@@ -2,12 +2,26 @@
 import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { CommonKey } from '@shared/translations';
 
-// Top-level props that can be passed into any routed component
-export type SessionChecked = boolean;
+/**
+ * Top-level props that can be passed into any routed component
+ */
 export interface CommonProps {
     session: Session | undefined;
-    sessionChecked: SessionChecked;
+}
+
+/**
+ * Data to display title information for a component, which may not
+ * always be translated.
+ */
+export type OptionalTranslation = {
+    help?: string;
+    helpKey?: CommonKey;
+    helpVariables?: { [x: string]: string | number };
+    title?: string;
+    titleKey?: CommonKey;
+    titleVariables?: { [x: string]: string | number };
 }
 
 /**

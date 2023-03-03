@@ -1,7 +1,7 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
-import { getTranslation, getUserLanguages } from "utils";
+import { getTranslation, getUserLanguages, useTopBar } from "utils";
 import { CalendarViewProps } from "../types";
 import { HelpButton } from "components/buttons";
 import { OpenInNewIcon } from "@shared/icons";
@@ -9,6 +9,7 @@ import { Node, NodeLink, NodeType } from "@shared/consts";
 import { useTranslation } from "react-i18next";
 
 export const CalendarView = ({
+    display = 'page',
     session,
 }: CalendarViewProps) => {
     const { palette } = useTheme();
@@ -31,6 +32,17 @@ export const CalendarView = ({
     //     errorPolicy: 'all',
     // });
 
-    // <PageTitle titleKey='Calendar' />
-    return null as any
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Calendar',
+        },
+    })
+
+    return (
+        <>
+            {TopBar}
+        </>
+    )
 }

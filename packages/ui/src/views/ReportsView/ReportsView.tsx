@@ -1,7 +1,7 @@
 import { useQuery } from "@apollo/client";
 import { useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
-import { parseSingleItemUrl } from "utils";
+import { parseSingleItemUrl, useTopBar } from "utils";
 import { PageTitle } from "components/text";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { Wrap } from "types";
@@ -24,11 +24,12 @@ const objectTypeToIdField = {
 }
 
 export const ReportsView = ({
+    display = 'page',
     session
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    
+
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
@@ -41,9 +42,18 @@ export const ReportsView = ({
         return data.reports.edges.map(edge => edge.node);
     }, [data]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Reports',
+            helpKey: 'ReportsHelp',
+        },
+    })
+
     return (
         <>
-            <PageTitle titleKey='Reports' helpKey='ReportsHelp' />
+            {TopBar}
             {reports.map((report, i) => {
                 return <Box
                     key={i}

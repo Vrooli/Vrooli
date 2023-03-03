@@ -15,6 +15,7 @@ export * from './usePromptBeforeUnload';
 export * from './useReactHash';
 export * from './useReactSearch';
 export * from './useSpeech';
+export * from './useTopBar';
 export * from './useTranslatedFields';
 export * from './useUpdateActions';
 export * from './useVoter';

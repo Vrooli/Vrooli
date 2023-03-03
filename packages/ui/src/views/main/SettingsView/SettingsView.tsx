@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCustomLazyQuery } from 'api/hooks';
 import { APP_LINKS, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { PreSearchItem, translateSearchItems, useReactSearch, useWindowSize } from 'utils';
+import { PreSearchItem, translateSearchItems, useReactSearch, useTopBar, useWindowSize } from 'utils';
 import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
 import { SettingsSearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
@@ -69,9 +69,10 @@ const pageDisplayData: { [key in SettingsForm]: [CommonKey, SvgComponent] } = {
     'authentication': ['Authentication', LockIcon],
 }
 
-export function SettingsView({
+export const SettingsView = ({
+    display = 'page',
     session,
-}: SettingsViewProps) {
+}: SettingsViewProps) => {
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
@@ -151,25 +152,34 @@ export function SettingsView({
         }
     }, [selectedPage, session, profile, onUpdated]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Settings',
+        },
+        // Search bar to find settings
+        below: <Box sx={{
+            width: 'min(100%, 700px)',
+            margin: 'auto',
+            marginTop: 2,
+            marginBottom: 2,
+            paddingLeft: 2,
+            paddingRight: 2,
+        }}>
+            <SettingsSearchBar
+                value={searchString}
+                onChange={updateSearch}
+                onInputChange={onInputSelect}
+                options={searchOptions}
+                session={session}
+            />
+        </Box>
+    })
+
     return (
         <>
-            {/* Search bar to find setting */}
-            <Box sx={{
-                width: 'min(100%, 700px)',
-                margin: 'auto',
-                marginTop: 2,
-                marginBottom: 2,
-                paddingLeft: 2,
-                paddingRight: 2,
-            }}>
-                <SettingsSearchBar
-                    value={searchString}
-                    onChange={updateSearch}
-                    onInputChange={onInputSelect}
-                    options={searchOptions}
-                    session={session}
-                />
-            </Box>
+            {TopBar}
             {/* Forms list and currnet form */}
             <Grid container spacing={0}>
                 {/* List of settings forms, which is collapsible only on mobile */}
@@ -183,7 +193,7 @@ export function SettingsView({
                         ...noSelect,
                     }}>
                         {isListOpen ? <ExpandLessIcon fill={palette.background.textPrimary} /> : <ExpandMoreIcon fill={palette.background.textPrimary} />}
-                        <Typography variant="h6" sx={{ marginLeft: 1 }}>{t(`Settings`)}</Typography>
+                        <Typography variant="h6" sx={{ marginLeft: 1 }}>{t(`Category`)}</Typography>
                     </Box>}
                     <Collapse in={!isMobile || isListOpen}>
                         <List>

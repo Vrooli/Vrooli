@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTopBar, useTranslatedFields, useUpdateActions } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
@@ -14,6 +14,7 @@ import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_fi
 import { projectVersionUpdate } from "api/generated/endpoints/projectVersion_update";
 
 export const ProjectUpdate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: ProjectUpdateProps) => {
@@ -116,11 +117,16 @@ export const ProjectUpdate = ({
     // Handles change on translation fields
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => handleTranslationChange(formik, 'translationsUpdate', e, language), [formik, language]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'UpdateProject',
+        },
+    })
+
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-            <Grid item xs={12}>
-                <PageTitle titleKey='UpdateProject' />
-            </Grid>
             <Grid item xs={12} mb={4}>
                 <RelationshipButtons
                     isEditing={true}
@@ -190,26 +196,29 @@ export const ProjectUpdate = ({
 
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex,
-        }}
-        >
-            {loading ? (
-                <Box sx={{
-                    position: 'absolute',
-                    top: '-5vh', // Half of toolbar height
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <CircularProgress size={100} color="secondary" />
-                </Box>
-            ) : formInput}
-        </form>
+        <>
+            {TopBar}
+            <form onSubmit={formik.handleSubmit} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex,
+            }}
+            >
+                {loading ? (
+                    <Box sx={{
+                        position: 'absolute',
+                        top: '-5vh', // Half of toolbar height
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}>
+                        <CircularProgress size={100} color="secondary" />
+                    </Box>
+                ) : formInput}
+            </form>
+        </>
     )
 }

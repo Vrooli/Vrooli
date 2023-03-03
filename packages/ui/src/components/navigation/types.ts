@@ -1,18 +1,29 @@
 import { CommonProps } from 'types';
 
-export type BottomNavProps = Pick<CommonProps, 'session'>
+export type BottomNavProps = CommonProps;
 
-export type CommandPaletteProps = Pick<CommonProps, 'session'>
+export type CommandPaletteProps = CommonProps;
 
-export interface ContactInfoProps extends Pick<CommonProps, 'session'> {
+export interface ContactInfoProps extends CommonProps {
     sx?: { [key: string]: any };
 }
 
-export type FindInPageProps = Pick<CommonProps, 'session'>
+export type FindInPageProps = CommonProps;
 
-export type NavbarProps = Pick<CommonProps, 'session' | 'sessionChecked'>
+export type NavbarProps = CommonProps & {
+    title?: string | undefined;
+    help?: string | undefined;
+    below?: JSX.Element | boolean | undefined;
+    shouldHideTitle?: boolean;
+}
 
-export type NavListProps = Pick<CommonProps, 'session' | 'sessionChecked'>
+export type NavbarLogoState = 'full' | 'icon' | 'none';
+export interface NavbarLogoProps {
+    onClick: () => void;
+    state: NavbarLogoState;
+}
+
+export type NavListProps = CommonProps;
 
 export interface HideOnScrollProps {
     target?: any;

@@ -5,4 +5,5 @@ export * from './FindInPage/FindInPage';
 export * from './Footer/Footer';
 export * from './HideOnScroll/HideOnScroll';
 export * from './Navbar/Navbar';
+export * from './NavbarLogo/NavbarLogo';
 export * from './NavList/NavList';

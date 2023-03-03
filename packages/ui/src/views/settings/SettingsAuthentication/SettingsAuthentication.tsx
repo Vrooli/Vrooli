@@ -114,7 +114,7 @@ export const SettingsAuthentication = ({
                 session={session}
                 zIndex={100}
             />
-            <PageTitle titleKey='Authentication' helpKey='AuthenticationHelp' />
+            {/* <PageTitle titleKey='Authentication' helpKey='AuthenticationHelp' /> */}
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Wallets</Typography>

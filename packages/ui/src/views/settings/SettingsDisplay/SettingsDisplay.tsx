@@ -124,7 +124,7 @@ export const SettingsDisplay = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' />
+            {/* <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' /> */}
             <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
                     theme={formik.values.theme as 'light' | 'dark'}

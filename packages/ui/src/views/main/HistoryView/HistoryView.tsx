@@ -5,7 +5,7 @@ import { SiteSearchBar, ListTitleContainer, PageTabs } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
 import { HistoryViewProps } from '../types';
-import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
+import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch, useTopBar } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
 import { historyHistory } from 'api/generated/endpoints/history_history';
@@ -27,6 +27,7 @@ const zIndex = 200;
  * which opens a full search page for that object type.
  */
 export const HistoryView = ({
+    display = 'page',
     session
 }: HistoryViewProps) => {
     const [, setLocation] = useLocation();
@@ -146,19 +147,27 @@ export const HistoryView = ({
         setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Bookmarked } });
     }, [setLocation]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'History',
+        },
+        below: <PageTabs
+            ariaLabel="history-tabs"
+            currTab={currTab}
+            onChange={handleTabChange}
+            tabs={tabs}
+        />
+    })
+
     return (
         <>
-            <PageTabs
-                ariaLabel="history-tabs"
-                currTab={currTab}
-                onChange={handleTabChange}
-                tabs={tabs}
-            />
+            {TopBar}
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Prompt stack */}
                 <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
-                    <Typography component="h1" variant="h3" textAlign="center">History</Typography>
                     <SiteSearchBar
                         id="history-search"
                         placeholder='SearchHistory'

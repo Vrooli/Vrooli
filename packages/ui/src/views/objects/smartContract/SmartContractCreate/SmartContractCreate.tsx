@@ -3,7 +3,7 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { smartContractVersionValidation, smartContractVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeSmartContractVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeSmartContractVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTopBar, useTranslatedFields } from "utils";
 import { SmartContractCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
@@ -15,6 +15,7 @@ import { smartContractVersionCreate } from "api/generated/endpoints/smartContrac
 import { parseSearchParams } from "@shared/route";
 
 export const SmartContractCreate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: SmartContractCreateProps) => {
@@ -25,8 +26,8 @@ export const SmartContractCreate = ({
     const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
-   const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-   const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
+    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -70,9 +71,9 @@ export const SmartContractCreate = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description', 'jsonVariable', 'name'],
-        formik, 
-        formikField: 'translationsCreate', 
-        language, 
+        formik,
+        formikField: 'translationsCreate',
+        language,
         validationSchema: smartContractVersionTranslationValidation.create({}),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
@@ -97,49 +98,57 @@ export const SmartContractCreate = ({
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'CreateSmartContract',
+        },
+    })
+
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                <Grid item xs={12}>
-                    <PageTitle titleKey='CreateSmartContract' />
-                </Grid>
-                <Grid item xs={12} mb={4}>
-                    <RelationshipButtons
-                        isEditing={true}
-                        objectType={'SmartContract'}
-                        onRelationshipsChange={onRelationshipsChange}
-                        relationships={relationships}
-                        session={session}
-                        zIndex={zIndex}
+        <>
+            {TopBar}
+            <form onSubmit={formik.handleSubmit} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+            >
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'SmartContract'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleLanguageDelete}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsCreate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    {/* TODO */}
+                    <GridSubmitButtons
+                        disabledSubmit={!isLoggedIn}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={true}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-                <Grid item xs={12}>
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleLanguageDelete}
-                        handleCurrent={setLanguage}
-                        session={session}
-                        translations={formik.values.translationsCreate}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                {/* TODO */}
-                <GridSubmitButtons
-                    disabledSubmit={!isLoggedIn}
-                    errors={translations.errorsWithTranslations}
-                    isCreate={true}
-                    loading={formik.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={formik.setSubmitting}
-                    onSubmit={formik.handleSubmit}
-                />
-            </Grid>
-        </form >
+            </form>
+        </>
     )
 }

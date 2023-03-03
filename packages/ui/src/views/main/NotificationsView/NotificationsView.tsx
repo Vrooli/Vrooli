@@ -4,7 +4,7 @@ import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIco
 import { Box, Button, List, ListItem, Typography, useTheme } from '@mui/material';
 import { NotificationsViewProps } from '../types';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages, useDisplayApolloError } from 'utils';
+import { getUserLanguages, useDisplayApolloError, useTopBar } from 'utils';
 import { Wrap } from 'types';
 import { APP_LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
@@ -12,6 +12,7 @@ import { useQuery } from '@apollo/client';
 import { notificationFindMany } from 'api/generated/endpoints/notification_findMany';
 
 export const NotificationsView = ({
+    display = 'page',
     session
 }: NotificationsViewProps) => {
     const [, setLocation] = useLocation();
@@ -42,9 +43,18 @@ export const NotificationsView = ({
     const onMarkAllAsRead = useCallback(() => {
     }, []);
 
+    const TopBar = useTopBar({
+        display,
+        session,
+        titleData: {
+            titleKey: 'Notification',
+            titleVariables: { count: 2 },
+        },
+    })
+
     return (
         <>
-            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }}/>
+            {TopBar}
             <Box sx={{
                 marginTop: 2,
                 maxWidth: '1000px',

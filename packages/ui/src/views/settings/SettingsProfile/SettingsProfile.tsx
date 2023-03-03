@@ -142,7 +142,7 @@ export const SettingsProfile = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            <PageTitle titleKey='UpdateProfile' helpKey='UpdateProfileHelp' />
+            {/* <PageTitle titleKey='UpdateProfile' helpKey='UpdateProfileHelp' /> */}
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
