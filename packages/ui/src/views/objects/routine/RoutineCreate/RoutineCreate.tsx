@@ -2,14 +2,14 @@ import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Too
 import { useCustomMutation } from "api/hooks";
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { defaultRelationships, defaultResourceList, getUserLanguages, initializeRoutineGraph, NodeLinkShape, NodeShape, PubSub, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar, UpTransition, VersionInput } from "components";
+import { GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar, UpTransition, VersionInput } from "components";
 import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
 import { Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
 import { mutationWrapper } from "api/utils";
@@ -116,35 +116,21 @@ export const RoutineCreate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'instructions', 'name'],
         formik,
         formikField: 'translationsCreate',
-        language,
         validationSchema: routineVersionTranslationValidation.create({}),
     });
-    const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsCreate', newLanguage);
-    }, [formik]);
-    const handleDeleteLanguage = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsCreate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
 
     const [isGraphOpen, setIsGraphOpen] = useState(false);
     const handleGraphOpen = useCallback(() => {

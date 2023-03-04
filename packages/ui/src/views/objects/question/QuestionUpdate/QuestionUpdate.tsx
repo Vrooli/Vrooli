@@ -1,11 +1,11 @@
-import { Box, CircularProgress, Grid, TextField } from "@mui/material"
+import { Grid, TextField } from "@mui/material"
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { QuestionUpdateProps } from "../types";
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeQuestion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector, TopBar } from "components";
+import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeQuestion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TagSelector, TopBar } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Question, QuestionUpdateInput, ResourceList } from "@shared/consts";
@@ -73,30 +73,21 @@ export const QuestionUpdate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: questionTranslationValidation.update({}),
     });
-    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => handleTranslationBlur(formik, 'translationsUpdate', e, language), [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => handleTranslationChange(formik, 'translationsUpdate', e, language), [formik, language]);
 
     useEffect(() => {
         setRelationships({
@@ -110,7 +101,7 @@ export const QuestionUpdate = ({
         if (question?.translations?.length) {
             setLanguage(getPreferredLanguage(question.translations.map(t => t.language), getUserLanguages(session)));
         }
-    }, [question, session]);
+    }, [question, session, setLanguage]);
 
     return (
         <>
@@ -138,7 +129,7 @@ export const QuestionUpdate = ({
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
-                            handleDelete={handleLanguageDelete}
+                            handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             session={session}
                             translations={formik.values.translationsUpdate}

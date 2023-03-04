@@ -1,8 +1,8 @@
 import { useCustomMutation } from "api/hooks";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
-import { useCallback, useMemo } from "react";
-import { handleTranslationChange, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
+import { useEffect, useMemo } from "react";
+import { getUserLanguages, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
 import { CommentCreateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
 import { checkIfLoggedIn } from "utils/authentication";
@@ -70,16 +70,20 @@ export const CommentCreateInput = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty && formik.values.translationsCreate.some(t => t.text.trim().length > 0) });
 
-    const translations = useTranslatedFields({
+    const {
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['text'],
         formik,
         formikField: 'translationsCreate',
-        language,
         validationSchema: commentTranslationValidation.create({}),
     });
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language);
-    }, [formik, language]);
+    useEffect(() => {
+        setLanguage(language);
+    }, [language, setLanguage]);
 
     // If mobile, use CommentDialog
     if (isMobile) return (

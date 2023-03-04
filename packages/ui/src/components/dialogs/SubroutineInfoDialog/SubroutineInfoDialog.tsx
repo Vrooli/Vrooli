@@ -14,7 +14,7 @@ import {
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
+import { defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
@@ -83,10 +83,6 @@ export const SubroutineInfoDialog = ({
         setTags(subroutine?.routineVersion?.root?.tags ?? []);
     }, [subroutine?.routineVersion]);
 
-    // Handle languages
-    const [language, setLanguage] = useState<string>('');
-    const [languages, setLanguages] = useState<string[]>([]);
-
     // Handle update
     const formik = useFormik({
         initialValues: {
@@ -133,43 +129,27 @@ export const SubroutineInfoDialog = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Current description, instructions, and name info, as well as errors
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage,
         fields: ['description', 'instructions', 'name'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: routineVersionTranslationValidation.update({}),
     });
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-
-    // Handle languages
     useEffect(() => {
         if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
             setLanguage(formik.values.translationsUpdate[0].language);
-            setLanguages(formik.values.translationsUpdate.map(t => t.language));
         }
-    }, [formik, languages, setLanguage, setLanguages])
-    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik, handleLanguageSelect, languages]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        setLanguages(newLanguages);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
+    }, [formik, languages, setLanguage])
 
     const canUpdate = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canUpdate === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canUpdate, userId]);
 
@@ -274,7 +254,7 @@ export const SubroutineInfoDialog = ({
                             {canUpdate ? <LanguageInput
                                 currentLanguage={language}
                                 handleAdd={handleAddLanguage}
-                                handleDelete={handleLanguageDelete}
+                                handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 session={session}
                                 translations={formik.values.translationsUpdate}

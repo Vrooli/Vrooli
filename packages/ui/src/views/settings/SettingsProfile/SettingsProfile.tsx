@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfile, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { getUserLanguages, shapeProfile, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
@@ -12,7 +12,6 @@ import { ColorIconButton, GridSubmitButtons } from "components/buttons";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { PageTitle } from "components";
 import { userTranslationValidation, userValidation } from "@shared/validation";
 import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
@@ -44,10 +43,6 @@ export const SettingsProfile = ({
     }, [handlesData])
 
     const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
-
-    // Handle languages
-    const [language, setLanguage] = useState<string>('');
-    const [languages, setLanguages] = useState<string[]>([]);
 
     useEffect(() => {
         if (!profile) return;
@@ -98,43 +93,27 @@ export const SettingsProfile = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Current bio info, as well as errors
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['bio'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: userTranslationValidation.update({}),
     });
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-
-    // Handle languages
     useEffect(() => {
         if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
             setLanguage(formik.values.translationsUpdate[0].language);
-            setLanguages(formik.values.translationsUpdate.map(t => t.language));
         }
-    }, [formik, languages, setLanguage, setLanguages])
-    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik, handleLanguageSelect, languages]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        setLanguages(newLanguages);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
+    }, [formik, languages.length, setLanguage])
 
     const handleCancel = useCallback(() => {
         setLocation(APP_LINKS.Profile, { replace: true })
@@ -149,8 +128,8 @@ export const SettingsProfile = ({
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
-                            handleDelete={handleLanguageDelete}
-                            handleCurrent={handleLanguageSelect}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
                             session={session}
                             translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
@@ -221,7 +200,7 @@ export const SettingsProfile = ({
             </Container>
             <Grid container spacing={2} p={3}>
                 <GridSubmitButtons
-                    display={display}
+                    display="page"
                     errors={translations.errorsWithTranslations}
                     isCreate={false}
                     loading={formik.isSubmitting}

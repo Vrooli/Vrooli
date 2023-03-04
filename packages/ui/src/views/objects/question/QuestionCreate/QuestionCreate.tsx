@@ -3,13 +3,13 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeQuestion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { defaultRelationships, defaultResourceList, getUserLanguages, shapeQuestion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { QuestionCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication";
 import { Question, QuestionCreateInput, ResourceList } from "@shared/consts";
 import { questionCreate } from "api/generated/endpoints/question_create";
 import { parseSearchParams } from "@shared/route";
@@ -67,34 +67,21 @@ export const QuestionCreate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
         formik,
         formikField: 'translationsCreate',
-        language,
         validationSchema: questionTranslationValidation.create({}),
     });
-    const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsCreate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsCreate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
 
     const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
@@ -124,7 +111,7 @@ export const QuestionCreate = ({
                         <LanguageInput
                             currentLanguage={language}
                             handleAdd={handleAddLanguage}
-                            handleDelete={handleLanguageDelete}
+                            handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             session={session}
                             translations={formik.values.translationsCreate}

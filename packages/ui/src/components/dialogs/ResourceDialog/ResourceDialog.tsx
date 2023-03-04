@@ -3,7 +3,7 @@ import { resourceTranslationValidation, resourceValidation } from '@shared/valid
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getObjectUrl, getResourceIcon, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
+import { getObjectUrl, getResourceIcon, getUserLanguages, listToAutocomplete, PubSub, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
@@ -23,7 +23,7 @@ const helpText =
     `## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service`
 
 const titleId = "resource-dialog-title";
-const searchTitleAria = "search-vrooli-for-link-title"
+const searchTitleId = "search-vrooli-for-link-title"
 
 export const ResourceDialog = ({
     mutate,
@@ -118,34 +118,22 @@ export const ResourceDialog = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: resourceTranslationValidation.update({}),
     });
-    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
 
     // Search dialog to find routines, organizations, etc. to link to
     const [searchString, setSearchString] = useState<string>('');
@@ -197,7 +185,7 @@ export const ResourceDialog = ({
             <Dialog
                 open={searchOpen}
                 onClose={closeSearch}
-                aria-labelledby={searchTitleAria}
+                aria-labelledby={searchTitleId}
                 sx={{
                     '& .MuiDialog-paper': {
                         border: palette.mode === 'dark' ? `1px solid white` : 'unset',
@@ -210,7 +198,7 @@ export const ResourceDialog = ({
                 }}
             >
                 <DialogTitle
-                    ariaLabel={searchTitleAria}
+                    id={searchTitleId}
                     title={'Search Vrooli'}
                     onClose={closeSearch}
                 />
@@ -270,7 +258,7 @@ export const ResourceDialog = ({
                             <LanguageInput
                                 currentLanguage={language}
                                 handleAdd={handleAddLanguage}
-                                handleDelete={handleLanguageDelete}
+                                handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 session={session}
                                 translations={formik.values.translationsUpdate}
