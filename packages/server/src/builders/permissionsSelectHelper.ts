@@ -27,13 +27,11 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
     recursionDepth = 0,
     omitFields: string[] = [],
 ): Select => {
-    console.log('permissionsselecthelper 1permissionsselecthelper 1', userId);
     // If recursion depth is too high, throw an error
     if (recursionDepth > 100) {
         throw new CustomError('0386', 'InternalError', languages ?? ['en'], { userId, recursionDepth });
     }
     const map = typeof mapResolver === 'function' ? mapResolver(userId, languages) : mapResolver;
-    console.log('permissionsselecthelper 2', recursionDepth, JSON.stringify(map), '\n')
     // Initialize result
     const result: { [x: string]: any } = {};
     // For every key in the PermissionsMap object
@@ -44,7 +42,6 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
         }
         // Get the value of the key
         const value = map[key];
-        console.log('permissionsselecthelper 3', key, JSON.stringify(value), '\n')
         // If the value is an array
         if (Array.isArray(value)) {
             // If array is of length 2, where the first element is a GqlModelType and the second is a string array, 
@@ -81,34 +78,27 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
         }
         // If the value is a GqlModelType, attempt to recurse using substitution
         else if (typeof value === 'string' && value in GqlModelType) {
-            console.log('permissionsselecthelper string 1', key, value);
             // Check if the validator exists. If not, assume this is some other string and add it to the result
             const { validate } = getLogic(['validate'], value as GqlModelType, languages, 'permissionsSelectHelper');
-            console.log('permissionsselecthelper string 2', key, validate)
             if (!validate) {
                 result[key] = value;
             }
             // If the validator exists, recurse using the validator's permissionsSelect function
             else {
-                console.log('permissionsselecthelper string 3', key, userId)
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
                 // Child map is the validator's permissionsSelect function
                 const childMap = validate.permissionsSelect(userId, languages);
-                console.log('permissionsselecthelper string 4', key, childMap)
                 if (childMap) {
                     result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
                 }
-                console.log('permissionsselecthelper string 5', key)
             }
         }
         // Else, add the key to the result
         else {
             result[key] = value;
         }
-        console.log('permissionsselecthelper 4', key)
     }
-    console.log('permissionsselecthelper 5')
     // Return the result
     return result as Select;
 }

@@ -271,7 +271,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
     const { delegate, validate } = getLogic(['delegate', 'validate'], type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
-    console.log('getsingletypepermissions 2', type, JSON.stringify(validate), '\n');
+    console.log('getsingletypepermissions 1', type);
     // Get auth data for all objects
     let select: any;
     let authData: any = [];
@@ -284,7 +284,6 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     } catch (error) {
         throw new CustomError('0388', 'InternalError', userData?.languages ?? ['en'], { ids, select, objectType: type });
     }
-    console.log('getsingletypepermissions 3');
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataItem), userData?.id);
@@ -295,13 +294,11 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
         // as the permissions object, but with the values being the result of the resolver.
         const permissionsObject = Object.fromEntries(Object.entries(permissionResolvers).map(([key, resolver]) => [key, resolver()]));
         // Add permissions object to result
-        console.log('getsingletypepermissions 9')
         for (const key of Object.keys(permissionsObject)) {
             permissions[key as keyof Permissions] = [...(permissions[key as keyof Permissions] ?? []), permissionsObject[key]];
         }
-        console.log('getsingletypepermissions 10')
     }
-    console.log('getsingletypepermissions 11');
+    console.log('getsingletypepermissions 11', type, JSON.stringify(permissions), '\n\n')
     return permissions as { [K in keyof Permissions]: Permissions[K][] };
 }
 
