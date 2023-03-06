@@ -25,7 +25,7 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: SingleOrArray<PartialGraphQLInfo>,
 ): Promise<{ [x: string]: any }[]> => {
-    console.log('addSupplementalFields start',);
+    console.log('addSupplementalFields start', JSON.stringify(partialInfo), '\n\n');
     if (data.length === 0) return [];
     // Group data into dictionaries, which will make later operations easier
     let { objectTypesIdsDict, selectFieldsDict, objectIdsDataDict } = groupPrismaData(data, partialInfo);

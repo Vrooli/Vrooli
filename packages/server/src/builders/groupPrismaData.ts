@@ -77,10 +77,14 @@ export const groupPrismaData = (
             // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
             if (isObject(childPartialInfo) && Object.keys(childPartialInfo).every(k => k[0] === k[0].toUpperCase())) {
+                console.log('groupprismadata union check', key, JSON.stringify(value), '\n\n', JSON.stringify(childPartialInfo), '\n\n');
                 // Find the union type which matches the shape of value
                 let matchingType: string | undefined;
                 for (const unionType of Object.keys(childPartialInfo)) {
-                    if (subsetsMatch(value, childPartialInfo[unionType])) matchingType = unionType;
+                    if (value.__typename === unionType) {
+                        matchingType = unionType;
+                        break;
+                    }
                 }
                 // If no union type matches, skip
                 if (!matchingType) continue;
