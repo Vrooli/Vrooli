@@ -1,5 +1,5 @@
 import { TransferObjectType } from '@shared/consts';
-import { enumToYup, id, message, opt, req, yupObj } from "../utils";
+import { enumToYup, id, message, opt, req, YupModel, yupObj } from "../utils";
 
 const transferObjectType = enumToYup(TransferObjectType);
 
@@ -22,7 +22,10 @@ export const transferRequestReceiveValidation = ({ o }: any) => yupObj({
     ['toOrganization', ['Connect'], 'one', 'opt'],
 ], [], o);
 
-export const transferUpdateInput = ({ o }: any) => yupObj({
-    id: req(id),
-    message: opt(message),
-}, [], [], o);
+export const transferValidation: YupModel<false, true> = {
+    // Cannot create a transfer through normal means. Must use request send/receive
+    update: ({ o }) => yupObj({
+        id: req(id),
+        message: opt(message),
+    }, [], [], o),
+}

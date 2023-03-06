@@ -4,6 +4,7 @@ import { RunProjectSchedule, RunProjectScheduleCreateInput, RunProjectScheduleSe
 import { PrismaType } from "../types";
 import { bestLabel, SearchMap } from "../utils";
 import { ModelLogic } from "./types";
+import { runProjectScheduleValidation } from "@shared/validation";
 
 const __typename = 'RunProjectSchedule' as const;
 const suppFields = [] as const;
@@ -42,7 +43,19 @@ export const RunProjectScheduleModel: ModelLogic<{
         countFields: {},
         joinMap: { labels: 'label' },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: runProjectScheduleValidation,
+    },
     search: {
         defaultSort: RunProjectScheduleSortBy.RecurrStartAsc,
         sortBy: RunProjectScheduleSortBy,

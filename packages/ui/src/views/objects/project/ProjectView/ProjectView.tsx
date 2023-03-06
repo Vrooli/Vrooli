@@ -249,7 +249,7 @@ export const ProjectView = ({
                 {/* <SearchList
                     canSearch={Boolean(projectVersion?.id)}
                     handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                    hideRoles={true}
+                    hideUpdateButton={true}
                     id="directory-view-list"
                     searchType={searchType}
                     searchPlaceholder={placeholder}

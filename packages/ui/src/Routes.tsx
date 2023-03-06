@@ -75,6 +75,14 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
     )
 }
 
+/**
+ * Style for pages that don't use left/right padding
+ */
+const noSidePadding = {
+    paddingLeft: 0,
+    paddingRight: 0,
+}
+
 export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
     // Tab title for static (non-dynamic) pages (e.g. Home, Search, Create, Notifications).
     const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
@@ -153,13 +161,13 @@ export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
                 >
                     <NotificationsView {...props} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/add`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
                     <OrganizationCreate {...props} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Organization}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
                     <OrganizationUpdate {...props} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/:id`} {...props}>
+                <NavRoute path={`${LINKS.Organization}/:id`} sx={noSidePadding} {...props}>
                     <OrganizationView {...props} />
                 </NavRoute>
                 <NavRoute
@@ -171,7 +179,7 @@ export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
                 >
                     <PremiumView {...props} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Profile}/:id?`} {...props}>
+                <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
                     <UserView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>

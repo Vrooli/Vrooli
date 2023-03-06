@@ -5,10 +5,10 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
 import { OrganizationViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, SearchType, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
-import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
+import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { useTranslation } from "react-i18next";
@@ -16,11 +16,34 @@ import { PageTab } from "components/types";
 
 enum TabOptions {
     Resource = "Resource",
-    Member = "Member",
     Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard",
+    Member = "Member",
 }
+
+type TabParams = {
+    Icon: (props: SvgProps) => JSX.Element,
+    searchType: SearchType;
+    tabType: TabOptions;
+    where: { [x: string]: any };
+}
+
+// Data for each tab
+const tabParams: TabParams[] = [{
+    Icon: HelpIcon,
+    searchType: SearchType.Resource,
+    tabType: TabOptions.Resource,
+    where: {},
+}, {
+    Icon: ProjectIcon,
+    searchType: SearchType.Project,
+    tabType: TabOptions.Project,
+    where: {},
+}, {
+    Icon: UserIcon,
+    searchType: SearchType.Member,
+    tabType: TabOptions.Member,
+    where: {},
+}];
 
 export const OrganizationView = ({
     display = 'page',
@@ -33,7 +56,7 @@ export const OrganizationView = ({
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization, FindByIdOrHandleInput>({
+    const { isLoading, object: organization, permissions, setObject: setOrganization } = useObjectFromUrl<Organization, FindByIdOrHandleInput>({
         query: organizationFindOne,
         partialData,
     });
@@ -81,15 +104,16 @@ export const OrganizationView = ({
 
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        let tabs: TabOptions[] = Object.values(TabOptions);
+        let tabs = tabParams;
         // Remove resources if there are none, and you cannot add them
-        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t !== TabOptions.Resource);
+        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
+            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
             index: i,
-            label: t(tab, { count: 2 }),
-            value: tab,
+            // Icon: tab.Icon,
+            label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
+            value: tab.tabType,
         }));
     }, [permissions.canUpdate, resources, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
@@ -99,12 +123,8 @@ export const OrganizationView = ({
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         // NOTE: The first tab doesn't have search results, as it is the user's set resources
         if (currTab.value === TabOptions.Member)
-            return toSearchListData('User', 'SearchMember', { organizationId: organization?.id });
-        else if (currTab.value === TabOptions.Project)
-            return toSearchListData('Project', 'SearchProject', { organizationId: organization?.id, isComplete: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-        else if (currTab.value === TabOptions.Routine)
-            return toSearchListData('Routine', 'SearchRoutine', { organizationId: organization?.id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
-        return toSearchListData('Standard', 'SearchStandard', { organizationId: organization?.id, visibility: VisibilityType.All });
+            return toSearchListData('Member', 'SearchMember', { organizationId: organization?.id });
+        return toSearchListData('Project', 'SearchProject', { ownedByOrganizationId: organization?.id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
     }, [currTab, organization?.id, permissions.canUpdate]);
 
     // More menu
@@ -316,7 +336,7 @@ export const OrganizationView = ({
                             <SearchList
                                 canSearch={uuidValidate(organization?.id)}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                                hideRoles={true}
+                                hideUpdateButton={true}
                                 id="organization-view-list"
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}

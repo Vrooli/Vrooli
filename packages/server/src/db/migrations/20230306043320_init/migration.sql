@@ -1675,8 +1675,8 @@ CREATE TABLE "bookmark" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "label" VARCHAR(128) DEFAULT 'Favorites',
     "byId" UUID NOT NULL,
+    "listId" UUID,
     "apiId" UUID,
     "commentId" UUID,
     "issueId" UUID,
@@ -1694,6 +1694,17 @@ CREATE TABLE "bookmark" (
     "userId" UUID,
 
     CONSTRAINT "bookmark_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "bookmark_list" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "index" INTEGER NOT NULL,
+    "label" VARCHAR(128) NOT NULL,
+
+    CONSTRAINT "bookmark_list_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2441,6 +2452,9 @@ CREATE UNIQUE INDEX "standard_tags_taggedId_tagTag_key" ON "standard_tags"("tagg
 
 -- CreateIndex
 CREATE UNIQUE INDEX "standard_labels_labelledId_labelId_key" ON "standard_labels"("labelledId", "labelId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "bookmark_list_label_key" ON "bookmark_list"("label");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "tag_tag_key" ON "tag"("tag");
@@ -3341,6 +3355,9 @@ ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_listId_fkey" FOREIGN KEY ("listId") REFERENCES "bookmark_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;

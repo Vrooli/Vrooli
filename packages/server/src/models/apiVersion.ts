@@ -6,6 +6,7 @@ import { bestLabel, defaultPermissions } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
 import { ApiModel } from "./api";
+import { apiVersionValidation } from "@shared/validation";
 
 const __typename = 'ApiVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -75,7 +76,19 @@ export const ApiVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: apiVersionValidation,
+    },
     search: {
         defaultSort: ApiVersionSortBy.DateUpdatedDesc,
         sortBy: ApiVersionSortBy,

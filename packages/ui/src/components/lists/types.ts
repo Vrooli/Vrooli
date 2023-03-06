@@ -1,4 +1,4 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, TimeFrame, User } from '@shared/consts';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, Role, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, TimeFrame, User } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { FormSchema } from 'forms/types';
 import { AwardDisplay, NavigableObject } from 'types';
@@ -20,9 +20,9 @@ export interface ObjectListItemProps<T extends ListObjectType> {
      */
     beforeNavigation?: (item: NavigableObject) => boolean | void,
     /**
-     * True if role (admin, owner, etc.) should be hidden
+     * True if update button should be hidden
      */
-    hideRole?: boolean;
+    hideUpdateButton?: boolean;
     /**
      * Index in list
      */
@@ -62,18 +62,10 @@ export interface DateRangeMenuProps {
     strictIntervalRange?: number;
 }
 
-export interface SearchButtonsListProps {
-    advancedSearchParams: object | null;
-    advancedSearchSchema: FormSchema | null | undefined;
-    searchType: SearchType | `${SearchType}`;
-    session: Session | undefined;
-    setAdvancedSearchParams: (params: object | null) => void;
-    setSortBy: (sortBy: string) => void;
-    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
-    sortBy: string;
-    sortByOptions: any; // No way to specify generic enum
-    timeFrame: TimeFrame | undefined;
-    zIndex: number;
+export interface RoleListProps {
+    maxCharacters?: number;
+    roles: Role[];
+    sx?: { [x: string]: any };
 }
 
 /**
@@ -94,9 +86,9 @@ export interface SearchListProps {
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
-     * True if roles (admin, owner, etc.) should be hidden in list items
+     * True if update button should be hidden
      */
-    hideRoles?: boolean;
+    hideUpdateButton?: boolean;
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page

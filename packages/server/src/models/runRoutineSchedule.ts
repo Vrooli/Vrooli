@@ -4,6 +4,7 @@ import { RunRoutineSchedule, RunRoutineScheduleCreateInput, RunRoutineScheduleSe
 import { PrismaType } from "../types";
 import { bestLabel, SearchMap } from "../utils";
 import { ModelLogic } from "./types";
+import { runRoutineScheduleValidation } from "@shared/validation";
 
 const __typename = 'RunRoutineSchedule' as const;
 const suppFields = [] as const;
@@ -42,7 +43,19 @@ export const RunRoutineScheduleModel: ModelLogic<{
         countFields: {},
         joinMap: { labels: 'label' },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: runRoutineScheduleValidation,
+    },
     search: {
         defaultSort: RunRoutineScheduleSortBy.RecurrStartAsc,
         sortBy: RunRoutineScheduleSortBy,

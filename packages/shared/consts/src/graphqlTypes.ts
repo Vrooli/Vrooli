@@ -411,7 +411,7 @@ export type Bookmark = {
   by: User;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  label: Scalars['String'];
+  list: BookmarkList;
   to: BookmarkTo;
   updated_at: Scalars['Date'];
 };
@@ -420,7 +420,8 @@ export type BookmarkCreateInput = {
   bookmarkFor: BookmarkFor;
   forConnect: Scalars['ID'];
   id: Scalars['ID'];
-  label?: InputMaybe<Scalars['String']>;
+  listConnect?: InputMaybe<Scalars['ID']>;
+  listCreate?: InputMaybe<BookmarkListCreateInput>;
 };
 
 export type BookmarkEdge = {
@@ -447,10 +448,67 @@ export enum BookmarkFor {
   User = 'User'
 }
 
+export type BookmarkList = {
+  __typename: 'BookmarkList';
+  bookmarks: Array<Bookmark>;
+  bookmarksCount: Scalars['Int'];
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  label: Scalars['String'];
+  updated_at: Scalars['Date'];
+};
+
+export type BookmarkListCreateInput = {
+  bookmarksConnect?: InputMaybe<Array<Scalars['ID']>>;
+  bookmarksCreate?: InputMaybe<Array<BookmarkCreateInput>>;
+  id: Scalars['ID'];
+  label: Scalars['String'];
+};
+
+export type BookmarkListEdge = {
+  __typename: 'BookmarkListEdge';
+  cursor: Scalars['String'];
+  node: BookmarkList;
+};
+
+export type BookmarkListSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['String']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<BookmarkListSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type BookmarkListSearchResult = {
+  __typename: 'BookmarkListSearchResult';
+  edges: Array<BookmarkListEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum BookmarkListSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  IndexAsc = 'IndexAsc',
+  IndexDesc = 'IndexDesc',
+  LabelAsc = 'LabelAsc',
+  LabelDesc = 'LabelDesc'
+}
+
+export type BookmarkListUpdateInput = {
+  bookmarksConnect?: InputMaybe<Array<Scalars['ID']>>;
+  bookmarksCreate?: InputMaybe<Array<BookmarkCreateInput>>;
+  bookmarksDelete?: InputMaybe<Array<Scalars['ID']>>;
+  bookmarksUpdate?: InputMaybe<Array<BookmarkUpdateInput>>;
+  id: Scalars['ID'];
+  label?: InputMaybe<Scalars['String']>;
+};
+
 export type BookmarkSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  listId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<BookmarkSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -471,7 +529,8 @@ export type BookmarkTo = Api | Comment | Issue | Note | Organization | Post | Pr
 
 export type BookmarkUpdateInput = {
   id: Scalars['ID'];
-  label?: InputMaybe<Scalars['String']>;
+  listConnect?: InputMaybe<Scalars['ID']>;
+  listUpdate?: InputMaybe<BookmarkListUpdateInput>;
 };
 
 export type Comment = {
@@ -742,6 +801,7 @@ export enum GqlModelType {
   ApiVersion = 'ApiVersion',
   Award = 'Award',
   Bookmark = 'Bookmark',
+  BookmarkList = 'BookmarkList',
   Comment = 'Comment',
   Copy = 'Copy',
   Email = 'Email',
@@ -1398,6 +1458,7 @@ export type Member = {
   isAdmin: Scalars['Boolean'];
   organization: Organization;
   permissions: Scalars['String'];
+  roles: Array<Role>;
   updated_at: Scalars['Date'];
   user: User;
 };
@@ -1530,6 +1591,8 @@ export type Mutation = {
   apiVersionCreate: ApiVersion;
   apiVersionUpdate: ApiVersion;
   bookmarkCreate: Bookmark;
+  bookmarkListCreate: BookmarkList;
+  bookmarkListUpdate: BookmarkList;
   bookmarkUpdate: Bookmark;
   commentCreate: Comment;
   commentUpdate: Comment;
@@ -1704,6 +1767,16 @@ export type MutationApiVersionUpdateArgs = {
 
 export type MutationBookmarkCreateArgs = {
   input: BookmarkCreateInput;
+};
+
+
+export type MutationBookmarkListCreateArgs = {
+  input: BookmarkListCreateInput;
+};
+
+
+export type MutationBookmarkListUpdateArgs = {
+  input: BookmarkListUpdateInput;
 };
 
 
@@ -4163,6 +4236,8 @@ export type Query = {
   apis: ApiSearchResult;
   awards: AwardSearchResult;
   bookmark?: Maybe<Bookmark>;
+  bookmarkList?: Maybe<BookmarkList>;
+  bookmarkLists: BookmarkListSearchResult;
   bookmarks: BookmarkSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
@@ -4306,6 +4381,16 @@ export type QueryAwardsArgs = {
 
 export type QueryBookmarkArgs = {
   input: FindByIdInput;
+};
+
+
+export type QueryBookmarkListArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryBookmarkListsArgs = {
+  input: BookmarkListSearchInput;
 };
 
 
@@ -9137,6 +9222,13 @@ export type ResolversTypes = {
   BookmarkCreateInput: BookmarkCreateInput;
   BookmarkEdge: ResolverTypeWrapper<BookmarkEdge>;
   BookmarkFor: BookmarkFor;
+  BookmarkList: ResolverTypeWrapper<BookmarkList>;
+  BookmarkListCreateInput: BookmarkListCreateInput;
+  BookmarkListEdge: ResolverTypeWrapper<BookmarkListEdge>;
+  BookmarkListSearchInput: BookmarkListSearchInput;
+  BookmarkListSearchResult: ResolverTypeWrapper<BookmarkListSearchResult>;
+  BookmarkListSortBy: BookmarkListSortBy;
+  BookmarkListUpdateInput: BookmarkListUpdateInput;
   BookmarkSearchInput: BookmarkSearchInput;
   BookmarkSearchResult: ResolverTypeWrapper<BookmarkSearchResult>;
   BookmarkSortBy: BookmarkSortBy;
@@ -9838,6 +9930,12 @@ export type ResolversParentTypes = {
   Bookmark: Omit<Bookmark, 'to'> & { to: ResolversParentTypes['BookmarkTo'] };
   BookmarkCreateInput: BookmarkCreateInput;
   BookmarkEdge: BookmarkEdge;
+  BookmarkList: BookmarkList;
+  BookmarkListCreateInput: BookmarkListCreateInput;
+  BookmarkListEdge: BookmarkListEdge;
+  BookmarkListSearchInput: BookmarkListSearchInput;
+  BookmarkListSearchResult: BookmarkListSearchResult;
+  BookmarkListUpdateInput: BookmarkListUpdateInput;
   BookmarkSearchInput: BookmarkSearchInput;
   BookmarkSearchResult: BookmarkSearchResult;
   BookmarkTo: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Tag'] | ResolversParentTypes['User'];
@@ -10568,7 +10666,7 @@ export type BookmarkResolvers<ContextType = any, ParentType extends ResolversPar
   by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  label?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  list?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['BookmarkTo'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10577,6 +10675,28 @@ export type BookmarkResolvers<ContextType = any, ParentType extends ResolversPar
 export type BookmarkEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkEdge'] = ResolversParentTypes['BookmarkEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BookmarkListResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkList'] = ResolversParentTypes['BookmarkList']> = {
+  bookmarks?: Resolver<Array<ResolversTypes['Bookmark']>, ParentType, ContextType>;
+  bookmarksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  label?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BookmarkListEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkListEdge'] = ResolversParentTypes['BookmarkListEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BookmarkListSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkListSearchResult'] = ResolversParentTypes['BookmarkListSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['BookmarkListEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10908,6 +11028,7 @@ export type MemberResolvers<ContextType = any, ParentType extends ResolversParen
   isAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10967,6 +11088,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   apiVersionCreate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionCreateArgs, 'input'>>;
   apiVersionUpdate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionUpdateArgs, 'input'>>;
   bookmarkCreate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkCreateArgs, 'input'>>;
+  bookmarkListCreate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListCreateArgs, 'input'>>;
+  bookmarkListUpdate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListUpdateArgs, 'input'>>;
   bookmarkUpdate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkUpdateArgs, 'input'>>;
   commentCreate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentCreateArgs, 'input'>>;
   commentUpdate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentUpdateArgs, 'input'>>;
@@ -11856,6 +11979,8 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   apis?: Resolver<ResolversTypes['ApiSearchResult'], ParentType, ContextType, RequireFields<QueryApisArgs, 'input'>>;
   awards?: Resolver<ResolversTypes['AwardSearchResult'], ParentType, ContextType, RequireFields<QueryAwardsArgs, 'input'>>;
   bookmark?: Resolver<Maybe<ResolversTypes['Bookmark']>, ParentType, ContextType, RequireFields<QueryBookmarkArgs, 'input'>>;
+  bookmarkList?: Resolver<Maybe<ResolversTypes['BookmarkList']>, ParentType, ContextType, RequireFields<QueryBookmarkListArgs, 'input'>>;
+  bookmarkLists?: Resolver<ResolversTypes['BookmarkListSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarkListsArgs, 'input'>>;
   bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarksArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
@@ -13761,6 +13886,9 @@ export type Resolvers<ContextType = any> = {
   AwardSearchResult?: AwardSearchResultResolvers<ContextType>;
   Bookmark?: BookmarkResolvers<ContextType>;
   BookmarkEdge?: BookmarkEdgeResolvers<ContextType>;
+  BookmarkList?: BookmarkListResolvers<ContextType>;
+  BookmarkListEdge?: BookmarkListEdgeResolvers<ContextType>;
+  BookmarkListSearchResult?: BookmarkListSearchResultResolvers<ContextType>;
   BookmarkSearchResult?: BookmarkSearchResultResolvers<ContextType>;
   BookmarkTo?: BookmarkToResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;

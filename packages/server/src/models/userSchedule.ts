@@ -4,6 +4,7 @@ import { MaxObjects, UserSchedule, UserScheduleCreateInput, UserScheduleSearchIn
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
+import { userScheduleValidation } from "@shared/validation";
 
 // const searcher = (): Searcher<
 //     StandardSearchInput,
@@ -85,7 +86,19 @@ export const UserScheduleModel: ModelLogic<{
         countFields: {},
         joinMap: { labels: 'label' },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: userScheduleValidation,
+    },
     search: {
         defaultSort: UserScheduleSortBy.TitleAsc,
         sortBy: UserScheduleSortBy,

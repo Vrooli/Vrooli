@@ -4,6 +4,7 @@ import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } f
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
+import { roleValidation } from "@shared/validation";
 
 const __typename = 'Role' as const;
 const suppFields = [] as const;
@@ -53,7 +54,19 @@ export const RoleModel: ModelLogic<{
             membersCount: true,
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: roleValidation,
+    },
     search: {
         defaultSort: RoleSortBy.MembersDesc,
         sortBy: RoleSortBy,

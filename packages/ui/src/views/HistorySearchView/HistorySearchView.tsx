@@ -27,7 +27,7 @@ const tabParams: BaseParams[] = [{
     titleKey: 'View',
     where: {},
 }, {
-    searchType: SearchType.Bookmark,
+    searchType: SearchType.BookmarkList,
     tabType: TabOptions.Bookmarked,
     titleKey: 'Bookmark',
     where: {},

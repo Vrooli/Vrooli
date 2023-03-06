@@ -9,31 +9,39 @@ mutation roleCreate($input: RoleCreateInput!) {
         updated_at
         isAdmin
         permissions
-        organization {
+        roles {
             id
-            handle
-            you {
-                canAddMembers
-                canDelete
-                canBookmark
-                canReport
-                canUpdate
-                canRead
-                isBookmarked
-                isViewed
-                yourMembership {
-                    id
-                    created_at
-                    updated_at
-                    isAdmin
-                    permissions
+            created_at
+            updated_at
+            name
+            permissions
+            membersCount
+            organization {
+                id
+                handle
+                you {
+                    canAddMembers
+                    canDelete
+                    canBookmark
+                    canReport
+                    canUpdate
+                    canRead
+                    isBookmarked
+                    isViewed
+                    yourMembership {
+                        id
+                        created_at
+                        updated_at
+                        isAdmin
+                        permissions
+                    }
                 }
             }
-        }
-        user {
-            id
-            name
-            handle
+            translations {
+                id
+                language
+                description
+            }
         }
     }
     id

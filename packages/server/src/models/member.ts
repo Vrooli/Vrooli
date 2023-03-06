@@ -39,13 +39,14 @@ export const MemberModel: ModelLogic<{
         gqlRelMap: {
             __typename,
             organization: 'Organization',
+            roles: 'Role',
             user: 'User',
         },
         prismaRelMap: {
             __typename,
             organization: 'Organization',
-            user: 'User',
             roles: 'Role',
+            user: 'User',
         },
         countFields: {},
     },

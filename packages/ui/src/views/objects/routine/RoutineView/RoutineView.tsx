@@ -20,6 +20,7 @@ import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete"
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { useTranslation } from "react-i18next";
 import { BuildView } from "views/BuildView/BuildView";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.`
@@ -205,23 +206,11 @@ export const RoutineView = ({
                 padding: 2,
             }}>
                 {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
-                <Stack direction="row" spacing={2} sx={{
-                    position: 'fixed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: zIndex + 2,
-                    bottom: 0,
-                    right: 0,
-                    // Accounts for BottomNav, BuildView, and edit/cancel buttons in BuildView
-                    marginBottom: {
-                        xs: !isBuildOpen ? 'calc(56px + 16px + env(safe-area-inset-bottom))' : 'calc(16px + env(safe-area-inset-bottom))',
-                        md: 'calc(16px + env(safe-area-inset-bottom))'
-                    },
-                    marginLeft: 'calc(16px + env(safe-area-inset-left))',
-                    marginRight: 'calc(16px + env(safe-area-inset-right))',
-                    height: 'calc(64px + env(safe-area-inset-bottom))',
-                }}>
+                <SideActionButtons
+                    // Treat as a dialog when build view is open
+                    display={isBuildOpen ? 'dialog' : display}
+                    zIndex={zIndex + 2}
+                >
                     {/* Edit button */}
                     {permissions.canUpdate ? (
                         <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
@@ -239,7 +228,7 @@ export const RoutineView = ({
                         session={session}
                         zIndex={zIndex}
                     /> : null}
-                </Stack>
+                </SideActionButtons>
                 {/* Dialog for building routine */}
                 {routineVersion && <Dialog
                     id="run-routine-view-dialog"

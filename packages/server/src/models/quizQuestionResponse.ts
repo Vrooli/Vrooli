@@ -7,6 +7,7 @@ import { getSingleTypePermissions } from "../validators";
 import { QuizQuestionModel } from "./quizQuestion";
 import { selPad } from "../builders";
 import i18next from "i18next";
+import { quizQuestionResponseValidation } from "@shared/validation";
 
 const __typename = 'QuizQuestionResponse' as const;
 type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canUpdate'>;
@@ -58,7 +59,19 @@ export const QuizQuestionResponseModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: quizQuestionResponseValidation,
+    },
     search: {
         defaultSort: QuizQuestionResponseSortBy.QuestionOrderAsc,
         sortBy: QuizQuestionResponseSortBy,

@@ -14,6 +14,7 @@ import { SelectWrap } from "../builders/types";
 import { onlyValidIds, selPad } from "../builders";
 import { NoteModel } from "./note";
 import { exists } from "@shared/utils";
+import { bookmarkValidation } from "@shared/validation";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs['create'] } = {
     Api: 'api',
@@ -133,7 +134,19 @@ export const BookmarkModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: bookmarkValidation,
+    },
     query: {
         async getIsBookmarkeds(
             prisma: PrismaType,

@@ -88,7 +88,7 @@ export const generateSitemapIndex = (sitemapDir: string, fileNames: string[]): s
     fileNames.forEach(function (fileName) {
         // For each file name, create a sitemap element with loc
         xml.ele('sitemap')
-            .ele('loc', `${sitemapDir}/${fileName}`).up()
+            .ele('loc').txt(`${sitemapDir}/${fileName}`).up()
             .up();
     });
     // Close sitemapindex tag

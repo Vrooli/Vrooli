@@ -1,8 +1,8 @@
 import { Box } from "@mui/material"
 import { AdvancedSearchButton, SortButton, TimeButton } from "components/buttons"
-import { SearchButtonsListProps } from "../types"
+import { SearchButtonsProps } from "../types"
 
-export const SearchButtonsList = ({
+export const SearchButtons = ({
     advancedSearchParams,
     advancedSearchSchema,
     searchType,
@@ -14,7 +14,7 @@ export const SearchButtonsList = ({
     sortByOptions,
     timeFrame,
     zIndex,
-}: SearchButtonsListProps) => {
+}: SearchButtonsProps) => {
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
             <SortButton

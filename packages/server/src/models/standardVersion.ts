@@ -11,6 +11,7 @@ import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
+import { standardVersionValidation } from "@shared/validation";
 
 // const validator = (): Validator<Model> => ({
 //     validateMap: {
@@ -427,7 +428,19 @@ export const StandardVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any, //mutater(),
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: standardVersionValidation,
+    },
     query: querier(),
     search: {
         defaultSort: StandardVersionSortBy.DateCompletedDesc,

@@ -6,6 +6,7 @@ import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { SmartContractModel } from "./smartContract";
+import { smartContractVersionValidation } from "@shared/validation";
 
 const __typename = 'SmartContractVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -68,7 +69,19 @@ export const SmartContractVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: smartContractVersionValidation,
+    },
     search: {
         defaultSort: SmartContractVersionSortBy.DateUpdatedDesc,
         sortBy: SmartContractVersionSortBy,

@@ -7,7 +7,7 @@ export * from './ObjectActionsRow/ObjectActionsRow';
 export * from './ObjectListItem/ObjectListItem';
 export * from './reminder';
 export * from './resource';
-export * from './SearchButtonsList/SearchButtonsList';
+export * from './RoleList/RoleList';
 export * from './SearchList/SearchList';
 export * from './SortMenu/SortMenu';
 export * from './TagList/TagList';

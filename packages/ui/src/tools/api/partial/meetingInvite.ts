@@ -22,10 +22,8 @@ export const meetingInvite: GqlPartial<MeetingInvite> = {
     },
     full: {
         meeting: async () => rel((await import('./meeting')).meeting, 'full', { omit: 'invites' }),
-
     },
     list: {
         meeting: async () => rel((await import('./meeting')).meeting, 'list', { omit: 'invites' }),
-
     }
 }

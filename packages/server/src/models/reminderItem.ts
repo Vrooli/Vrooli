@@ -3,6 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { reminderItemValidation } from "@shared/validation";
 
 const __typename = 'ReminderItem' as const;
 const suppFields = [] as const;
@@ -38,6 +39,18 @@ export const ReminderItemModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: reminderItemValidation,
+    },
     validate: {} as any,
 })

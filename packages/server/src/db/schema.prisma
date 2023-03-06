@@ -1962,8 +1962,8 @@ model bookmark {
     id               String           @id @default(uuid()) @db.Uuid
     created_at       DateTime         @default(now()) @db.Timestamptz(6)
     updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    label            String?          @default("Favorites") @db.VarChar(128)
     byId             String           @db.Uuid
+    listId           String?          @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
@@ -1980,6 +1980,7 @@ model bookmark {
     tagId            String?          @db.Uuid
     userId           String?          @db.Uuid
     by               user             @relation("bookmark_by", fields: [byId], references: [id], onDelete: Cascade)
+    list             bookmark_list?   @relation("bookmark_list", fields: [listId], references: [id], onDelete: Cascade)
     api              api?             @relation("bookmark_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("bookmark_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("bookmark_issue", fields: [issueId], references: [id], onDelete: Cascade)
@@ -1995,6 +1996,17 @@ model bookmark {
     standard         standard?        @relation("bookmark_standard", fields: [standardId], references: [id], onDelete: Cascade)
     tag              tag?             @relation("bookmark_tag", fields: [tagId], references: [id], onDelete: Cascade)
     user             user?            @relation("bookmark_user", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model bookmark_list {
+    id         String     @id @default(uuid()) @db.Uuid
+    created_at DateTime   @default(now()) @db.Timestamptz(6)
+    updated_at DateTime   @default(now()) @db.Timestamptz(6)
+    index      Int
+    label      String     @db.VarChar(128)
+    bookmarks  bookmark[] @relation("bookmark_list")
+
+    @@unique([label], name: "bookmark_list_label_unique")
 }
 
 model stats_site {

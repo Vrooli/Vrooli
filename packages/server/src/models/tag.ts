@@ -100,7 +100,17 @@ export const TagModel: ModelLogic<{
             }),
         },
     },
-    mutate: {} as any,//mutater(),
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                //TODO
+            } as any)
+        },
+        yup: tagValidation,
+    },
     search: {
         defaultSort: TagSortBy.BookmarksDesc,
         sortBy: TagSortBy,

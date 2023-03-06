@@ -6,6 +6,7 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
+import { labelValidation } from "@shared/validation";
 
 const __typename = 'Label' as const;
 type Permissions = Pick<LabelYou, 'canDelete' | 'canUpdate'>;
@@ -98,7 +99,19 @@ export const LabelModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: labelValidation,
+    },
     search: {
         defaultSort: LabelSortBy.DateUpdatedDesc,
         sortBy: LabelSortBy,

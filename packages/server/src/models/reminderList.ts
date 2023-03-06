@@ -4,6 +4,7 @@ import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from '
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
+import { reminderListValidation } from "@shared/validation";
 
 const __typename = 'ReminderList' as const;
 const suppFields = [] as const;
@@ -42,6 +43,18 @@ export const ReminderListModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: reminderListValidation,
+    },
     validate: {} as any,
 })

@@ -6,6 +6,7 @@ import { bestLabel, defaultPermissions } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
 import { NoteModel } from "./note";
+import { noteVersionValidation } from "@shared/validation";
 
 const __typename = 'NoteVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -66,7 +67,19 @@ export const NoteVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: noteVersionValidation,
+    },
     search: {
         defaultSort: NoteVersionSortBy.DateUpdatedDesc,
         sortBy: NoteVersionSortBy,

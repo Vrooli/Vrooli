@@ -4,6 +4,7 @@ import { ApiKeyModel } from './apiKey';
 import { ApiVersionModel } from './apiVersion';
 import { AwardModel } from './award';
 import { BookmarkModel } from './bookmark';
+import { BookmarkListModel } from './bookmarkList';
 import { CommentModel } from './comment';
 import { EmailModel } from './email';
 import { IssueModel } from './issue';
@@ -90,6 +91,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     ApiVersion: ApiVersionModel,
     Award: AwardModel,
     Bookmark: BookmarkModel,
+    BookmarkList: BookmarkListModel,
     Comment: CommentModel,
     Email: EmailModel,
     Issue: IssueModel,
@@ -172,6 +174,7 @@ export * from './apiKey';
 export * from './apiVersion';
 export * from './award';
 export * from './bookmark';
+export * from './bookmarkList';
 export * from './comment';
 export * from './email';
 export * from './routineVersionInput';

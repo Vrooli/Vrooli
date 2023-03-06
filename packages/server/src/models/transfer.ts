@@ -10,6 +10,7 @@ import { GraphQLResolveInfo } from "graphql";
 import { getLogic } from "../getters";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
 import { Notify } from "../notify";
+import { transferValidation } from "@shared/validation";
 
 const __typename = 'Transfer' as const;
 type Permissions = Pick<TransferYou, 'canDelete' | 'canUpdate'>;
@@ -253,7 +254,7 @@ export const TransferModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
-    GqlUpdate: undefined,
+    GqlUpdate: TransferUpdateInput,
     GqlModel: Transfer,
     GqlSearch: TransferSearchInput,
     GqlSort: TransferSortBy,
@@ -331,7 +332,15 @@ export const TransferModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,//mutater(),
+    mutate: {
+        shape: {
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                message: data.message
+            } as any)
+        },
+        yup: transferValidation,
+    },
     transfer,
     validate: {} as any,
 })

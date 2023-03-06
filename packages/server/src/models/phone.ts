@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { defaultPermissions } from "../utils";
+import { phoneValidation } from "@shared/validation";
 
 const __typename = 'Phone' as const;
 const suppFields = [] as const;
@@ -44,7 +45,14 @@ export const PhoneModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                //TODO
+            } as any),
+        },
+        yup: phoneValidation,
+    },
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

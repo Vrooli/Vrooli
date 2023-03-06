@@ -6,6 +6,7 @@ import { MeetingModel } from "./meeting";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { defaultPermissions, oneIsPublic } from "../utils";
+import { meetingInviteValidation } from "@shared/validation";
 
 const __typename = 'MeetingInvite' as const;
 type Permissions = Pick<MeetingInviteYou, 'canDelete' | 'canUpdate'>;
@@ -55,7 +56,19 @@ export const MeetingInviteModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: meetingInviteValidation,
+    },
     search: {
         defaultSort: MeetingInviteSortBy.DateUpdatedDesc,
         sortBy: MeetingInviteSortBy,

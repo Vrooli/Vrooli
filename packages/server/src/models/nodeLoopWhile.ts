@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
 import { NodeLoopModel } from "./nodeLoop";
+import { nodeLoopWhileValidation } from "@shared/validation";
 
 const __typename = 'NodeLoopWhile' as const;
 
@@ -41,7 +42,19 @@ export const NodeLoopWhileModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: nodeLoopWhileValidation,
+    },
     validate: {
         isTransferable: false,
         maxObjects: MaxObjects[__typename],

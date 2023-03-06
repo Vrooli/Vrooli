@@ -4,10 +4,10 @@ import { APP_LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, Visi
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, SearchType, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
-import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
+import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
@@ -16,11 +16,34 @@ import { PageTab } from "components/types";
 
 enum TabOptions {
     Resource = "Resource",
-    Organization = "Organization",
     Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard",
+    Organization = "Organization",
 }
+
+type TabParams = {
+    Icon: (props: SvgProps) => JSX.Element,
+    searchType: SearchType;
+    tabType: TabOptions;
+    where: { [x: string]: any };
+}
+
+// Data for each tab
+const tabParams: TabParams[] = [{
+    Icon: HelpIcon,
+    searchType: SearchType.Resource,
+    tabType: TabOptions.Resource,
+    where: {},
+}, {
+    Icon: ProjectIcon,
+    searchType: SearchType.Project,
+    tabType: TabOptions.Project,
+    where: {},
+}, {
+    Icon: OrganizationIcon,
+    searchType: SearchType.Organization,
+    tabType: TabOptions.Organization,
+    where: {},
+}];
 
 export const UserView = ({
     display = 'page',
@@ -83,15 +106,16 @@ export const UserView = ({
 
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        let tabs: TabOptions[] = Object.values(TabOptions);
+        let tabs = tabParams;
         // Remove resources if there are none, and you cannot add them
-        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t !== TabOptions.Resource);
+        if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
+            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
             index: i,
-            label: t(tab, { count: 2 }),
-            value: tab,
+            // Icon: tab.Icon,
+            label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
+            value: tab.tabType,
         }));
     }, [permissions.canUpdate, resources, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
@@ -105,12 +129,8 @@ export const UserView = ({
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         // NOTE: The first tab doesn't have search results, as it is the user's set resources
         if (currTab.value === TabOptions.Organization)
-            return toSearchListData('Organization', 'SearchOrganization', { userId: id, visibility: VisibilityType.All });
-        else if (currTab.value === TabOptions.Project)
-            return toSearchListData('Project', 'SearchProject', { userId: id, isComplete: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-        else if (currTab.value === TabOptions.Routine)
-            return toSearchListData('Routine', 'SearchRoutine', { userId: id, isComplete: !permissions.canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All });
-        return toSearchListData('Standard', 'SearchStandard', { userId: id, visibility: VisibilityType.All });
+            return toSearchListData('Organization', 'SearchOrganization', { memberUserIds: [id], visibility: VisibilityType.All });
+        return toSearchListData('Project', 'SearchProject', { ownedByUserId: id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
     }, [currTab.value, id, permissions.canUpdate]);
 
     // More menu
@@ -321,7 +341,7 @@ export const UserView = ({
                             <SearchList
                                 canSearch={uuidValidate(id)}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                                hideRoles={true}
+                                hideUpdateButton={true}
                                 id="user-view-list"
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}

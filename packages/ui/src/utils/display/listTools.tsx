@@ -24,6 +24,7 @@ export type ListObjectType = {
         language: string;
         name?: string | null;
     }[] | null;
+    user?: ListObjectType | null;
     versions?: ListObjectType[] | null;
     you?: Partial<YouInflated> | null;
 } & Omit<NavigableObject, '__typename'>;
@@ -294,6 +295,8 @@ export const getDisplay = (
             subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
         }
     }
+    // If a member, use the user's display
+    if (isOfType(object, 'Member')) return getDisplay(object.user as ListObjectType);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
@@ -308,25 +311,27 @@ export const getDisplay = (
 };
 
 /**
- * Finds the information required to star an object
+ * Finds the information required to bookmark an object
  * @param object 
- * @returns StarFor type and ID of the object. For versions, for example, 
+ * @returns BookmarkFor type and ID of the object. For versions, for example, 
  * the ID is of the root object instead of the version passed in.
  */
-export const getStarFor = (
+export const getBookmarkFor = (
     object: ListObjectType | null | undefined,
 ): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
     if (!object) return { bookmarkFor: null, starForId: null };
+    // If object does not support bookmarking, return null
+    if (isOfType(object, 'Member')) return { bookmarkFor: null, starForId: null }; //TODO add more types
     // If a star, view, or vote, use the "to" object
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getBookmarkFor(object.to as ListObjectType);
     // If a run routine, use the routine version
-    if (isOfType(object, 'RunRoutine')) return getStarFor(object.routineVersion as ListObjectType);
+    if (isOfType(object, 'RunRoutine')) return getBookmarkFor(object.routineVersion as ListObjectType);
     // If a run project, use the project version
-    if (isOfType(object, 'RunProject')) return getStarFor(object.projectVersion as ListObjectType);
+    if (isOfType(object, 'RunProject')) return getBookmarkFor(object.projectVersion as ListObjectType);
     // If a NodeRoutineListItem, use the routine version
-    if (isOfType(object, 'NodeRoutineListItem')) return getStarFor(object.routineVersion as ListObjectType);
+    if (isOfType(object, 'NodeRoutineListItem')) return getBookmarkFor(object.routineVersion as ListObjectType);
     // If the object contains a root object, use that
-    if ((object as any).root) return getStarFor((object as any).root);
+    if ((object as any).root) return getBookmarkFor((object as any).root);
     // Use current object
     return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
 }
@@ -335,12 +340,7 @@ export const getStarFor = (
  * Converts a list of GraphQL objects to a list of autocomplete information.
  * @param objects The list of search results
  * @param languages User languages
- * @returns The list of autocomplete information. Each object has the following shape: 
- * {
- *  id: The ID of the object.
- *  label: The label of the object.
- *  bookmarks: The number of bookmarks the object has.
- * }
+ * @returns The list of autocomplete information
  */
 export function listToAutocomplete(
     objects: readonly ListObjectType[],
@@ -358,6 +358,7 @@ export function listToAutocomplete(
                 undefined,
         bookmarks: getCounts(o).bookmarks,
         to: isOfType(o, 'Bookmark', 'View', 'Vote') ? o.to : undefined,
+        user: isOfType(o, 'Member') ? o.user : undefined,
         versions: isOfType(o, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard') ? o.versions : undefined,
         root: isOfType(o, 'ApiVersion', 'NoteVersion', 'ProjectVersion', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion') ? o.root : undefined,
     }));
@@ -374,9 +375,9 @@ export interface ListToListItemProps {
      */
     dummyItems?: string[];
     /**
-     * If role (admin, owner, etc.) should be hiden in list itmes
+     * True if update button should be hidden
      */
-    hideRoles?: boolean,
+    hideUpdateButton?: boolean,
     /**
      * The list of item data. Objects like view and star are converted to their respective objects.
      */
@@ -404,7 +405,7 @@ export function listToListItems({
     beforeNavigation,
     dummyItems,
     keyPrefix,
-    hideRoles,
+    hideUpdateButton,
     items,
     loading,
     session,
@@ -418,7 +419,7 @@ export function listToListItems({
             listItems.push(<ObjectListItem
                 key={`${keyPrefix}-${i}`}
                 data={null}
-                hideRole={hideRoles}
+                hideUpdateButton={hideUpdateButton}
                 index={i}
                 loading={true}
                 objectType={'Routine'}
@@ -436,7 +437,7 @@ export function listToListItems({
             key={`${keyPrefix}-${curr.id}`}
             beforeNavigation={beforeNavigation}
             data={curr as ListObjectType}
-            hideRole={hideRoles}
+            hideUpdateButton={hideUpdateButton}
             index={i}
             loading={false}
             objectType={curr.__typename}
