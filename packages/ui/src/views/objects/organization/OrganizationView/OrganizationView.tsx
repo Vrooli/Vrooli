@@ -249,11 +249,11 @@ export const OrganizationView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Tooltip title="Donate">
+                    {/* <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                     <ShareButton object={organization} zIndex={zIndex} />
                     <ReportsLink object={organization} />
                     <BookmarkButton

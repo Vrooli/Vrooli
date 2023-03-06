@@ -12,11 +12,6 @@ import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_fi
 import { useTranslation } from "react-i18next";
 import { PageTab } from "components/types";
 
-enum TabOptions {
-    Routine = "Routine",
-    Standard = "Standard",
-}
-
 export const ProjectView = ({
     display = 'page',
     partialData,
@@ -171,11 +166,11 @@ export const ProjectView = ({
                     !isLoading && Boolean(description) && <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Tooltip title="Donate">
+                    {/* <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                     <ShareButton object={projectVersion} zIndex={zIndex} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}

@@ -6,7 +6,7 @@ import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, Bookmar
 import { ApiViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { ResourceListVertical } from "components/lists";
-import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 
@@ -175,11 +175,6 @@ export const ApiView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
                     <ShareButton object={apiVersion} zIndex={zIndex} />
                     <ReportsLink object={apiVersion} />
                     <BookmarkButton

@@ -160,7 +160,6 @@ export const getCounts = (
         versions: 0,
         views: 0,
     };
-    console.log('getcounts 1', object)
     if (!object) return defaultCounts;
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
@@ -183,7 +182,6 @@ export const getCounts = (
             const field = valueFromDot(object, `root.${objectProp}`);
             if (field !== undefined) defaultCounts[key] = field;
         }
-        if (key === 'score') console.log('getcounts score', field, defaultCounts[key])
     }
     return defaultCounts;
 }

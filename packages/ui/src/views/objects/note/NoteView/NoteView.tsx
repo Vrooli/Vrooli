@@ -5,7 +5,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
 import { NoteViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
-import { DonateIcon, EditIcon, EllipsisIcon, NoteIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, NoteIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 
@@ -151,11 +151,6 @@ export const NoteView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
                     <ShareButton object={noteVersion} zIndex={zIndex} />
                     <ReportsLink object={noteVersion} />
                     <BookmarkButton

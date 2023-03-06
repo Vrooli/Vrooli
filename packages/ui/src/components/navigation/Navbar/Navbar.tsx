@@ -1,12 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS } from '@shared/consts';
-import { AppBar, Toolbar, Box, useTheme, Stack } from '@mui/material';
+import { AppBar, Box, useTheme, Stack } from '@mui/material';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from '@shared/route';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
 import { noSelect } from 'styles'
-import { useTranslation } from 'react-i18next';
 import { PageTitle } from 'components/text';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
 import { NavbarLogoState } from '../types';
@@ -37,7 +36,6 @@ export const Navbar = ({
     below,
 }: NavbarProps) => {
     const { breakpoints, palette } = useTheme();
-    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { dimensions, ref } = useDimensions();
@@ -68,10 +66,10 @@ export const Navbar = ({
                 state={logoState}
             />
         </Box>
-    ), [help, isMobile, logoState, session, title, toHome]);
+    ), [logoState, toHome]);
 
     return (
-        <Box sx={{ paddingTop: `${Math.max(dimensions.height, 64) + 16}px` }}>
+        <Box sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
             <HideOnScroll>
                 <AppBar
                     onClick={scrollToTop}

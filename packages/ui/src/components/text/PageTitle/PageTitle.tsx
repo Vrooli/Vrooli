@@ -14,7 +14,8 @@ export const PageTitle = ({
         variant="h3"
         sx={{
             textAlign: 'center',
-            sx: { marginTop: 2, marginBottom: 2 },
+            marginTop: 2,
+            marginBottom: 2,
             fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
             ...noSelect,
             ...(sxs?.text || {}),

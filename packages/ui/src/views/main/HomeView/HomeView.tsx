@@ -6,8 +6,8 @@ import { SiteSearchBar, TitleContainer, ListMenu, PageTabs, TopBar } from 'compo
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HomeInput, HomeResult } from '@shared/consts';
 import { HomeViewProps } from '../types';
-import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, useDisplayApolloError, useReactSearch } from 'utils';
-import { AutocompleteOption, NavigableObject, Wrap } from 'types';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
+import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
@@ -76,6 +76,12 @@ export const HomeView = ({
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
+    const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
+        __typename: "Shortcut",
+        label: t(label, { ...(labelArgs ?? {}), defaultValue: label }) as string,
+        id: value,
+    })), [t]);
+
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
         // If "help" typed, add help and faq shortcuts as first result
@@ -96,7 +102,7 @@ export const HomeView = ({
             return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [languages, data, searchString]);
+    }, [searchString, data?.home, languages, shortcutsItems]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -161,31 +167,6 @@ export const HomeView = ({
         return defaultOrder;
     }, [searchString]);
 
-    // Menu for opening an advanced search page
-    const [advancedSearchAnchor, setAdvancedSearchAnchor] = useState<any>(null);
-    const openAdvancedSearch = useCallback((ev: React.MouseEvent<any>) => {
-        setAdvancedSearchAnchor(ev.currentTarget)
-    }, [setAdvancedSearchAnchor]);
-    const closeAdvancedSearch = useCallback(() => setAdvancedSearchAnchor(null), []);
-    const handleAdvancedSearchSelect = useCallback((path: string) => {
-        setLocation(path);
-    }, [setLocation]);
-
-    // Menu for opening a create page
-    const [createNewAnchor, setCreateNewAnchor] = useState<any>(null);
-    const openCreateNew = useCallback((ev: React.MouseEvent<any>) => {
-        setCreateNewAnchor(ev.currentTarget)
-    }, [setCreateNewAnchor]);
-    const closeCreateNew = useCallback(() => setCreateNewAnchor(null), []);
-    const handleCreateNewSelect = useCallback((path: string) => {
-        // If not logged in, redirect to login page
-        if (!getCurrentUser(session).id) {
-            setLocation(APP_LINKS.Start, { searchParams: { redirect: path } });
-        }
-        // Otherwise, navigate to create page
-        else setLocation(path);
-    }, [session, setLocation]);
-
     return (
         <>
             <TopBar
@@ -202,24 +183,6 @@ export const HomeView = ({
                         tabs={tabs}
                     />
                 )}
-            />
-            {/* Advanced search dialog */}
-            <ListMenu
-                id={`open-advanced-search-menu`}
-                anchorEl={advancedSearchAnchor}
-                data={advancedSearchPopupOptions}
-                onSelect={handleAdvancedSearchSelect}
-                onClose={closeAdvancedSearch}
-                zIndex={200}
-            />
-            {/* Create new dialog */}
-            <ListMenu
-                id={`create-new-object-menu`}
-                anchorEl={createNewAnchor}
-                data={createNewPopupOptions}
-                onSelect={handleCreateNewSelect}
-                onClose={closeCreateNew}
-                zIndex={200}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
@@ -241,21 +204,6 @@ export const HomeView = ({
             </Stack>
             {/* Result feeds */}
             <Stack spacing={10} direction="column" mt={10}>
-                {/* Quick actions */}
-                {/* TODO replace buttons below with grid of many customizable buttons. 
-                Should look like how iOS has buttons for flashlight, remote, calculator, etc.
-                Options can be taken from quickActions. Will need to update quickActions to support icons*/}
-                <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
-                    <Typography component="h3" variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
-                    <Grid container spacing={2} sx={{ width: 'min(100%, 500px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <Grid item xs={6}>
-                            <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced</Button>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Button fullWidth onClick={openCreateNew} startIcon={<CreateIcon />}>Create</Button>
-                        </Grid>
-                    </Grid>
-                </Stack>
                 {/* Resources */}
                 <TitleContainer
                     titleKey="Resource"
