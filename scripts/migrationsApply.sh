@@ -24,7 +24,7 @@ fi
 # Get migration name
 MIGRATION_NAME=$1
 # Set DB_URL environment variable
-DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${PORT_DB}/${DB_NAME}"
+DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${PORT_DB}"
 
 # Navigate to correct directory
 cd ${HERE}/../packages/server
