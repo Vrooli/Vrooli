@@ -1,4 +1,4 @@
-import { COOKIE, ValueOf } from "@shared/consts";
+import { COOKIE, UserSchedule, ValueOf } from "@shared/consts";
 import { getDeviceInfo } from "./display";
 
 /**
@@ -11,6 +11,8 @@ export const Cookies = {
     Theme: 'theme',
     FontSize: 'fontSize',
     Language: 'language',
+    IsLeftHanded: 'isLeftHanded',
+    Schedule: 'schedule',
 }
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -115,3 +117,21 @@ export const getCookieLanguage = (): string | null =>
 
 export const setCookieLanguage = (language: string) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.Language, language));
+
+export const getCookieIsLeftHanded = (): boolean | null =>
+    onlyIfCookieAllowed('functional', () => getCookie(Cookies.IsLeftHanded, (value: any): value is boolean => typeof value === 'boolean'));
+
+export const setCookieIsLeftHanded = (isLeftHanded: boolean) =>
+    onlyIfCookieAllowed('functional', () => setCookie(Cookies.IsLeftHanded, isLeftHanded));
+
+type ScheduleCookie = {
+    scheduleId: string;
+    stopWhen: 'automatic' | 'manual' | 'endOfCustomTime' | 'nextScheduleStart';
+    stopTime: number;
+}
+
+export const getCookieSchedule = (): ScheduleCookie | null =>
+    onlyIfCookieAllowed('functional', () => getCookie(Cookies.Schedule, (value: any): value is UserSchedule => typeof value === 'object'));
+
+export const setCookieSchedule = (schedule: ScheduleCookie) =>
+    onlyIfCookieAllowed('functional', () => setCookie(Cookies.Schedule, schedule));

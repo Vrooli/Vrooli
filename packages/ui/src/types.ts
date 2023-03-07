@@ -193,6 +193,17 @@ declare global {
 // Enable Nami integration
 window.cardano = window.cardano || {};
 
+// Add isLeftHanded to MUI theme
+declare module '@mui/material/styles' {
+    interface Theme {
+        isLeftHanded: boolean;
+    }
+    // allow configuration using `createTheme`
+    interface ThemeOptions {
+        isLeftHanded?: boolean;
+    }
+}
+
 // Apollo GraphQL
 export type ApolloResponse = FetchResult<any, Record<string, any>, Record<string, any>>;
 

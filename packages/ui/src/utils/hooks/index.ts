@@ -6,6 +6,7 @@ export * from './useDimensions';
 export * from './useDisplayApolloError';
 export * from './useFindMany';
 export * from './useHistoryState';
+export * from './useIsLeftHanded';
 export * from './useKeyboardOpen';
 export * from './useObjectActions';
 export * from './useObjectFromUrl';

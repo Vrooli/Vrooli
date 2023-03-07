@@ -15,10 +15,10 @@ import { Stack } from '@mui/system';
 import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
-import { LanguageSelector, TextSizeButtons, ThemeSwitch } from 'components/inputs';
+import { LanguageSelector, LeftHandedCheckbox, TextSizeButtons, ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useCustomMutation } from 'api/hooks';
-import { HistorySearchPageTabOption, PubSub, shapeProfile } from 'utils';
+import { HistorySearchPageTabOption, PubSub, shapeProfile, useIsLeftHanded, useWindowSize } from 'utils';
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
@@ -39,9 +39,11 @@ export const AccountMenu = ({
     onClose,
     session,
 }: AccountMenuProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isLeftHanded = useIsLeftHanded();
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const open = Boolean(anchorEl);
@@ -177,7 +179,7 @@ export const AccountMenu = ({
 
     return (
         <SwipeableDrawer
-            anchor="right"
+            anchor={(isMobile && isLeftHanded) ? 'left' : 'right'}
             open={open}
             onOpen={() => { }}
             onClose={handleClose}
@@ -212,7 +214,10 @@ export const AccountMenu = ({
                     aria-label="close"
                     edge="end"
                     onClick={handleClose}
-                    sx={{ marginLeft: 'auto' }}
+                    sx={{ 
+                        marginLeft: (isMobile && isLeftHanded) ? 'unset' : 'auto',
+                        marginRight: (isMobile && isLeftHanded) ? 'auto' : 'unset',
+                    }}
                 >
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
@@ -258,14 +263,12 @@ export const AccountMenu = ({
                     height: 'fit-content',
                     padding: 1,
                 }}>
-                    {/* Theme switch */}
                     <ThemeSwitch
                         theme={formik.values.theme as 'light' | 'dark'}
                         onChange={(t) => formik.setFieldValue('theme', t)}
                     />
-                    {/* Text size quantity box */}
                     <TextSizeButtons session={session} />
-                    {/* Preferred language selector */}
+                    <LeftHandedCheckbox session={session} />
                     <LanguageSelector session={session} />
                     {/* Focus mode */}
                     {/* TODO */}

@@ -15,6 +15,7 @@ export type Pubs = 'Celebration' |
     'FastUpdate' |
     'FindInPage' |
     'FontSize' |
+    'IsLeftHanded' |
     'Language' |
     'Loading' |
     'LogOut' |
@@ -97,6 +98,9 @@ export class PubSub {
     publishFontSize(fontSize: number) {
         this.publish('FontSize', fontSize);
     }
+    publishIsLeftHanded(isLeftHanded: boolean) {
+        this.publish('IsLeftHanded', isLeftHanded);
+    }
     publishLanguage(language: string) {
         this.publish('Language', language);
     }
@@ -159,6 +163,9 @@ export class PubSub {
     }
     subscribeFontSize(subscriber: (fontSize: number) => void) {
         return this.subscribe('FontSize', subscriber);
+    }
+    subscribeIsLeftHanded(subscriber: (isLeftHanded: boolean) => void) {
+        return this.subscribe('IsLeftHanded', subscriber);
     }
     subscribeLanguage(subscriber: (language: string) => void) {
         return this.subscribe('Language', subscriber);

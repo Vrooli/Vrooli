@@ -205,6 +205,10 @@ export interface LanguageSelectorProps {
     session: Session | undefined;
 }
 
+export interface LeftHandedCheckboxProps {
+    session: Session | undefined;
+}
+
 export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
     id: string;
     disabled?: boolean;

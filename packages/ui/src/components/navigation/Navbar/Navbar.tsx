@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { APP_LINKS } from '@shared/consts';
 import { AppBar, Box, useTheme, Stack } from '@mui/material';
 import { NavList } from '../NavList/NavList';
@@ -9,7 +9,8 @@ import { noSelect } from 'styles'
 import { PageTitle } from 'components/text';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
 import { NavbarLogoState } from '../types';
-import { useDimensions, useWindowSize } from 'utils';
+import { PubSub, useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
+import { getCookieIsLeftHanded } from 'utils/cookies';
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -50,6 +51,8 @@ export const Navbar = ({
         return { logoState };
     }, [isMobile, title]);
 
+    const isLeftHanded = useIsLeftHanded();
+
     const logo = useMemo(() => (
         <Box
             onClick={toHome}
@@ -57,8 +60,8 @@ export const Navbar = ({
                 padding: 0,
                 display: 'flex',
                 alignItems: 'center',
-                marginLeft: 1,
-                marginRight: 'auto',
+                marginRight: isMobile && isLeftHanded ? 1 : 'auto',
+                marginLeft: isMobile && isLeftHanded ? 'auto' : 1,
             }}
         >
             <NavbarLogo
@@ -66,7 +69,7 @@ export const Navbar = ({
                 state={logoState}
             />
         </Box>
-    ), [logoState, toHome]);
+    ), [isLeftHanded, isMobile, logoState, toHome]);
 
     return (
         <Box sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
@@ -86,15 +89,23 @@ export const Navbar = ({
                         paddingLeft: 1,
                         paddingRight: 1,
                     }}>
-                        {logo}
+                        {/* Logo displayed on left for desktop and right-handed mobile users.
+                        Account menu displayed otherwise */}
+                        {!(isMobile && isLeftHanded) ? logo : <Box sx={{
+                            marginRight: 'auto',
+                            maxHeight: '100%',
+                        }}>
+                            <NavList session={session} />
+                        </Box>}
+                        {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
                         {isMobile && title && <PageTitle help={help} title={title} />}
-                        <Box sx={{
+                        {(isMobile && isLeftHanded) ? logo : <Box sx={{
                             marginLeft: 'auto',
                             maxHeight: '100%',
                         }}>
                             <NavList session={session} />
-                        </Box>
+                        </Box>}
                     </Stack>
                     {/* "below" displayed inside AppBar on mobile */}
                     {isMobile && below}
