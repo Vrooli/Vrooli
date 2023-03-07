@@ -21,7 +21,8 @@ const {
     NotificationsView,
     SettingsView,
 } = lazily(() => import('./views/main'));
-const { TutorialView, WelcomeView } = lazily(() => import('./views/tutorial'));
+const { TutorialView } = lazily(() => import('./views/tutorial'));
+const { WelcomeView } = lazily(() => import('./views/WelcomeView/WelcomeView'));
 const { AwardsView } = lazily(() => import('./views/AwardsView/AwardsView'));
 const { CalendarView } = lazily(() => import('./views/CalendarView/CalendarView'));
 const { FormView } = lazily(() => import('./views/wrapper/FormView'));
@@ -291,12 +292,6 @@ export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.5}
                     changeFreq="monthly"
-                    sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                    }}
                     {...props}
                 >
                     <WelcomeView {...props} />

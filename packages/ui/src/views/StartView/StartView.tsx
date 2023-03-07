@@ -179,39 +179,53 @@ export const StartView = ({
 
     return (
         <>
+            {/* Dialogs */}
+            <WalletSelectDialog
+                handleOpenInstall={openWalletInstallDialog}
+                open={connectOpen}
+                onClose={closeWalletConnectDialog}
+                zIndex={200}
+            />
+            <WalletInstallDialog
+                open={installOpen}
+                onClose={closeWalletInstallDialog}
+                zIndex={connectOpen ? 201 : 200}
+            />
+            <Dialog
+                open={emailPopupOpen}
+                disableScrollLock={true}
+                onClose={closeEmailPopup}
+                aria-labelledby={emailTitleId}
+            >
+                <DialogTitle
+                    id={emailTitleId}
+                    title={formTitle}
+                    onClose={closeEmailPopup}
+                />
+                <Box sx={{ padding: 1 }}>
+                    <Form onFormChange={handleFormChange} />
+                </Box>
+            </Dialog>
+            {/* App bar */}
             <TopBar
                 display={display}
-                onClose={() => {}}
+                onClose={() => { }}
                 session={session}
                 titleData={{
                     titleKey: 'Start',
                 }}
             />
-            <Box
-                sx={{
-                    padding: '1em',
-                    paddingTop: '20vh',
-                    minHeight: '100vh', //Fullscreen
-                }}
-            >
-                <WalletSelectDialog
-                    handleOpenInstall={openWalletInstallDialog}
-                    open={connectOpen}
-                    onClose={closeWalletConnectDialog}
-                    zIndex={200}
-                />
-                <WalletInstallDialog
-                    open={installOpen}
-                    onClose={closeWalletInstallDialog}
-                    zIndex={connectOpen ? 201 : 200}
-                />
-                <Box
-                    sx={{
-                        width: 'min(100%, 500px)',
-                        margin: 'auto',
-                        paddingTop: { xs: '5vh', sm: '20vh' },
-                    }}
-                >
+            {/* Main content */}
+            <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center',
+                marginTop: 4,
+            }}>
+                <Box sx={{
+                    width: 'min(calc(100vw - 16px), 500px)',
+                }}>
                     <Box sx={{
                         display: 'flex',
                         justifyContent: 'center',
@@ -236,21 +250,6 @@ export const StartView = ({
                         <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>{t('EnterAsGuest')}</Button>
                     </Stack>
                 </Box>
-                <Dialog
-                    open={emailPopupOpen}
-                    disableScrollLock={true}
-                    onClose={closeEmailPopup}
-                    aria-labelledby={emailTitleId}
-                >
-                    <DialogTitle
-                        id={emailTitleId}
-                        title={formTitle}
-                        onClose={closeEmailPopup}
-                    />
-                    <Box sx={{ padding: 1 }}>
-                        <Form onFormChange={handleFormChange} />
-                    </Box>
-                </Dialog>
             </Box>
         </>
     );

@@ -21,7 +21,8 @@ export type Pubs = 'Celebration' |
     'Snack' |
     'Theme' |
     'NodeDrag' |
-    'NodeDrop';
+    'NodeDrop' | 
+    'Welcome';
 
 
 export type TranslatedSnackMessage = {
@@ -120,6 +121,9 @@ export class PubSub {
     publishNodeDrop(data: { nodeId: string, position: { x: number, y: number } }) {
         this.publish('NodeDrop', data);
     }
+    publishWelcome() {
+        this.publish('Welcome');
+    }
 
     subscribe(key: Pubs, subscriber: Function): symbol {
         // Create unique token, so we can unsubscribe later
@@ -168,6 +172,9 @@ export class PubSub {
     }
     subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => void) {
         return this.subscribe('NodeDrop', subscriber);
+    }
+    subscribeWelcome(subscriber: () => void) {
+        return this.subscribe('Welcome', subscriber);
     }
 
     unsubscribe(token: symbol) {

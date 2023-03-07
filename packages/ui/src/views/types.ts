@@ -55,3 +55,5 @@ export interface ErrorBoundaryProps {
 }
 
 export interface CalendarViewProps extends BaseViewProps {}
+
+export interface WelcomeViewProps extends BaseViewProps {};

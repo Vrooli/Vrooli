@@ -12,4 +12,5 @@ export * from './settings';
 export * from './StartView/StartView';
 export * from './StatsView/StatsView';
 export * from './tutorial';
+export * from './WelcomeView/WelcomeView';
 export * from './wrapper';

@@ -7,7 +7,7 @@ import {
     IconButton,
 } from '@mui/material';
 import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
-import { checkIfLoggedIn, guestSession } from 'utils/authentication';
+import { checkIfLoggedIn } from 'utils/authentication';
 import { openLink, SetLocation } from '@shared/route';
 
 export enum ACTION_TAGS {
@@ -37,11 +37,17 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     // Check if user is logged in using session
     console.log('action getUserActions', session, exclude);
     let isLoggedIn = checkIfLoggedIn(session);
-    // Home action always available
-    let actions: ActionArray[] = [
-        ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+    let actions: ActionArray[] = [];
+    // Home only available to logged in users
+    if (isLoggedIn) {
+        actions.push(
+            ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+        )
+    }
+    // Search always available
+    actions.push(
         ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
-    ];
+    );
     // Actions for logged in users
     if (isLoggedIn) {
         actions.push(

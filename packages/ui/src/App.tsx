@@ -8,6 +8,7 @@ import {
     Navbar,
     PullToRefresh,
     SnackStack,
+    WelcomeDialog,
 } from 'components';
 import { getDeviceInfo, getUserLanguages, PubSub, themes, useReactHash } from 'utils';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
@@ -81,14 +82,13 @@ export function App() {
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
-    const [loading, setLoading] = useState(false);
-    const [celebrating, setCelebrating] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCelebrating, setIsCelebrating] = useState(false);
+    const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
 
-    /**
-     * Sets language
-     */
+    // Sets language
     useEffect(() => {
         const lng = getUserLanguages(session)[0]
         i18next.changeLanguage(lng);
@@ -129,7 +129,7 @@ export function App() {
 
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        setLoading(false);
+        setIsLoading(false);
         // Add help wanted to console logs
         console.log(`
                @@@                 @@@                  
@@ -203,7 +203,6 @@ export function App() {
                 PubSub.get().publishFindInPage();
             }
         };
-
         // attach the event listener
         document.addEventListener('keydown', handleKeyDown);
         // remove the event listener
@@ -255,22 +254,23 @@ export function App() {
         let loadingSub = PubSub.get().subscribeLoading((data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
-                timeoutRef.current = setTimeout(() => setLoading(true), Math.abs(data as number));
+                timeoutRef.current = setTimeout(() => setIsLoading(true), Math.abs(data as number));
             } else {
-                setLoading(Boolean(data));
+                setIsLoading(Boolean(data));
             }
         });
         // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
         // can be passed in as a number
         let celebrationSub = PubSub.get().subscribeCelebration((data) => {
             // Start confetti immediately
-            setCelebrating(true);
+            setIsCelebrating(true);
             // Determine duration
             let duration = 5000;
             if (Number.isInteger(data)) duration = data as number;
             // Stop confetti after duration
-            setTimeout(() => setCelebrating(false), duration);
+            setTimeout(() => setIsCelebrating(false), duration);
         });
+        // Handle session updates
         let sessionSub = PubSub.get().subscribeSession((session) => {
             console.log('action setting session from sub', session)
             // If undefined or empty, set session to published data
@@ -282,15 +282,22 @@ export function App() {
                 setSession(s => ({ ...s, ...session }));
             }
         });
+        // Handle theme updates
         let themeSub = PubSub.get().subscribeTheme((data) => {
             const newTheme = themes[data] ?? themes.light
             setThemeAndMeta(newTheme);
         });
+        // Handle welcome message
+        let welcomeSub = PubSub.get().subscribeWelcome(() => {
+            setIsWelcomeDialogOpen(true);
+        });
+        // On unmount, unsubscribe from all PubSub topics
         return (() => {
             PubSub.get().unsubscribe(loadingSub);
             PubSub.get().unsubscribe(celebrationSub);
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
+            PubSub.get().unsubscribe(welcomeSub);
         })
     }, [checkSession, setThemeAndMeta]);
 
@@ -323,9 +330,15 @@ export function App() {
                     <CommandPalette session={session} />
                     {/* Find in page */}
                     <FindInPage session={session} />
+                    {/* WelcomeDialog */}
+                    <WelcomeDialog
+                        isOpen={isWelcomeDialogOpen}
+                        onClose={() => setIsWelcomeDialogOpen(false)}
+                        session={session}
+                    />
                     {/* Celebratory confetti. To be used sparingly */}
                     {
-                        celebrating && <Confetti
+                        isCelebrating && <Confetti
                             initialVelocityY={-10}
                             recycle={false}
                             confettiSource={{
@@ -345,7 +358,7 @@ export function App() {
 
                         {/* Progress bar */}
                         {
-                            loading && <Box sx={{
+                            isLoading && <Box sx={{
                                 position: 'absolute',
                                 top: '50%',
                                 left: '50%',

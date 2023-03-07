@@ -1,15 +1,13 @@
-import { Button, Grid, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, TitleContainer, ListMenu, PageTabs, TopBar } from 'components';
+import { SiteSearchBar, TitleContainer, PageTabs, TopBar } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HomeInput, HomeResult } from '@shared/consts';
 import { HomeViewProps } from '../types';
-import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, openObject, SearchPageTabOption, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
-import { ListMenuItemData } from 'components/dialogs/types';
-import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { feedHome } from 'api/generated/endpoints/feed_home';
 import { PageTab } from 'components/types';
@@ -19,21 +17,6 @@ enum TabOptions {
     ForYou = "ForYou",
     History = "History",
 }
-
-const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true` },
-    { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true` },
-    { label: 'Routine', Icon: RoutineIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true` },
-    { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true` },
-    { label: 'User', Icon: UserIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true` },
-]
-
-const createNewPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Organization}/add` },
-    { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
-    { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Standard}/add` },
-]
 
 const zIndex = 200;
 
@@ -126,17 +109,6 @@ export const HomeView = ({
         else {
             openObject(newValue, setLocation);
         }
-    }, [searchString, setLocation]);
-
-    /**
-     * Opens search page for object type
-     */
-    const toSearchPage = useCallback((event: any, tab: SearchPageTabOption) => {
-        event?.stopPropagation();
-        // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(APP_LINKS.Home, { replace: true, searchParams: { search: searchString } });
-        // Navigate to search page
-        setLocation(APP_LINKS.Search, { searchParams: { type: tab } });
     }, [searchString, setLocation]);
 
     /**
