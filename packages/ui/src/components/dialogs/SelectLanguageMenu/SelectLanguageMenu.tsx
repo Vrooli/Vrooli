@@ -44,7 +44,7 @@ const autoTranslateLanguages = [
     'sv', // Swedish
     'he', // Hebrew
     'eo', // Esperanto
-];
+] as const;
 
 const titleId = 'select-language-dialog-title';
 

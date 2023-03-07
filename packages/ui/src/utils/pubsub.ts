@@ -14,6 +14,8 @@ export type Pubs = 'Celebration' |
     'Cookies' | // For cookie consent dialog
     'FastUpdate' |
     'FindInPage' |
+    'FontSize' |
+    'Language' |
     'Loading' |
     'LogOut' |
     'AlertDialog' |
@@ -92,6 +94,12 @@ export class PubSub {
     publishFastUpdate({ on = true, duration = 1000 }: { on?: boolean, duration?: number }) {
         this.publish('FastUpdate', { on, duration });
     }
+    publishFontSize(fontSize: number) {
+        this.publish('FontSize', fontSize);
+    }
+    publishLanguage(language: string) {
+        this.publish('Language', language);
+    }
     /**
      * Pass delay to show spinner if turning on, or false to turn off.
      */
@@ -148,6 +156,12 @@ export class PubSub {
     }
     subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
         return this.subscribe('FastUpdate', subscriber);
+    }
+    subscribeFontSize(subscriber: (fontSize: number) => void) {
+        return this.subscribe('FontSize', subscriber);
+    }
+    subscribeLanguage(subscriber: (language: string) => void) {
+        return this.subscribe('Language', subscriber);
     }
     subscribeLoading(subscriber: (spinnerDelay: number | false) => void) {
         return this.subscribe('Loading', subscriber);

@@ -1,19 +1,17 @@
 import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
-import { useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
-import { clearSearchHistory, PubSub, shapeProfile, TagShape, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
-import { GridSubmitButtons, HelpButton, PageTitle, TagSelector } from "components";
+import { clearSearchHistory, TagShape, useProfileQuery, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
+import { GridSubmitButtons, HelpButton, SettingsList, SettingsTopBar } from "components";
 import { ThemeSwitch } from "components/inputs";
-import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
-import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
+import { UserScheduleFilterType } from "@shared/consts";
 import { userValidation } from "@shared/validation";
 import { currentSchedules } from "utils/display/scheduleTools";
-import { SettingsDisplayProps } from "../types";
+import { SettingsDisplayViewProps } from "../types";
 import { useTranslation } from "react-i18next";
+import { BaseForm } from "forms";
 
 const interestsHelpText =
     `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`
@@ -21,13 +19,14 @@ const interestsHelpText =
 const hiddenHelpText =
     `Specify tags which should be hidden from your feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`
 
-export const SettingsDisplay = ({
+export const SettingsDisplayView = ({
+    display = 'page',
     session,
-    profile,
-    onUpdated,
-}: SettingsDisplayProps) => {
+}: SettingsDisplayViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
+
+    const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery(session);
 
     // Handle filters
     const [filters, setFilters] = useState<UserScheduleFilterShape[]>([]);
@@ -123,57 +122,78 @@ export const SettingsDisplay = ({
     }, [formik]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            {/* <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' /> */}
-            <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
-                <ThemeSwitch
-                    theme={formik.values.theme as 'light' | 'dark'}
-                    onChange={(t) => formik.setFieldValue('theme', t)}
-                />
-            </Box>
-            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <HeartFilledIcon fill={palette.background.textPrimary} />
-                <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsFavorite')}</Typography>
-                <HelpButton markdown={interestsHelpText} />
-            </Stack>
-            <Box id="favorite-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
-                {/* <TagSelector
+        <>
+            <SettingsTopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Display',
+                }}
+            />
+            <Stack direction="row">
+                <SettingsList showOnMobile={true} />
+                <BaseForm
+                    isLoading={isProfileLoading || isUpdating}
+                    onSubmit={formik.handleSubmit}
+                    style={{
+                        width: { xs: '100%', md: 'min(100%, 700px)' },
+                        marginRight: 'auto',
+                        display: 'block',
+                    }}
+                >
+                    {/* <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' /> */}
+                    <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
+                        <ThemeSwitch
+                            theme={formik.values.theme as 'light' | 'dark'}
+                            onChange={(t) => formik.setFieldValue('theme', t)}
+                        />
+                    </Box>
+                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
+                        <HeartFilledIcon fill={palette.background.textPrimary} />
+                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsFavorite')}</Typography>
+                        <HelpButton markdown={interestsHelpText} />
+                    </Stack>
+                    <Box id="favorite-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
+                        {/* <TagSelector
                     handleTagsUpdate={handleBookmarkedTagsUpdate}
                     session={session}
                     tags={bookmarkedTags}
                     placeholder={"Enter interests, followed by commas..."}
                 /> */}
-            </Box>
-            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <InvisibleIcon fill={palette.background.textPrimary} />
-                <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsHidden')}</Typography>
-                <HelpButton markdown={hiddenHelpText} />
-            </Stack>
-            <Box id="hidden-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
-                {/* <TagSelector
+                    </Box>
+                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
+                        <InvisibleIcon fill={palette.background.textPrimary} />
+                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsHidden')}</Typography>
+                        <HelpButton markdown={hiddenHelpText} />
+                    </Stack>
+                    <Box id="hidden-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
+                        {/* <TagSelector
                     handleTagsUpdate={handleFiltersUpdate}
                     session={session}
                     tags={filters.map(t => t.tag)}
                     placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
                 /> */}
-            </Box>
-            <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
-                <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                }}>{t('ClearSearchHistory')}</Button>
-            </Box>
-            <Grid container spacing={2} p={2}>
-                <GridSubmitButtons
-                    display={display}
-                    errors={formik.errors}
-                    isCreate={false}
-                    loading={formik.isSubmitting}
-                    onCancel={handleCancel}
-                    onSetSubmitting={formik.setSubmitting}
-                    onSubmit={handleSave}
-                />
-            </Grid>
-        </form>
+                    </Box>
+                    <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
+                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                        }}>{t('ClearSearchHistory')}</Button>
+                    </Box>
+                    <Grid container spacing={2} p={2}>
+                        <GridSubmitButtons
+                            display={display}
+                            errors={formik.errors}
+                            isCreate={false}
+                            loading={formik.isSubmitting}
+                            onCancel={handleCancel}
+                            onSetSubmitting={formik.setSubmitting}
+                            onSubmit={handleSave}
+                        />
+                    </Grid>
+                </BaseForm>
+            </Stack>
+        </>
     )
 }

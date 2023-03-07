@@ -32,7 +32,9 @@ export interface HideOnScrollProps {
     children: JSX.Element;
 }
 
-export type TopBarProps = {
+export interface SettingsTopBarProps extends Omit<TopBarProps, 'below'> {}
+
+export interface TopBarProps {
     display: ViewDisplayType
     onClose: () => void,
     session?: Session,

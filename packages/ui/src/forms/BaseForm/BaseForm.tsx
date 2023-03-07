@@ -8,6 +8,7 @@ export const BaseForm = ({
     children,
     isLoading = false,
     onSubmit,
+    style,
 }: BaseFormProps) => {
 
     return (
@@ -15,6 +16,7 @@ export const BaseForm = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            ...(style ?? {})
         }}
         >
             {isLoading ? <FullPageSpinner /> : children}

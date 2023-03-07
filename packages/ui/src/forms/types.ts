@@ -11,6 +11,7 @@ export interface BaseFormProps {
     children: JSX.Element | JSX.Element[];
     isLoading?: boolean;
     onSubmit: (e?: FormEvent<HTMLFormElement> | undefined) => void;
+    style?: { [key: string]: any };
 }
 
 export interface BaseGeneratedFormProps {

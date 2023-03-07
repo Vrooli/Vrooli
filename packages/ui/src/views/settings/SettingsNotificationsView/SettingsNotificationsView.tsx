@@ -8,10 +8,11 @@ import { useFormik } from "formik";
 import { NotificationSettings, NotificationSettingsUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { userValidation } from "@shared/validation";
+import { BaseForm } from "forms";
+import { SettingsTopBar } from "components";
 
-export const SettingsNotifications = ({
-    profile,
-    onUpdated,
+export const SettingsNotificationsView = ({
+    display = 'page',
     session,
 }: SettingsNotificationsProps) => {
     // Handle update
@@ -56,14 +57,34 @@ export const SettingsNotifications = ({
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     return (
-        <form style={{ overflow: 'hidden' }}>
-            {/* <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} /> */}
-            <Grid container spacing={2}>
-                <Grid item xs={12}>
-                    {/* Toggle all notifications */}
-                    <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Toggle all</Typography>
-                        {/* <Switch
+        <>
+            <SettingsTopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Notification',
+                    count: 2,
+                }}
+            />
+            <Stack direction="row">
+                <SettingsList showOnMobile={true} />
+                <BaseForm
+                    isLoading={isProfileLoading || isUpdating}
+                    onSubmit={formik.handleSubmit}
+                    style={{
+                        width: { xs: '100%', md: 'min(100%, 700px)' },
+                        marginRight: 'auto',
+                        display: 'block',
+                    }}
+                >
+                    {/* <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} /> */}
+                    <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                            {/* Toggle all notifications */}
+                            <Stack direction="row" marginRight="auto" alignItems="center">
+                                <Typography component="h2" variant="h5" textAlign="center">Toggle all</Typography>
+                                {/* <Switch
                             checked={formik.values.strictlyNecessary}
                             onChange={formik.handleChange}
                             name="toggleAll"
@@ -72,9 +93,11 @@ export const SettingsNotifications = ({
                                 right: '16px',
                             }}
                         /> */}
-                    </Stack>
-                </Grid>
-            </Grid>
-        </form>
+                            </Stack>
+                        </Grid>
+                    </Grid>
+                </BaseForm>
+            </Stack>
+        </>
     )
 }

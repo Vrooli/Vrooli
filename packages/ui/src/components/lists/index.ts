@@ -9,6 +9,7 @@ export * from './reminder';
 export * from './resource';
 export * from './RoleList/RoleList';
 export * from './SearchList/SearchList';
+export * from './SettingsList/SettingsList';
 export * from './SortMenu/SortMenu';
 export * from './TagList/TagList';
 export * from './TextLoading/TextLoading';

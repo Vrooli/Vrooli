@@ -102,7 +102,7 @@ export const AdvancedSearchDialog = ({
                 title={t(`AdvancedSearch`)}
                 onClose={handleClose}
             />
-            <form onSubmit={formik.handleSubmit}>
+            <form onSubmit={formik.handleSubmit} style={{ paddingBottom: '64px' }}>
                 <Box sx={{
                     padding: { xs: 1, sm: 2 },
                     margin: 'auto',

@@ -1,8 +1,9 @@
 import i18next from 'i18next';
 import { Session } from "@shared/consts";
-import { getUserLanguages, normalizeText, removeEmojis, removePunctuation } from 'utils/display';
+import { normalizeText, removeEmojis, removePunctuation } from 'utils/display';
 import { FilterOptionsState } from '@mui/material';
 import { CommonKey } from '@shared/translations';
+import { getSiteLanguage } from 'utils/authentication';
 
 /**
  * A search item before it is translated into the user's language.
@@ -79,7 +80,7 @@ export const shapeSearchText = (text: string) => {
  * @param session The current session.
  */
 export const translateSearchItems = (items: PreSearchItem[], session: Session | null | undefined): SearchItem[] => {
-    const lng = getUserLanguages(session)[0];
+    const lng = getSiteLanguage(session);
     return items.map(item => {
         const label = i18next.t(`common:${item.label}`, { ...(item.labelArgs ?? {}), lng });
         let keywords = [shapeSearchText(label)];

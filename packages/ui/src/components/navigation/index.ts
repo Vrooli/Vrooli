@@ -7,4 +7,5 @@ export * from './HideOnScroll/HideOnScroll';
 export * from './Navbar/Navbar';
 export * from './NavbarLogo/NavbarLogo';
 export * from './NavList/NavList';
+export * from './SettingsTopBar/SettingsTopBar';
 export * from './TopBar/TopBar';

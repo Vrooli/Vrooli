@@ -11,6 +11,7 @@ export * from './useObjectActions';
 export * from './useObjectFromUrl';
 export * from './usePinchZoom';
 export * from './usePress';
+export * from './useProfileQuery';
 export * from './usePromptBeforeUnload';
 export * from './useReactHash';
 export * from './useReactSearch';

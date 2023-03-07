@@ -19,8 +19,16 @@ const {
     HistoryView,
     CreateView,
     NotificationsView,
-    SettingsView,
 } = lazily(() => import('./views/main'));
+const {
+    SettingsView,
+    SettingsAuthenticationView,
+    SettingsDisplayView,
+    SettingsNotificationsView,
+    SettingsProfileView,
+    SettingsPrivacyView,
+    SettingsSchedulesView,
+} = lazily(() => import('./views/settings'));
 const { TutorialView } = lazily(() => import('./views/tutorial'));
 const { WelcomeView } = lazily(() => import('./views/WelcomeView/WelcomeView'));
 const { AwardsView } = lazily(() => import('./views/AwardsView/AwardsView'));
@@ -241,6 +249,24 @@ export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
                 </NavRoute>
                 <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
                     <SettingsView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsAuthentication} mustBeLoggedIn={true} {...props}>
+                    <SettingsAuthenticationView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsDisplay} mustBeLoggedIn={true} {...props}>
+                    <SettingsDisplayView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsNotifications} mustBeLoggedIn={true} {...props}>
+                    <SettingsNotificationsView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsProfile} mustBeLoggedIn={true} {...props}>
+                    <SettingsProfileView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsPrivacy} mustBeLoggedIn={true} {...props}>
+                    <SettingsPrivacyView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsSchedules} mustBeLoggedIn={true} {...props}>
+                    <SettingsSchedulesView {...props} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
                     <SmartContractCreate {...props} />
