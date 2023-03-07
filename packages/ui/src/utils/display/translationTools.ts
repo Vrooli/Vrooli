@@ -461,9 +461,10 @@ export const getLanguageSubtag = (language: string): string => {
  * 3. English
  * Strips languages so only the subtag is returned (e.g. en-US becomes en)
  * @param session Session data
+ * @param useDefault If true, will return English if no languages are found
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session: Session | null | undefined): string[] => {
+export const getUserLanguages = (session: Session | null | undefined, useDefault = true): string[] => {
     // First check session data for preferred languages
     const { languages } = getCurrentUser(session);
     if (languages && languages.length > 0) {
@@ -473,8 +474,8 @@ export const getUserLanguages = (session: Session | null | undefined): string[] 
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }
-    // Default to English
-    return ["en"];
+    // Default to English if specified
+    return useDefault ? ["en"] : [];
 }
 
 /**

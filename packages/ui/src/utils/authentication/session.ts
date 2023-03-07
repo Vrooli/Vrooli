@@ -1,5 +1,7 @@
 import { Session, SessionUser } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
+import { getCookieLanguage } from "utils/cookies";
+import { getUserLanguages } from "utils/display";
 
 /**
  * Session object that indicates no user is logged in
@@ -38,4 +40,31 @@ export const checkIfLoggedIn = (session: Session | null | undefined): boolean =>
     if (!session) return localStorage.getItem('isLoggedIn') === 'true';
     // Otherwise, check session
     return session.isLoggedIn;
+}
+
+/**
+ * Languages the site has translations for (2-letter codes).
+ * Should be ordered by priority. 
+ * 
+ * Missing a language you want to use? Consider contributing to the project!
+ */
+export const siteLanguages = ['en'];
+
+/**
+ * Finds which language the site should be displayed in.
+ * @param session Session object
+ */
+export const getSiteLanguage = (session: Session | null | undefined): string => {
+    // Try to find languages from session. Make sure not to return default
+    const sessionLanguages = getUserLanguages(session, false);
+    // Find first language that is in site languages
+    const siteLanguage = sessionLanguages.find(language => siteLanguages.includes(language));
+    // If found, return it
+    if (siteLanguage) return siteLanguage;
+    // If no languages found in session, check local storage (i.e. cookies)
+    const cookieLanguages = getCookieLanguage();
+    // Check if it's a site language
+    if (cookieLanguages && siteLanguages.includes(cookieLanguages)) return cookieLanguages;
+    // Otherwise, return default (first in array)
+    return siteLanguages[0];
 }

@@ -15,8 +15,8 @@ import { makeStyles } from '@mui/styles';
 import { useCustomMutation } from 'api/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
-import { guestSession } from 'utils/authentication';
-import { getCookieFontSize, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieTheme } from 'utils/cookies';
+import { getSiteLanguage, guestSession } from 'utils/authentication';
+import { getCookieFontSize, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieLanguage, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
@@ -83,7 +83,10 @@ const useStyles = makeStyles(() => ({
             src: `local('SakBunderan'), url(${SakBunderan}) format('truetype')`,
             fontDisplay: 'swap',
         },
-
+        // Ensure popovers are displayed above everything else
+        '.MuiPopover-root': {
+            zIndex: 20000,
+        }
     },
 }));
 
@@ -94,6 +97,7 @@ export function App() {
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [fontSize, setFontSize] = useState(getCookieFontSize() ?? 14);
+    const [language, setLanguage] = useState(getSiteLanguage(undefined));
     const [isLoading, setIsLoading] = useState(false);
     const [isCelebrating, setIsCelebrating] = useState(false);
     const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
@@ -102,8 +106,15 @@ export function App() {
 
     // Applies language change
     useEffect(() => {
-        const lng = getUserLanguages(session)[0]
-        i18next.changeLanguage(lng);
+        console.log('language change 1', language)
+        i18next.changeLanguage(language);
+    }, [language]);
+    useEffect(() => {
+        console.log('language session thing', session, getSiteLanguage(session), getSiteLanguage(undefined))
+        if (!session) return;
+        if (getSiteLanguage(session) !== getSiteLanguage(undefined)) {
+            setLanguage(getSiteLanguage(session));
+        }
     }, [session]);
 
     // Applies font size change
@@ -111,9 +122,6 @@ export function App() {
         console.log('Applying font size change', fontSize, withFontSize(themes[theme.palette.mode], fontSize));
         setTheme(withFontSize(themes[theme.palette.mode], fontSize));
     }, [fontSize, theme.palette.mode]);
-    useEffect(() => {
-        console.log('THEME UPDATED', theme);
-    }, [theme]);
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
@@ -313,6 +321,11 @@ export function App() {
             setFontSize(data);
             setCookieFontSize(data);
         });
+        // Handle language updates
+        let languageSub = PubSub.get().subscribeLanguage((data) => {
+            setLanguage(data);
+            setCookieLanguage(data);
+        });
         // Handle welcome message
         let welcomeSub = PubSub.get().subscribeWelcome(() => {
             setIsWelcomeDialogOpen(true);
@@ -324,6 +337,7 @@ export function App() {
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
             PubSub.get().unsubscribe(fontSizeSub);
+            PubSub.get().unsubscribe(languageSub);
             PubSub.get().unsubscribe(welcomeSub);
         })
     }, [checkSession, setThemeAndMeta]);

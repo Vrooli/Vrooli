@@ -201,6 +201,10 @@ export interface LanguageInputProps {
     zIndex: number;
 }
 
+export interface LanguageSelectorProps {
+    session: Session | undefined;
+}
+
 export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
     id: string;
     disabled?: boolean;
@@ -328,6 +332,10 @@ export interface TagSelectorProps {
     placeholder?: string;
     session: Session | undefined;
     tags: (TagShape | Tag)[];
+}
+
+export interface TextSizeButtonsProps {
+    session: Session | undefined;
 }
 
 export interface ThemeSwitchProps {

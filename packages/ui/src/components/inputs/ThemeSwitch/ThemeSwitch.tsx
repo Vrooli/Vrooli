@@ -5,6 +5,7 @@ import { noSelect } from 'styles';
 import { PubSub } from 'utils';
 import { DarkModeIcon, LightModeIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
+import { useTranslation } from 'react-i18next';
 
 export function ThemeSwitch({
     showText = true,
@@ -12,6 +13,7 @@ export function ThemeSwitch({
     onChange,
 }: ThemeSwitchProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const handleChange = useCallback(() => {
         const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -25,7 +27,12 @@ export function ThemeSwitch({
 
     return (
         <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-            {showText && <Typography variant="h6" sx={{ ...noSelect }}>Theme:</Typography>}
+            <Typography variant="body1" sx={{
+                ...noSelect,
+                marginRight: 'auto',
+            }}>
+                {t(`Theme`)}: {theme === 'light' ? t(`Light`) : t(`Dark`)}
+            </Typography>
             <Box component="span" sx={{
                 display: 'inline-block',
                 position: 'relative',
@@ -72,7 +79,6 @@ export function ThemeSwitch({
                         cursor: 'pointer',
                     }} />
             </Box >
-            {showText && <Typography variant="h6" sx={{ ...noSelect }}>{isDark ? 'Dark' : 'Light'}</Typography>}
         </Stack>
     )
 }

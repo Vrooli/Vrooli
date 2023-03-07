@@ -15,7 +15,7 @@ import { Stack } from '@mui/system';
 import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
-import { ThemeSwitch } from 'components/inputs';
+import { LanguageSelector, TextSizeButtons, ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useCustomMutation } from 'api/hooks';
 import { HistorySearchPageTabOption, PubSub, shapeProfile } from 'utils';
@@ -259,28 +259,14 @@ export const AccountMenu = ({
                     padding: 1,
                 }}>
                     {/* Theme switch */}
-                    <Stack direction="row" spacing={1} sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        paddingLeft: 1,
-                        paddingRight: 1,
-                    }}>
-                        <Typography variant="body1" sx={{
-                            ...noSelect,
-                            marginRight: 'auto',
-                        }}>
-                            {t(`Theme`)}: {formik.values.theme === 'light' ? t(`Light`) : t(`Dark`)}
-                        </Typography>
-                        <ThemeSwitch
-                            showText={false}
-                            theme={formik.values.theme as 'light' | 'dark'}
-                            onChange={(t) => formik.setFieldValue('theme', t)}
-                        />
-                    </Stack>
-                    {/* Preferred language selector */}
-                    {/* TODO */}
+                    <ThemeSwitch
+                        theme={formik.values.theme as 'light' | 'dark'}
+                        onChange={(t) => formik.setFieldValue('theme', t)}
+                    />
                     {/* Text size quantity box */}
-                    {/* TODO */}
+                    <TextSizeButtons session={session} />
+                    {/* Preferred language selector */}
+                    <LanguageSelector session={session} />
                     {/* Focus mode */}
                     {/* TODO */}
                 </Box>

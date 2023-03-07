@@ -5,6 +5,7 @@ export * from './EditableLabel/EditableLabel';
 export * from './generated';
 export * from './JsonInput/JsonInput';
 export * from './LanguageInput/LanguageInput';
+export * from './LanguageSelector/LanguageSelector';
 export * from './MarkdownInput/MarkdownInput';
 export * from './PasswordTextField/PasswordTextField';
 export * from './PreviewSwitch/PreviewSwitch';

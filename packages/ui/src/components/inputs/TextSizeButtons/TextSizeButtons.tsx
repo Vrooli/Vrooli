@@ -11,6 +11,9 @@ import { getCookieFontSize } from 'utils/cookies';
 const smallestFontSize = 10;
 const largestFontSize = 20;
 
+/**
+ * Updates the font size of the entire app
+ */
 export function TextSizeButtons({
     session,
 }: TextSizeButtonsProps) {
