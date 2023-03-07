@@ -5,19 +5,18 @@ import {
     CommandPalette,
     FindInPage,
     Footer,
-    Navbar,
     PullToRefresh,
     SnackStack,
     WelcomeDialog,
 } from 'components';
 import { getDeviceInfo, getUserLanguages, PubSub, themes, useReactHash } from 'utils';
-import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
+import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme, createTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useCustomMutation } from 'api/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
 import { guestSession } from 'utils/authentication';
-import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
+import { getCookieFontSize, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
@@ -25,16 +24,28 @@ import i18next from 'i18next';
 import { Routes } from 'Routes';
 
 /**
+ * Adds font size to theme
+ */
+const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
+    ...theme,
+    typography: {
+        fontSize,
+    },
+})
+
+/**
  * Attempts to find theme without using session, defaulting to light
  */
 const findThemeWithoutSession = (): Theme => {
+    const fontSize = getCookieFontSize() ?? 14;
+    console.log('GOT FONT SIZE', fontSize)
     // First, try getting theme from local storage
     const cookieTheme = getCookieTheme();
-    if (cookieTheme) return themes[cookieTheme];
+    if (cookieTheme) return withFontSize(themes[cookieTheme], fontSize);
     // If not found or invalid, try getting theme from window
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     // Default to light if not found
-    return prefersDark ? themes.dark : themes.light;
+    return withFontSize(prefersDark ? themes.dark : themes.light, fontSize);
 }
 
 const useStyles = makeStyles(() => ({
@@ -82,17 +93,27 @@ export function App() {
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
+    const [fontSize, setFontSize] = useState(getCookieFontSize() ?? 14);
     const [isLoading, setIsLoading] = useState(false);
     const [isCelebrating, setIsCelebrating] = useState(false);
     const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
 
-    // Sets language
+    // Applies language change
     useEffect(() => {
         const lng = getUserLanguages(session)[0]
         i18next.changeLanguage(lng);
     }, [session]);
+
+    // Applies font size change
+    useEffect(() => {
+        console.log('Applying font size change', fontSize, withFontSize(themes[theme.palette.mode], fontSize));
+        setTheme(withFontSize(themes[theme.palette.mode], fontSize));
+    }, [fontSize, theme.palette.mode]);
+    useEffect(() => {
+        console.log('THEME UPDATED', theme);
+    }, [theme]);
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
@@ -100,13 +121,13 @@ export function App() {
      */
     const setThemeAndMeta = useCallback((theme: Theme) => {
         // Update state
-        setTheme(theme);
+        setTheme(withFontSize(theme, fontSize));
         // Update meta tags, for theme-color and apple-mobile-web-app-status-bar-style
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.palette.primary.dark);
         document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', theme.palette.primary.dark);
         // Also store in local storage
         setCookieTheme(theme.palette.mode);
-    }, [setTheme]);
+    }, [fontSize]);
 
     // If anchor tag in url, scroll to element
     const hash = useReactHash();
@@ -287,6 +308,11 @@ export function App() {
             const newTheme = themes[data] ?? themes.light
             setThemeAndMeta(newTheme);
         });
+        // Handle font size updates
+        let fontSizeSub = PubSub.get().subscribeFontSize((data) => {
+            setFontSize(data);
+            setCookieFontSize(data);
+        });
         // Handle welcome message
         let welcomeSub = PubSub.get().subscribeWelcome(() => {
             setIsWelcomeDialogOpen(true);
@@ -297,6 +323,7 @@ export function App() {
             PubSub.get().unsubscribe(celebrationSub);
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
+            PubSub.get().unsubscribe(fontSizeSub);
             PubSub.get().unsubscribe(welcomeSub);
         })
     }, [checkSession, setThemeAndMeta]);

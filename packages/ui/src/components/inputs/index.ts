@@ -15,5 +15,6 @@ export * from './Selector/Selector';
 export * from './standards';
 export * from './StandardVersionSelectSwitch/StandardVersionSelectSwitch';
 export * from './TagSelector/TagSelector';
+export * from './TextSizeButtons/TextSizeButtons';
 export * from './ThemeSwitch/ThemeSwitch';
 export * from './VersionInput/VersionInput';
