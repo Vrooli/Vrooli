@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AlertDialog,
+    BannerAd,
     BottomNav,
     CommandPalette,
     FindInPage,
@@ -152,6 +153,13 @@ export function App() {
         // Also store in local storage
         setCookieTheme(theme.palette.mode);
     }, [fontSize, isLeftHanded]);
+
+    /**
+     * Sets up google adsense
+     */
+    useEffect(() => {
+        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+    }, []);
 
     // If anchor tag in url, scroll to element
     const hash = useReactHash();
@@ -437,6 +445,7 @@ export function App() {
                         />
                     </Box>
                     <BottomNav session={session} />
+                    <BannerAd session={session} />
                     <Footer />
                 </Box>
             </ThemeProvider>

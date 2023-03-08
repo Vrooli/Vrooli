@@ -178,7 +178,7 @@ export const BookmarkModel: ModelLogic<{
                 'userId',
             ],
             graphqlFields: [],
-            toGraphQL: () => ({}),
+            toGraphQL: async () => ({}),
         },
     },
     mutate: {

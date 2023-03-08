@@ -162,7 +162,6 @@ export const HomeView = ({
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
                 <HomePrompt />
-                {/* ========= #region Custom SearchBar ========= */}
                 <SiteSearchBar
                     id="main-search"
                     placeholder='SearchHome'
@@ -175,7 +174,6 @@ export const HomeView = ({
                     showSecondaryLabel={true}
                     sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
-                {/* =========  #endregion ========= */}
             </Stack>
             {/* Result feeds */}
             <Stack spacing={10} direction="column" mt={10}>
