@@ -468,7 +468,7 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<Model['PrismaUpdate']> : never : never
     }
     /**
-     * Triggers when a mutation is performed on the object
+     * Triggers when (or before in some cases) a mutation is performed on the object
      */
     trigger?: {
         onCommon?: ({ createAuthData, created, deleted, prisma, updateAuthData, updated, updateInput, userData }: {
@@ -494,8 +494,19 @@ export type Mutater<Model extends {
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void> : never,
-        onDeleted?: ({ deleted, prisma, userData }: {
+        /**
+         * Triggered before an object is deleted. This is useful if you need to find data about 
+         * the deleting objects' relationships, which may be cascaded on delete
+         */
+        beforeDeleted?: ({ deletingIds, prisma, userData }: {
+            deletingIds: string[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<any>,
+        onDeleted?: ({ beforeDeletedData, deleted, deletedIds, prisma, userData }: {
+            beforeDeletedData: any,
             deleted: Count,
+            deletedIds: string[],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
