@@ -6,7 +6,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, DialogTitle, ShareSiteDialog } from 'components';
+import { BaseObjectDialog, DialogTitle, LargeDialog, ShareSiteDialog } from 'components';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 import { SearchList } from 'components/lists';
@@ -22,7 +22,6 @@ import { SearchParams } from 'utils/search/schemas/base';
 import { CommonKey } from '@shared/translations';
 import { lazily } from 'react-lazily';
 import { CreateProps } from 'views/objects/types';
-import { CreateViewProps } from 'views/main/types';
 const { ApiCreate } = lazily(() => import('../../../../views/objects/api/ApiCreate/ApiCreate'));
 const { NoteCreate } = lazily(() => import('../../../../views/objects/note/NoteCreate/NoteCreate'));
 const { OrganizationCreate } = lazily(() => import('../../../../views/objects/organization/OrganizationCreate/OrganizationCreate'));
@@ -66,13 +65,13 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     const [, setLocation] = useLocation();
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
-    const { helpText, titleAria } = useMemo(() => {
+    const { helpText, titleId } = useMemo(() => {
         return {
             helpText: help ?? t('SelectOrCreateDialogHelp', { objectType: t(objectType, { count: 1, defaultValue: objectType }) }),
-            titleAria: `select-or-create-${objectType}-dialog-title`,
+            titleId: `select-or-create-${objectType}-dialog-title`,
         };
     }, [help, objectType, t]);
-    const CreateView = useMemo<((props: CreateViewProps) => JSX.Element) | null>(() =>
+    const CreateView = useMemo<((props: CreateProps<any>) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : (createMap as any)[objectType.replace('Version', '')], [objectType]);
 
     const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
@@ -155,30 +154,12 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     }, [handleAdd, onClose, handleCreateClose, itemData, query]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="select-or-create-dialog"
+            isOpen={isOpen}
             onClose={onClose}
-            scroll="body"
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': {
-                    overflow: 'visible',
-                    minWidth: 'min(600px, 100%)',
-                },
-                '& .MuiDialog-paperScrollBody': {
-                    overflow: 'visible',
-                    background: palette.background.default,
-                    margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
-                    minHeight: { xs: '100vh', sm: 'auto' },
-                    display: { xs: 'block', sm: 'inline-block' },
-                },
-                // Remove ::after element that is added to the dialog
-                '& .MuiDialog-container::after': {
-                    content: 'none',
-                },
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             {/* Invite user dialog */}
             <ShareSiteDialog
@@ -193,14 +174,14 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                 zIndex={zIndex + 1}
             >
                 <CreateView
-                    onCreated={handleCreated as any}
-                    onCancel={handleCreateClose}
+                    // onCreated={handleCreated as any}
+                    // onCancel={handleCreateClose}
                     session={session}
                     zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>}
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={t(`Add${objectType.replace('Version', '')}` as CommonKey)}
                 helpText={helpText}
                 onClose={onClose}
@@ -229,6 +210,6 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                     zIndex={zIndex}
                 />
             </Stack>
-        </Dialog>
+        </LargeDialog>
     )
 }

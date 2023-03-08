@@ -26,7 +26,7 @@ const defaultState = (): AlertDialogState => ({
     buttons: [{ label: i18next.t('Ok') }],
 });
 
-const titleAria = 'alert-dialog-title';
+const titleId = 'alert-dialog-title';
 const descriptionAria = 'alert-dialog-description';
 
 const AlertDialog = () => {
@@ -59,11 +59,11 @@ const AlertDialog = () => {
             open={open}
             disableScrollLock={true}
             onClose={resetState}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             aria-describedby={descriptionAria}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={firstString(state.title)}
                 onClose={resetState}
             />

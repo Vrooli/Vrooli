@@ -2,15 +2,16 @@ import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme }
 import { useLocation } from '@shared/route';
 import { ApiVersion, ResourceList, BookmarkFor, FindVersionInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
 import { ApiViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { ResourceListVertical } from "components/lists";
-import { DonateIcon, EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 
 export const ApiView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -174,11 +175,6 @@ export const ApiView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
                     <ShareButton object={apiVersion} zIndex={zIndex} />
                     <ReportsLink object={apiVersion} />
                     <BookmarkButton
@@ -197,6 +193,14 @@ export const ApiView = ({
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Api',
+                }}
+            />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

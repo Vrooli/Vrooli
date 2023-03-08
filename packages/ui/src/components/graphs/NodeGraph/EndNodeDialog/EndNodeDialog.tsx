@@ -5,14 +5,14 @@ import { nodeEndValidation, nodeTranslationValidation } from '@shared/validation
 import { useFormik } from 'formik';
 import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 import { linkColors } from 'styles';
 import { useTranslation } from 'react-i18next';
-import { GqlModelType, Node } from '@shared/consts';
+import { Node } from '@shared/consts';
 
-const titleAria = 'end-node-dialog-title';
+const titleId = 'end-node-dialog-title';
 
 export const EndNodeDialog = ({
     handleClose,
@@ -52,13 +52,19 @@ export const EndNodeDialog = ({
         },
     });
 
-    const translations = useTranslatedFields({
+    const {
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: language,
         fields: ['description', 'name'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: nodeTranslationValidation.update({}),
     });
+    useEffect(() => {
+        setLanguage(language);
+    }, [language, setLanguage]);
 
     const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
         // Don't close if formik is dirty and clicked outside
@@ -72,13 +78,13 @@ export const EndNodeDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 onClose={handleCancel}
                 title={t(isEditing ? 'NodeEndEdit' : 'NodeEndInfo')}
             />
@@ -146,6 +152,7 @@ export const EndNodeDialog = ({
                         </Tooltip>
                     </Grid>
                     {isEditing && <GridSubmitButtons
+                        display="dialog"
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}

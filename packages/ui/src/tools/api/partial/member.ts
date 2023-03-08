@@ -10,9 +10,14 @@ export const member: GqlPartial<Member> = {
         updated_at: true,
         isAdmin: true,
         permissions: true,
-        organization: async () => rel((await import('./organization')).organization, 'nav'),
-        user: async () => rel((await import('./user')).user, 'nav'),
+        roles: async () => rel((await import('./role')).role, 'list'),
     },
-    full: {},
-    list: {},
+    full: {
+        organization: async () => rel((await import('./organization')).organization, 'full'),
+        user: async () => rel((await import('./user')).user, 'full'),
+    },
+    list: {
+        organization: async () => rel((await import('./organization')).organization, 'list'),
+        user: async () => rel((await import('./user')).user, 'list'),
+    },
 }

@@ -2,10 +2,12 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
 import { ApiModel } from "./api";
+import { apiVersionValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'ApiVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -43,6 +45,7 @@ export const ApiVersionModel: ModelLogic<{
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'ApiVersion',
+            pullRequest: 'PullRequest',
             reports: 'Report',
             resourceList: 'ResourceList',
             root: 'Api',
@@ -75,7 +78,38 @@ export const ApiVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ prisma, userData, data }) => ({
+                id: data.id,
+                callLink: data.callLink,
+                documentationLink: noNull(data.documentationLink),
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: data.versionLabel,
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Api', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ prisma, userData, data }) => ({
+                callLink: noNull(data.callLink),
+                documentationLink: noNull(data.documentationLink),
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Api', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
+        },
+        yup: apiVersionValidation,
+    },
     search: {
         defaultSort: ApiVersionSortBy.DateUpdatedDesc,
         sortBy: ApiVersionSortBy,

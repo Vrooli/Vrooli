@@ -6,6 +6,7 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { defaultPermissions, oneIsPublic } from "../utils";
+import { runProjectValidation } from "@shared/validation";
 
 const __typename = 'RunProject' as const;
 type Permissions = Pick<RunProjectYou, 'canDelete' | 'canUpdate' | 'canRead'>;
@@ -62,7 +63,19 @@ export const RunProjectModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: runProjectValidation,
+    },
     search: {
         defaultSort: RunProjectSortBy.DateUpdatedDesc,
         sortBy: RunProjectSortBy,

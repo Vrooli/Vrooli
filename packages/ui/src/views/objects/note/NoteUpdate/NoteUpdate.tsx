@@ -5,15 +5,17 @@ import { NoteUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, TagSelector } from "components";
+import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TagSelector, TopBar } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, NoteVersion, NoteVersionUpdateInput, ResourceList } from "@shared/consts";
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 import { noteVersionUpdate } from "api/generated/endpoints/noteVersion_update";
+import { BaseForm } from "forms";
 
 export const NoteUpdate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: NoteUpdateProps) => {
@@ -68,30 +70,21 @@ export const NoteUpdate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name', 'text'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: noteVersionTranslationValidation.update({}),
     });
-    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => handleTranslationBlur(formik, 'translationsUpdate', e, language), [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => handleTranslationChange(formik, 'translationsUpdate', e, language), [formik, language]);
 
     useEffect(() => {
         setRelationships({
@@ -105,66 +98,53 @@ export const NoteUpdate = ({
         if (noteVersion?.translations?.length) {
             setLanguage(getPreferredLanguage(noteVersion.translations.map(t => t.language), getUserLanguages(session)));
         }
-    }, [noteVersion, session]);
-
-    const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-            <Grid item xs={12}>
-                <PageTitle titleKey='UpdateNote' session={session} />
-            </Grid>
-            <Grid item xs={12} mb={4}>
-                <RelationshipButtons
-                    isEditing={true}
-                    objectType={'Note'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
-                    session={session}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12}>
-                <LanguageInput
-                    currentLanguage={language}
-                    handleAdd={handleAddLanguage}
-                    handleDelete={handleLanguageDelete}
-                    handleCurrent={setLanguage}
-                    session={session}
-                    translations={formik.values.translationsUpdate}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            {/* TODO */}
-            <GridSubmitButtons
-                errors={translations.errorsWithTranslations}
-                isCreate={false}
-                loading={formik.isSubmitting}
-                onCancel={onCancel}
-                onSetSubmitting={formik.setSubmitting}
-                onSubmit={formik.handleSubmit}
-            />
-        </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, translations, onCancel]);
+    }, [noteVersion, session, setLanguage]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            {loading ? (
-                <Box sx={{
-                    position: 'absolute',
-                    top: '-5vh', // Half of toolbar height
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <CircularProgress size={100} color="secondary" />
-                </Box>
-            ) : formInput}
-        </form>
+        <>
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'UpdateNote',
+                }}
+            />
+            <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'Note'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsUpdate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    {/* TODO */}
+                    <GridSubmitButtons
+                        display={display}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={false}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
+                </Grid>
+            </BaseForm>
+        </>
     )
 }

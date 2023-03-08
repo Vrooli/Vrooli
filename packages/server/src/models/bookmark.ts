@@ -1,4 +1,4 @@
-import { BookmarkCreateInput, BookmarkFor, BookmarkSortBy, BookmarkUpdateInput } from "@shared/consts";
+import { BookmarkCreateInput, BookmarkFor, BookmarkSortBy, BookmarkUpdateInput, GqlModelType, MaxObjects } from "@shared/consts";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -9,11 +9,15 @@ import { Bookmark, BookmarkSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { ApiModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
+import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { SelectWrap } from "../builders/types";
-import { onlyValidIds, selPad } from "../builders";
+import { onlyValidIds, selPad, shapeHelper, uppercaseFirstLetter } from "../builders";
 import { NoteModel } from "./note";
 import { exists } from "@shared/utils";
+import { bookmarkValidation } from "@shared/validation";
+import { Trigger } from "../events";
+import { getLogic } from "../getters";
+import { defaultPermissions } from "../utils";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs['create'] } = {
     Api: 'api',
@@ -31,6 +35,27 @@ const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs['create
     Standard: 'standard',
     Tag: 'tag',
     User: 'user',
+}
+
+/**
+ * Searches for the first non-null field in an object that matches one of the specified fields.
+ *
+ * @param obj - The object to search.
+ * @param fieldsToCheck - The list of field names to check.
+ * @returns An array with the field name and its value if found, or `undefined` if none of the fields exist in the object.
+ */
+const findFirstRel = (obj: Record<string, any>, fieldsToCheck: string[]): [string | undefined, string | undefined] => {
+    // Loop through each field in the list of fields to check
+    for (const fieldName of fieldsToCheck) {
+        // Get the value of the current field from the object
+        const value = obj[fieldName];
+        // If the value is not null or undefined, return the field name and value as an array
+        if (value !== null && value !== undefined) {
+            return [fieldName, value];
+        }
+    }
+    // If no non-null field is found, return undefined
+    return [undefined, undefined];
 }
 
 const __typename = 'Bookmark' as const;
@@ -132,8 +157,94 @@ export const BookmarkModel: ModelLogic<{
             user: 'User',
         },
         countFields: {},
+        supplemental: {
+            // Make sure to query for every bookmarked item, 
+            // so we can ensure that the mutation trigger can increment the bookmark count
+            dbFields: [
+                'apiId',
+                'commentId',
+                'issueId',
+                'noteId',
+                'organizationId',
+                'postId',
+                'projectId',
+                'questionId',
+                'questionAnswerId',
+                'quizId',
+                'routineId',
+                'smartContractId',
+                'standardId',
+                'tagId',
+                'userId',
+            ],
+            graphqlFields: [],
+            toGraphQL: async () => ({}),
+        },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                by: { connect: { id: userData!.id } },
+                [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, prisma, userData })),
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Update'], isOneToOne: true, isRequired: false, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, prisma, userData })),
+            } as any)
+        },
+        trigger: {
+            onCreated: async ({ created, prisma, userData }) => {
+                for (const c of created) {
+                    // Find type and id of bookmarked object
+                    const [objectRel, objectId] = findFirstRel(c, ['apiId', 'commentId', 'issueId', 'noteId', 'organizationId', 'postId', 'projectId', 'questionId', 'questionAnswerId', 'quizId', 'routineId', 'smartContractId', 'standardId', 'tagId', 'userId'])
+                    if (!objectRel || !objectId) return;
+                    // Object type is objectRel with "Id" removed and first letter capitalized
+                    const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
+                    // Update "bookmarks" count for bookmarked object
+                    const { delegate } = getLogic(['delegate'], objectType, userData.languages, 'bookmark onCreated');
+                    await delegate(prisma).update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
+                    // Trigger bookmarkCreated event
+                    Trigger(prisma, userData.languages).objectBookmark(true, objectType, objectId, userData.id)
+                }
+            },
+            beforeDeleted: async ({ deletingIds, prisma }) => {
+                // Grab bookmarked object id and type
+                const deleting = await prisma.bookmark.findMany({
+                    where: { id: { in: deletingIds } },
+                    select: { apiId: true, commentId: true, issueId: true, noteId: true, organizationId: true, postId: true, projectId: true, questionId: true, questionAnswerId: true, quizId: true, routineId: true, smartContractId: true, standardId: true, tagId: true, userId: true }
+                });
+                // Find type and id of bookmarked object
+                const bookmarkedPairs: [BookmarkFor, string][] = deleting.map(c => {
+                    const [objectRel, objectId] = findFirstRel(c, ['apiId', 'commentId', 'issueId', 'noteId', 'organizationId', 'postId', 'projectId', 'questionId', 'questionAnswerId', 'quizId', 'routineId', 'smartContractId', 'standardId', 'tagId', 'userId'])
+                    if (!objectRel || !objectId) return [null, null];
+                    // Object type is objectRel with "Id" removed and first letter capitalized
+                    const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
+                    return [objectType, objectId]
+                }).filter(([objectType, objectId]) => objectType && objectId) as [BookmarkFor, string][];
+                // Group by object type
+                const grouped: { [key in BookmarkFor]?: string[] } = bookmarkedPairs.reduce((acc, [objectType, objectId]) => {
+                    if (!acc[objectType]) acc[objectType] = [];
+                    acc[objectType].push(objectId);
+                    return acc;
+                }, {});
+                return grouped
+            },
+            onDeleted: async ({ beforeDeletedData, prisma, userData }) => {
+                // For each bookmarked object type, decrement the bookmark count
+                for (const [objectType, objectIds] of Object.entries(beforeDeletedData)) {
+                    const { delegate } = getLogic(['delegate'], objectType as GqlModelType, userData.languages, 'bookmark onDeleted');
+                    await (delegate(prisma) as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
+                    // For each bookmarked object, trigger bookmarkDeleted event
+                    for (const objectId of (objectIds as string[])) {
+                        Trigger(prisma, userData.languages).objectBookmark(false, objectType as BookmarkFor, objectId, userData.id)
+                    }
+                }
+            }
+        },
+        yup: bookmarkValidation,
+    },
     query: {
         async getIsBookmarkeds(
             prisma: PrismaType,
@@ -167,7 +278,7 @@ export const BookmarkModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'labelWrapped',
+                { list: BookmarkListModel.search!.searchStringQuery() },
                 { api: ApiModel.search!.searchStringQuery() },
                 { comment: CommentModel.search!.searchStringQuery() },
                 { issue: IssueModel.search!.searchStringQuery() },
@@ -186,59 +297,40 @@ export const BookmarkModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
-    // TODO replace with mutate and validate. Trigger should update "bookmarks" count of object being bookmarkred
-    // bookmark: async (prisma: PrismaType, userData: SessionUser, input: BookmarkInput): Promise<boolean> => {
-    //     prisma.bookmark.findMany({
-    //         where: {
-    //             tagId: null
-    //         }
-    //     })
-    //     // Get prisma delegate for type of object being bookmarkred
-    //     const { delegate } = getLogic(['delegate'], input.bookmarkFor, userData.languages, 'bookmark');
-    //     // Check if object being bookmarkred exists
-    //     const bookmarkringFor: null | { id: string, bookmarks: number } = await delegate(prisma).findUnique({ where: { id: input.forConnect }, select: { id: true, bookmarks: true } }) as any;
-    //     if (!bookmarkringFor)
-    //         throw new CustomError('0110', 'ErrorUnknown', userData.languages, { bookmarkFor: input.bookmarkFor, forId: input.forConnect });
-    //     // Check if bookmark already exists on object by this user TODO fix for tags
-    //     const bookmark = await prisma.bookmark.findFirst({
-    //         where: {
-    //             byId: userData.id,
-    //             [`${forMapper[input.bookmarkFor]}Id`]: input.forConnect
-    //         }
-    //     })
-    //     // If bookmark already existed and we want to bookmark, 
-    //     // or if bookmark did not exist and we don't want to bookmark, skip
-    //     if ((bookmark && input.isBookmark) || (!bookmark && !input.isBookmark)) return true;
-    //     // If bookmark did not exist and we want to bookmark, create
-    //     if (!bookmark && input.isBookmark) {
-    //         // Create
-    //         await prisma.bookmark.create({
-    //             data: {
-    //                 byId: userData.id,
-    //                 [`${forMapper[input.bookmarkFor]}Id`]: input.forConnect
-    //             }
-    //         })
-    //         // Increment bookmark count on object
-    //         await delegate(prisma).update({
-    //             where: { id: input.forConnect },
-    //             data: { bookmarks: bookmarkringFor.bookmarks + 1 }
-    //         })
-    //         // Handle trigger
-    //         await Trigger(prisma, userData.languages).objectBookmark(true, input.bookmarkFor, input.forConnect, userData.id);
-    //     }
-    //     // If bookmark did exist and we don't want to bookmark, delete
-    //     else if (bookmark && !input.isBookmark) {
-    //         // Delete bookmark
-    //         await prisma.bookmark.delete({ where: { id: bookmark.id } })
-    //         // Decrement bookmark count on object
-    //         await delegate(prisma).update({
-    //             where: { id: input.forConnect },
-    //             data: { bookmarks: bookmarkringFor.bookmarks - 1 }
-    //         })
-    //         // Handle trigger
-    //         await Trigger(prisma, userData.languages).objectBookmark(false, input.bookmarkFor, input.forConnect, userData.id);
-    //     }
-    //     return true;
-    // }
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            by: 'User',
+            api: 'Api',
+            comment: 'Comment',
+            issue: 'Issue',
+            note: 'Note',
+            organization: 'Organization',
+            post: 'Post',
+            project: 'Project',
+            question: 'Question',
+            questionAnswer: 'QuestionAnswer',
+            quiz: 'Quiz',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+            tag: 'Tag',
+            user: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                by: { id: userId }
+            }),
+        },
+    },
 })

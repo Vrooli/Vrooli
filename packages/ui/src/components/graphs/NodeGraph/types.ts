@@ -17,7 +17,7 @@ export interface AddAfterLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -28,7 +28,7 @@ export interface AddBeforeLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 

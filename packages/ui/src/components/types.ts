@@ -1,4 +1,9 @@
+import { Session } from "@shared/consts";
 import { SvgProps } from "@shared/icons";
+
+export interface BannerAdProps {
+    session: Session | undefined;
+}
 
 export type PageTab<T extends any> = {
     color?: string,
@@ -15,6 +20,7 @@ export type PageTab<T extends any> = {
 export interface PageTabsProps<T extends any> {
     ariaLabel: string,
     currTab: PageTab<T>,
+    fullWidth?: boolean,
     onChange: (event: React.ChangeEvent<{}>, value: any) => void,
     tabs: PageTab<T>[],
 }

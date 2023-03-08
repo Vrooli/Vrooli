@@ -8,7 +8,7 @@ export interface GeneratedGridProps {
     formik: any;
     layout?: GridContainer | GridContainerBase;
     onUpload: (fieldName: string, files: string[]) => void;
-    session: Session;
+    session: Session | undefined;
     theme: Theme;
     zIndex: number;
 }
@@ -19,7 +19,7 @@ export interface GeneratedInputComponentProps {
     formik: any;
     index?: number;
     onUpload: (fieldName: string, files: string[]) => void;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 

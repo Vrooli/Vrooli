@@ -3,6 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { runProjectStepValidation } from "@shared/validation";
 
 const __typename = 'RunProjectStep' as const;
 const suppFields = [] as const;
@@ -40,6 +41,18 @@ export const RunProjectStepModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: runProjectStepValidation,
+    },
     validate: {} as any,
 })

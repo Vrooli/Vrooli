@@ -53,6 +53,16 @@ export const MaxObjects = {
     },
     ApiVersion: 100000,
     Award: 1000,
+    Bookmark: {
+        User: {
+            private: {
+                noPremium: 100,
+                premium: 10000,
+            },
+            public: 0,
+        },
+        Organization: 0
+    },
     Comment: {
         User: {
             private: 0,

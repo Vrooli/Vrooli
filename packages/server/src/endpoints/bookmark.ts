@@ -36,19 +36,21 @@ export const typeDef = gql`
     input BookmarkCreateInput {
         id: ID!
         bookmarkFor: BookmarkFor!
-        label: String
         forConnect: ID!
+        listConnect: ID
+        listCreate: BookmarkListCreateInput
     }
     input BookmarkUpdateInput {
         id: ID!
-        label: String
+        listConnect: ID
+        listUpdate: BookmarkListUpdateInput
     }
     type Bookmark {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        label: String!
         by: User!
+        list: BookmarkList!
         to: BookmarkTo!
     }
 
@@ -56,6 +58,7 @@ export const typeDef = gql`
         after: String
         excludeLinkedToTag: Boolean
         ids: [ID!]
+        listId: ID
         searchString: String
         sortBy: BookmarkSortBy
         take: Int

@@ -4,6 +4,7 @@ import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } 
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
+import { pushDeviceValidation } from "@shared/validation";
 
 const __typename = 'PushDevice' as const;
 const suppFields = [] as const;
@@ -43,7 +44,18 @@ export const PushDeviceModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: pushDeviceValidation,
+    },
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

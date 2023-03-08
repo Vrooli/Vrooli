@@ -26,10 +26,10 @@ export const typeDef = gql`
         isPrivate: Boolean
         versionLabel: String!
         versionNotes: String
+        directoryListingsConnect: [ID!]
         rootConnect: ID
         rootCreate: NoteCreateInput
         translationsCreate: [NoteVersionTranslationCreateInput!]
-        directoryListingsConnect: [ID!]
     }
     input NoteVersionUpdateInput {
         id: ID!
@@ -37,12 +37,12 @@ export const typeDef = gql`
         isPrivate: Boolean
         versionLabel: String
         versionNotes: String
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
         rootUpdate: NoteUpdateInput
         translationsCreate: [NoteVersionTranslationCreateInput!]
         translationsUpdate: [NoteVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
-        directoryListingsConnect: [ID!]
-        directoryListingsDisconnect: [ID!]
     }
     type NoteVersion {
         id: ID!

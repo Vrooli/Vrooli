@@ -18,7 +18,7 @@ export const SortButton = ({
 
     const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
 
-    const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
+    const handleSortOpen = (event: any) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
         setSortAnchorEl(null);
         if (selected) setSortBy(selected);

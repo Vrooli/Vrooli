@@ -1,8 +1,9 @@
 import { Box, IconButton, Palette, Stack, useTheme } from '@mui/material';
 import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon } from '@shared/icons';
 import { SetLocation, useLocation } from '@shared/route';
-import { PageTitle } from 'components';
+import { TopBar } from 'components';
 import { useCallback, useMemo, useState } from 'react';
+import { TutorialViewProps } from '../types';
 
 type PageProps = {
     palette: Palette;
@@ -11,37 +12,37 @@ type PageProps = {
 
 // const Page0 = () => {
 //     return (<>
-//         <PageTitle title="What is Vrooli?" session={session} />
+//         <PageTitle title="What is Vrooli?" />
 //     </>)
 // }
 
 // const Page1 = () => {
 //     return (<>
-//         <PageTitle title="How does it work?" session={session} />
+//         <PageTitle title="How does it work?" />
 //     </>)
 // }
 
 // const Page2 = () => {
 //     return (<>
-//         <PageTitle title="What is a routine?" session={session} />
+//         <PageTitle title="What is a routine?" />
 //     </>)
 // }
 
 // const Page3 = () => {
 //     return (<>
-//         <PageTitle title="How is work structured?" session={session} />
+//         <PageTitle title="How is work structured?" />
 //     </>)
 // }
 
 // const Page4 = () => {
 //     return (<>
-//         <PageTitle title="LRD Process" session={session} />
+//         <PageTitle title="LRD Process" />
 //     </>)
 // }
 
 // const Page5 = () => {
 //     return (<>
-//         <PageTitle title="That's the gist!" session={session} />
+//         <PageTitle title="That's the gist!" />
 //     </>)
 // }
 
@@ -49,7 +50,10 @@ type PageProps = {
  * A 6-page tutorial for new users. Goes through the basics of Vrooli.
  * At the bottom of the page, there is a row of buttons to navigate between pages
  */
-export const TutorialView = () => {
+export const TutorialView = ({
+    display = 'page',
+    session,
+}: TutorialViewProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
 
@@ -75,6 +79,14 @@ export const TutorialView = () => {
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Tutorial',
+                }}
+            />
             {currentPage}
             {/* Buttons */}
             <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', marginTop: '1em' }}>

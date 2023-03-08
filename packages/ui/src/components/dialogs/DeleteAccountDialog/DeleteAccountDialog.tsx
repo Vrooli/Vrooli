@@ -23,7 +23,7 @@ import { PubSub } from 'utils';
 import { useFormik } from 'formik';
 import { userDeleteOne } from 'api/generated/endpoints/user_deleteOne';
 
-const titleAria = 'delete-object-dialog-title';
+const titleId = 'delete-object-dialog-title';
 
 /**
  * Dialog for deleting your account
@@ -78,13 +78,13 @@ export const DeleteAccountDialog = ({
         <Dialog
             open={isOpen}
             onClose={() => { close(); }}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={`Delete "${name}"`}
                 onClose={() => { close() }}
             />

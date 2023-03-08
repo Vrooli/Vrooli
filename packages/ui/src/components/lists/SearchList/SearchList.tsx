@@ -2,7 +2,7 @@
  * Search list for a single object type
  */
 import { Box, Button, List, Typography, useTheme } from "@mui/material";
-import { SearchButtonsList, SiteSearchBar } from "components";
+import { SearchButtons, SiteSearchBar } from "components";
 import { useCallback, useEffect, useMemo } from "react";
 import { PlusIcon } from '@shared/icons';
 import { SearchListProps } from "../types";
@@ -15,7 +15,7 @@ export function SearchList<DataType extends NavigableObject>({
     beforeNavigation,
     canSearch = true,
     handleAdd,
-    hideRoles,
+    hideUpdateButton,
     id,
     searchPlaceholder,
     take = 20,
@@ -57,13 +57,13 @@ export function SearchList<DataType extends NavigableObject>({
     const listItems = useMemo(() => listToListItems({
         beforeNavigation,
         dummyItems: new Array(5).fill(searchType),
-        hideRoles,
+        hideUpdateButton,
         items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: `${searchType}-list-item`,
         loading,
         session: session,
         zIndex,
-    }), [beforeNavigation, searchType, hideRoles, allData, parseData, pageData, loading, session, zIndex])
+    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, session, zIndex])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -140,7 +140,7 @@ export function SearchList<DataType extends NavigableObject>({
                     sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
             </Box>
-            <SearchButtonsList
+            <SearchButtons
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
                 searchType={searchType}

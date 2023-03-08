@@ -4,6 +4,7 @@ import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVer
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
+import { projectVersionDirectoryValidation } from "@shared/validation";
 
 const __typename = 'ProjectVersionDirectory' as const;
 const suppFields = [] as const;
@@ -59,6 +60,18 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: projectVersionDirectoryValidation,
+    },
     validate: {} as any,
 })

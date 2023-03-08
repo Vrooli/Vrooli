@@ -1,6 +1,6 @@
 import { Box, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LineGraphCard, DateRangeMenu, PageTabs, CardGrid } from 'components';
+import { LineGraphCard, DateRangeMenu, PageTabs, CardGrid, TopBar } from 'components';
 import { useTranslation } from 'react-i18next';
 import { displayDate, statsDisplay } from 'utils';
 import { StatsViewProps } from '../types';
@@ -51,6 +51,7 @@ const MIN_DATE = new Date(2023, 1, 1);
  * Displays site-wide statistics, organized by time period.
  */
 export const StatsView = ({
+    display = 'page',
     session,
 }: StatsViewProps) => {
     const { t } = useTranslation();
@@ -62,7 +63,7 @@ export const StatsView = ({
     });
     // Menu for picking date range.
     const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-    const handleDateRangeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
+    const handleDateRangeOpen = (event: any) => setCustomRangeAnchorEl(event.currentTarget);
     const handleDateRangeClose = () => {
         setCustomRangeAnchorEl(null)
     };
@@ -146,11 +147,19 @@ export const StatsView = ({
 
     return (
         <>
-            <PageTabs
-                ariaLabel="stats-period-tabs"
-                currTab={currTab}
-                onChange={handleTabChange}
-                tabs={tabs}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'StatisticsShort',
+                }}
+                below={<PageTabs
+                    ariaLabel="stats-period-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
             />
             {/* Date range picker */}
             <DateRangeMenu

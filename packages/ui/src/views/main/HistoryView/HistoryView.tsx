@@ -1,7 +1,7 @@
-import { Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, ListTitleContainer, PageTabs } from 'components';
+import { SiteSearchBar, ListTitleContainer, PageTabs, TopBar } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
 import { HistoryViewProps } from '../types';
@@ -20,13 +20,10 @@ enum TabOptions {
 const zIndex = 200;
 
 /**
- * Containers a search bar, lists of routines, projects, tags, and organizations, 
- * and a FAQ section.
- * If a search string is entered, each list is filtered by the search string. 
- * Otherwise, each list shows popular items. Each list has a "See more" button, 
- * which opens a full search page for that object type.
+ * Shows items you've bookmarked, viewed, or run recently.
  */
 export const HistoryView = ({
+    display = 'page',
     session
 }: HistoryViewProps) => {
     const [, setLocation] = useLocation();
@@ -148,17 +145,25 @@ export const HistoryView = ({
 
     return (
         <>
-            <PageTabs
-                ariaLabel="history-tabs"
-                currTab={currTab}
-                onChange={handleTabChange}
-                tabs={tabs}
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'History',
+                }}
+                below={<PageTabs
+                    ariaLabel="history-tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
             />
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Prompt stack */}
                 <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
-                    <Typography component="h1" variant="h3" textAlign="center">History</Typography>
                     <SiteSearchBar
                         id="history-search"
                         placeholder='SearchHistory'

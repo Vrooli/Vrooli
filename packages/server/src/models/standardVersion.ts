@@ -6,11 +6,12 @@ import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
-import { selPad } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
+import { noNull, selPad, shapeHelper } from "../builders";
+import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
+import { standardVersionValidation } from "@shared/validation";
 
 // const validator = (): Validator<Model> => ({
 //     validateMap: {
@@ -427,7 +428,44 @@ export const StandardVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any, //mutater(),
+    mutate: {
+        shape: {
+            create: async ({ prisma, userData, data }) => ({
+                id: data.id,
+                default: noNull(data.default),
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                isFile: noNull(data.isFile),
+                props: data.props,
+                standardType: data.standardType,
+                versionLabel: data.versionLabel,
+                versionNotes: noNull(data.versionNotes),
+                yup: noNull(data.yup),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ prisma, userData, data }) => ({
+                default: noNull(data.default),
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                isFile: noNull(data.isFile),
+                props: noNull(data.props),
+                standardType: noNull(data.standardType),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                yup: noNull(data.yup),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
+        },
+        yup: standardVersionValidation,
+    },
     query: querier(),
     search: {
         defaultSort: StandardVersionSortBy.DateCompletedDesc,

@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { bestLabel } from "../utils";
 import { SelectWrap } from "../builders/types";
+import { resourceValidation } from "@shared/validation";
 
 type Model = {
     IsTransferable: false,
@@ -66,7 +67,19 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
         prismaRelMap: { __typename },
         countFields: {},
     },
-    mutate: {} as any,//mutater(),
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: resourceValidation,
+    },
     search: {
         defaultSort: ResourceSortBy.IndexAsc,
         sortBy: ResourceSortBy,

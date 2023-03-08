@@ -9,6 +9,7 @@ import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
+import { quizValidation } from "@shared/validation";
 
 const __typename = 'Quiz' as const;
 type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
@@ -72,7 +73,19 @@ export const QuizModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: quizValidation,
+    },
     search: {
         defaultSort: QuizSortBy.ScoreDesc,
         sortBy: QuizSortBy,

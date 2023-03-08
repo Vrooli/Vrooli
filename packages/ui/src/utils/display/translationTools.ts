@@ -5,6 +5,7 @@ import { getCurrentUser } from "utils/authentication";
 import i18next from 'i18next';
 import { Session } from "@shared/consts";
 import { CommonKey, ErrorKey } from "@shared/translations";
+import { OptionalTranslation } from "types";
 
 export type TranslationObject = {
     id: string,
@@ -460,9 +461,10 @@ export const getLanguageSubtag = (language: string): string => {
  * 3. English
  * Strips languages so only the subtag is returned (e.g. en-US becomes en)
  * @param session Session data
+ * @param useDefault If true, will return English if no languages are found
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session: Session | null | undefined): string[] => {
+export const getUserLanguages = (session: Session | null | undefined, useDefault = true): string[] => {
     // First check session data for preferred languages
     const { languages } = getCurrentUser(session);
     if (languages && languages.length > 0) {
@@ -472,8 +474,8 @@ export const getUserLanguages = (session: Session | null | undefined): string[] 
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }
-    // Default to English
-    return ["en"];
+    // Default to English if specified
+    return useDefault ? ["en"] : [];
 }
 
 /**
@@ -666,9 +668,30 @@ export const translateSnackMessage = (
 ): { message: string, details: string | undefined } => {
     const messageAsError = i18next.t(key as ErrorKey, { ...variables, defaultValue: key, ns: 'error' });
     const messageAsCommon = i18next.t(key as CommonKey, { ...variables, defaultValue: key, ns: 'common' });
-    if (messageAsError.length > 0) {
+    console.log('in translatesnackmessage', key, variables, messageAsError, messageAsCommon);
+    if (messageAsError.length > 0 && messageAsError !== key) {
         const details = i18next.t(`${key}Details` as ErrorKey, { ns: 'error' });
         return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
     }
     return { message: messageAsCommon, details: undefined };
 };
+
+/**
+ * Finds the translated title and help text for a component
+ * @param data Data required to find the title and help text
+ * @returns Object with title and help text, each of which can be undefined
+ */
+export const getTranslatedTitleAndHelp = (data: OptionalTranslation | null | undefined): { title?: string, help?: string } => {
+    if (!data) return {};
+    let title: string | undefined = data.title;
+    let help: string | undefined = data.help;
+    if (!title && data.titleKey) {
+        title = i18next.t(data.titleKey, { ...data.titleVariables, ns: 'common', defaultValue: '' });
+        if (title === '') title = undefined;
+    }
+    if (!help && data.helpKey) {
+        help = i18next.t(data.helpKey, { ...data.helpVariables, ns: 'common', defaultValue: '' });
+        if (help === '') help = undefined;
+    }
+    return { title, help };
+}

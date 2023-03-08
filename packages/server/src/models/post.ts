@@ -4,6 +4,7 @@ import { Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } f
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
+import { postValidation } from "@shared/validation";
 
 const __typename = 'Post' as const;
 
@@ -64,7 +65,19 @@ export const PostModel: ModelLogic<{
             repostsCount: true,
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: postValidation,
+    },
     search: {
         defaultSort: PostSortBy.ScoreDesc,
         sortBy: PostSortBy,

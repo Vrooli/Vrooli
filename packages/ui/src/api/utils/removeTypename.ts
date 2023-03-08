@@ -3,7 +3,7 @@
  * for caching and determining the type of the object. They must not be passed 
  * into queries or mutations.
  */
-export const removeTypename = (value) => {
+export const removeTypename = (value: any): any => {
     if (value === null || value === undefined) return value;
     if (Array.isArray(value)) {
         return value.map(v => removeTypename(v));

@@ -10,6 +10,7 @@ import { CustomError } from '../events';
 export const typeDef = gql`
     input ApiKeyCreateInput {
         creditsUsedBeforeLimit: Int!
+        organizationConnect: ID
         stopAtLimit: Boolean!
         absoluteMax: Int!
     }

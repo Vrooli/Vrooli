@@ -33,6 +33,7 @@ const generateNewLink = (fromId: string, toId: string, routineVersionId: string)
 type BuildRoutineVersion = Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>
 
 export const BuildView = ({
+    display = 'dialog',
     handleCancel,
     handleClose,
     handleSubmit,
@@ -42,7 +43,7 @@ export const BuildView = ({
     routineVersion,
     session,
     translationData,
-    zIndex,
+    zIndex = 200,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();

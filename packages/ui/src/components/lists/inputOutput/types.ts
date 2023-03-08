@@ -7,7 +7,7 @@ export interface InputOutputContainerProps {
     isInput: boolean;
     language: string;
     list: (RoutineVersionInputShape | RoutineVersionOutputShape)[];
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -23,6 +23,6 @@ export interface InputOutputListItemProps {
     handleReorder: (index: number) => void;
     handleUpdate: (index: number, updatedItem: RoutineVersionInputShape | RoutineVersionOutputShape) => void;
     language: string;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }

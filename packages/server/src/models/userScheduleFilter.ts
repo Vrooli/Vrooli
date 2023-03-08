@@ -6,6 +6,7 @@ import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
 import { defaultPermissions } from "../utils";
+import { userScheduleFilterValidation } from "@shared/validation";
 
 const __typename = 'UserScheduleFilter' as const;
 const suppFields = [] as const;
@@ -43,7 +44,15 @@ export const UserScheduleFilterModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+        },
+        yup: userScheduleFilterValidation,
+    },
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

@@ -53,7 +53,7 @@ export const StatusButton = ({
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
-    const openMenu = useCallback((event) => {
+    const openMenu = useCallback((event: any) => {
         if (!anchorEl) setAnchorEl(event.currentTarget);
     }, [anchorEl])
     const closeMenu = () => {

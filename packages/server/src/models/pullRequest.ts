@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
+import { PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
@@ -16,6 +16,7 @@ import { StandardModel } from "./standard";
 import { StandardVersionModel } from "./standardVersion";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { pullRequestValidation } from "@shared/validation";
 
 const __typename = 'PullRequest' as const;
 type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canReport'>;
@@ -126,7 +127,19 @@ export const PullRequestModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: pullRequestValidation,
+    },
     search: {
         defaultSort: PullRequestSortBy.DateUpdatedDesc,
         sortBy: PullRequestSortBy,

@@ -2,7 +2,7 @@ import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useT
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs } from "components";
+import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
@@ -12,12 +12,8 @@ import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_fi
 import { useTranslation } from "react-i18next";
 import { PageTab } from "components/types";
 
-enum TabOptions {
-    Routine = "Routine",
-    Standard = "Standard",
-}
-
 export const ProjectView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -170,11 +166,11 @@ export const ProjectView = ({
                     !isLoading && Boolean(description) && <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Tooltip title="Donate">
+                    {/* <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                     <ShareButton object={projectVersion} zIndex={zIndex} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
@@ -199,6 +195,14 @@ export const ProjectView = ({
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'Project',
+                }}
+            />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}
@@ -240,7 +244,7 @@ export const ProjectView = ({
                 {/* <SearchList
                     canSearch={Boolean(projectVersion?.id)}
                     handleAdd={permissions.canUpdate ? toAddNew : undefined}
-                    hideRoles={true}
+                    hideUpdateButton={true}
                     id="directory-view-list"
                     searchType={searchType}
                     searchPlaceholder={placeholder}

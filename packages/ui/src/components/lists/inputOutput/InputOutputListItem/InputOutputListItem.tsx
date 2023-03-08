@@ -14,7 +14,7 @@ import { routineVersionInputValidation, routineVersionOutputValidation } from '@
 
 const defaultStandardVersion = (
     item: InputOutputListItemProps['item'],
-    session: Session,
+    session: Session | undefined,
     generatedSchema?: FieldData | null,
 ): StandardVersionShape => ({
     id: uuid(),

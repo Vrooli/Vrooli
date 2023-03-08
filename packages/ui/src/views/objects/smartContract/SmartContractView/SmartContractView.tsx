@@ -2,14 +2,15 @@ import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme }
 import { useLocation } from '@shared/route';
 import { SmartContractVersion, BookmarkFor, FindVersionInput } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
 import { SmartContractViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
-import { DonateIcon, EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 
 export const SmartContractView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -150,11 +151,6 @@ export const SmartContractView = ({
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
                     <ShareButton object={smartContractVersion} zIndex={zIndex} />
                     <ReportsLink object={smartContractVersion} />
                     <BookmarkButton
@@ -173,6 +169,14 @@ export const SmartContractView = ({
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'SmartContract',
+                }}
+            />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

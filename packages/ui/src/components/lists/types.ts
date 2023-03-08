@@ -1,4 +1,4 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, TimeFrame, User } from '@shared/consts';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, Role, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, TimeFrame, User } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { FormSchema } from 'forms/types';
 import { AwardDisplay, NavigableObject } from 'types';
@@ -9,7 +9,7 @@ export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
     object: T | null | undefined;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -20,9 +20,9 @@ export interface ObjectListItemProps<T extends ListObjectType> {
      */
     beforeNavigation?: (item: NavigableObject) => boolean | void,
     /**
-     * True if role (admin, owner, etc.) should be hidden
+     * True if update button should be hidden
      */
-    hideRole?: boolean;
+    hideUpdateButton?: boolean;
     /**
      * Index in list
      */
@@ -33,7 +33,7 @@ export interface ObjectListItemProps<T extends ListObjectType> {
     loading: boolean;
     data: T | null;
     objectType: GqlModelType | `${GqlModelType}`;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -62,18 +62,10 @@ export interface DateRangeMenuProps {
     strictIntervalRange?: number;
 }
 
-export interface SearchButtonsListProps {
-    advancedSearchParams: object | null;
-    advancedSearchSchema: FormSchema | null | undefined;
-    searchType: SearchType | `${SearchType}`;
-    session: Session;
-    setAdvancedSearchParams: (params: object | null) => void;
-    setSortBy: (sortBy: string) => void;
-    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
-    sortBy: string;
-    sortByOptions: any; // No way to specify generic enum
-    timeFrame: TimeFrame | undefined;
-    zIndex: number;
+export interface RoleListProps {
+    maxCharacters?: number;
+    roles: Role[];
+    sx?: { [x: string]: any };
 }
 
 /**
@@ -94,16 +86,16 @@ export interface SearchListProps {
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
-     * True if roles (admin, owner, etc.) should be hidden in list items
+     * True if update button should be hidden
      */
-    hideRoles?: boolean;
+    hideUpdateButton?: boolean;
     id: string;
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
     searchType: SearchType | `${SearchType}`;
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -115,12 +107,16 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
+export interface SettingsListProps {
+    showOnMobile?: boolean;
+}
+
 export interface TagListProps {
     /**
      * Maximum characters to display before tags are truncated
      */
     maxCharacters?: number;
-    session: Session;
+    session: Session | undefined;
     parentId: string;
     sx?: { [x: string]: any };
     tags: Partial<Tag>[];

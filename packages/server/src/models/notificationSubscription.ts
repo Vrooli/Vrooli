@@ -18,6 +18,7 @@ import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
+import { notificationSubscriptionValidation } from "@shared/validation";
 
 export const subscriberMapper: { [x: string]: string } = {
     Api: 'api',
@@ -131,7 +132,19 @@ export const NotificationSubscriptionModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: notificationSubscriptionValidation,
+    },
     search: {
         defaultSort: NotificationSubscriptionSortBy.DateCreatedDesc,
         sortBy: NotificationSubscriptionSortBy,

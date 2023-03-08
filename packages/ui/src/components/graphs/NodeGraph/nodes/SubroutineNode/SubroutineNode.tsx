@@ -61,7 +61,7 @@ export const SubroutineNode = ({
         if (!shouldOpen(target.id)) return;
         onAction(null, BuildAction.OpenSubroutine)
     }, [onAction]);
-    const deleteSubroutine = useCallback((event) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
+    const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
 
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {

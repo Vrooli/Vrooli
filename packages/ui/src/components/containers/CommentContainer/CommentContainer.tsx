@@ -8,7 +8,7 @@ import { useFindMany, useWindowSize } from 'utils';
 import { useCallback, useEffect, useState } from 'react';
 import { CommentThread } from 'components/lists/comment';
 import { uuidValidate } from '@shared/uuid';
-import { SearchButtonsList } from 'components/lists';
+import { SearchButtons } from 'components/buttons';
 import { CreateIcon } from '@shared/icons';
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 import { CommentThread as ThreadType, Comment } from '@shared/consts';
@@ -101,7 +101,7 @@ export function CommentContainer({
             }
             {/* Sort & filter */}
             {allData.length > 0 ? <>
-                <SearchButtonsList
+                <SearchButtons
                     advancedSearchParams={advancedSearchParams}
                     advancedSearchSchema={advancedSearchSchema}
                     searchType="Comment"

@@ -1,4 +1,5 @@
 import { DocumentNode, LazyQueryHookOptions, OperationVariables, TypedDocumentNode, useLazyQuery } from '@apollo/client';
+import { useMemo } from 'react';
 
 type TDataDefined = object | boolean | number | string;
 
@@ -41,6 +42,15 @@ export function useCustomLazyQuery<
     );
     // When data is received, remove the top-level object
     const modifiedData: TData | undefined = data && Object.values(data)[0];
+    // If variables passed into execute, make sure they are wrapped in "input" object
+    const executeWithVariables = useMemo(() => {
+        return (props?: any) => {
+            if (props?.variables) {
+                return execute({ ...props, variables: { input: props.variables } });
+            }
+            return execute(props);
+        }
+    }, [execute]);
     // Return the modified execute function and modified data
-    return [execute, { data: modifiedData, error, loading, refetch }] as const;
+    return [executeWithVariables, { data: modifiedData, error, loading, refetch }] as const;
 }

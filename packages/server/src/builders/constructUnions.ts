@@ -14,21 +14,21 @@ export const constructUnions = <
 >(partialInfo: { [x: string]: any }, gqlRelMap: GqlRelMap<GQLObject, PrismaObject>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = partialInfo;
-    // Any value in the gqlRelMap which is an array is a union. 
+    // Any value in the gqlRelMap which is an object is a union.
     // All other values can be ignored.
-    const unionFields: [string, GqlModelType[]][] = Object.entries(gqlRelMap).filter(([_, value]) => Array.isArray(value)) as any[];
+    const unionFields: [string, { [x: string]: GqlModelType }][] = Object.entries(gqlRelMap).filter(([, value]) => typeof value === 'object') as any[];
     // For each union field
-    for (const [key, value] of unionFields) {
-        // For each GraphQL type in the union
-        for (const type of value) {
-            // If the type is in the partialInfo
-            const isInPartialInfo = result[type] !== undefined;
+    for (const [gqlField, unionData] of unionFields) {
+        // For each entry in the union
+        for (const [dbField, type] of Object.entries(unionData)) {
+            // If the current field is in the partial info, use it as the union data
+            const isInPartialInfo = result[dbField] !== undefined;
             if (isInPartialInfo) {
                 // Set the union field to the type
-                result[key] = result[type];
-                // Delete the type from the result
-                delete result[type];
+                result[gqlField] = { ...result[dbField], __typename: type };
             }
+            // Delete the dbField from the result
+            delete result[dbField];
         }
     }
     return result;

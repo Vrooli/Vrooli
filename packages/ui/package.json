@@ -56,7 +56,8 @@
         "start-development": "vite",
         "start-production": "vite preview",
         "analyze": "source-map-explorer dist/assets/*",
-        "graphql-generate": "graphql-codegen --config codegen.yml"
+        "graphql-generate": "graphql-codegen --config codegen.yml",
+        "lint": "eslint src"
     },
     "browserslist": [
         ">0.2%",
@@ -76,7 +77,8 @@
         "@vitejs/plugin-react-swc": "^3.0.0",
         "apollo": "^2.33.6",
         "chai": "^4.3.4",
-        "eslint-plugin-react": "^7.24.0",
+        "eslint": "^8.35.0",
+        "eslint-config-react-app": "^7.0.1",
         "mocha": "^9.1.1",
         "source-map-explorer": "^2.5.2",
         "typescript": "^4.9.3",

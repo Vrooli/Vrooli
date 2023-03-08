@@ -1,4 +1,5 @@
 export * from './DateDisplay/DateDisplay';
+export * from './HomePrompt/HomePrompt';
 export * from './ObjectTitle/ObjectTitle';
 export * from './OwnerLabel/OwnerLabel';
 export * from './PageTitle/PageTitle';

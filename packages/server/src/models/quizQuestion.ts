@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { quizQuestionValidation } from "@shared/validation";
 
 const __typename = 'QuizQuestion' as const;
 type Permissions = Pick<QuizQuestionYou, 'canDelete' | 'canUpdate'>;
@@ -57,7 +58,19 @@ export const QuizQuestionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: quizQuestionValidation,
+    },
     search: {
         defaultSort: QuizQuestionSortBy.OrderAsc,
         sortBy: QuizQuestionSortBy,

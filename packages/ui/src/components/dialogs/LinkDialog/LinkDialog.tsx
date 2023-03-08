@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next';
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
 
-const titleAria = "link-dialog-title";
+const titleId = "link-dialog-title";
 
 export const LinkDialog = ({
     handleClose,
@@ -192,7 +192,7 @@ export const LinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
@@ -200,7 +200,7 @@ export const LinkDialog = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={t(isAdd ? 'LinkAdd' : 'LinkEdit')}
                 helpText={helpText}
                 onClose={handleCancel}
@@ -212,6 +212,7 @@ export const LinkDialog = ({
                 {/* Action buttons */}
                 <Grid container spacing={2} mt={2}>
                     <GridSubmitButtons
+                        display="dialog"
                         errors={errors}
                         isCreate={isAdd}
                         onCancel={handleCancel}

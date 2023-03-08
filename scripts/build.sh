@@ -134,7 +134,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Use production icons
-mv build/prod/* build/
+mv dist/prod/* dist/
 if [ $? -ne 0 ]; then
     error "Failed to move production icons"
     exit 1
@@ -150,11 +150,11 @@ fi
 
 # Create brave-rewards-verification.txt file
 if [ -z "${BRAVE_REWARDS_TOKEN}" ]; then
-    error "BRAVE_REWARDS_TOKEN is not set. Not creating build/.well-known/brave-rewards-verification.txt file."
+    error "BRAVE_REWARDS_TOKEN is not set. Not creating dist/.well-known/brave-rewards-verification.txt file."
 else
-    info "Creating build/.well-known/brave-rewards-verification.txt file..."
-    mkdir build/.well-known
-    cd ${HERE}/../packages/ui/build/.well-known
+    info "Creating dist/.well-known/brave-rewards-verification.txt file..."
+    mkdir dist/.well-known
+    cd ${HERE}/../packages/ui/dist/.well-known
     echo "This is a Brave Rewards publisher verification file.\n" >brave-rewards-verification.txt
     echo "Domain: vrooli.com" >>brave-rewards-verification.txt
     echo "Token: ${BRAVE_REWARDS_TOKEN}" >>brave-rewards-verification.txt
@@ -163,11 +163,11 @@ fi
 
 # Create assetlinks.json file for Google Play Store
 if [ -z "${GOOGLE_PLAY_FINGERPRINT}" ]; then
-    error "GOOGLE_PLAY_FINGERPRINT is not set. Not creating build/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)."
+    error "GOOGLE_PLAY_FINGERPRINT is not set. Not creating dist/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)."
 else
-    info "Creating build/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)..."
-    mkdir build/.well-known
-    cd ${HERE}/../packages/ui/build/.well-known
+    info "Creating dist/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)..."
+    mkdir dist/.well-known
+    cd ${HERE}/../packages/ui/dist/.well-known
     echo "[{\"relation\": [\"delegate_permission/common.handle_all_urls\"],\"target\": {\"namespace\": \"android_app\",\"package_name\": \"com.vrooli.twa\",\"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]}}]" >assetlinks.json
     cd ../..
 fi
@@ -180,7 +180,7 @@ fi
 
 # Compress build
 info "Compressing build..."
-tar -czf build.tar.gz build
+tar -czf build.tar.gz dist
 trap "rm build.tar.gz" EXIT
 if [ $? -ne 0 ]; then
     error "Failed to compress build"

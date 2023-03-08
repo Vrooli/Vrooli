@@ -1,86 +1,37 @@
-import { Node, ProjectVersion, RoutineVersion, RunRoutine, Session, User } from "@shared/consts";
+import { RoutineVersion, Session } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
 import React from "react";
-import { DecisionStep } from "types";
 import { ViewProps } from "./objects/types";
 
-export interface AwardsViewProps {
-    session: Session;
+/**
+ * Views can be displayed as full pages or as dialogs
+ */
+export type ViewDisplayType = 'dialog' | 'page';
+
+export type BaseViewProps = {
+    display?: ViewDisplayType;
+    session: Session | undefined;
 }
 
-export interface CalendarViewProps {
-    session: Session;
-}
+export interface AwardsViewProps extends BaseViewProps {}
 
-export interface HistorySearchViewProps {
-    session: Session;
-}
+export interface CalendarViewProps extends BaseViewProps {}
 
-export interface  ObjectViewProps {
-    session: Session;
-}
+export interface HistorySearchViewProps extends BaseViewProps {}
 
-export interface PremiumViewProps {
-    session: Session;
-}
+export interface NotFoundViewProps extends BaseViewProps {}
 
-export interface SearchViewProps {
-    session: Session;
-}
+export interface  ObjectViewProps extends BaseViewProps {}
 
-export interface StartViewProps {
-    session: Session;
-}
+export interface PremiumViewProps extends BaseViewProps {}
 
-export interface StatsViewProps {
-    session: Session;
-}
+export interface SearchViewProps extends BaseViewProps {}
 
-export interface WelcomeViewProps {
-    session: Session;
-}
+export interface StartViewProps extends BaseViewProps {}
 
-export interface ReportsViewProps {
-    session: Session;
-}
+export interface StatsViewProps extends BaseViewProps {}
 
-interface SettingsBaseProps {
-    profile: User | undefined;
-    onUpdated: (profile: User) => void;
-    session: Session;
-    zIndex: number;
-}
-export interface SettingsAuthenticationProps extends SettingsBaseProps {}
-export interface SettingsDisplayProps extends SettingsBaseProps {}
-export interface SettingsNotificationsProps extends SettingsBaseProps {}
-export interface SettingsProfileProps extends SettingsBaseProps {}
-
-export interface SubroutineViewProps {
-    loading: boolean;
-    handleUserInputsUpdate: (inputs: { [inputId: string]: string }) => void;
-    handleSaveProgress: () => void;
-    /**
-     * Owner of overall routine, not subroutine
-     */
-    owner: RoutineVersion['root']['owner'] | null | undefined;
-    routineVersion: RoutineVersion | null | undefined;
-    run: RunRoutine | null | undefined;
-    session: Session;
-    zIndex: number;
-}
-
-export interface DecisionViewProps {
-    data: DecisionStep
-    handleDecisionSelect: (node: Node) => void;
-    nodes: Node[];
-    session: Session;
-    zIndex: number;
-}
-
-export interface RunViewProps extends ViewProps<RoutineVersion> {
-    handleClose: () => void;
-    runnableObject: ProjectVersion | RoutineVersion;
-}
+export interface ReportsViewProps extends BaseViewProps {}
 
 export interface BuildViewProps extends ViewProps<RoutineVersion> {
     handleCancel: () => void;
@@ -103,6 +54,6 @@ export interface ErrorBoundaryProps {
     children: React.ReactNode;
 }
 
-export interface CalendarViewProps {
-    session: Session;
-}
+export interface CalendarViewProps extends BaseViewProps {}
+
+export interface WelcomeViewProps extends BaseViewProps {};

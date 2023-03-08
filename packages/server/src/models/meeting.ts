@@ -6,6 +6,7 @@ import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
+import { meetingValidation } from "@shared/validation";
 
 const __typename = 'Meeting' as const;
 type Permissions = Pick<MeetingYou, 'canDelete' | 'canInvite' | 'canUpdate'>;
@@ -72,7 +73,19 @@ export const MeetingModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: meetingValidation,
+    },
     search: {
         defaultSort: MeetingSortBy.EventStartAsc,
         sortBy: MeetingSortBy,

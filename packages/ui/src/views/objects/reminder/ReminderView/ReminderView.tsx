@@ -2,13 +2,14 @@ import { Box, IconButton, Tooltip, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { FindByIdInput, Reminder } from "@shared/consts";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
-import { ObjectActionMenu } from "components";
+import { ObjectActionMenu, TopBar } from "components";
 import { ReminderViewProps } from "../types";
 import { placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { EllipsisIcon, HelpIcon } from "@shared/icons";
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 
 export const ReminderView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -95,6 +96,14 @@ export const ReminderView = ({
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Reminder',
+                }}
+            />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}

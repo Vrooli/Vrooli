@@ -5,6 +5,7 @@ import { RoutineModel } from "./routine";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput } from '@shared/consts';
+import { routineVersionOutputValidation } from "@shared/validation";
 
 // const mutater = (): Mutater<Model> => ({
 //     shape: {
@@ -67,5 +68,17 @@ export const RoutineVersionOutputModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,//mutater(),
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: routineVersionOutputValidation,
+    },
 })

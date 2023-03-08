@@ -1,14 +1,14 @@
 import { useCustomMutation } from 'api/hooks';
 import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
-import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
+import { DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getObjectUrl, getResourceIcon, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
+import { getObjectUrl, getResourceIcon, getUserLanguages, listToAutocomplete, PubSub, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { ColorIconButton, DialogTitle, GridSubmitButtons } from 'components';
+import { ColorIconButton, DialogTitle, GridSubmitButtons, LargeDialog } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceTranslation, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { mutationWrapper } from 'api/utils';
@@ -18,12 +18,13 @@ import { resourceCreate } from 'api/generated/endpoints/resource_create';
 import { resourceUpdate } from 'api/generated/endpoints/resource_update';
 import { feedPopular } from 'api/generated/endpoints/feed_popular';
 import { CommonKey } from '@shared/translations';
+import { BaseForm } from 'forms';
 
 const helpText =
     `## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service`
 
-const titleAria = "resource-dialog-title";
-const searchTitleAria = "search-vrooli-for-link-title"
+const titleId = "resource-dialog-title";
+const searchTitleId = "search-vrooli-for-link-title"
 
 export const ResourceDialog = ({
     mutate,
@@ -118,34 +119,22 @@ export const ResourceDialog = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
         validationSchema: resourceTranslationValidation.update({}),
     });
-    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
 
     // Search dialog to find routines, organizations, etc. to link to
     const [searchString, setSearchString] = useState<string>('');
@@ -194,33 +183,21 @@ export const ResourceDialog = ({
     return (
         <>
             {/* Search objects (for their URL) dialog */}
-            <Dialog
-                open={searchOpen}
+            <LargeDialog
+                id="resource-find-object-dialog"
+                isOpen={searchOpen}
                 onClose={closeSearch}
-                aria-labelledby={searchTitleAria}
-                sx={{
-                    '& .MuiDialog-paper': {
-                        border: palette.mode === 'dark' ? `1px solid white` : 'unset',
-                        minWidth: 'min(100%, 600px)',
-                        minHeight: 'min(100%, 200px)',
-                        position: 'absolute',
-                        top: '5%',
-                        overflowY: 'visible',
-                    }
-                }}
+                titleId={searchTitleId}
+                zIndex={zIndex}
             >
                 <DialogTitle
-                    ariaLabel={searchTitleAria}
+                    id={searchTitleId}
                     title={'Search Vrooli'}
                     onClose={closeSearch}
                 />
                 <DialogContent sx={{
-                    background: palette.background.default,
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     overflowY: 'visible',
+                    minHeight: '500px',
                 }}>
                     {/* Search bar to find object */}
                     <SiteSearchBar
@@ -235,42 +212,39 @@ export const ResourceDialog = ({
                         session={session}
                         showSecondaryLabel={true}
                         sxs={{
-                            root: { width: '100%' },
+                            root: { width: '100%', top: 0, marginTop: 2 },
                             paper: { background: palette.background.paper },
                         }}
                     />
                     {/* If object selected (and supports versioning), version selector */}
                     {/* TODO */}
                 </DialogContent>
-            </Dialog >
+            </LargeDialog>
             {/*  Main content */}
-            <Dialog
+            <LargeDialog
+                id="resource-dialog"
                 onClose={handleCancel}
-                open={open}
-                aria-labelledby={titleAria}
-                sx={{
-                    zIndex,
-                    '& .MuiDialog-paper': {
-                        width: 'min(500px, 100vw)',
-                        textAlign: 'center',
-                        overflow: 'hidden',
-                    }
-                }}
+                isOpen={open}
+                titleId={titleId}
+                zIndex={zIndex}
             >
                 <DialogTitle
-                    ariaLabel={titleAria}
+                    id={titleId}
                     title={(index < 0) ? 'Add Resource' : 'Update Resource'}
                     helpText={helpText}
                     onClose={handleCancel}
                 />
                 <DialogContent>
-                    <form>
+                    <BaseForm
+                        onSubmit={formik.handleSubmit}
+                        style={{ display: 'block', paddingBottom: '64px' }}
+                    >
                         <Stack direction="column" spacing={2} paddingTop={2}>
                             {/* Language select */}
                             <LanguageInput
                                 currentLanguage={language}
                                 handleAdd={handleAddLanguage}
-                                handleDelete={handleLanguageDelete}
+                                handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 session={session}
                                 translations={formik.values.translationsUpdate}
@@ -323,7 +297,7 @@ export const ResourceDialog = ({
                                         },
                                     }}
                                 >
-                                     {(Object.keys(ResourceUsedFor) as Array<keyof typeof ResourceUsedFor>).map((usedFor) => {
+                                    {(Object.keys(ResourceUsedFor) as Array<keyof typeof ResourceUsedFor>).map((usedFor) => {
                                         const Icon = getResourceIcon(usedFor as ResourceUsedFor);
                                         return (
                                             <MenuItem key={usedFor} value={usedFor}>
@@ -362,21 +336,22 @@ export const ResourceDialog = ({
                                 error={translations.touchedDescription && Boolean(translations.errorDescription)}
                                 helperText={(translations.touchedDescription && translations.errorDescription) ?? 'Enter description (optional)'}
                             />
-                            {/* Action buttons */}
-                            <Grid container spacing={1}>
-                                <GridSubmitButtons
-                                    errors={translations.errorsWithTranslations}
-                                    isCreate={index < 0}
-                                    loading={formik.isSubmitting || addLoading || updateLoading}
-                                    onCancel={handleCancel}
-                                    onSetSubmitting={formik.setSubmitting}
-                                    onSubmit={formik.handleSubmit}
-                                />
-                            </Grid>
                         </Stack>
-                    </form>
+                    </BaseForm>
                 </DialogContent>
-            </Dialog>
+                {/* Action buttons */}
+                <Grid container spacing={1}>
+                    <GridSubmitButtons
+                        display="dialog"
+                        errors={translations.errorsWithTranslations}
+                        isCreate={index < 0}
+                        loading={formik.isSubmitting || addLoading || updateLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
+                </Grid>
+            </LargeDialog>
         </>
     )
 }

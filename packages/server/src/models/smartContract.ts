@@ -12,6 +12,7 @@ import { getLabels } from "../getters";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { smartContractValidation } from "@shared/validation";
 
 const __typename = 'SmartContract' as const;
 type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -90,7 +91,19 @@ export const SmartContractModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: smartContractValidation,
+    },
     search: {
         defaultSort: SmartContractSortBy.ScoreDesc,
         sortBy: SmartContractSortBy,

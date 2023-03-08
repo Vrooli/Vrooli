@@ -27,6 +27,7 @@
         "jsx": "react-jsx",
         "removeComments": true,
         "declaration": true,
+        "noImplicitAny": false,
     },
     "include": [
         "src"

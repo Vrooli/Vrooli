@@ -184,7 +184,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // fdfdafdsaf
         // notification.toOwner(owner, forkedByUserId);
     },
-    objectStar: async (isBookmarked: boolean, objectType: BookmarkFor, objectId: string, userId: string) => {
+    objectBookmark: async (isBookmarked: boolean, objectType: BookmarkFor, objectId: string, userId: string) => {
         // const notification = Notify(prisma, languages).pushObjectStar();
         // // Send notification to owner(s), depending on how many bookmarks the object already has
         // fasdf

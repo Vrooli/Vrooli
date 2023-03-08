@@ -11,6 +11,7 @@ import { VoteModel } from "./vote";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { defaultPermissions } from "../utils";
 import { OrganizationModel } from "./organization";
+import { noteValidation } from "@shared/validation";
 
 const __typename = 'Note' as const;
 type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -88,7 +89,19 @@ export const NoteModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: noteValidation,
+    },
     search: {
         defaultSort: NoteSortBy.DateUpdatedDesc,
         sortBy: NoteSortBy,

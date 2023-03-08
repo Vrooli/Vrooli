@@ -2,10 +2,12 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
 import { NoteModel } from "./note";
+import { noteVersionValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'NoteVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -66,7 +68,30 @@ export const NoteVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ prisma, userData, data }) => ({
+                id: data.id,
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                versionLabel: data.versionLabel,
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childNoteVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Note', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ prisma, userData, data }) => ({
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Note', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
+        },
+        yup: noteVersionValidation,
+    },
     search: {
         defaultSort: NoteVersionSortBy.DateUpdatedDesc,
         sortBy: NoteVersionSortBy,

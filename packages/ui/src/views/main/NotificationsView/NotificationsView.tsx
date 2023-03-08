@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { PageTitle } from 'components';
+import { PageTitle, TopBar } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, List, ListItem, Typography, useTheme } from '@mui/material';
 import { NotificationsViewProps } from '../types';
@@ -12,6 +12,7 @@ import { useQuery } from '@apollo/client';
 import { notificationFindMany } from 'api/generated/endpoints/notification_findMany';
 
 export const NotificationsView = ({
+    display = 'page',
     session
 }: NotificationsViewProps) => {
     const [, setLocation] = useLocation();
@@ -44,7 +45,15 @@ export const NotificationsView = ({
 
     return (
         <>
-            <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} session={session} />
+            <TopBar
+                display={display}
+                onClose={() => {}}
+                session={session}
+                titleData={{
+                    titleKey: 'Notification',
+                    titleVariables: { count: 2 },
+                }}
+            />
             <Box sx={{
                 marginTop: 2,
                 maxWidth: '1000px',

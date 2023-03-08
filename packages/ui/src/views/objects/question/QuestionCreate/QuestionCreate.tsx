@@ -3,18 +3,20 @@ import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { questionValidation, questionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeQuestion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { defaultRelationships, defaultResourceList, getUserLanguages, shapeQuestion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { QuestionCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication";
 import { Question, QuestionCreateInput, ResourceList } from "@shared/consts";
 import { questionCreate } from "api/generated/endpoints/question_create";
 import { parseSearchParams } from "@shared/route";
+import { BaseForm } from "forms";
 
 export const QuestionCreate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: QuestionCreateProps) => {
@@ -25,8 +27,8 @@ export const QuestionCreate = ({
     const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
-   const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-   const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
+    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -65,80 +67,70 @@ export const QuestionCreate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
-        formik, 
-        formikField: 'translationsCreate', 
-        language, 
+        formik,
+        formikField: 'translationsCreate',
         validationSchema: questionTranslationValidation.create({}),
     });
-    const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsCreate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsCreate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                <Grid item xs={12}>
-                    <PageTitle titleKey='CreateQuestion' session={session} />
-                </Grid>
-                <Grid item xs={12} mb={4}>
-                    <RelationshipButtons
-                        isEditing={true}
-                        objectType={'Question'}
-                        onRelationshipsChange={onRelationshipsChange}
-                        relationships={relationships}
-                        session={session}
-                        zIndex={zIndex}
+        <>
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'CreateQuestion',
+                }}
+            />
+            <BaseForm onSubmit={formik.handleSubmit}>
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'Question'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsCreate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    {/* TODO */}
+                    <GridSubmitButtons
+                        disabledSubmit={!isLoggedIn}
+                        display={display}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={true}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
                     />
                 </Grid>
-                <Grid item xs={12}>
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleLanguageDelete}
-                        handleCurrent={setLanguage}
-                        session={session}
-                        translations={formik.values.translationsCreate}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                {/* TODO */}
-                <GridSubmitButtons
-                    disabledSubmit={!isLoggedIn}
-                    errors={translations.errorsWithTranslations}
-                    isCreate={true}
-                    loading={formik.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={formik.setSubmitting}
-                    onSubmit={formik.handleSubmit}
-                />
-            </Grid>
-        </form >
+            </BaseForm>
+        </>
     )
 }

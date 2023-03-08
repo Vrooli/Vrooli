@@ -4,8 +4,8 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { TagList, TextLoading } from '..';
-import { getYou, getDisplay, getUserLanguages, ObjectAction, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, ListObjectType, useObjectActions } from 'utils';
+import { RoleList, TagList, TextLoading } from '..';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getBookmarkFor, ListObjectType, useObjectActions } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, BookmarkButton, VoteButton } from 'components/buttons';
@@ -31,7 +31,7 @@ function CompletionBar(props) {
 
 export function ObjectListItem<T extends ListObjectType>({
     beforeNavigation,
-    hideRole,
+    hideUpdateButton,
     index,
     loading,
     data,
@@ -157,7 +157,7 @@ export function ObjectListItem<T extends ListObjectType>({
     const actionButtons = useMemo(() => {
         const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
         const reportsCount: number = getCounts(object).reports;
-        const { bookmarkFor, starForId } = getStarFor(object);
+        const { bookmarkFor, starForId } = getBookmarkFor(object);
         return (
             <Stack
                 direction={isMobile ? "row" : "column"}
@@ -168,7 +168,7 @@ export function ObjectListItem<T extends ListObjectType>({
                     alignItems: isMobile ? 'center' : 'start',
                 }}
             >
-                {!hideRole && canUpdate &&
+                {!hideUpdateButton && canUpdate &&
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
@@ -234,7 +234,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideRole, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canBookmark, isBookmarked, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canBookmark, isBookmarked, canComment]);
 
     /**
      * Run list items may get a progress bar
@@ -356,14 +356,19 @@ export function ObjectListItem<T extends ListObjectType>({
                             </Tooltip>
                         }
                         {/* Tags */}
-                        {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 ?
+                        {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 &&
                             <TagList
                                 session={session}
                                 parentId={data?.id ?? ''}
                                 tags={(data as any).tags}
                                 sx={{ ...smallHorizontalScrollbar(palette) }}
-                            /> :
-                            null}
+                            />}
+                        {/* Roles (Member objects only) */}
+                        {isOfType(object, 'Member') && (data as any)?.roles?.length > 0 &&
+                            <RoleList
+                                roles={(data as any).roles}
+                                sx={{ ...smallHorizontalScrollbar(palette) }}
+                            />}
                     </Stack>
                     {/* Action buttons if mobile */}
                     {isMobile && actionButtons}

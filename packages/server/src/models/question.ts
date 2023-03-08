@@ -7,6 +7,7 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
+import { questionValidation } from "@shared/validation";
 
 const __typename = 'Question' as const;
 type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
@@ -89,7 +90,19 @@ export const QuestionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: questionValidation,
+    },
     search: {
         defaultSort: QuestionSortBy.ScoreDesc,
         sortBy: QuestionSortBy,

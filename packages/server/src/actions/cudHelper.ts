@@ -126,13 +126,18 @@ export async function cudHelper<
         mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({ authData: updateAuthData, prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
     }
     if (deleteMany && deleteMany.length > 0) {
+        // Call beforeDeleted
+        let beforeDeletedData: any;
+        if (mutate.trigger?.beforeDeleted) {
+            beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds: deleteMany, prisma, userData });
+        }
         // Perform custom validation
         validate?.validations?.delete && await validate.validations.delete({ deleteMany, languages: userData.languages, prisma, userData });
         deleted = await delegate(prisma).deleteMany({
             where: { id: { in: deleteMany } }
         }).then(({ count }) => ({ __typename: 'Count' as const, count }));
         // Call onDeleted
-        mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({ deleted, prisma, userData });
+        mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({ beforeDeletedData, deleted, deletedIds: deleteMany, prisma, userData });
     }
     // Perform custom triggers for mutate.trigger.common
     if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {

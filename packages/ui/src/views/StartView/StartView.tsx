@@ -17,7 +17,7 @@ import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { DialogTitle, HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
+import { DialogTitle, HelpButton, TopBar, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -41,9 +41,10 @@ const buttonProps: SxProps = {
     height: '4em',
 }
 
-const emailTitleAria = 'email-login-dialog-title';
+const emailTitleId = 'email-login-dialog-title';
 
 export const StartView = ({
+    display = 'page',
     session,
 }: StartViewProps) => {
     const [, setLocation] = useLocation();
@@ -149,7 +150,6 @@ export const StartView = ({
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
             PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: 'Success' })
-            // Set actor role
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
@@ -178,13 +178,8 @@ export const StartView = ({
     const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false) }, []);
 
     return (
-        <Box
-            sx={{
-                padding: '1em',
-                paddingTop: '20vh',
-                minHeight: '100vh', //Fullscreen
-            }}
-        >
+        <>
+            {/* Dialogs */}
             <WalletSelectDialog
                 handleOpenInstall={openWalletInstallDialog}
                 open={connectOpen}
@@ -196,45 +191,14 @@ export const StartView = ({
                 onClose={closeWalletInstallDialog}
                 zIndex={connectOpen ? 201 : 200}
             />
-            <Box
-                sx={{
-                    width: 'min(100%, 500px)',
-                    margin: 'auto',
-                    paddingTop: { xs: '5vh', sm: '20vh' },
-                }}
-            >
-                <Box sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            display: 'inline-block',
-                        }}
-                    >
-                        {t('PleaseSelectLogInMethod')}
-                    </Typography>
-                    <HelpButton markdown={helpText} />
-                </Box>
-                <Stack
-                    direction="column"
-                    spacing={2}
-                >
-                    <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>{t('Wallet')}</Button>
-                    <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>{t('Email')}</Button>
-                    <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>{t('EnterAsGuest')}</Button>
-                </Stack>
-            </Box>
             <Dialog
                 open={emailPopupOpen}
                 disableScrollLock={true}
                 onClose={closeEmailPopup}
-                aria-labelledby={emailTitleAria}
+                aria-labelledby={emailTitleId}
             >
                 <DialogTitle
-                    ariaLabel={emailTitleAria}
+                    id={emailTitleId}
                     title={formTitle}
                     onClose={closeEmailPopup}
                 />
@@ -242,6 +206,51 @@ export const StartView = ({
                     <Form onFormChange={handleFormChange} />
                 </Box>
             </Dialog>
-        </Box>
+            {/* App bar */}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Start',
+                }}
+            />
+            {/* Main content */}
+            <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center',
+                marginTop: 4,
+            }}>
+                <Box sx={{
+                    width: 'min(calc(100vw - 16px), 500px)',
+                }}>
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                display: 'inline-block',
+                            }}
+                        >
+                            {t('PleaseSelectLogInMethod')}
+                        </Typography>
+                        <HelpButton markdown={helpText} />
+                    </Box>
+                    <Stack
+                        direction="column"
+                        spacing={2}
+                    >
+                        <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>{t('Wallet')}</Button>
+                        <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>{t('Email')}</Button>
+                        <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>{t('EnterAsGuest')}</Button>
+                    </Stack>
+                </Box>
+            </Box>
+        </>
     );
 }

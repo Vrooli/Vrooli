@@ -1,14 +1,15 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, Dialog, Palette, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useMemo } from 'react';
 import { getDeviceInfo, getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { ColorIconButton } from 'components';
+import { ColorIconButton, LargeDialog } from 'components';
+import { useTranslation } from 'react-i18next';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -27,7 +28,7 @@ const buttonProps = (palette: Palette) => ({
 
 const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
 
-const titleAria = 'share-object-dialog-title';
+const titleId = 'share-object-dialog-title';
 
 export const ShareObjectDialog = ({
     object,
@@ -36,6 +37,7 @@ export const ShareObjectDialog = ({
     zIndex,
 }: ShareObjectDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : 'Check out this object on Vrooli', [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split('?')[0].split('#')[0], [object]);
@@ -82,29 +84,21 @@ export const ShareObjectDialog = ({
 
 
     return (
-        <Dialog
+        <LargeDialog
+            id="share-object-dialog"
+            isOpen={open}
             onClose={onClose}
-            open={open}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': {
-                    overflow: 'hidden',
-                    borderRadius: 2,
-                    boxShadow: 12,
-                    textAlign: "center",
-                    padding: "1em",
-                },
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                title="Share"
+                id={titleId}
+                title={t('Share')}
                 onClose={onClose}
             />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
-                    <Tooltip title="Copy invite link">
+                    <Tooltip title={t('CopyLink')}>
                         <ColorIconButton
                             onClick={copyLink}
                             background={palette.secondary.main}
@@ -113,7 +107,7 @@ export const ShareObjectDialog = ({
                             <CopyIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Share by email">
+                    <Tooltip title={t('ShareByEmail')}>
                         <ColorIconButton
                             href={emailUrl}
                             onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
@@ -123,7 +117,7 @@ export const ShareObjectDialog = ({
                             <EmailIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Tweet about us">
+                    <Tooltip title={t('TweetIt')}>
                         <ColorIconButton
                             href={twitterUrl}
                             onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
@@ -133,7 +127,7 @@ export const ShareObjectDialog = ({
                             <TwitterIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Post on LinkedIn">
+                    <Tooltip title={t('LinkedInPost')}>
                         <ColorIconButton
                             href={linkedInUrl}
                             onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
@@ -143,7 +137,7 @@ export const ShareObjectDialog = ({
                             <LinkedInIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Share by another method">
+                    <Tooltip title={t('Other')}>
                         <ColorIconButton
                             onClick={shareNative}
                             background={palette.secondary.main}
@@ -172,6 +166,6 @@ export const ShareObjectDialog = ({
                     />
                 </Box>
             </Box>
-        </Dialog>
+        </LargeDialog>
     )
 }

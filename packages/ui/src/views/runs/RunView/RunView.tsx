@@ -2,7 +2,7 @@ import { FindVersionInput, Node, NodeLink, NodeRoutineListItem, NodeType, Projec
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { HelpButton, RunStepsDialog } from "components";
 import { useLocation } from '@shared/route';
-import { RunViewProps } from "../../types";
+import { RunViewProps } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineVersionHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
 import { useCustomMutation } from "api/hooks";
@@ -235,6 +235,7 @@ const convertRoutineVersionToStep = (
 }
 
 export const RunView = ({
+    display = 'page',
     handleClose,
     runnableObject,
     session,

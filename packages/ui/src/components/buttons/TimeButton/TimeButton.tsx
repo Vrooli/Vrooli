@@ -17,7 +17,7 @@ export const TimeButton = ({
     const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
 
-    const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
+    const handleTimeOpen = (event: any) => setTimeAnchorEl(event.currentTarget);
     const handleTimeClose = (label?: string, frame?: TimeFrame) => {
         setTimeAnchorEl(null);
         setTimeFrame(frame);

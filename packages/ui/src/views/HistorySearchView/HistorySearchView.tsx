@@ -1,8 +1,4 @@
-/**
- * Search page for personal objects (active runs, completed runs, views, bookmarks)
- */
-import { Stack, Typography } from "@mui/material";
-import { PageTabs, SearchList } from "components";
+import { PageTabs, SearchList, TopBar } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { SearchType, HistorySearchPageTabOption as TabOptions } from "utils";
@@ -31,15 +27,19 @@ const tabParams: BaseParams[] = [{
     titleKey: 'View',
     where: {},
 }, {
-    searchType: SearchType.Bookmark,
+    searchType: SearchType.BookmarkList,
     tabType: TabOptions.Bookmarked,
     titleKey: 'Bookmark',
     where: {},
 }]
 
-export function HistorySearchView({
+/**
+ * Search page for personal objects (active runs, completed runs, views, bookmarks)
+ */
+export const HistorySearchView = ({
+    display = 'page',
     session,
-}: HistorySearchViewProps) {
+}: HistorySearchViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -76,15 +76,22 @@ export function HistorySearchView({
 
     return (
         <>
-            <PageTabs
-                ariaLabel="history-search-tabs"
-                currTab={currTab}
-                onChange={handleTabChange}
-                tabs={tabs}
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    hideOnDesktop: true,
+                    title,
+                }}
+                below={<PageTabs
+                    ariaLabel="history-search-tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
             />
-            <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                <Typography component="h2" variant="h4">{title}</Typography>
-            </Stack>
             {searchType && <SearchList
                 id="history-search-page-list"
                 take={20}

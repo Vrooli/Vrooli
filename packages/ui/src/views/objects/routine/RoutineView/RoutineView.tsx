@@ -3,7 +3,7 @@ import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
 import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel } from "components";
+import { ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel, TopBar } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsCreate, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
 import { mutationWrapper } from "api/utils";
@@ -20,6 +20,7 @@ import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete"
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { useTranslation } from "react-i18next";
 import { BuildView } from "views/BuildView/BuildView";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.`
@@ -35,6 +36,7 @@ const containerProps = (palette: Palette) => ({
 })
 
 export const RoutineView = ({
+    display = 'page',
     partialData,
     session,
     zIndex = 200,
@@ -188,192 +190,190 @@ export const RoutineView = ({
     }, [routineVersion]);
 
     return (
-        <Box sx={{
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            width: 'min(100%, 700px)',
-            padding: 2,
-        }}>
-            {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
-            <Stack direction="row" spacing={2} sx={{
-                position: 'fixed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: zIndex + 2,
-                bottom: 0,
-                right: 0,
-                // Accounts for BottomNav, BuildView, and edit/cancel buttons in BuildView
-                marginBottom: {
-                    xs: !isBuildOpen ? 'calc(56px + 16px + env(safe-area-inset-bottom))' : 'calc(16px + env(safe-area-inset-bottom))',
-                    md: 'calc(16px + env(safe-area-inset-bottom))'
-                },
-                marginLeft: 'calc(16px + env(safe-area-inset-left))',
-                marginRight: 'calc(16px + env(safe-area-inset-right))',
-                height: 'calc(64px + env(safe-area-inset-bottom))',
+        <>
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Routine',
+                }}
+            />
+            <Box sx={{
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                width: 'min(100%, 700px)',
+                padding: 2,
             }}>
-                {/* Edit button */}
-                {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </ColorIconButton>
-                ) : null}
-                {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
-                {routineVersion?.nodes?.length ? <RunButton
-                    canUpdate={permissions.canUpdate}
-                    handleRunAdd={handleRunAdd as any}
-                    handleRunDelete={handleRunDelete as any}
-                    isBuildGraphOpen={isBuildOpen}
+                {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
+                <SideActionButtons
+                    // Treat as a dialog when build view is open
+                    display={isBuildOpen ? 'dialog' : display}
+                    zIndex={zIndex + 2}
+                >
+                    {/* Edit button */}
+                    {permissions.canUpdate ? (
+                        <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                            <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </ColorIconButton>
+                    ) : null}
+                    {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
+                    {routineVersion?.nodes?.length ? <RunButton
+                        canUpdate={permissions.canUpdate}
+                        handleRunAdd={handleRunAdd as any}
+                        handleRunDelete={handleRunDelete as any}
+                        isBuildGraphOpen={isBuildOpen}
+                        isEditing={false}
+                        runnableObject={routineVersion}
+                        session={session}
+                        zIndex={zIndex}
+                    /> : null}
+                </SideActionButtons>
+                {/* Dialog for building routine */}
+                {routineVersion && <Dialog
+                    id="run-routine-view-dialog"
+                    fullScreen
+                    open={isBuildOpen}
+                    onClose={stopBuild}
+                    TransitionComponent={UpTransition}
+                    sx={{
+                        zIndex: zIndex + 1,
+                    }}
+                >
+                    <BuildView
+                        handleCancel={stopBuild}
+                        handleClose={stopBuild}
+                        handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
+                        isEditing={false}
+                        loading={isLoading}
+                        owner={relationships.owner}
+                        routineVersion={routineVersion}
+                        session={session}
+                        translationData={{
+                            language,
+                            setLanguage,
+                            handleAddLanguage: () => { },
+                            handleDeleteLanguage: () => { },
+                            translations: routineVersion.translations,
+                        }}
+                        zIndex={zIndex + 1}
+                    />
+                </Dialog>}
+                <ObjectTitle
+                    language={language}
+                    loading={isLoading}
+                    title={name}
+                    session={session}
+                    setLanguage={setLanguage}
+                    translations={routineVersion?.translations ?? partialData?.translations ?? []}
+                    zIndex={zIndex}
+                />
+                {/* Relationships */}
+                <RelationshipButtons
                     isEditing={false}
-                    runnableObject={routineVersion}
+                    objectType={'Routine'}
+                    onRelationshipsChange={onRelationshipsChange}
+                    relationships={relationships}
                     session={session}
                     zIndex={zIndex}
-                /> : null}
-            </Stack>
-            {/* Dialog for building routine */}
-            {routineVersion && <Dialog
-                id="run-routine-view-dialog"
-                fullScreen
-                open={isBuildOpen}
-                onClose={stopBuild}
-                TransitionComponent={UpTransition}
-                sx={{
-                    zIndex: zIndex + 1,
-                }}
-            >
-                <BuildView
-                    handleCancel={stopBuild}
-                    handleClose={stopBuild}
-                    handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
-                    isEditing={false}
+                />
+                {/* Resources */}
+                {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                    title={'Resources'}
+                    list={resourceList}
+                    canUpdate={false}
+                    handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
-                    owner={relationships.owner}
-                    routineVersion={routineVersion}
                     session={session}
-                    translationData={{
-                        language,
-                        setLanguage,
-                        handleAddLanguage: () => { },
-                        handleDeleteLanguage: () => { },
-                        translations: routineVersion.translations,
-                    }}
-                    zIndex={zIndex + 1}
-                />
-            </Dialog>}
-            <ObjectTitle
-                language={language}
-                loading={isLoading}
-                title={name}
-                session={session}
-                setLanguage={setLanguage}
-                translations={routineVersion?.translations ?? partialData?.translations ?? []}
-                zIndex={zIndex}
-            />
-            {/* Relationships */}
-            <RelationshipButtons
-                isEditing={false}
-                objectType={'Routine'}
-                onRelationshipsChange={onRelationshipsChange}
-                relationships={relationships}
-                session={session}
-                zIndex={zIndex}
-            />
-            {/* Resources */}
-            {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                title={'Resources'}
-                list={resourceList}
-                canUpdate={false}
-                handleUpdate={() => { }} // Intentionally blank
-                loading={isLoading}
-                session={session}
-                zIndex={zIndex}
-            />}
-            {/* Box with description and instructions */}
-            <Stack direction="column" spacing={4} sx={containerProps(palette)}>
-                {/* Description */}
-                <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
-                {/* Instructions */}
-                <TextCollapse session={session} title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
-            </Stack>
-            {/* Box with inputs, if this is a single-step routine */}
-            {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
-                <ContentCollapse
-                    isOpen={false}
-                    title="Inputs"
-                >
-                    {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                        <GeneratedInputComponentWithLabel
-                            copyInput={copyInput}
-                            disabled={false}
-                            fieldData={fieldData}
-                            formik={formik}
-                            index={index}
-                            session={session}
-                            textPrimary={palette.background.textPrimary}
-                            onUpload={() => { }}
-                            zIndex={zIndex}
-                        />
-                    ))}
-                    {getCurrentUser(session).id && <Button
-                        startIcon={<SuccessIcon />}
-                        fullWidth
-                        onClick={markAsComplete}
-                        color="secondary"
-                        sx={{ marginTop: 2 }}
-                    >{t(`MarkAsComplete`)}</Button>}
-                </ContentCollapse>
-            </Box>}
-            {/* "View Graph" button if this is a multi-step routine */}
-            {routineVersion?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
-            {/* Tags */}
-            {tags.length > 0 && <TagList
-                maxCharacters={30}
-                parentId={routineVersion?.id ?? ''}
-                session={session}
-                tags={tags as any[]}
-                sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
-            />}
-            {/* Date and version labels */}
-            <Stack direction="row" spacing={1} mt={2} mb={1}>
-                {/* Date created */}
-                <DateDisplay
-                    loading={isLoading}
-                    showIcon={true}
-                    timestamp={routineVersion?.created_at}
-                />
-                <VersionDisplay
-                    currentVersion={routineVersion}
-                    prefix={" - "}
-                    versions={routineVersion?.root?.versions}
-                />
-            </Stack>
-            {/* Votes, reports, and other basic stats */}
-            {/* <StatsCompact
+                    zIndex={zIndex}
+                />}
+                {/* Box with description and instructions */}
+                <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    {/* Description */}
+                    <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
+                    {/* Instructions */}
+                    <TextCollapse session={session} title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
+                </Stack>
+                {/* Box with inputs, if this is a single-step routine */}
+                {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
+                    <ContentCollapse
+                        isOpen={false}
+                        title="Inputs"
+                    >
+                        {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
+                            <GeneratedInputComponentWithLabel
+                                copyInput={copyInput}
+                                disabled={false}
+                                fieldData={fieldData}
+                                formik={formik}
+                                index={index}
+                                session={session}
+                                textPrimary={palette.background.textPrimary}
+                                onUpload={() => { }}
+                                zIndex={zIndex}
+                            />
+                        ))}
+                        {getCurrentUser(session).id && <Button
+                            startIcon={<SuccessIcon />}
+                            fullWidth
+                            onClick={markAsComplete}
+                            color="secondary"
+                            sx={{ marginTop: 2 }}
+                        >{t(`MarkAsComplete`)}</Button>}
+                    </ContentCollapse>
+                </Box>}
+                {/* "View Graph" button if this is a multi-step routine */}
+                {routineVersion?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
+                {/* Tags */}
+                {tags.length > 0 && <TagList
+                    maxCharacters={30}
+                    parentId={routineVersion?.id ?? ''}
+                    session={session}
+                    tags={tags as any[]}
+                    sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                />}
+                {/* Date and version labels */}
+                <Stack direction="row" spacing={1} mt={2} mb={1}>
+                    {/* Date created */}
+                    <DateDisplay
+                        loading={isLoading}
+                        showIcon={true}
+                        timestamp={routineVersion?.created_at}
+                    />
+                    <VersionDisplay
+                        currentVersion={routineVersion}
+                        prefix={" - "}
+                        versions={routineVersion?.root?.versions}
+                    />
+                </Stack>
+                {/* Votes, reports, and other basic stats */}
+                {/* <StatsCompact
                 handleObjectUpdate={updateRoutineVersion}
                 loading={loading}
                 object={routineVersion}
                 session={session}
             /> */}
-            {/* Action buttons */}
-            <ObjectActionsRow
-                actionData={actionData}
-                exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                object={routineVersion}
-                session={session}
-                zIndex={zIndex}
-            />
-            {/* Comments */}
-            <Box sx={containerProps(palette)}>
-                <CommentContainer
-                    forceAddCommentOpen={isAddCommentOpen}
-                    language={language}
-                    objectId={routineVersion?.id ?? ''}
-                    objectType={CommentFor.RoutineVersion}
-                    onAddCommentClose={closeAddCommentDialog}
+                {/* Action buttons */}
+                <ObjectActionsRow
+                    actionData={actionData}
+                    exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                    object={routineVersion}
                     session={session}
                     zIndex={zIndex}
                 />
+                {/* Comments */}
+                <Box sx={containerProps(palette)}>
+                    <CommentContainer
+                        forceAddCommentOpen={isAddCommentOpen}
+                        language={language}
+                        objectId={routineVersion?.id ?? ''}
+                        objectType={CommentFor.RoutineVersion}
+                        onAddCommentClose={closeAddCommentDialog}
+                        session={session}
+                        zIndex={zIndex}
+                    />
+                </Box>
             </Box>
-        </Box>
+        </>
     )
 }

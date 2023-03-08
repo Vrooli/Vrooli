@@ -2,6 +2,7 @@ import { ListMenuItemData } from "components/dialogs/types";
 import { getYou, ListObjectType } from "utils/display";
 import { BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, BookmarkFilledIcon, BookmarkOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
 import { Session } from "@shared/consts";
+import { checkIfLoggedIn } from "utils/authentication";
 
 /**
  * All available actions an object can possibly have
@@ -45,9 +46,10 @@ export enum ObjectActionComplete {
  * @param session Current session. Many actions require a logged in user.
  * @param exclude Actions to exclude from the list (useful when other components on the page handle those actions, like a star button)
  */
-export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session, exclude: ObjectAction[] = []): ObjectAction[] => {
+export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
-    const isLoggedIn = session?.isLoggedIn === true;
+    console.log('action getavailableactions', session)
+    const isLoggedIn = checkIfLoggedIn(session);
     const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canVote, isBookmarked, isUpvoted } = getYou(object)
     let options: ObjectAction[] = [];
     // Check edit

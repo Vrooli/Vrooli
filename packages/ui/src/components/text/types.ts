@@ -1,7 +1,7 @@
 import { BoxProps, TypographyProps } from "@mui/material";
 import { Api, Organization, Project, Quiz, Routine, Session, SmartContract, Standard, User } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
-import { VersionInfo } from "types";
+import { OptionalTranslation, VersionInfo } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {
@@ -14,7 +14,7 @@ export interface DateDisplayProps extends BoxProps {
 export interface ObjectTitleProps extends BoxProps {
     language: string;
     loading: boolean;
-    session: Session;
+    session: Session | undefined;
     setLanguage: (language: string) => void;
     translations: { language: string }[];
     title: string | undefined;
@@ -26,22 +26,19 @@ export interface OwnerLabelProps {
     language?: string
     objectType: ObjectType;
     owner: Routine['owner'] | null | undefined
-    session: Session;
+    session: Session | undefined;
     sxs?: {
         label?: { [x: string]: any };
     }
 }
 
 export interface PageTitleProps {
-    helpKey?: CommonKey;
-    helpVariables?: { [x: string]: string | number };
-    titleKey: CommonKey;
-    titleVariables?: { [x: string]: string | number };
-    session: Session;
+    help: string | undefined;
     sxs?: { 
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
     }
+    title: string | undefined;
 }
 
 export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Routine | SmartContract | Standard | User;
@@ -49,7 +46,7 @@ export interface StatsCompactProps<T extends StatsCompactPropsObject> {
     handleObjectUpdate: (object: T) => void;
     loading: boolean;
     object: T | null | undefined;
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface TextShrinkProps extends TypographyProps {

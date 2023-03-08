@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Dialog,
+    Button,
     DialogContent,
+    Grid,
+    Stack,
+    Typography,
     useTheme,
 } from '@mui/material';
-import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems, useDisplayApolloError } from 'utils';
+import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, ShortcutOption, shortcuts, useDisplayApolloError } from 'utils';
 import { SiteSearchBar } from 'components/inputs';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { AutocompleteOption } from 'types';
 import { useCustomLazyQuery } from 'api/hooks';
 import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
-import { DialogTitle } from 'components';
+import { DialogTitle, LargeDialog } from 'components';
 import { uuidValidate } from '@shared/uuid';
 import { useTranslation } from 'react-i18next';
 import { feedPopular } from 'api/generated/endpoints/feed_popular';
@@ -37,7 +40,7 @@ const stripUrl = (url: string) => {
     return urlParts.join('/');
 }
 
-const titleAria = 'command-palette-dialog-title';
+const titleId = 'command-palette-dialog-title';
 
 export const CommandPalette = ({
     session
@@ -68,6 +71,11 @@ export const CommandPalette = ({
     useEffect(() => { open && refetch() }, [open, refetch, searchString]);
     useDisplayApolloError(error);
 
+    const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
+        __typename: "Shortcut",
+        label: t(label, { ...(labelArgs ?? {}), defaultValue: label }) as string,
+        id: value,
+    })), [t]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
@@ -90,7 +98,7 @@ export const CommandPalette = ({
             return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [searchString, data, languages, t]);
+    }, [t, searchString, data, languages, shortcutsItems]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -113,33 +121,23 @@ export const CommandPalette = ({
     }, [close, setLocation]);
 
     return (
-        <Dialog
-            open={open}
+        <LargeDialog
+            id="command-palette-dialog"
+            isOpen={open}
             onClose={close}
-            aria-labelledby={titleAria}
-            sx={{
-                '& .MuiDialog-paper': {
-                    minWidth: 'min(100%, 600px)',
-                    minHeight: 'min(100%, 200px)',
-                    position: 'absolute',
-                    top: '5%',
-                    overflowY: 'visible',
-                }
-            }}
+            titleId={titleId}
+            zIndex={10000}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 helpText={t(`CommandPaletteHelp`)}
                 title={t(`CommandPaletteTitle`)}
                 onClose={close}
             />
             <DialogContent sx={{
                 background: palette.background.default,
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 overflowY: 'visible',
+                minHeight: '500px',
             }}>
                 <SiteSearchBar
                     id="command-palette-search"
@@ -153,11 +151,15 @@ export const CommandPalette = ({
                     session={session}
                     showSecondaryLabel={true}
                     sxs={{
-                        root: { width: '100%' },
+                        root: { 
+                            width: '100%',
+                            top: 0,
+                            marginTop: 2, 
+                        },
                         paper: { background: palette.background.paper },
                     }}
                 />
             </DialogContent>
-        </Dialog >
+        </LargeDialog>
     );
 }

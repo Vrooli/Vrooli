@@ -17,6 +17,7 @@ export const typeDef = gql`
         ApiVersion
         Award
         Bookmark
+        BookmarkList
         Comment
         Copy
         Email

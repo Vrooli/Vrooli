@@ -16,11 +16,10 @@ export function getDotNotationValue(obj: object, keyPath: string) {
         if (Array.isArray(currentValue) && /^\d+$/.test(key)) {
             const index = parseInt(key, 10);
             // Return undefined if the index is out of range
-            if (index >= 0 && index < currentValue.length) {
-                currentValue = currentValue[index];
-            } else {
+            if (index < 0 || index >= currentValue.length) {
                 return undefined;
             }
+            currentValue = currentValue[index];
         } else {
             // Return undefined if the key is not a property of the current value
             if (!currentValue || !(key in currentValue)) {

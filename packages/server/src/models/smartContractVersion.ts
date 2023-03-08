@@ -1,11 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, PrependString, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionYou } from '@shared/consts';
+import { MaxObjects, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { SmartContractModel } from "./smartContract";
+import { smartContractVersionValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'SmartContractVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -68,7 +70,40 @@ export const SmartContractVersionModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ prisma, userData, data }) => ({
+                id: data.id,
+                content: data.content,
+                contractType: data.contractType,
+                default: noNull(data.default),
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: data.versionLabel,
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childSmartContractVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'smartContractVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'SmartContract', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ prisma, userData, data }) => ({
+                content: noNull(data.content),
+                contractType: noNull(data.contractType),
+                default: noNull(data.default),
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childSmartContractVersions', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'smartContractVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: true, objectType: 'SmartContract', parentRelationshipName: 'versions', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
+        },
+        yup: smartContractVersionValidation,
+    },
     search: {
         defaultSort: SmartContractVersionSortBy.DateUpdatedDesc,
         sortBy: SmartContractVersionSortBy,

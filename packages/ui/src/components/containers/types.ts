@@ -10,7 +10,7 @@ export interface CommentContainerProps {
     objectId: string;
     objectType: CommentFor;
     onAddCommentClose?: () => void;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -58,7 +58,7 @@ export interface TextCollapseProps {
     loading?: boolean;
     loadingLines?: number;
     onOpenChange?: (isOpen: boolean) => void;
-    session: Session;
+    session: Session | undefined;
     title?: string | null;
     text?: string | null;
 }

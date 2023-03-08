@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { CardGrid } from 'components';
+import { CardGrid, TopBar } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, Typography, useTheme } from '@mui/material';
 import { CreateViewProps } from '../types';
@@ -65,6 +65,7 @@ const createCards: CreateInfo[] = [
 ]
 
 export const CreateView = ({
+    display = 'page',
     session
 }: CreateViewProps) => {
     const [, setLocation] = useLocation();
@@ -77,6 +78,14 @@ export const CreateView = ({
 
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Create',
+                }}
+            />
             <CardGrid minWidth={300}>
                 {createCards.map(({ objectType, description, Icon }, index) => (
                     <Box

@@ -6,7 +6,7 @@ import { DialogTitle } from 'components';
 const helpText =
     `All wallet extensions you have enabled should be shown here, as long as they support (CIP-0030)[https://cips.cardano.org/cips/cip30/].\n\nThis log in option only works for browsers that support Chromium extensions (Chrome, Brave, Opera, Vivaldi, etc. on desktop; Kiwi, Yandex, on Android).\n\nIf you need to download a wallet extension, we suggest [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo).\n\n**NOTE:** Working on support for Gero Wallet and Card Wallet.`
 
-const titleAria = 'wallet-select-dialog-title';
+const titleId = 'wallet-select-dialog-title';
 
 export const WalletSelectDialog = ({
     handleOpenInstall,
@@ -24,7 +24,7 @@ export const WalletSelectDialog = ({
         <Dialog
             onClose={handleClose}
             open={open}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiPaper-root': {
@@ -38,7 +38,7 @@ export const WalletSelectDialog = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 helpText={helpText}
                 title={'Installed Wallets'}
                 onClose={handleClose}

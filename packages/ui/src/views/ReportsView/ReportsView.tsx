@@ -2,13 +2,13 @@ import { useQuery } from "@apollo/client";
 import { useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
 import { parseSingleItemUrl } from "utils";
-import { PageTitle } from "components/text";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { Wrap } from "types";
 import { reportFindMany } from "api/generated/endpoints/report_findMany";
 import { getLastUrlPart } from "@shared/route";
 import { useTranslation } from "react-i18next";
 import { ReportsViewProps } from "../types";
+import { TopBar } from "components";
 
 /**
  * Maps object types to the correct id fields
@@ -24,11 +24,12 @@ const objectTypeToIdField = {
 }
 
 export const ReportsView = ({
+    display = 'page',
     session
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    
+
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
@@ -43,7 +44,15 @@ export const ReportsView = ({
 
     return (
         <>
-            <PageTitle titleKey='Reports' helpKey='ReportsHelp' session={session} />
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    titleKey: 'Reports',
+                    helpKey: 'ReportsHelp',
+                }}
+            />
             {reports.map((report, i) => {
                 return <Box
                     key={i}

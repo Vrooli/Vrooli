@@ -7,6 +7,7 @@ import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { VoteModel } from "./vote";
+import { issueValidation } from "@shared/validation";
 
 const __typename = 'Issue' as const;
 type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReport' | 'canRead' | 'canVote'>;
@@ -88,7 +89,19 @@ export const IssueModel: ModelLogic<{
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: issueValidation,
+    },
     search: {
         defaultSort: IssueSortBy.ScoreDesc,
         sortBy: IssueSortBy,

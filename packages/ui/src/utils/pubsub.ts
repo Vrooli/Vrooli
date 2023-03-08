@@ -14,6 +14,9 @@ export type Pubs = 'Celebration' |
     'Cookies' | // For cookie consent dialog
     'FastUpdate' |
     'FindInPage' |
+    'FontSize' |
+    'IsLeftHanded' |
+    'Language' |
     'Loading' |
     'LogOut' |
     'AlertDialog' |
@@ -21,7 +24,8 @@ export type Pubs = 'Celebration' |
     'Snack' |
     'Theme' |
     'NodeDrag' |
-    'NodeDrop';
+    'NodeDrop' | 
+    'Welcome';
 
 
 export type TranslatedSnackMessage = {
@@ -91,6 +95,15 @@ export class PubSub {
     publishFastUpdate({ on = true, duration = 1000 }: { on?: boolean, duration?: number }) {
         this.publish('FastUpdate', { on, duration });
     }
+    publishFontSize(fontSize: number) {
+        this.publish('FontSize', fontSize);
+    }
+    publishIsLeftHanded(isLeftHanded: boolean) {
+        this.publish('IsLeftHanded', isLeftHanded);
+    }
+    publishLanguage(language: string) {
+        this.publish('Language', language);
+    }
     /**
      * Pass delay to show spinner if turning on, or false to turn off.
      */
@@ -104,6 +117,8 @@ export class PubSub {
         this.publish('AlertDialog', data);
     }
     publishSession(session: Session | undefined) {
+        // When session is published, also set "isLoggedIn" flag in localStorage
+        localStorage.setItem('isLoggedIn', session?.isLoggedIn === true ? 'true' : 'false');
         this.publish('Session', session);
     }
     publishSnack(data: SnackPub) {
@@ -117,6 +132,9 @@ export class PubSub {
     }
     publishNodeDrop(data: { nodeId: string, position: { x: number, y: number } }) {
         this.publish('NodeDrop', data);
+    }
+    publishWelcome() {
+        this.publish('Welcome');
     }
 
     subscribe(key: Pubs, subscriber: Function): symbol {
@@ -143,6 +161,15 @@ export class PubSub {
     subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
         return this.subscribe('FastUpdate', subscriber);
     }
+    subscribeFontSize(subscriber: (fontSize: number) => void) {
+        return this.subscribe('FontSize', subscriber);
+    }
+    subscribeIsLeftHanded(subscriber: (isLeftHanded: boolean) => void) {
+        return this.subscribe('IsLeftHanded', subscriber);
+    }
+    subscribeLanguage(subscriber: (language: string) => void) {
+        return this.subscribe('Language', subscriber);
+    }
     subscribeLoading(subscriber: (spinnerDelay: number | false) => void) {
         return this.subscribe('Loading', subscriber);
     }
@@ -166,6 +193,9 @@ export class PubSub {
     }
     subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => void) {
         return this.subscribe('NodeDrop', subscriber);
+    }
+    subscribeWelcome(subscriber: () => void) {
+        return this.subscribe('Welcome', subscriber);
     }
 
     unsubscribe(token: symbol) {

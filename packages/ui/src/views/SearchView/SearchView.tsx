@@ -2,7 +2,7 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { PageTabs, SearchList, ShareSiteDialog } from "components";
+import { PageTabs, SearchList, ShareSiteDialog, TopBar } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
@@ -91,9 +91,10 @@ const tabParams: BaseParams[] = [{
     where: {},
 }];
 
-export function SearchView({
+export const SearchView = ({
+    display = 'page',
     session,
-}: SearchViewProps) {
+}: SearchViewProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -116,7 +117,10 @@ export function SearchView({
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(() => {
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
-        return tabs[Math.max(0, index)];
+        // Default to routine tab
+        if (index === -1) return tabs[3];
+        // Return tab
+        return tabs[index];
     });
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
@@ -187,22 +191,33 @@ export function SearchView({
         </Box>
     ), [onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
+    console.log('search typeeee', searchType, currTab)
+
     return (
         <>
+            <TopBar
+                display={display}
+                onClose={() => { }}
+                session={session}
+                titleData={{
+                    hideOnDesktop: true,
+                    titleKey: 'Search',
+                }}
+                below={<PageTabs
+                    ariaLabel="search-tabs"
+                    currTab={currTab}
+                    onChange={handleTabChange}
+                    tabs={tabs}
+                />}
+            />
             {/* Invite dialog for organizations and users */}
             <ShareSiteDialog
                 onClose={closeShareDialog}
                 open={shareDialogOpen}
                 zIndex={200}
             />
-            <PageTabs
-                ariaLabel="search-tabs"
-                currTab={currTab}
-                onChange={handleTabChange}
-                tabs={tabs}
-            />
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                <Typography component="h2" variant="h4">{t(searchType as CommonKey)}</Typography>
+                <Typography component="h2" variant="h4">{t(searchType as CommonKey, { count: 2, defaultValue: searchType })}</Typography>
                 <Tooltip title="Add new" placement="top">
                     <IconButton
                         size="medium"

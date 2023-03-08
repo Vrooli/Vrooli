@@ -1,11 +1,11 @@
 import { useCustomMutation } from "api/hooks";
 import { DUMMY_ID } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
-import { useCallback, useMemo } from "react";
-import { handleTranslationChange, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
+import { useEffect, useMemo } from "react";
+import { getUserLanguages, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
 import { CommentUpdateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
-import { getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication";
 import { mutationWrapper } from "api/utils";
 import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
@@ -32,7 +32,7 @@ export const CommentUpdateInput = ({
     const { breakpoints } = useTheme();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
     const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Comment, CommentUpdateInputType>(commentUpdate);
     const formik = useFormik({
@@ -71,16 +71,20 @@ export const CommentUpdateInput = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty && formik.values.translationsUpdate.some(t => t.text.trim().length > 0) });
 
-    const translations = useTranslatedFields({
+    const {
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['text'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: commentTranslationValidation.update({}),
     });
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsUpdate', e, language);
-    }, [formik, language]);
+    useEffect(() => {
+        setLanguage(language);
+    }, [language, setLanguage]);
 
     // If mobile, use CommentDialog
     if (isMobile) return (
@@ -118,6 +122,7 @@ export const CommentUpdateInput = ({
                 }}>
                     <GridSubmitButtons
                         disabledSubmit={!isLoggedIn}
+                        display="dialog"
                         errors={translations.errorsWithTranslations}
                         isCreate={true}
                         loading={formik.isSubmitting || loadingUpdate}

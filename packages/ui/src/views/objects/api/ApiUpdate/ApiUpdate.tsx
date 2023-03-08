@@ -5,15 +5,17 @@ import { ApiUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeApiVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector } from "components";
+import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeApiVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, ApiVersion, ApiVersionUpdateInput, ResourceList } from "@shared/consts";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
+import { BaseForm } from "forms";
 
 export const ApiUpdate = ({
+    display = 'page',
     session,
     zIndex = 200,
 }: ApiUpdateProps) => {
@@ -73,30 +75,21 @@ export const ApiUpdate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Handle translations
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['details', 'name', 'summary'],
         formik,
         formikField: 'translationsUpdate',
-        language,
         validationSchema: apiVersionTranslationValidation.update({}),
     });
-    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => handleTranslationBlur(formik, 'translationsUpdate', e, language), [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => handleTranslationChange(formik, 'translationsUpdate', e, language), [formik, language]);
 
     useEffect(() => {
         setRelationships({
@@ -111,66 +104,53 @@ export const ApiUpdate = ({
         if (apiVersion?.translations?.length) {
             setLanguage(getPreferredLanguage(apiVersion.translations.map(t => t.language), getUserLanguages(session)));
         }
-    }, [apiVersion, session]);
-
-    const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-            <Grid item xs={12}>
-                <PageTitle titleKey='UpdateApi' session={session} />
-            </Grid>
-            <Grid item xs={12} mb={4}>
-                <RelationshipButtons
-                    isEditing={true}
-                    objectType={'Api'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
-                    session={session}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12}>
-                <LanguageInput
-                    currentLanguage={language}
-                    handleAdd={handleAddLanguage}
-                    handleDelete={handleLanguageDelete}
-                    handleCurrent={setLanguage}
-                    session={session}
-                    translations={formik.values.translationsUpdate}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            {/* TODO */}
-            <GridSubmitButtons
-                errors={translations.errorsWithTranslations}
-                isCreate={false}
-                loading={formik.isSubmitting}
-                onCancel={onCancel}
-                onSetSubmitting={formik.setSubmitting}
-                onSubmit={formik.handleSubmit}
-            />
-        </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, translations, onCancel]);
+    }, [apiVersion, session, setLanguage]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}
-        >
-            {loading ? (
-                <Box sx={{
-                    position: 'absolute',
-                    top: '-5vh', // Half of toolbar height
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <CircularProgress size={100} color="secondary" />
-                </Box>
-            ) : formInput}
-        </form>
+        <>
+            <TopBar
+                display={display}
+                onClose={onCancel}
+                session={session}
+                titleData={{
+                    titleKey: 'UpdateApi',
+                }}
+            />
+            <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
+                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
+                    <Grid item xs={12} mb={4}>
+                        <RelationshipButtons
+                            isEditing={true}
+                            objectType={'Api'}
+                            onRelationshipsChange={onRelationshipsChange}
+                            relationships={relationships}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            session={session}
+                            translations={formik.values.translationsUpdate}
+                            zIndex={zIndex}
+                        />
+                    </Grid>
+                    {/* TODO */}
+                    <GridSubmitButtons
+                        display={display}
+                        errors={translations.errorsWithTranslations}
+                        isCreate={false}
+                        loading={formik.isSubmitting}
+                        onCancel={onCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
+                </Grid>
+            </BaseForm>
+        </>
     )
 }

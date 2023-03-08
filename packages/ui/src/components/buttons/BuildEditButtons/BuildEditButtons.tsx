@@ -33,6 +33,7 @@ export const BuildEditButtons = ({
                 <GridSubmitButtons
                     disabledCancel={loading || !canCancelMutate}
                     disabledSubmit={loading || !canSubmitMutate}
+                    display="page"
                     errors={errors}
                     isCreate={isAdding}
                     onCancel={handleCancel}

@@ -19,7 +19,6 @@ export const routineVersionOutput: GqlPartial<RoutineVersionOutput> = {
     common: {
         id: true,
         index: true,
-        isRequired: true,
         name: true,
         standardVersion: async () => rel((await import('./standardVersion')).standardVersion, 'list'),
         translations: () => rel(routineVersionOutputTranslation, 'full'),

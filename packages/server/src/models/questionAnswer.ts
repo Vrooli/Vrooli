@@ -4,6 +4,7 @@ import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSe
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions } from "../utils";
 import { ModelLogic } from "./types";
+import { questionAnswerValidation } from "@shared/validation";
 
 const __typename = 'QuestionAnswer' as const;
 const suppFields = [] as const;
@@ -49,7 +50,19 @@ export const QuestionAnswerModel: ModelLogic<{
         },
         joinMap: { bookmarkedBy: 'user' },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: questionAnswerValidation,
+    },
     search: {
         defaultSort: QuestionAnswerSortBy.DateUpdatedDesc,
         sortBy: QuestionAnswerSortBy,

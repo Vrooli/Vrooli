@@ -2,34 +2,28 @@ import { Stack, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons";
 import { noSelect } from "styles";
 import { PageTitleProps } from "../types";
-import { useTranslation } from "react-i18next";
 
 export const PageTitle = ({
-    helpKey,
-    helpVariables,
-    titleKey,
-    titleVariables,
-    session,
+    help,
     sxs,
+    title,
 }: PageTitleProps) => {
-    const { t } = useTranslation();
+
+    const titleDisplay = <Typography
+        component="h1"
+        variant="h3"
+        sx={{
+            textAlign: 'center',
+            marginTop: 2,
+            marginBottom: 2,
+            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
+            ...noSelect,
+            ...(sxs?.text || {}),
+        }}
+    >{title}</Typography>
 
     // If no help data, return a simple title
-    if (!helpKey) {
-        return (
-            <Typography
-                component="h1"
-                variant="h3"
-                sx={{
-                    textAlign: 'center',
-                    sx: { marginTop: 2, marginBottom: 2 },
-                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                    ...noSelect,
-                    ...(sxs?.text || {}),
-                }}
-            >{t(titleKey, {...titleVariables, defaultValue: titleKey })}</Typography>
-        )
-    }
+    if (!help) return titleDisplay;
     // Otherwise, return a stack with the title and help button
     return (
         <Stack
@@ -43,17 +37,9 @@ export const PageTitle = ({
                 ...(sxs?.stack || {}),
             }}
         >
-            <Typography
-                component="h1"
-                variant="h3"
-                sx={{
-                    textAlign: 'center',
-                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                    ...(sxs?.text || {}),
-                }}
-            >{t(titleKey, {...titleVariables, defaultValue: titleKey })}</Typography>
+            {titleDisplay}
             <HelpButton
-                markdown={t(helpKey, {...helpVariables, defaultValue: helpKey })}
+                markdown={help}
                 sx={{ width: '40px', height: '40px' }}
             />
         </Stack>

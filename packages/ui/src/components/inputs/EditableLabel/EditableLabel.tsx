@@ -10,8 +10,9 @@ import { EditIcon } from '@shared/icons';
 import { useFormik } from 'formik';
 import { GridSubmitButtons } from 'components/buttons';
 import * as yup from 'yup';
+import { useTranslation } from 'react-i18next';
 
-const titleAria = 'editable-label-dialog-title';
+const titleId = 'editable-label-dialog-title';
 const descriptionAria = 'editable-label-dialog-description';
 
 export const EditableLabel = ({
@@ -24,6 +25,8 @@ export const EditableLabel = ({
     text,
     validationSchema,
 }: EditableLabelProps) => {
+    const { t } = useTranslation();
+    
     /**
      * Random string for unique ID
      */
@@ -72,7 +75,7 @@ export const EditableLabel = ({
                 open={active}
                 disableScrollLock={true}
                 onClose={handleCancel}
-                aria-labelledby={titleAria}
+                aria-labelledby={titleId}
                 aria-describedby={descriptionAria}
                 sx={{
                     '& .MuiPaper-root': {
@@ -82,9 +85,9 @@ export const EditableLabel = ({
                 }}
             >
                 <DialogTitle
-                    ariaLabel={titleAria}
+                    id={titleId}
                     onClose={handleCancel}
-                    title="Edit Label"
+                    title={t('EditLabel')}
                 />
                 <DialogContent>
                     <DialogContentText id={descriptionAria}>
@@ -104,6 +107,7 @@ export const EditableLabel = ({
                 {/* Save and cancel buttons */}
                 <Grid container spacing={1} padding={1}>
                     <GridSubmitButtons
+                        display="dialog"
                         errors={formik.errors}
                         isCreate={false}
                         loading={formik.isSubmitting}

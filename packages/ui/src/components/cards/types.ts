@@ -19,7 +19,7 @@ export interface ResourceCardProps {
     onContextMenu: (target: EventTarget, index: number) => void;
     onEdit: (index: number) => void;
     onDelete: (index: number) => void;
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface LineGraphCardProps extends Omit<LineGraphProps, 'dims'> {

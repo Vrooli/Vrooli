@@ -16,6 +16,7 @@ import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { DeleteIcon } from '@shared/icons';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useTranslation } from 'react-i18next';
 
 export const DeleteDialog = ({
     handleClose,
@@ -27,6 +28,7 @@ export const DeleteDialog = ({
 }: DeleteDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
 
     // Stores user-inputted name of object to be deleted
     const [nameInput, setNameInput] = useState<string>('');
@@ -63,7 +65,7 @@ export const DeleteDialog = ({
             }}
         >
             <DialogTitle
-                ariaLabel=''
+                id=''
                 title=''
                 onClose={() => { close() }}
             />
@@ -81,7 +83,7 @@ export const DeleteDialog = ({
                         helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
                         sx={{ paddingBottom: 2 }}
                     />
-                    <Button startIcon={<DeleteIcon />} color="secondary" onClick={handleDelete}>Delete</Button>
+                    <Button startIcon={<DeleteIcon />} color="secondary" onClick={handleDelete}>{t('Delete')}</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

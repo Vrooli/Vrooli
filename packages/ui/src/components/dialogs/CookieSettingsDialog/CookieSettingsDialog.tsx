@@ -12,11 +12,11 @@ import {
 } from '@mui/material';
 import { CookieSettingsDialogProps } from '../types';
 import { useFormik } from 'formik';
-import { DialogTitle, HelpButton } from 'components';
+import { DialogTitle, HelpButton, LargeDialog } from 'components';
 import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
 import { useTranslation } from 'react-i18next';
 
-const titleAria = 'cookie-settings-dialog-title';
+const titleId = 'cookie-settings-dialog-title';
 const strictlyNecessaryUses = ['Authentication'] as const;
 const functionalUses = ['Theme', 'Font Size'] as const;
 
@@ -61,33 +61,16 @@ export const CookieSettingsDialog = ({
     }
 
     return (
-        <Dialog
-            id="advanced-search-dialog"
-            open={isOpen}
+        <LargeDialog
+            id="cookie-settings-dialog"
+            isOpen={isOpen}
             onClose={onCancel}
-            scroll="body"
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex: 1234,
-                '& .MuiDialogContent-root': {
-                    minWidth: 'min(400px, 100%)',
-                },
-                '& .MuiPaper-root': {
-                    margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%', sm: '500px' },
-                    display: { xs: 'block', sm: 'inline-block' },
-                    background: palette.background.default,
-                    color: palette.background.textPrimary,
-                },
-                // Remove ::after element that is added to the dialog
-                '& .MuiDialog-container::after': {
-                    content: 'none',
-                },
-            }}
+            titleId={titleId}
+            zIndex={1234}
         >
             {/* Title */}
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={t(`CookieSettings`)}
                 onClose={onCancel}
             />
@@ -199,6 +182,6 @@ export const CookieSettingsDialog = ({
                     </Grid>
                 </Grid>
             </form>
-        </Dialog>
+        </LargeDialog>
     )
 }

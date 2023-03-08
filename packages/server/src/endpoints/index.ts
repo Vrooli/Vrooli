@@ -6,6 +6,7 @@ import * as ApiVersion from './apiVersion';
 import * as Auth from './auth';
 import * as Award from './award';
 import * as Bookmark from './bookmark';
+import * as BookmarkList from './bookmarkList';
 import * as Comment from './comment';
 import * as DeleteOneOrMany from './deleteOneOrMany';
 import * as Duplicate from './copy';
@@ -106,6 +107,7 @@ const schemas: SchemaType[] = [
     Auth,
     Award,
     Bookmark,
+    BookmarkList,
     Comment,
     DeleteOneOrMany,
     Duplicate,

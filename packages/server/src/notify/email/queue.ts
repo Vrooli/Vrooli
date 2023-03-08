@@ -19,11 +19,12 @@ export function sendMail(to: string[] = [], subject='', text='', html='') {
 }
 
 export function sendResetPasswordLink(email: string, userId: string | number, code: string) {
+    const link = `${APP_URL}/password-reset?code=${userId}:${code}`;
     emailQueue.add({
         to: [email],
         subject: `${BUSINESS_NAME} Password Reset`,
-        text: `A password reset was requested for your account with ${BUSINESS_NAME}. If you sent this request, you may change your password through this link (${APP_URL}/password-reset/${userId}/${code}) to continue. If you did not send this request, please ignore this email.`,
-        html: `<p>A password reset was requested for your account with ${BUSINESS_NAME}.</p><p>If you sent this request, you may change your password through this link (<a href=\"${APP_URL}/password-reset/${userId}/${code}\">${APP_URL}/password-reset/${userId}/${code}</a>) to continue.<p>If you did not send this request, please ignore this email.<p>`
+        text: `A password reset was requested for your account with ${BUSINESS_NAME}. If you sent this request, you may change your password through this link (${link}) to continue. If you did not send this request, please ignore this email.`,
+        html: `<p>A password reset was requested for your account with ${BUSINESS_NAME}.</p><p>If you sent this request, you may change your password through this link (<a href=\"${link}\">${link}</a>) to continue.<p>If you did not send this request, please ignore this email.<p>`
     });
 }
 
@@ -34,7 +35,7 @@ export function sendVerificationLink(email: string, userId: string | number, cod
     emailQueue.add({
         to: [email],
         subject: `Verify ${BUSINESS_NAME} Account`,
-        text: `Welcome to ${BUSINESS_NAME}! Please log in through this link (${APP_URL}/start?code=${userId}:${code}) to verify your account. If you did not create an account with us, please ignore this link.`,
+        text: `Welcome to ${BUSINESS_NAME}! Please log in through this link (${link}) to verify your account. If you did not create an account with us, please ignore this link.`,
         html,
     });
 }

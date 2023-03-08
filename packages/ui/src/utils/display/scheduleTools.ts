@@ -6,7 +6,8 @@ import { getCurrentUser } from "utils/authentication"
  * @param session Current session data
  * @returns Schedules occuring right now
  */
-export const currentSchedules = (session: Session): UserSchedule[] => {
+export const currentSchedules = (session: Session | null | undefined): UserSchedule[] => {
+    if (!session) return [];
     // Find current user
     const user = getCurrentUser(session);
     if (!user) return [];
