@@ -1,13 +1,29 @@
 import gql from 'graphql-tag';
+import { ApiVersion_full } from '../fragments/ApiVersion_full';
 import { Label_full } from '../fragments/Label_full';
 import { Label_list } from '../fragments/Label_list';
 import { Organization_nav } from '../fragments/Organization_nav';
+import { PullRequest_full } from '../fragments/PullRequest_full';
+import { ResourceList_full } from '../fragments/ResourceList_full';
+import { Routine_full } from '../fragments/Routine_full';
+import { RoutineVersion_nav } from '../fragments/RoutineVersion_nav';
+import { RoutineVersionInput_full } from '../fragments/RoutineVersionInput_full';
+import { RoutineVersionOutput_full } from '../fragments/RoutineVersionOutput_full';
+import { SmartContractVersion_full } from '../fragments/SmartContractVersion_full';
 import { Tag_list } from '../fragments/Tag_list';
 import { User_nav } from '../fragments/User_nav';
 
-export const nodeUpdate = gql`${Label_full}
+export const nodeUpdate = gql`${ApiVersion_full}
+${Label_full}
 ${Label_list}
 ${Organization_nav}
+${PullRequest_full}
+${ResourceList_full}
+${Routine_full}
+${RoutineVersion_nav}
+${RoutineVersionInput_full}
+${RoutineVersionOutput_full}
+${SmartContractVersion_full}
 ${Tag_list}
 ${User_nav}
 
@@ -61,502 +77,37 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             }
         }
     }
+    translations {
+        id
+        language
+        description
+        name
+    }
     routineVersion {
         versionNotes
         apiVersion {
-            pullRequest {
-                translations {
-                    id
-                    language
-                    text
-                }
-                id
-                created_at
-                updated_at
-                mergedOrRejectedAt
-                commentsCount
-                status
-                createdBy {
-                    id
-                    name
-                    handle
-                }
-                you {
-                    canComment
-                    canDelete
-                    canReport
-                    canUpdate
-                }
-            }
-            root {
-                parent {
-                    id
-                    isLatest
-                    isPrivate
-                    versionIndex
-                    versionLabel
-                    root {
-                        id
-                        isPrivate
-                    }
-                    translations {
-                        id
-                        language
-                        details
-                        name
-                        summary
-                    }
-                }
-                stats {
-                    id
-                    periodStart
-                    periodEnd
-                    periodType
-                    calls
-                    routineVersions
-                }
-                id
-                created_at
-                updated_at
-                isPrivate
-                issuesCount
-                labels {
-                    ...Label_list
-                }
-                owner {
-                    ... on Organization {
-                        ...Organization_nav
-                    }
-                    ... on User {
-                        ...User_nav
-                    }
-                }
-                permissions
-                questionsCount
-                score
-                bookmarks
-                tags {
-                    ...Tag_list
-                }
-                transfersCount
-                views
-                you {
-                    canDelete
-                    canBookmark
-                    canTransfer
-                    canUpdate
-                    canRead
-                    canVote
-                    isBookmarked
-                    isUpvoted
-                    isViewed
-                }
-            }
-            translations {
-                id
-                language
-                details
-                name
-                summary
-            }
-            versionNotes
-            id
-            created_at
-            updated_at
-            callLink
-            commentsCount
-            documentationLink
-            forksCount
-            isLatest
-            isPrivate
-            reportsCount
-            versionIndex
-            versionLabel
-            you {
-                canComment
-                canCopy
-                canDelete
-                canReport
-                canUpdate
-                canUse
-                canRead
-            }
+            ...ApiVersion_full
         }
         inputs {
-            id
-            index
-            isRequired
-            name
-            standardVersion {
-                translations {
-                    id
-                    language
-                    description
-                    jsonVariable
-                }
-                id
-                created_at
-                updated_at
-                isComplete
-                isFile
-                isLatest
-                isPrivate
-                default
-                standardType
-                props
-                yup
-                versionIndex
-                versionLabel
-                commentsCount
-                directoryListingsCount
-                forksCount
-                reportsCount
-                you {
-                    canComment
-                    canCopy
-                    canDelete
-                    canReport
-                    canUpdate
-                    canUse
-                    canRead
-                }
-            }
-            translations {
-                id
-                language
-                description
-                helpText
-            }
+            ...RoutineVersionInput_full
         }
         outputs {
-            id
-            index
-            isRequired
-            name
-            standardVersion {
-                translations {
-                    id
-                    language
-                    description
-                    jsonVariable
-                }
-                id
-                created_at
-                updated_at
-                isComplete
-                isFile
-                isLatest
-                isPrivate
-                default
-                standardType
-                props
-                yup
-                versionIndex
-                versionLabel
-                commentsCount
-                directoryListingsCount
-                forksCount
-                reportsCount
-                you {
-                    canComment
-                    canCopy
-                    canDelete
-                    canReport
-                    canUpdate
-                    canUse
-                    canRead
-                }
-            }
-            translations {
-                id
-                language
-                description
-                helpText
-            }
+            ...RoutineVersionOutput_full
         }
         pullRequest {
-            translations {
-                id
-                language
-                text
-            }
-            id
-            created_at
-            updated_at
-            mergedOrRejectedAt
-            commentsCount
-            status
-            createdBy {
-                id
-                name
-                handle
-            }
-            you {
-                canComment
-                canDelete
-                canReport
-                canUpdate
-            }
+            ...PullRequest_full
         }
         resourceList {
-            id
-            created_at
-            translations {
-                id
-                language
-                description
-                name
-            }
-            resources {
-                id
-                index
-                link
-                usedFor
-                translations {
-                    id
-                    language
-                    description
-                    name
-                }
-            }
+            ...ResourceList_full
         }
         root {
-            parent {
-                id
-                isAutomatable
-                isComplete
-                isDeleted
-                isLatest
-                isPrivate
-                root {
-                    id
-                    isInternal
-                    isPrivate
-                }
-                translations {
-                    id
-                    language
-                    description
-                    instructions
-                    name
-                }
-                versionIndex
-                versionLabel
-            }
-            stats {
-                id
-                periodStart
-                periodEnd
-                periodType
-                runsStarted
-                runsCompleted
-                runCompletionTimeAverage
-                runContextSwitchesAverage
-            }
-            id
-            created_at
-            updated_at
-            isInternal
-            isPrivate
-            issuesCount
-            labels {
-                ...Label_list
-            }
-            owner {
-                ... on Organization {
-                    ...Organization_nav
-                }
-                ... on User {
-                    ...User_nav
-                }
-            }
-            permissions
-            questionsCount
-            score
-            bookmarks
-            tags {
-                ...Tag_list
-            }
-            transfersCount
-            views
-            you {
-                canComment
-                canDelete
-                canBookmark
-                canUpdate
-                canRead
-                canVote
-                isBookmarked
-                isUpvoted
-                isViewed
-            }
+            ...Routine_full
         }
         smartContractVersion {
-            versionNotes
-            pullRequest {
-                translations {
-                    id
-                    language
-                    text
-                }
-                id
-                created_at
-                updated_at
-                mergedOrRejectedAt
-                commentsCount
-                status
-                createdBy {
-                    id
-                    name
-                    handle
-                }
-                you {
-                    canComment
-                    canDelete
-                    canReport
-                    canUpdate
-                }
-            }
-            resourceList {
-                id
-                created_at
-                translations {
-                    id
-                    language
-                    description
-                    name
-                }
-                resources {
-                    id
-                    index
-                    link
-                    usedFor
-                    translations {
-                        id
-                        language
-                        description
-                        name
-                    }
-                }
-            }
-            root {
-                parent {
-                    id
-                    isLatest
-                    isPrivate
-                    versionIndex
-                    versionLabel
-                    root {
-                        id
-                        isPrivate
-                    }
-                    translations {
-                        id
-                        language
-                        description
-                        jsonVariable
-                        name
-                    }
-                }
-                stats {
-                    id
-                    periodStart
-                    periodEnd
-                    periodType
-                    calls
-                    routineVersions
-                }
-                id
-                created_at
-                updated_at
-                isPrivate
-                issuesCount
-                labels {
-                    ...Label_list
-                }
-                owner {
-                    ... on Organization {
-                        ...Organization_nav
-                    }
-                    ... on User {
-                        ...User_nav
-                    }
-                }
-                permissions
-                questionsCount
-                score
-                bookmarks
-                tags {
-                    ...Tag_list
-                }
-                transfersCount
-                views
-                you {
-                    canDelete
-                    canBookmark
-                    canTransfer
-                    canUpdate
-                    canRead
-                    canVote
-                    isBookmarked
-                    isUpvoted
-                    isViewed
-                }
-            }
-            translations {
-                id
-                language
-                description
-                jsonVariable
-                name
-            }
-            id
-            created_at
-            updated_at
-            isComplete
-            isDeleted
-            isLatest
-            isPrivate
-            default
-            contractType
-            content
-            versionIndex
-            versionLabel
-            commentsCount
-            directoryListingsCount
-            forksCount
-            reportsCount
-            you {
-                canComment
-                canCopy
-                canDelete
-                canReport
-                canUpdate
-                canUse
-                canRead
-            }
+            ...SmartContractVersion_full
         }
         suggestedNextByRoutineVersion {
-            id
-            isAutomatable
-            isComplete
-            isDeleted
-            isLatest
-            isPrivate
-            root {
-                id
-                isInternal
-                isPrivate
-            }
-            translations {
-                id
-                language
-                description
-                instructions
-                name
-            }
-            versionIndex
-            versionLabel
+            ...RoutineVersion_nav
         }
         translations {
             id
@@ -722,12 +273,6 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             canRead
             canVote
         }
-    }
-    translations {
-        id
-        language
-        description
-        name
     }
   }
 }`;

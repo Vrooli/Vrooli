@@ -44,7 +44,7 @@ export function useCustomLazyQuery<
     const modifiedData: TData | undefined = data && Object.values(data)[0];
     // If variables passed into execute, make sure they are wrapped in "input" object
     const executeWithVariables = useMemo(() => {
-        return (props) => {
+        return (props?: any) => {
             if (props?.variables) {
                 return execute({ ...props, variables: { input: props.variables } });
             }

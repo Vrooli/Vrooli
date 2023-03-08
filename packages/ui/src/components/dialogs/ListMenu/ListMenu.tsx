@@ -80,7 +80,7 @@ export function ListMenu<T>({
             }}
         >
             {title && <MenuTitle
-                id={titleId}
+                ariaLabel={titleId}
                 title={title}
                 onClose={() => { onClose() }}
             />}

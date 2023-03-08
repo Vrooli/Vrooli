@@ -18,7 +18,6 @@ import { DialogTitle, LargeDialog } from 'components';
 import { uuidValidate } from '@shared/uuid';
 import { useTranslation } from 'react-i18next';
 import { feedPopular } from 'api/generated/endpoints/feed_popular';
-import { CreateIcon, SearchIcon } from '@shared/icons';
 
 /**
  * Strips URL for comparison against the current URL.

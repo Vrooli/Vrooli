@@ -45,7 +45,7 @@ export const MicrophoneButton = ({
             startListening();
             transcript && resetTranscript();
         } else {
-            PubSub.get().publishSnack({ messageKey: 'SpeechNotAvailable' });
+            PubSub.get().publishSnack({ messageKey: 'SpeechNotAvailable', severity: 'Error' });
         }
         return true
     }, [status, startListening, stopListening, transcript, onTranscriptChange, resetTranscript]);

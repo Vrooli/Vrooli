@@ -2,6 +2,7 @@ export * from './CommentCreateInput/CommentCreateInput';
 export * from './CommentUpdateInput/CommentUpdateInput';
 export * from './Dropzone/Dropzone';
 export * from './EditableLabel/EditableLabel';
+export * from './FocusModeSelector/FocusModeSelector';
 export * from './generated';
 export * from './JsonInput/JsonInput';
 export * from './LanguageInput/LanguageInput';

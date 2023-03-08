@@ -1,3 +1,4 @@
+import { Box } from '@mui/material';
 import { SettingsList, SettingsTopBar } from 'components';
 import { SettingsViewProps } from '../types';
 
@@ -15,7 +16,11 @@ export const SettingsView = ({
                     titleKey: 'Settings',
                 }}
             />
-            <SettingsList showOnMobile={true} />
+            <Box sx={{
+                margin: 'auto',
+            }}>
+                <SettingsList showOnMobile={true} />
+            </Box>
         </>
     )
 }

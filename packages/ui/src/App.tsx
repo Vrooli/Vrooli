@@ -9,14 +9,14 @@ import {
     SnackStack,
     WelcomeDialog,
 } from 'components';
-import { getDeviceInfo, getUserLanguages, PubSub, themes, useReactHash } from 'utils';
+import { getDeviceInfo, PubSub, themes, useReactHash } from 'utils';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme, createTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useCustomMutation } from 'api/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
 import { getSiteLanguage, guestSession } from 'utils/authentication';
-import { getCookieFontSize, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieLanguage, setCookieTheme } from 'utils/cookies';
+import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
@@ -34,18 +34,26 @@ const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
 })
 
 /**
+ * Sets "isLeftHanded" property on theme
+ */
+const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
+    ...theme,
+    isLeftHanded,
+})
+
+/**
  * Attempts to find theme without using session, defaulting to light
  */
 const findThemeWithoutSession = (): Theme => {
+    // Get font size from cookie
     const fontSize = getCookieFontSize() ?? 14;
-    console.log('GOT FONT SIZE', fontSize)
-    // First, try getting theme from local storage
-    const cookieTheme = getCookieTheme();
-    if (cookieTheme) return withFontSize(themes[cookieTheme], fontSize);
-    // If not found or invalid, try getting theme from window
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    // Default to light if not found
-    return withFontSize(prefersDark ? themes.dark : themes.light, fontSize);
+    // Get isLeftHanded from cookie
+    const isLefthanded = getCookieIsLeftHanded() ?? false;
+    // Get theme. First check cookie, then window
+    const windowPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = getCookieTheme() ?? (windowPrefersDark ? 'dark' : 'light');
+    // Return theme object
+    return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 }
 
 const useStyles = makeStyles(() => ({
@@ -98,6 +106,7 @@ export function App() {
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [fontSize, setFontSize] = useState(getCookieFontSize() ?? 14);
     const [language, setLanguage] = useState(getSiteLanguage(undefined));
+    const [isLeftHanded, setIsLeftHanded] = useState(getCookieIsLeftHanded() ?? false);
     const [isLoading, setIsLoading] = useState(false);
     const [isCelebrating, setIsCelebrating] = useState(false);
     const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
@@ -116,6 +125,7 @@ export function App() {
             setLanguage(getSiteLanguage(session));
         }
     }, [session]);
+    console.log('themeeeeeeeee!!!!!!!!!!!!!', theme)
 
     // Applies font size change
     useEffect(() => {
@@ -123,19 +133,25 @@ export function App() {
         setTheme(withFontSize(themes[theme.palette.mode], fontSize));
     }, [fontSize, theme.palette.mode]);
 
+    // Applies isLeftHanded change
+    useEffect(() => {
+        console.log('Applying isLeftHanded change', isLeftHanded);
+        setTheme(withIsLeftHanded(themes[theme.palette.mode], isLeftHanded));
+    }, [isLeftHanded, theme.palette.mode]);
+
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
      * use the theme color as the status bar color.
      */
     const setThemeAndMeta = useCallback((theme: Theme) => {
         // Update state
-        setTheme(withFontSize(theme, fontSize));
+        setTheme(withIsLeftHanded(withFontSize(theme, fontSize), isLeftHanded));
         // Update meta tags, for theme-color and apple-mobile-web-app-status-bar-style
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.palette.primary.dark);
         document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', theme.palette.primary.dark);
         // Also store in local storage
         setCookieTheme(theme.palette.mode);
-    }, [fontSize]);
+    }, [fontSize, isLeftHanded]);
 
     // If anchor tag in url, scroll to element
     const hash = useReactHash();
@@ -326,6 +342,11 @@ export function App() {
             setLanguage(data);
             setCookieLanguage(data);
         });
+        // Handle isLeftHanded updates
+        let isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
+            setIsLeftHanded(data);
+            setCookieIsLeftHanded(data);
+        });
         // Handle welcome message
         let welcomeSub = PubSub.get().subscribeWelcome(() => {
             setIsWelcomeDialogOpen(true);
@@ -338,6 +359,7 @@ export function App() {
             PubSub.get().unsubscribe(themeSub);
             PubSub.get().unsubscribe(fontSizeSub);
             PubSub.get().unsubscribe(languageSub);
+            PubSub.get().unsubscribe(isLeftHandedSub);
             PubSub.get().unsubscribe(welcomeSub);
         })
     }, [checkSession, setThemeAndMeta]);

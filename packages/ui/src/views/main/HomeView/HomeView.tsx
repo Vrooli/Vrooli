@@ -1,17 +1,18 @@
 import { Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { centeredDiv } from 'styles';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, TitleContainer, PageTabs, TopBar } from 'components';
+import { SiteSearchBar, TitleContainer, PageTabs, TopBar, ResourceListVertical, HomePrompt } from 'components';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, HomeInput, HomeResult } from '@shared/consts';
+import { APP_LINKS, HomeInput, HomeResult, ResourceList } from '@shared/consts';
 import { HomeViewProps } from '../types';
-import { actionsItems, getUserLanguages, listToAutocomplete, openObject, SearchPageTabOption, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, openObject, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
 import { getCurrentUser } from 'utils/authentication';
 import { feedHome } from 'api/generated/endpoints/feed_home';
 import { PageTab } from 'components/types';
 import { useTranslation } from 'react-i18next';
+import { DUMMY_ID } from '@shared/uuid';
+import { centeredDiv } from 'styles';
 
 enum TabOptions {
     ForYou = "ForYou",
@@ -38,6 +39,28 @@ export const HomeView = ({
     useEffect(() => { refetch() }, [refetch, searchString]);
     useDisplayApolloError(error);
     const showTabs = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+
+    // Converts resources to a resource list
+    const [resourceList, setResourceList] = useState<ResourceList>({
+        __typename: 'ResourceList',
+        created_at: 0,
+        updated_at: 0,
+        id: DUMMY_ID,
+        resources: [],
+        translations: [],
+    });
+    useEffect(() => {
+        if (data?.home?.resources) {
+            setResourceList({
+                __typename: 'ResourceList',
+                created_at: 0,
+                updated_at: 0,
+                id: DUMMY_ID,
+                resources: data.home.resources,
+                translations: [],
+            });
+        }
+    }, [data]);
 
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
@@ -119,31 +142,11 @@ export const HomeView = ({
         if (searchString) setLocation(APP_LINKS.Home, { replace: true, searchParams: { search: searchString } });
     }, [searchString, setLocation]);
 
-    /**
-     * Determine the order that the feed lists should be displayed in.
-     * If a key word (e.g. "Routine", "Organization", etc.) is in the search string, then 
-     * the list of that type should be displayed first.
-     */
-    const feedOrder = useMemo(() => {
-        // Helper method for checking if a word (NOT a substring) is in the search string
-        const containsWord = (str: string, word: string) => str.toLowerCase().match(new RegExp("\\b" + `!${word}`.toLowerCase() + "\\b")) != null;
-        // Set default order
-        let defaultOrder = [SearchPageTabOption.Routines, SearchPageTabOption.Projects, SearchPageTabOption.Organizations, SearchPageTabOption.Standards, SearchPageTabOption.Users];
-        // Loop through keywords, and move ones which appear in the search string to the front
-        // A keyword is only counted as a match if it has an exclamation point (!) at the beginning
-        for (const keyword of Object.keys(SearchPageTabOption)) {
-            if (containsWord(searchString, keyword)) {
-                defaultOrder = [SearchPageTabOption[keyword], ...defaultOrder.filter(o => o !== SearchPageTabOption[keyword])];
-            }
-        }
-        return defaultOrder;
-    }, [searchString]);
-
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
+                onClose={() => { }}
                 session={session}
                 // Navigate between for you and history pages
                 below={showTabs && (
@@ -158,7 +161,7 @@ export const HomeView = ({
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
-                <Typography component="h1" variant="h3" textAlign="center">What would you like to do?</Typography>
+                <HomePrompt />
                 {/* ========= #region Custom SearchBar ========= */}
                 <SiteSearchBar
                     id="main-search"
@@ -177,12 +180,15 @@ export const HomeView = ({
             {/* Result feeds */}
             <Stack spacing={10} direction="column" mt={10}>
                 {/* Resources */}
-                <TitleContainer
-                    titleKey="Resource"
-                    titleVariables={{ count: 2 }}
-                >
-                    {/* TODO */}
-                </TitleContainer>
+                <ResourceListVertical
+                    list={resourceList}
+                    session={session}
+                    canUpdate={true}
+                    handleUpdate={setResourceList}
+                    loading={loading}
+                    mutate={true}
+                    zIndex={zIndex}
+                />
                 {/* Events */}
                 <TitleContainer
                     titleKey="Schedule"

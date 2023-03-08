@@ -88,7 +88,7 @@ export const SettingsList = ({
     return (
         // Full width on mobile, and 500px on desktop. 
         <Box sx={{
-            width: { xs: '100%', md: 'min(100%, 300px)' },
+            width: 'min(100%, 300px)',
             marginLeft: 'auto',
             borderRight: { xs: 'none', md: '1px solid' },
         }}>

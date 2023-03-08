@@ -140,7 +140,7 @@ export const SettingsAuthenticationView = ({
                     <BaseForm
                         isLoading={isProfileLoading || isUpdating}
                         onSubmit={formik.handleSubmit}
-                        sx={{ margin: 8, paddingBottom: 16 }}
+                        style={{ margin: 8, paddingBottom: 16 }}
                     >
                         {/* Hidden username input because some password managers require it */}
                         <TextField
