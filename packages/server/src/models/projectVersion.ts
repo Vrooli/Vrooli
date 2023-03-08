@@ -4,8 +4,8 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
-import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
+import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
+import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -131,17 +131,28 @@ export const ProjectVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
-                // parentId: data.parentId ?? undefined,
-                // organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                // createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                // createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                // user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                // organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                // user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-            } as any)
+            create: async ({ prisma, userData, data }) => ({
+                id: data.id,
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: data.versionLabel,
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Project', parentRelationshipName: 'versions', data, prisma, userData })),
+                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ prisma, userData, data }) => ({
+                isLatest: noNull(data.isLatest),
+                isPrivate: noNull(data.isPrivate),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'versions', data, prisma, userData })),
+                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
         },
         trigger: {
             onCreated: ({ created, prisma, userData }) => {

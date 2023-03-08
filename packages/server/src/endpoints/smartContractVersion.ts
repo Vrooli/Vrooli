@@ -30,12 +30,12 @@ export const typeDef = gql`
         default: String
         contractType: String!
         content: String!
-        rootConnect: ID!
-        rootCreate: SmartContractCreateInput
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
         resourceListCreate: ResourceListCreateInput
+        rootConnect: ID!
+        rootCreate: SmartContractCreateInput
         translationsCreate: [SmartContractVersionTranslationCreateInput!]
     }
     input SmartContractVersionUpdateInput {

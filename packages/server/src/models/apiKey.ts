@@ -5,6 +5,10 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { defaultPermissions } from "../utils";
+import { apiKeyValidation } from "@shared/validation";
+import { uuid } from "@shared/uuid";
+import { randomString } from "../auth";
+import { noNull } from "../builders";
 
 const __typename = 'ApiKey' as const;
 const suppFields = [] as const;
@@ -44,7 +48,26 @@ export const ApiKeyModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ userData, data }) => ({
+                id: uuid(),
+                key: randomString(64),
+                creditsUsedBeforeLimit: data.creditsUsedBeforeLimit,
+                stopAtLimit: data.stopAtLimit,
+                absoluteMax: data.absoluteMax,
+                user: data.organizationConnect ? undefined : { connect: { id: userData!.id } },
+                organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
+
+            }),
+            update: async ({ data }) => ({
+                creditsUsedBeforeLimit: noNull(data.creditsUsedBeforeLimit),
+                stopAtLimit: noNull(data.stopAtLimit),
+                absoluteMax: noNull(data.absoluteMax),
+            }),
+        },
+        yup: apiKeyValidation,
+    },
     validate: {
         isDeleted: () => false,
         isPublic: () => false,

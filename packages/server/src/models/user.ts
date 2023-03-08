@@ -40,6 +40,7 @@ export const UserModel: ModelLogic<{
             __typename,
             comments: 'Comment',
             emails: 'Email',
+            labels: 'Label',
             // phones: 'Phone',
             projects: 'Project',
             pushDevices: 'PushDevice',
@@ -47,6 +48,7 @@ export const UserModel: ModelLogic<{
             reportsCreated: 'Report',
             reportsReceived: 'Report',
             routines: 'Routine',
+            schedules: 'UserSchedule',
         },
         prismaRelMap: {
             __typename,

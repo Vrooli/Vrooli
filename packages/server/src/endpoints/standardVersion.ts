@@ -24,20 +24,20 @@ export const typeDef = gql`
 
     input StandardVersionCreateInput {
         id: ID!
+        default: String
         isComplete: Boolean
         isLatest: Boolean
         isPrivate: Boolean
         isFile: Boolean
-        default: String
-        standardType: String!
         props: String!
-        yup: String
+        standardType: String!
         versionLabel: String!
         versionNotes: String
+        yup: String
         directoryListingsConnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
         rootConnect: ID!
         rootCreate: StandardCreateInput
-        resourceListCreate: ResourceListCreateInput
         translationsCreate: [StandardVersionTranslationCreateInput!]
     }
     input StandardVersionUpdateInput {

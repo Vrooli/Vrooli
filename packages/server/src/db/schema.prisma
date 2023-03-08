@@ -348,6 +348,7 @@ model node_end_next {
 model node_link {
     id               String           @id @default(uuid()) @db.Uuid
     fromId           String           @db.Uuid
+    operation        String?          @db.VarChar(512)
     routineVersionId String           @db.Uuid
     toId             String           @db.Uuid
     from             node             @relation("node_previous", fields: [fromId], references: [id], onDelete: Cascade)

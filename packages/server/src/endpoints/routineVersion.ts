@@ -33,19 +33,19 @@ export const typeDef = gql`
         isComplete: Boolean
         isLatest: Boolean
         isPrivate: Boolean
-        rootConnect: ID
-        rootCreate: RoutineCreateInput
         versionLabel: String!
         versionNotes: String
         smartContractCallData: String
         apiVersionConnect: ID
         directoryListingsConnect: [ID!]
-        resourceListCreate: ResourceListCreateInput
-        smartContractVersionConnect: ID
+        inputsCreate: [RoutineVersionInputCreateInput!]
         nodesCreate: [NodeCreateInput!]
         nodeLinksCreate: [NodeLinkCreateInput!]
-        inputsCreate: [RoutineVersionInputCreateInput!]
         outputsCreate: [RoutineVersionOutputCreateInput!]
+        resourceListCreate: ResourceListCreateInput
+        rootConnect: ID
+        rootCreate: RoutineCreateInput
+        smartContractVersionConnect: ID
         suggestedNextByRoutineVersionConnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]
     }
@@ -63,23 +63,23 @@ export const typeDef = gql`
         apiVersionDisconnect: Boolean
         directoryListingsConnect: [ID!]
         directoryListingsDisconnect: [ID!]
-        resourceListCreate: ResourceListCreateInput
-        resourceListUpdate: ResourceListUpdateInput
-        rootUpdate: RoutineUpdateInput
-        smartContractVersionConnect: ID
-        smartContractVersionDisconnect: Boolean
+        inputsCreate: [RoutineVersionInputCreateInput!]
+        inputsUpdate: [RoutineVersionInputUpdateInput!]
+        inputsDelete: [ID!]
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]
         nodesDelete: [ID!]
         nodeLinksCreate: [NodeLinkCreateInput!]
         nodeLinksUpdate: [NodeLinkUpdateInput!]
         nodeLinksDelete: [ID!]
-        inputsCreate: [RoutineVersionInputCreateInput!]
-        inputsUpdate: [RoutineVersionInputUpdateInput!]
-        inputsDelete: [ID!]
         outputsCreate: [RoutineVersionOutputCreateInput!]
         outputsUpdate: [RoutineVersionOutputUpdateInput!]
         outputsDelete: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
+        rootUpdate: RoutineUpdateInput
+        smartContractVersionConnect: ID
+        smartContractVersionDisconnect: Boolean
         suggestedNextByRoutineVersionConnect: [ID!]
         suggestedNextByRoutineVersionDisconnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]

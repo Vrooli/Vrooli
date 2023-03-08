@@ -92,6 +92,7 @@ export type ApiKey = {
 export type ApiKeyCreateInput = {
   absoluteMax: Scalars['Int'];
   creditsUsedBeforeLimit: Scalars['Int'];
+  organizationConnect?: InputMaybe<Scalars['ID']>;
   stopAtLimit: Scalars['Boolean'];
 };
 
@@ -6503,7 +6504,6 @@ export type RoutineVersionOutput = {
   __typename: 'RoutineVersionOutput';
   id: Scalars['ID'];
   index?: Maybe<Scalars['Int']>;
-  isRequired?: Maybe<Scalars['Boolean']>;
   name?: Maybe<Scalars['String']>;
   routineVersion: RoutineVersion;
   standardVersion?: Maybe<StandardVersion>;
@@ -6513,7 +6513,6 @@ export type RoutineVersionOutput = {
 export type RoutineVersionOutputCreateInput = {
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
-  isRequired?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   routineVersionConnect: Scalars['ID'];
   standardVersionConnect?: InputMaybe<Scalars['ID']>;
@@ -6548,7 +6547,6 @@ export type RoutineVersionOutputTranslationUpdateInput = {
 export type RoutineVersionOutputUpdateInput = {
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
-  isRequired?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   standardVersionConnect?: InputMaybe<Scalars['ID']>;
   standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
@@ -12723,7 +12721,6 @@ export type RoutineVersionInputTranslationResolvers<ContextType = any, ParentTyp
 export type RoutineVersionOutputResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionOutput'] = ResolversParentTypes['RoutineVersionOutput']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   index?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  isRequired?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;

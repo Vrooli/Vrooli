@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
+import { PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
