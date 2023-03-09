@@ -106,7 +106,7 @@ export const CommentModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                userId: userData.id,
+                ownedByUser: { connect: { id: userData.id } },
                 [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
             }),

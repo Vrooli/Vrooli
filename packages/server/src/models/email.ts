@@ -5,6 +5,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { defaultPermissions } from '../utils';
+import { emailValidation } from '@shared/validation';
 
 const __typename = 'Email' as const;
 const suppFields = [] as const;
@@ -42,8 +43,8 @@ export const EmailModel: ModelLogic<{
     mutate: {
         shape: {
             create: async ({ data, userData }) => ({
-                userId: userData.id,
                 emailAddress: data.emailAddress,
+                user: { connect: { id: userData!.id } },
             }),
         },
         trigger: {
@@ -51,7 +52,7 @@ export const EmailModel: ModelLogic<{
                 Trigger(prisma, userData.languages).createEmail(userData.id)
             },
         },
-        yup: {} as any,
+        yup: emailValidation,
     },
     validate: {
         isTransferable: false,

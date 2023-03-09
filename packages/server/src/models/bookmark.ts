@@ -123,6 +123,7 @@ export const BookmarkModel: ModelLogic<{
                 api: 'Api',
                 comment: 'Comment',
                 issue: 'Issue',
+                list: 'BookmarkList',
                 note: 'Note',
                 organization: 'Organization',
                 post: 'Post',
@@ -139,10 +140,10 @@ export const BookmarkModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            by: 'User',
             api: 'Api',
             comment: 'Comment',
             issue: 'Issue',
+            list: 'BookmarkList',
             note: 'Note',
             organization: 'Organization',
             post: 'Post',
@@ -185,14 +186,13 @@ export const BookmarkModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                by: { connect: { id: userData!.id } },
                 [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
                 ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, prisma, userData })),
-            } as any),
+            }),
             update: async ({ data, prisma, userData }) => ({
                 id: data.id,
                 ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Update'], isOneToOne: true, isRequired: false, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, prisma, userData })),
-            } as any)
+            })
         },
         trigger: {
             onCreated: async ({ created, prisma, userData }) => {
@@ -259,7 +259,7 @@ export const BookmarkModel: ModelLogic<{
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${bookmarkFor.toLowerCase()}Id`;
-            const isBookmarkredArray = await prisma.bookmark.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+            const isBookmarkredArray = await prisma.bookmark.findMany({ where: { list: { user: { id: userId } }, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
                 // check if this id is in isBookmarkredArray
@@ -302,16 +302,14 @@ export const BookmarkModel: ModelLogic<{
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ({
-            User: data.user,
-        }),
+        owner: (data) => BookmarkListModel.validate!.owner(data.list as any),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            by: 'User',
             api: 'Api',
             comment: 'Comment',
             issue: 'Issue',
+            list: 'BookmarkList',
             note: 'Note',
             organization: 'Organization',
             post: 'Post',
@@ -329,7 +327,7 @@ export const BookmarkModel: ModelLogic<{
             private: {},
             public: {},
             owner: (userId) => ({
-                by: { id: userId }
+                list: BookmarkListModel.validate!.visibility.owner(userId),
             }),
         },
     },

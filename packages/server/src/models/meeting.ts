@@ -7,6 +7,7 @@ import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { meetingValidation } from "@shared/validation";
+import { noNull } from "../builders";
 
 const __typename = 'Meeting' as const;
 type Permissions = Pick<MeetingYou, 'canDelete' | 'canInvite' | 'canUpdate'>;
@@ -77,6 +78,14 @@ export const MeetingModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
+                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
+                timeZone: noNull(data.timeZone),
+                eventStart: noNull(data.eventStart),
+                eventEnd: noNull(data.eventEnd),
+                recurring: noNull(data.recurring),
+                recurrStart: noNull(data.recurrStart),
+                recurrEnd: noNull(data.recurrEnd),
                 //TODO
             } as any),
             update: async ({ data, prisma, userData }) => ({

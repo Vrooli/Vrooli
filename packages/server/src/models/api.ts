@@ -107,7 +107,6 @@ export const ApiModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, prisma, userData })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Api', relation: 'tags', data, prisma, userData })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Api', relation: 'labels', data, prisma, userData })),
-
             }),
             update: async ({ prisma, userData, data }) => ({
                 isPrivate: noNull(data.isPrivate),

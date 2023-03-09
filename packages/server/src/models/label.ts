@@ -4,9 +4,10 @@ import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInpu
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { labelValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Label' as const;
 type Permissions = Pick<LabelYou, 'canDelete' | 'canUpdate'>;
@@ -103,12 +104,29 @@ export const LabelModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any),
+                label: data.label,
+                color: noNull(data.color),
+                ownedByOrganization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
+                ownedByUser: !data.organizationConnect ? { connect: { id: userData!.id } } : undefined,
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
             update: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any)
+                label: noNull(data.label),
+                color: noNull(data.color),
+                ...(await shapeHelper({ relation: 'apis', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Api', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'issues', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Issue', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'meetings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Meeting', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'notes', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Note', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'projects', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Project', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routines', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Routine', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'runProjectSchedules', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RunProjectSchedule', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'runRoutineSchedules', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RunRoutineSchedule', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'smartContracts', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'SmartContract', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'standards', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Standard', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'userSchedules', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'issues', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            })
         },
         yup: labelValidation,
     },

@@ -1963,7 +1963,6 @@ model bookmark {
     id               String           @id @default(uuid()) @db.Uuid
     created_at       DateTime         @default(now()) @db.Timestamptz(6)
     updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    byId             String           @db.Uuid
     listId           String?          @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
@@ -1980,7 +1979,6 @@ model bookmark {
     standardId       String?          @db.Uuid
     tagId            String?          @db.Uuid
     userId           String?          @db.Uuid
-    by               user             @relation("bookmark_by", fields: [byId], references: [id], onDelete: Cascade)
     list             bookmark_list?   @relation("bookmark_list", fields: [listId], references: [id], onDelete: Cascade)
     api              api?             @relation("bookmark_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("bookmark_comment", fields: [commentId], references: [id], onDelete: Cascade)
@@ -2005,7 +2003,9 @@ model bookmark_list {
     updated_at DateTime   @default(now()) @db.Timestamptz(6)
     index      Int
     label      String     @db.VarChar(128)
+    userId     String     @db.Uuid
     bookmarks  bookmark[] @relation("bookmark_list")
+    user       user       @relation("bookmark_list_user", fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([label], name: "bookmark_list_label_unique")
 }
@@ -2337,7 +2337,7 @@ model user {
     smartContracts                 smart_contract[]            @relation("smart_contract_ownedByUser")
     standardsCreated               standard[]                  @relation("standard_createdBy")
     standards                      standard[]                  @relation("standard_ownedByUser")
-    bookmarkred                    bookmark[]                  @relation("bookmark_by")
+    bookmakLists                   bookmark_list[]             @relation("bookmark_list_user")
     bookmarkedBy                   bookmark[]                  @relation("bookmark_user")
     tags                           tag[]                       @relation("tag_createdBy")
     transfersIncoming              transfer[]                  @relation("transfer_to_user")

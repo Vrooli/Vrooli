@@ -61,7 +61,17 @@ export const MaxObjects = {
             },
             public: 0,
         },
-        Organization: 0
+        Organization: 0,
+    },
+    BookmarkList: {
+        User: {
+            private: {
+                noPremium: 3,
+                premium: 50,
+            },
+            public: 0,
+        },
+        Organization: 0,
     },
     Comment: {
         User: {
