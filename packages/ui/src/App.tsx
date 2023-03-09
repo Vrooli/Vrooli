@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AlertDialog,
-    BannerAd,
+    BannerChicken,
     BottomNav,
     CommandPalette,
     FindInPage,
@@ -445,7 +445,7 @@ export function App() {
                         />
                     </Box>
                     <BottomNav session={session} />
-                    <BannerAd session={session} />
+                    <BannerChicken session={session} />
                     <Footer />
                 </Box>
             </ThemeProvider>

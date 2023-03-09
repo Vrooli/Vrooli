@@ -1,4 +1,4 @@
-export * from './BannerAd/BannerAd';
+export * from './BannerChicken/BannerChicken';
 export * from './breadcrumbs';
 export * from './buttons';
 export * from './cards';
