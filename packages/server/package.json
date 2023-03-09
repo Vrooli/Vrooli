@@ -16,7 +16,9 @@
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "build": "yarn tsc && yarn post-build",
-        "post-build": "wasmPath=\"auth/message_signing/rust/pkg\" && cp src/$wasmPath/*.wasm dist/$wasmPath/ 2>/dev/null && cp src/$wasmPath/*.json dist/$wasmPath/ 2>/dev/null && [ -f dist/$wasmPath/emurgo_message_signing.js ] && mv dist/$wasmPath/emurgo_message_signing.js dist/$wasmPath/emurgo_message_signing.js && cp -R src/notify/email/templates dist/notify/email/",
+        "post-build": "yarn post-build-message-signing && yarn post-build-email-templates",
+        "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f dist/$WPATH/emurgo_message_signing.js ]",
+        "post-build-email-templates": "cp -R src/notify/email/templates dist/notify/email/",
         "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
@@ -55,6 +57,7 @@
         "winston": "^3.7.2"
     },
     "devDependencies": {
+        "0x": "^5.5.0",
         "@graphql-codegen/cli": "^2.16.1",
         "@types/bcrypt": "^5.0.0",
         "@types/bull": "^3.15.5",

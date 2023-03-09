@@ -140,7 +140,7 @@ export const genSitemap = async (): Promise<void> => {
     // Check if sitemap file for main route exists
     const routeSitemapFileName = 'sitemap-routes.xml';
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
-        logger.warn('Sitemap file for main routes does not exist');
+        logger.warning('Sitemap file for main routes does not exist');
     }
     // Initialize the Prisma client
     const prisma = new PrismaClient();
