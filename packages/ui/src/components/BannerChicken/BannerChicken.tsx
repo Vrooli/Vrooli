@@ -1,5 +1,5 @@
 import { BannerChickenProps } from "components/types"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { getCurrentUser } from "utils/authentication"
 
 /**
@@ -12,6 +12,8 @@ import { getCurrentUser } from "utils/authentication"
 export const BannerChicken = ({
     session
 }: BannerChickenProps) => {
+    const [adDisplayed, setAdDisplayed] = useState<boolean | null>(null);
+
     const adFrequency = useMemo(() => {
         const user = getCurrentUser(session);
         if (!user) return 'full';
@@ -37,6 +39,8 @@ export const BannerChicken = ({
                 async
                 src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7109871095821789"
                 crossOrigin="anonymous"
+                onLoad={() => setAdDisplayed(true)}
+                onError={() => setAdDisplayed(false)}
             ></script>
             <ins className="adsbygoogle"
                 style={{ display: 'block' }}

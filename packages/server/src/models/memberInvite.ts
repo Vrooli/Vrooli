@@ -8,6 +8,7 @@ import { getSingleTypePermissions } from "../validators";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 import { memberInviteValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'MemberInvite' as const;
 type Permissions = Pick<MemberInviteYou, 'canDelete' | 'canUpdate'>;
@@ -61,12 +62,17 @@ export const MemberInviteModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                message: noNull(data.message),
+                willBeAdmin: noNull(data.willBeAdmin),
+                willHavePermissions: noNull(data.willHavePermissions),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'memberInvites', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'user', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'User', parentRelationshipName: 'membershipsInvited', data, prisma, userData })),
+            }),
+            update: async ({ data }) => ({
+                message: noNull(data.message),
+                willBeAdmin: noNull(data.willBeAdmin),
+                willHavePermissions: noNull(data.willHavePermissions),
+            })
         },
         yup: memberInviteValidation,
     },

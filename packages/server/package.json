@@ -59,6 +59,8 @@
     "devDependencies": {
         "0x": "^5.5.0",
         "@graphql-codegen/cli": "^2.16.1",
+        "@graphql-codegen/typescript": "^2.8.5",
+        "@graphql-codegen/typescript-resolvers": "^2.7.10",
         "@types/bcrypt": "^5.0.0",
         "@types/bull": "^3.15.5",
         "@types/cookie-parser": "^1.4.2",

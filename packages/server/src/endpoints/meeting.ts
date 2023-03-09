@@ -34,6 +34,7 @@ export const typeDef = gql`
         restrictedToRolesConnect: [ID!]
         invitesCreate: [MeetingInviteCreateInput!]
         labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
         translationsCreate: [MeetingTranslationCreateInput!]
     }
     input MeetingUpdateInput {
@@ -53,6 +54,7 @@ export const typeDef = gql`
         invitesDelete: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
         translationsCreate: [MeetingTranslationCreateInput!]
         translationsUpdate: [MeetingTranslationUpdateInput!]
         translationsDelete: [ID!]

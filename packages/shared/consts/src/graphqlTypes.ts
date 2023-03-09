@@ -1260,6 +1260,7 @@ export type MeetingCreateInput = {
   id: Scalars['ID'];
   invitesCreate?: InputMaybe<Array<MeetingInviteCreateInput>>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationConnect: Scalars['ID'];
   recurrEnd?: InputMaybe<Scalars['Date']>;
@@ -1431,6 +1432,7 @@ export type MeetingUpdateInput = {
   invitesDelete?: InputMaybe<Array<Scalars['ID']>>;
   invitesUpdate?: InputMaybe<Array<MeetingInviteUpdateInput>>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   recurrEnd?: InputMaybe<Scalars['Date']>;

@@ -670,12 +670,12 @@ model meeting {
 
 model meeting_attendees {
     id         String  @id @default(uuid()) @db.Uuid
-    scheduleId String  @db.Uuid
-    schedule   meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    meetingId String  @db.Uuid
+    meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
     userId     String  @db.Uuid
     user       user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([scheduleId, userId])
+    @@unique([meetingId, userId])
 }
 
 model meeting_invite {
@@ -689,7 +689,7 @@ model meeting_invite {
     userId     String              @db.Uuid
     user       user                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([meetingId, userId])
+    @@unique([meetingId, userId], name: "meeting_invite_meetingid_userid_unique")
 }
 
 model meeting_labels {
@@ -704,24 +704,24 @@ model meeting_labels {
 
 model meeting_roles {
     id         String  @id @default(uuid()) @db.Uuid
-    scheduleId String  @db.Uuid
-    schedule   meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    meetingId String  @db.Uuid
+    meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
     roleId     String  @db.Uuid
     role       role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-    @@unique([scheduleId, roleId])
+    @@unique([meetingId, roleId], name: "meeting_roles_meetingid_roleid_unique")
 }
 
 model meeting_translation {
     id          String  @id @default(uuid()) @db.Uuid
-    scheduleId  String  @db.Uuid
-    schedule    meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    meetingId  String  @db.Uuid
+    meeting    meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
     language    String  @db.VarChar(3)
     name        String? @db.VarChar(128)
     description String? @db.VarChar(2048)
     link        String? @db.VarChar(2048)
 
-    @@unique([scheduleId, language], name: "meeting_translation_scheduleid_language_unique")
+    @@unique([meetingId, language], name: "meeting_translation_meetingid_language_unique")
 }
 
 model organization_translation {
