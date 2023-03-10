@@ -43,7 +43,7 @@ export const displaySettingsData: SettingsData[] = [
     },
     {
         title: 'Schedule',
-        description: 'ScheduleDescription',
+        description: 'ScheduleSettingsDescription',
         link: 'SettingsSchedules',
         Icon: HistoryIcon,
     },

@@ -1,8 +1,8 @@
 /**
  * Search list for a single object type
  */
-import { Box, Button, List, Typography, useTheme } from "@mui/material";
-import { SearchButtons, SiteSearchBar } from "components";
+import { Box, Button } from "@mui/material";
+import { ListContainer, SearchButtons, SiteSearchBar } from "components";
 import { useCallback, useEffect, useMemo } from "react";
 import { PlusIcon } from '@shared/icons';
 import { SearchListProps } from "../types";
@@ -25,7 +25,6 @@ export function SearchList<DataType extends NavigableObject>({
     session,
     zIndex,
 }: SearchListProps) {
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -46,7 +45,7 @@ export function SearchList<DataType extends NavigableObject>({
         sortBy,
         sortByOptions,
         timeFrame,
-    } = useFindMany<DataType>({ 
+    } = useFindMany<DataType>({
         canSearch,
         searchType,
         session,
@@ -97,34 +96,6 @@ export function SearchList<DataType extends NavigableObject>({
         openObject(selectedItem, setLocation);
     }, [allData, setLocation]);
 
-    const searchResultContainer = useMemo(() => {
-        const hasItems = listItems.length > 0;
-        return (
-            <Box sx={{
-                marginTop: 2,
-                maxWidth: '1000px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                ...(hasItems ? {
-                    boxShadow: 12,
-                    background: palette.background.paper,
-                    borderRadius: '8px',
-                    overflow: 'overlay',
-                    display: 'block',
-                } : {}),
-            }}>
-                {
-                    hasItems ? (
-                        <List sx={{ padding: 0 }}>
-                            {listItems}
-                        </List>
-                    ) : (<Typography variant="h6" textAlign="center">{t(`NoResults`, { ns: 'error' })}</Typography>)
-                }
-            </Box>
-        )
-    }, [listItems, palette.background.paper, t]);
-
-
     return (
         <>
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
@@ -153,7 +124,12 @@ export function SearchList<DataType extends NavigableObject>({
                 timeFrame={timeFrame}
                 zIndex={zIndex}
             />
-            {searchResultContainer}
+            <ListContainer
+                emptyText={t(`NoResults`, { ns: 'error' })}
+                isEmpty={listItems.length === 0}
+            >
+                {listItems}
+            </ListContainer>
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{
                 maxWidth: '400px',

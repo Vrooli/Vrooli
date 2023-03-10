@@ -40,8 +40,6 @@ export function WalletListItem({
             disablePadding
             sx={{
                 display: 'flex',
-                background: index % 2 === 0 ? '#c8d6e9' : '#e9e9e9',
-                color: 'black',
                 padding: 1,
             }}
         >

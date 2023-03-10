@@ -3,7 +3,7 @@
  */
 import { PushListProps } from '../types';
 import { useCallback } from 'react';
-import { Box, Stack, TextField, useTheme } from '@mui/material';
+import { Stack, useTheme } from '@mui/material';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { getDeviceInfo, PubSub, updateArray } from 'utils';
@@ -16,6 +16,8 @@ import { pushDeviceValidation } from '@shared/validation';
 import { pushDeviceCreate } from 'api/generated/endpoints/pushDevice_create';
 import { pushDeviceUpdate } from 'api/generated/endpoints/pushDevice_update';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { ListContainer } from 'components/containers';
+import { useTranslation } from 'react-i18next';
 
 //TODO copied from emaillist. need to rewrite
 export const PushList = ({
@@ -23,6 +25,7 @@ export const PushList = ({
     list,
 }: PushListProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // Handle add
     const [addMutation, { loading: loadingAdd }] = useCustomMutation<PushDevice, PushDeviceCreateInput>(pushDeviceCreate);
@@ -86,14 +89,10 @@ export const PushList = ({
 
     return (
         <form onSubmit={formik.handleSubmit}>
-            {list.length > 0 && <Box id='push-device-list' sx={{
-                overflow: 'overlay',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                maxWidth: '1000px',
-                marginLeft: 1,
-                marginRight: 1,
-            }}>
+            <ListContainer
+                emptyText={t(`NoPushDevices`, { ns: 'error' })}
+                isEmpty={list.length === 0}
+            >
                 {/* Push device list */}
                 {list.map((device: PushDevice, index) => (
                     <PushListItem
@@ -104,7 +103,7 @@ export const PushList = ({
                         handleDelete={onDelete}
                     />
                 ))}
-            </Box>}
+            </ListContainer>
             {/* Add new push-device */}
             <Stack direction="row" sx={{
                 display: 'flex',

@@ -9,17 +9,19 @@ import { mutationWrapper } from 'api/utils';
 import { PubSub, updateArray } from 'utils';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
-import { WalletInstallDialog, WalletSelectDialog } from 'components';
+import { ListContainer, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
 import { walletUpdate } from 'api/generated/endpoints/wallet_update';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useTranslation } from 'react-i18next';
 
 export const WalletList = ({
     handleUpdate,
     numVerifiedEmails,
     list,
 }: WalletListProps) => {
+    const { t } = useTranslation();
 
     const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Wallet, WalletUpdateInput>(walletUpdate);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
@@ -171,14 +173,10 @@ export const WalletList = ({
                 onClose={closeWalletInstallDialog}
                 zIndex={connectOpen ? 201 : 200}
             />
-            {list.length > 0 && <Box id='wallet-list' sx={{
-                overflow: 'overlay',
-                border: `1px solid #e0e0e0`,
-                borderRadius: '8px',
-                maxWidth: '1000px',
-                marginLeft: 1,
-                marginRight: 1,
-            }}>
+            <ListContainer
+                emptyText={t(`NoWallets`, { ns: 'error' })}
+                isEmpty={list.length === 0}
+            >
                 {/* Wallet list */}
                 {list.map((w: Wallet, index) => (
                     <WalletListItem
@@ -190,7 +188,7 @@ export const WalletList = ({
                         handleVerify={openWalletVerifyDialog}
                     />
                 ))}
-            </Box>}
+            </ListContainer>
             {/* Add new button */}
             <Box id='add-wallet-button' sx={{
                 alignItems: 'center',

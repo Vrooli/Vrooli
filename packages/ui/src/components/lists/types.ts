@@ -107,6 +107,14 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
+export interface SettingsToggleListItemProps {
+    description?: string;
+    disabled?: boolean;
+    checked: boolean;
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    title: string;
+}
+
 export interface TagListProps {
     /**
      * Maximum characters to display before tags are truncated
