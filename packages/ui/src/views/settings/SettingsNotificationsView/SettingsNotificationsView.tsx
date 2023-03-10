@@ -68,7 +68,7 @@ export const SettingsNotificationsView = ({
                 }}
             />
             <Stack direction="row">
-                <SettingsList showOnMobile={true} />
+                <SettingsList />
                 <BaseForm
                     isLoading={isProfileLoading || isUpdating}
                     onSubmit={formik.handleSubmit}

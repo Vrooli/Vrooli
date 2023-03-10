@@ -1,7 +1,6 @@
 import {
     Button,
     Checkbox,
-    Dialog,
     DialogContent,
     FormControlLabel,
     Stack,
@@ -15,13 +14,14 @@ import { mutationWrapper } from 'api/utils';
 import { useCustomMutation } from 'api/hooks';
 import { APP_LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DialogTitle, PasswordTextField } from 'components';
+import { DialogTitle, LargeDialog, PasswordTextField } from 'components';
 import { DeleteIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
 import { userDeleteOne } from 'api/generated/endpoints/user_deleteOne';
+import { useTranslation } from 'react-i18next';
 
 const titleId = 'delete-object-dialog-title';
 
@@ -36,6 +36,7 @@ export const DeleteAccountDialog = ({
     zIndex,
 }: DeleteAccountDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
@@ -75,13 +76,12 @@ export const DeleteAccountDialog = ({
     }, [formik, handleClose]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="delete-account-dialog"
+            isOpen={isOpen}
             onClose={() => { close(); }}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -125,9 +125,9 @@ export const DeleteAccountDialog = ({
                         startIcon={<DeleteIcon />}
                         color="secondary"
                         onClick={() => { formik.submitForm() }}
-                    >Delete</Button>
+                    >{t('Delete')}</Button>
                 </Stack>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

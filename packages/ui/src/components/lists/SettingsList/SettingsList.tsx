@@ -1,32 +1,12 @@
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, useTheme } from '@mui/material';
 import { APP_LINKS } from '@shared/consts';
-import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent, VisibleIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
-import { CommonKey } from '@shared/translations';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWindowSize } from 'utils';
-import { SettingsPageType } from 'views/settings/types';
-import { SettingsListProps } from '../types';
+import { accountSettingsData, displaySettingsData } from 'views/settings';
 
-
-type ListData = { [key in SettingsPageType]?: [CommonKey, keyof typeof APP_LINKS, SvgComponent] };
-
-const accountListData: ListData = {
-    Profile: ['Profile', 'SettingsProfile', ProfileIcon],
-    Privacy: ['Privacy', 'SettingsPrivacy', VisibleIcon],
-    Authentication: ['Authentication', 'SettingsAuthentication', LockIcon],
-};
-
-const displayListData: ListData = {
-    Display: ['Display', 'SettingsDisplay', LightModeIcon],
-    Notification: ['Notification', 'SettingsNotifications', NotificationsCustomizedIcon],
-    Schedule: ['Schedule', 'SettingsSchedules', HistoryIcon],
-};
-
-export const SettingsList = ({
-    showOnMobile = false,
-}: SettingsListProps) => {
+export const SettingsList = () => {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -41,7 +21,7 @@ export const SettingsList = ({
     const toggleAccountList = useCallback(() => setAccountListOpen(!accountListOpen), [accountListOpen]);
     const accountList = useMemo(() => {
         const isSelected = (link: string) => window.location.pathname.includes(link);
-        return Object.entries(accountListData).map(([_, [label, link, Icon]], index) => (
+        return Object.entries(accountSettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
                 button
                 key={index}
@@ -55,7 +35,7 @@ export const SettingsList = ({
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(label, { count: 2 })} />
+                <ListItemText primary={t(title, { count: 2 })} />
             </ListItem>
         ))
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
@@ -64,7 +44,7 @@ export const SettingsList = ({
     const toggleDisplayList = useCallback(() => setDisplayListOpen(!displayListOpen), [displayListOpen]);
     const displayList = useMemo(() => {
         const isSelected = (link: string) => window.location.pathname.includes(link);
-        return Object.entries(displayListData).map(([_, [label, link, Icon]], index) => (
+        return Object.entries(displaySettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
                 button
                 key={index}
@@ -78,13 +58,13 @@ export const SettingsList = ({
                 <ListItemIcon>
                     <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
                 </ListItemIcon>
-                <ListItemText primary={t(label, { count: 2 })} />
+                <ListItemText primary={t(title, { count: 2 })} />
             </ListItem>
         ))
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
 
 
-    if (!showOnMobile && isMobile) return null;
+    if (isMobile) return null;
     return (
         // Full width on mobile, and 500px on desktop. 
         <Box sx={{

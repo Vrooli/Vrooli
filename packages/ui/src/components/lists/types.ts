@@ -107,10 +107,6 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
-export interface SettingsListProps {
-    showOnMobile?: boolean;
-}
-
 export interface TagListProps {
     /**
      * Maximum characters to display before tags are truncated
