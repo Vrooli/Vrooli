@@ -2536,32 +2536,33 @@ export type NodeLoopCreateInput = {
   id: Scalars['ID'];
   loops?: InputMaybe<Scalars['Int']>;
   maxLoops?: InputMaybe<Scalars['Int']>;
+  nodeConnect: Scalars['ID'];
   operation?: InputMaybe<Scalars['String']>;
-  whilesCreate: Array<NodeLoopWhileCreateInput>;
+  whilesCreate?: InputMaybe<Array<NodeLoopWhileCreateInput>>;
 };
 
 export type NodeLoopUpdateInput = {
   id: Scalars['ID'];
   loops?: InputMaybe<Scalars['Int']>;
   maxLoops?: InputMaybe<Scalars['Int']>;
+  nodeConnect?: InputMaybe<Scalars['ID']>;
   operation?: InputMaybe<Scalars['String']>;
-  whilesCreate: Array<NodeLoopWhileCreateInput>;
+  whilesCreate?: InputMaybe<Array<NodeLoopWhileCreateInput>>;
   whilesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  whilesUpdate: Array<NodeLoopWhileUpdateInput>;
+  whilesUpdate?: InputMaybe<Array<NodeLoopWhileUpdateInput>>;
 };
 
 export type NodeLoopWhile = {
   __typename: 'NodeLoopWhile';
   condition: Scalars['String'];
   id: Scalars['ID'];
-  toId?: Maybe<Scalars['ID']>;
   translations: Array<NodeLoopWhileTranslation>;
 };
 
 export type NodeLoopWhileCreateInput = {
   condition: Scalars['String'];
   id: Scalars['ID'];
-  toConnect?: InputMaybe<Scalars['ID']>;
+  loopConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<NodeLoopWhileTranslationCreateInput>>;
 };
 
@@ -2590,7 +2591,6 @@ export type NodeLoopWhileTranslationUpdateInput = {
 export type NodeLoopWhileUpdateInput = {
   condition?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  toConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<NodeLoopWhileTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<NodeLoopWhileTranslationUpdateInput>>;
@@ -2753,12 +2753,12 @@ export type NoteCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<NoteVersionCreateInput>>;
 };
 
@@ -2818,15 +2818,16 @@ export enum NoteSortBy {
 
 export type NoteUpdateInput = {
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<ApiVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<ApiVersionUpdateInput>>;
@@ -11282,7 +11283,6 @@ export type NodeLoopResolvers<ContextType = any, ParentType extends ResolversPar
 export type NodeLoopWhileResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeLoopWhile'] = ResolversParentTypes['NodeLoopWhile']> = {
   condition?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  toId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeLoopWhileTranslation']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

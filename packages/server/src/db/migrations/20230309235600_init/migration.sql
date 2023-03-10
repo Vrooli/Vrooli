@@ -325,6 +325,7 @@ CREATE TABLE "node_end_next" (
 CREATE TABLE "node_link" (
     "id" UUID NOT NULL,
     "fromId" UUID NOT NULL,
+    "operation" VARCHAR(512),
     "routineVersionId" UUID NOT NULL,
     "toId" UUID NOT NULL,
 
@@ -584,7 +585,7 @@ CREATE TABLE "meeting" (
 -- CreateTable
 CREATE TABLE "meeting_attendees" (
     "id" UUID NOT NULL,
-    "scheduleId" UUID NOT NULL,
+    "meetingId" UUID NOT NULL,
     "userId" UUID NOT NULL,
 
     CONSTRAINT "meeting_attendees_pkey" PRIMARY KEY ("id")
@@ -615,7 +616,7 @@ CREATE TABLE "meeting_labels" (
 -- CreateTable
 CREATE TABLE "meeting_roles" (
     "id" UUID NOT NULL,
-    "scheduleId" UUID NOT NULL,
+    "meetingId" UUID NOT NULL,
     "roleId" UUID NOT NULL,
 
     CONSTRAINT "meeting_roles_pkey" PRIMARY KEY ("id")
@@ -624,7 +625,7 @@ CREATE TABLE "meeting_roles" (
 -- CreateTable
 CREATE TABLE "meeting_translation" (
     "id" UUID NOT NULL,
-    "scheduleId" UUID NOT NULL,
+    "meetingId" UUID NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "name" VARCHAR(128),
     "description" VARCHAR(2048),
@@ -1675,7 +1676,6 @@ CREATE TABLE "bookmark" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "byId" UUID NOT NULL,
     "listId" UUID,
     "apiId" UUID,
     "commentId" UUID,
@@ -1703,6 +1703,7 @@ CREATE TABLE "bookmark_list" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "index" INTEGER NOT NULL,
     "label" VARCHAR(128) NOT NULL,
+    "userId" UUID NOT NULL,
 
     CONSTRAINT "bookmark_list_pkey" PRIMARY KEY ("id")
 );
@@ -2268,7 +2269,7 @@ CREATE UNIQUE INDEX "organization_resourceListId_key" ON "organization"("resourc
 CREATE UNIQUE INDEX "organization_language_organizationId_language_key" ON "organization_language"("organizationId", "language");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "meeting_attendees_scheduleId_userId_key" ON "meeting_attendees"("scheduleId", "userId");
+CREATE UNIQUE INDEX "meeting_attendees_meetingId_userId_key" ON "meeting_attendees"("meetingId", "userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "meeting_invite_meetingId_userId_key" ON "meeting_invite"("meetingId", "userId");
@@ -2277,10 +2278,10 @@ CREATE UNIQUE INDEX "meeting_invite_meetingId_userId_key" ON "meeting_invite"("m
 CREATE UNIQUE INDEX "meeting_labels_labelledId_labelId_key" ON "meeting_labels"("labelledId", "labelId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "meeting_roles_scheduleId_roleId_key" ON "meeting_roles"("scheduleId", "roleId");
+CREATE UNIQUE INDEX "meeting_roles_meetingId_roleId_key" ON "meeting_roles"("meetingId", "roleId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "meeting_translation_scheduleId_language_key" ON "meeting_translation"("scheduleId", "language");
+CREATE UNIQUE INDEX "meeting_translation_meetingId_language_key" ON "meeting_translation"("meetingId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organization_translation_organizationId_language_key" ON "organization_translation"("organizationId", "language");
@@ -2844,7 +2845,7 @@ ALTER TABLE "organization_language" ADD CONSTRAINT "organization_language_organi
 ALTER TABLE "meeting" ADD CONSTRAINT "meeting_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2862,13 +2863,13 @@ ALTER TABLE "meeting_labels" ADD CONSTRAINT "meeting_labels_labelledId_fkey" FOR
 ALTER TABLE "meeting_labels" ADD CONSTRAINT "meeting_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "meeting_roles" ADD CONSTRAINT "meeting_roles_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "meeting_roles" ADD CONSTRAINT "meeting_roles_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "meeting_roles" ADD CONSTRAINT "meeting_roles_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "meeting_translation" ADD CONSTRAINT "meeting_translation_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "meeting_translation" ADD CONSTRAINT "meeting_translation_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "organization_translation" ADD CONSTRAINT "organization_translation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3354,9 +3355,6 @@ ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelledId_fkey" F
 ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_listId_fkey" FOREIGN KEY ("listId") REFERENCES "bookmark_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3403,6 +3401,9 @@ ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_tagId_fkey" FOREIGN KEY ("tagId"
 
 -- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark_list" ADD CONSTRAINT "bookmark_list_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "stats_api" ADD CONSTRAINT "stats_api_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;

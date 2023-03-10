@@ -9,9 +9,10 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, labelShapeHelper, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { noteValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Note' as const;
 type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -93,12 +94,26 @@ export const NoteModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
+                // ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'notesCreated', data, prisma, userData })),
+                // ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'notes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'forks', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'labels', data, prisma, userData })),
+            }),
             update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
+                // ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'notesCreated', data, prisma, userData })),
+                // ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'notes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'labels', data, prisma, userData })),
+            })
         },
         yup: noteValidation,
     },

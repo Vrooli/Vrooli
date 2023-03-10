@@ -5,8 +5,9 @@ import { PrismaType } from "../types";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, tagShapeHelper } from "../utils";
 import { userScheduleFilterValidation } from "@shared/validation";
+import { shapeHelper } from "../builders";
 
 const __typename = 'UserScheduleFilter' as const;
 const suppFields = [] as const;
@@ -48,8 +49,11 @@ export const UserScheduleFilterModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any),
+                filterType: data.filterType,
+                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'UserSchedule', parentRelationshipName: 'filters', data, prisma, userData })),
+                // Can't use tagShapeHelper because in this case there isn't a join table between them
+                ...(await shapeHelper({ relation: 'tag', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Tag', parentRelationshipName: 'scheduleFilters', data, prisma, userData })),
+            }),
         },
         yup: userScheduleFilterValidation,
     },

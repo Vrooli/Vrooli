@@ -3,9 +3,10 @@ import { SelectWrap } from "../builders/types";
 import { MaxObjects, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, translationShapeHelper } from "../utils";
 import { NodeLoopModel } from "./nodeLoop";
 import { nodeLoopWhileValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'NodeLoopWhile' as const;
 
@@ -46,12 +47,15 @@ export const NodeLoopWhileModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any),
+                condition: data.condition,
+                ...(await shapeHelper({ relation: 'loop', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeLoop', parentRelationshipName: 'whiles', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+
+            }),
             update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                condition: noNull(data.condition),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            })
         },
         yup: nodeLoopWhileValidation,
     },

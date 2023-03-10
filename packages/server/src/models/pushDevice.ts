@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
 import { pushDeviceValidation } from "@shared/validation";
+import { noNull } from "../builders";
 
 const __typename = 'PushDevice' as const;
 const suppFields = [] as const;
@@ -46,13 +47,17 @@ export const PushDeviceModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+            create: async ({ data, userData }) => ({
+                endpoint: data.endpoint,
+                expires: noNull(data.expires),
+                auth: data.keys.auth,
+                p256dh: data.keys.p256dh,
+                name: noNull(data.name),
+                user: { connect: { id: userData.id } },
+            }),
+            update: async ({ data }) => ({
+                name: noNull(data.name),
+            }),
         },
         yup: pushDeviceValidation,
     },

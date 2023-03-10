@@ -63,6 +63,10 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Send notification to user warning them that a new sign in method was added
         Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
     },
+    createPhone: async (userId: string) => {
+        // Send notification to user warning them that a new sign in method was added
+        Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
+    },
     createIssue: async (issueId: string, owner: Owner, createdById: string) => {
         // Send notification to object owner(s)
         Notify(prisma, languages).pushNewIssueOnObject(issueId).toOwner(owner, createdById);

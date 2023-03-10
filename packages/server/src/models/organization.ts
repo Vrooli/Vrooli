@@ -320,6 +320,7 @@ export const OrganizationModel: ModelLogic<{
                         }
                     },
                     select: {
+                        id: true,
                         permissions: true,
                     },
                 },
@@ -328,8 +329,10 @@ export const OrganizationModel: ModelLogic<{
                         userId,
                     },
                     select: {
+                        id: true,
                         isAdmin: true,
                         permissions: true,
+                        userId: true,
                     },
                 }
             } : {}),

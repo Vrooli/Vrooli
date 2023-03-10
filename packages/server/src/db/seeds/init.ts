@@ -139,6 +139,7 @@ export async function init(prisma: PrismaType) {
                         members: {
                             create: [
                                 {
+                                    isAdmin: true,
                                     permissions: JSON.stringify({}),
                                     user: { connect: { id: admin.id } },
                                     organization: { connect: { id: organizationId } },

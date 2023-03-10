@@ -6,6 +6,7 @@ import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { defaultPermissions } from "../utils";
 import { phoneValidation } from "@shared/validation";
+import { Trigger } from "../events";
 
 const __typename = 'Phone' as const;
 const suppFields = [] as const;
@@ -47,9 +48,15 @@ export const PhoneModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
-                //TODO
-            } as any),
+            create: async ({ data, userData }) => ({
+                phoneNumber: data.phoneNumber,
+                user: { connect: { id: userData.id } },
+            }),
+        },
+        trigger: {
+            onCreated: ({ prisma, userData }) => {
+                Trigger(prisma, userData.languages).createPhone(userData.id)
+            },
         },
         yup: phoneValidation,
     },
