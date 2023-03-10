@@ -259,8 +259,8 @@ const placeholdersToIds = async (idActions: { [key in GqlModelType]?: string[] }
 
 /**
  * Finds all ids of objects in a crud request that need to be checked for permissions. 
- * In certain cases (i.e. disconnects), 
- * ids are not included in the request, and must be queried for.
+ * In certain cases (i.e. disconnects), ids are not included in the request, and therefore must be queried. 
+ * This should only be called from the top level of a request, not from nested objects.
  * @returns IDs organized both by action type and GqlModelType
  */
 export const getAuthenticatedIds = async (
@@ -284,6 +284,7 @@ export const getAuthenticatedIds = async (
     // Filter out objects that are strings, since the rest of the function only works with objects
     const filteredObjects = objects.filter(object => {
         const isString = typeof object.data === 'string';
+        // If string, add to idsByType and idsByAction
         if (isString) {
             idsByType[objectType] = [...(idsByType[objectType] ?? []), object.data as string];
             // Every string must be a delete. This is because connect and disconnect are only 

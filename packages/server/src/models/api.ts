@@ -111,7 +111,6 @@ export const ApiModel: ModelLogic<{
             update: async ({ prisma, userData, data }) => ({
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
-                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
                 ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'apisCreated', data, prisma, userData })),
                 ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'apis', data, prisma, userData })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, prisma, userData })),

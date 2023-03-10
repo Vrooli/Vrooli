@@ -1,5 +1,5 @@
 import { Count } from '@shared/consts';
-import { getAuthenticatedData, getAuthenticatedIds } from "../utils";
+import { getAuthenticatedData, getAuthenticatedIds, groupByType } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
 import { modelToGraphQL, selectHelper } from "../builders";
@@ -45,6 +45,13 @@ export async function cudHelper<
     // Profanity check
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
+    // // Group create and update data by type TODO
+    // const { inputsByType, idsByType } = groupByType({ createMany, updateMany, deleteMany });
+    // // For each type, calculate pre-shape data (if applicable)
+    // for (const type in inputsByType) {
+    //     //TODO make sure this also gets passed down to shapeHelper. That's the only other place that needs acces to pre-shape data
+    //     asfasfdasdf
+    // }
     // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
     const shapedCreate: { [x: string]: any }[] = [];
     const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
@@ -63,14 +70,14 @@ export async function cudHelper<
         ...(shapedUpdate.map(data => ({ actionType: 'Update', data: data.data }))),
         ...((deleteMany || [] as any).map(id => ({ actionType: 'Delete', id }))),
     ], objectType, prisma, userData.languages)
+    console.log('got auth data idsByType: ', JSON.stringify(idsByType), '\n\n');
+    console.log('got auth data idsByAction: ', JSON.stringify(idsByAction), '\n\n');
     // Query for all authentication data
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, userData);
-    console.log("finished permissions check");
     // Max objects check
     maxObjectsCheck(authDataById, idsByAction, prisma, userData);
-    console.log("finished max objects check");
     // Perform custom validation for validations.common
     if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
         validate?.validations?.common && await validate.validations.common({
@@ -87,9 +94,7 @@ export async function cudHelper<
     if (shapedCreate.length > 0) {
         // Perform custom validation
         const deltaAdding = shapedCreate.length - (deleteMany ? deleteMany.length : 0);
-        console.log('going to validate create')
         validate?.validations?.create && await validate.validations.create({ createMany: shapedCreate, languages: userData.languages, prisma, userData, deltaAdding });
-        console.log('validated create');
         for (const data of shapedCreate) {
             // Create
             const select = await delegate(prisma).create({

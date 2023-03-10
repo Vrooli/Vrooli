@@ -7,7 +7,7 @@ import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestLabel, calculateWeightData, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { RoutineModel } from "./routine";
 
@@ -15,7 +15,7 @@ import { RoutineModel } from "./routine";
  * Validates node positions
  */
 const validateNodePositions = async (
-    prisma: PrismaType, 
+    prisma: PrismaType,
     input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
     languages: string[],
 ): Promise<void> => {
@@ -148,28 +148,36 @@ export const RoutineVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => ({
-                id: data.id,
-                apiCallData: noNull(data.apiCallData),
-                isAutomatable: noNull(data.isAutomatable),
-                isLatest: noNull(data.isLatest),
-                isPrivate: noNull(data.isPrivate),
-                isComplete: noNull(data.isComplete),
-                smartContractCallData: noNull(data.smartContractCallData),
-                versionLabel: data.versionLabel,
-                versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'apiVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'calledByRoutineVersions', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childRoutineVersions', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'inputs', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionInput', parentRelationshipName: 'routineVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'nodes', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Node', parentRelationshipName: 'routineVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'nodeLinks', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLink', parentRelationshipName: 'routineVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'outputs', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionOutput', parentRelationshipName: 'routineVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'routineVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Routine', parentRelationshipName: 'versions', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'calledByRoutineVersions', data, prisma, userData })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByRoutineVersion', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
-            }),
+            create: async ({ prisma, userData, data }) => {
+                // TODO need to call calculateWeightData with all inputs before calling this function. 
+                // Also weightData is grouped by rootRoutineId, not version's ID. So we need to change line below
+                // const { weightData } = await calculateWeightData(prisma, userData.languages, [data], []);
+                // const { simplicy, complexity } = weightData.find(w => w.id === data.id)!;
+                return {
+                    id: data.id,
+                    // simplicy, TODO also add these to update
+                    // complexity,
+                    apiCallData: noNull(data.apiCallData),
+                    isAutomatable: noNull(data.isAutomatable),
+                    isLatest: noNull(data.isLatest),
+                    isPrivate: noNull(data.isPrivate),
+                    isComplete: noNull(data.isComplete),
+                    smartContractCallData: noNull(data.smartContractCallData),
+                    versionLabel: data.versionLabel,
+                    versionNotes: noNull(data.versionNotes),
+                    ...(await shapeHelper({ relation: 'apiVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'calledByRoutineVersions', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childRoutineVersions', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'inputs', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionInput', parentRelationshipName: 'routineVersion', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'nodes', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Node', parentRelationshipName: 'routineVersion', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'nodeLinks', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLink', parentRelationshipName: 'routineVersion', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'outputs', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionOutput', parentRelationshipName: 'routineVersion', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'routineVersion', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Routine', parentRelationshipName: 'versions', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'calledByRoutineVersions', data, prisma, userData })),
+                    // ...(await shapeHelper({ relation: 'suggestedNextByRoutineVersion', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, prisma, userData })),
+                    ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                }
+            },
             update: async ({ prisma, userData, data }) => ({
                 apiCallData: noNull(data.apiCallData),
                 isAutomatable: noNull(data.isAutomatable),
@@ -294,12 +302,12 @@ export const RoutineVersionModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {
-                await versionsCheck({ 
+                await versionsCheck({
                     createMany,
                     deleteMany,
                     languages,
-                    objectType: 'Routine', 
-                    prisma, 
+                    objectType: 'Routine',
+                    prisma,
                     updateMany: updateMany as any,
                 });
             },

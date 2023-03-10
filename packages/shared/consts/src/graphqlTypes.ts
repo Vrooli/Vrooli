@@ -3583,12 +3583,12 @@ export type ProjectCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<ProjectVersionCreateInput>>;
 };
 
@@ -3804,12 +3804,12 @@ export type ProjectUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<ProjectVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<ProjectVersionUpdateInput>>;
@@ -7465,12 +7465,12 @@ export type SmartContractCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
 };
 
@@ -7543,12 +7543,12 @@ export type SmartContractUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<SmartContractVersionUpdateInput>>;
@@ -7764,12 +7764,12 @@ export type StandardCreateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   name: Scalars['String'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
 };
 
@@ -7844,12 +7844,12 @@ export type StandardUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<StandardVersionUpdateInput>>;

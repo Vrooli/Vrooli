@@ -9,11 +9,12 @@ import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, tagShapeHelper } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { noNull, shapeHelper } from "../builders";
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
     return {
@@ -113,14 +114,28 @@ export const ProjectModel: ModelLogic<{
     mutate: {
         shape: {
             create: async ({ data, prisma, userData }) => ({
-                // id: data.id,
-                // parentId: noNull(data.parentId),
-                // createdBy: { connect: { id: userData.id } },
-                // ...connectOwner(data, userData),
-            } as any),
+                id: data.id,
+                handle: noNull(data.handle),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'projectsCreated', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'projects', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'forks', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Project', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Project', relation: 'labels', data, prisma, userData })),
+            }),
             update: async ({ data, prisma, userData }) => ({
-
-            } as any)
+                handle: noNull(data.handle),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'projectsCreated', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'projects', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Project', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Project', relation: 'labels', data, prisma, userData })),
+            })
         },
         trigger: {
             onCreated: ({ created, prisma, userData }) => {

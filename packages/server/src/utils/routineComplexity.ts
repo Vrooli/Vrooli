@@ -148,8 +148,8 @@ type GroupRoutineVersionDataResult = {
 }
 
 /**
- * Queries and groups data into links, nodes, and a map of routineListItems to subroutines
- * @param data The queried data
+ * Queries and groups existing routine data from the database into links, nodes, and a map of routineListItems to subroutines
+ * @param ids The routine version IDs
  * @param prisma The prisma client
  * @returns Object with linkData, nodeData, subroutineItemData, and input counts by root routine
  */
@@ -160,7 +160,7 @@ const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promi
     const subroutineItemData: { [id: string]: string } = {};
     const optionalRootRutineInputCounts: { [routineId: string]: number } = {};
     const allRootRoutineInputCounts: { [routineId: string]: number } = {};
-    // Query database
+    // Query database. New routine versions will be ignored
     let data = await prisma.routine_version.findMany({
         where: { id: { in: ids } },
         select: routineVersionSelect,
@@ -260,7 +260,7 @@ export const calculateWeightData = async (
     Object.assign(subroutineItemData, existingSubroutineItemData);
     Object.assign(optionalRootRutineInputCounts, existingOptionalRootRutineInputCounts);
     Object.assign(allRootRoutineInputCounts, existingAllRootRoutineInputCounts);
-    // Add links and nodes data from inputs
+    // Add new/updated links and nodes data from inputs
     for (const input of inputs) {
         // Adding links
         for (const link of input.nodeLinksCreate ?? []) {

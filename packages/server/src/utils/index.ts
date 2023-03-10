@@ -4,6 +4,7 @@ export * from './defaultPermissions';
 export * from './fileIO';
 export * from './getAuthenticatedData';
 export * from './getAuthenticatedIds';
+export * from './groupByType';
 export * from './labelShapeHelper';
 export * from './nodeEndNextShapeHelper';
 export * from './objectTools';

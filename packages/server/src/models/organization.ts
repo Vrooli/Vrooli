@@ -12,6 +12,7 @@ import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper }
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { exists } from "@shared/utils";
+import { Trigger } from "../events";
 
 const __typename = 'Organization' as const;
 type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead'>;
@@ -133,59 +134,64 @@ export const OrganizationModel: ModelLogic<{
     mutate: {
         shape: {
             create: async ({ data, prisma, userData }) => {
-                // ID for organization and admin role
-                const organizationId = uuid();
-                const roleId = uuid();
-                // Add "Admin" role to roles, and assign yourself to it
-                const roles = await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, prisma, userData })
-                const adminRole = {
-                    id: roleId,
-                    name: 'Admin',
-                    permissions: JSON.stringify({}), //TODO
-                    members: {
-                        create: {
-                            permissions: JSON.stringify({}), //TODO
-                            user: { connect: { id: userData.id } },
-                            organization: { connect: { id: organizationId } },
-                        }
-                    }
-                }
-                if (roles.roles.create) roles.roles.create.push(adminRole);
-                else roles.roles.create = [adminRole];
-                // Add yourself as a member
-                const adminMember = {
-                    isAdmin: true,
-                    permissions: JSON.stringify({}), //TODO
-                    user: { connect: { id: userData.id } },
-                    organization: { connect: { id: organizationId } },
-                    roles: { connect: { id: roleId } },
-                }
                 return {
-                    id: organizationId,
+                    id: data.id,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
                     permissions: JSON.stringify({}), //TODO
                     createdBy: { connect: { id: userData.id } },
-                    members: { create: adminMember },
+                    members: {
+                        create: {
+                            isAdmin: true,
+                            permissions: JSON.stringify({}), //TODO
+                            user: { connect: { id: userData.id } },
+                        }
+                    },
                     ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
                     ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, prisma, userData })),
                     ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
                     ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
-                    ...roles,
                 }
             },
             update: async ({ data, prisma, userData }) => ({
                 handle: noNull(data.handle),
                 isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                 isPrivate: noNull(data.isPrivate),
+                permissions: JSON.stringify({}), //TODO
                 ...(await shapeHelper({ relation: 'members', relTypes: ['Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
                 ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
                 ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'roles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, prisma, userData })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
-                //...roles //TODO
             })
+        },
+        trigger: {
+            onCreated: async ({ created, prisma, userData }) => {
+                for (const { id: organizationId } of created) {
+                    // Add 'Admin' role to organization
+                    await prisma.role.create({
+                        data: {
+                            id: uuid(),
+                            name: 'Admin',
+                            permissions: JSON.stringify({}), //TODO
+                            members: {
+                                connect: {
+                                    member_organizationid_userid_unique: {
+                                        userId: userData.id,
+                                        organizationId
+                                    }
+                                }
+                            },
+                            organizationId,
+                        }
+                    });
+                    // Handle trigger
+                    Trigger(prisma, userData.languages).createOrganization(userData.id, organizationId);
+                }
+            }
         },
         yup: organizationValidation,
     },

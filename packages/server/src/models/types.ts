@@ -453,6 +453,21 @@ export type Mutater<Model extends {
      * object and as a relationship object
      */
     shape: {
+        /**
+         * Calculates any data that requires the full context of the mutation. In other words, 
+         * data that can change depending on what else is being mutated. This is useful for 
+         * things like routine complexity, where the calculation depends on the complexity of subroutines.
+         */
+        pre?: ({ createList, updateList, deleteList, prisma, userData }: {
+            createList: Model['GqlUpdate'][],
+            updateList: {
+                where: { id: string },
+                data: Model['GqlUpdate'],
+            }[],
+            deleteList: string[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<{}>
         create?: Model['GqlCreate'] extends Record<string, any> ?
         Model['PrismaCreate'] extends Record<string, any> ? ({ data, prisma, userData }: {
             data: Model['GqlCreate'],

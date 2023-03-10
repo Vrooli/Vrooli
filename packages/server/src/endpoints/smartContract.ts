@@ -33,8 +33,8 @@ export const typeDef = gql`
         isPrivate: Boolean
         permissions: String
         parentConnect: ID
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
         tagsConnect: [ID!]
@@ -45,8 +45,8 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]

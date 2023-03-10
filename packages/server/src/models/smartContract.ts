@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, PrependString, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
+import { MaxObjects, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { ModelLogic } from "./types";
@@ -9,10 +9,11 @@ import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { smartContractValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'SmartContract' as const;
 type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -93,14 +94,27 @@ export const SmartContractModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ prisma, userData, data }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'smartContractsCreated', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'smartContracts', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'forks', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'SmartContract', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'SmartContract', relation: 'labels', data, prisma, userData })),
+            }),
+            update: async ({ prisma, userData, data }) => ({
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'smartContractsCreated', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'smartContracts', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'SmartContract', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'SmartContract', relation: 'labels', data, prisma, userData })),
+            }),
         },
         yup: smartContractValidation,
     },
