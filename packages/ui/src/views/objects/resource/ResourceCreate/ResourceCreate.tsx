@@ -6,7 +6,7 @@ import { useFormik } from 'formik';
 import { getUserLanguages, shapeResource, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { ResourceCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
+import { GridSubmitButtons, LanguageInput, Header, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { checkIfLoggedIn } from "utils/authentication";
 import { Resource, ResourceCreateInput } from "@shared/consts";

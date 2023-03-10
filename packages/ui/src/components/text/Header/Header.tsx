@@ -1,13 +1,13 @@
 import { Stack, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons";
 import { noSelect } from "styles";
-import { PageTitleProps } from "../types";
+import { HeaderProps } from "../types";
 
-export const PageTitle = ({
+export const Header = ({
     help,
     sxs,
     title,
-}: PageTitleProps) => {
+}: HeaderProps) => {
 
     const titleDisplay = <Typography
         component="h1"

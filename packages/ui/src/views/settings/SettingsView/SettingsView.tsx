@@ -1,4 +1,4 @@
-import { CardGrid, PageTitle, SettingsTopBar, TIDCard } from 'components';
+import { CardGrid, Header, SettingsTopBar, TIDCard } from 'components';
 import { SettingsData, SettingsViewProps } from '../types';
 import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
@@ -71,7 +71,7 @@ export const SettingsView = ({
                     titleKey: 'Settings',
                 }}
             />
-            <PageTitle title={t(`Account`)} />
+            <Header title={t(`Account`)} />
             <CardGrid minWidth={300}>
                 {accountSettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard
@@ -84,7 +84,7 @@ export const SettingsView = ({
                     />
                 ))}
             </CardGrid>
-            <PageTitle title={t(`Display`)} sxs={{ text: { paddingTop: 2 } }} />
+            <Header title={t(`Display`)} sxs={{ text: { paddingTop: 2 } }} />
             <CardGrid minWidth={300}>
                 {displaySettingsData.map(({ title, description, link, Icon }, index) => (
                     <TIDCard

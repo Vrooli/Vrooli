@@ -5,7 +5,7 @@ import { ReminderUpdateProps } from "../types";
 import { reminderValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { parseSingleItemUrl, PubSub, usePromptBeforeUnload, useUpdateActions } from "utils";
-import { GridSubmitButtons, PageTitle, TopBar } from "components";
+import { GridSubmitButtons, Header, TopBar } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { FindByIdInput, Reminder, ReminderUpdateInput } from "@shared/consts";
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";

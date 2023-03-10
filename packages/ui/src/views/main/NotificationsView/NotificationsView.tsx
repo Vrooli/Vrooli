@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { PageTitle, TopBar } from 'components';
+import { Header, TopBar } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, List, ListItem, Typography, useTheme } from '@mui/material';
 import { NotificationsViewProps } from '../types';

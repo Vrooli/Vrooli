@@ -6,7 +6,7 @@ import { useLocation } from '@shared/route';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
 import { noSelect } from 'styles'
-import { PageTitle } from 'components/text';
+import { Header } from 'components/text';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
 import { NavbarLogoState } from '../types';
 import { PubSub, useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
@@ -99,7 +99,7 @@ export const Navbar = ({
                         </Box>}
                         {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
-                        {isMobile && title && <PageTitle help={help} title={title} />}
+                        {isMobile && title && <Header help={help} title={title} />}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
                             marginLeft: 'auto',
                             maxHeight: '100%',
@@ -113,7 +113,7 @@ export const Navbar = ({
                 </AppBar>
             </HideOnScroll>
             {/* Title displayed here on desktop */}
-            {!isMobile && title && !shouldHideTitle && <PageTitle
+            {!isMobile && title && !shouldHideTitle && <Header
                 help={help}
                 title={title}
             />}

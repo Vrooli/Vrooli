@@ -9,7 +9,7 @@ import { SettingsAuthenticationViewProps } from "../types";
 import { useLocation } from '@shared/route';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, SettingsList, WalletList } from "components/lists";
-import { DeleteAccountDialog, PasswordTextField, SettingsTopBar } from "components";
+import { DeleteAccountDialog, PasswordTextField, SettingsTopBar, Subheader } from "components";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { userValidation } from "@shared/validation";
@@ -113,30 +113,27 @@ export const SettingsAuthenticationView = ({
             <Stack direction="row">
                 <SettingsList />
                 <Box style={{ overflow: 'hidden' }}>
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <WalletIcon fill={palette.background.textPrimary} />
-                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('Wallet', { count: 2 })}</Typography>
-                        <HelpButton markdown={t('WalletListHelp')} />
-                    </Stack>
+                    <Subheader
+                        help={t('WalletListHelp')}
+                        Icon={WalletIcon}
+                        title={t('Wallet', { count: 2 })} />
                     <WalletList
                         handleUpdate={updateWallets}
                         list={profile?.wallets ?? []}
                         numVerifiedEmails={numVerifiedEmails}
                     />
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <EmailIcon fill={palette.background.textPrimary} />
-                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('Email', { count: 2 })}</Typography>
-                        <HelpButton markdown={t('EmailListHelp')} />
-                    </Stack>
+                    <Subheader
+                        help={t('EmailListHelp')}
+                        Icon={EmailIcon}
+                        title={t('Email', { count: 2 })} />
                     <EmailList
                         handleUpdate={updateEmails}
                         list={profile?.emails ?? []}
                         numVerifiedWallets={numVerifiedWallets}
                     />
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h5" textAlign="center">{t('ChangePassword')}</Typography>
-                        <HelpButton markdown={t('PasswordChangeHelp')} />
-                    </Stack>
+                    <Subheader
+                        help={t('PasswordChangeHelp')}
+                        title={t('ChangePassword')} />
                     <BaseForm
                         isLoading={isProfileLoading || isUpdating}
                         onSubmit={formik.handleSubmit}
