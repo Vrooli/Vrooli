@@ -87,7 +87,7 @@ export const bookmarksFields = (): FieldData[] => ([
     {
         fieldName: "minBookmarks",
         label: i18next.t(`Min`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,
@@ -96,7 +96,7 @@ export const bookmarksFields = (): FieldData[] => ([
     {
         fieldName: "maxBookmarks",
         label: i18next.t(`Max`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,
@@ -131,7 +131,7 @@ export const votesFields = (): FieldData[] => ([
     {
         fieldName: "minVotes",
         label: i18next.t(`Min`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,
@@ -140,7 +140,7 @@ export const votesFields = (): FieldData[] => ([
     {
         fieldName: "maxVotes",
         label: i18next.t(`Max`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,
@@ -161,7 +161,7 @@ export const simplicityFields = (): FieldData[] => ([
     {
         fieldName: "minSimplicity",
         label: i18next.t(`Min`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,
@@ -170,7 +170,7 @@ export const simplicityFields = (): FieldData[] => ([
     {
         fieldName: "maxSimplicity",
         label: i18next.t(`Max`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,
@@ -191,7 +191,7 @@ export const complexityFields = (): FieldData[] => ([
     {
         fieldName: "minComplexity",
         label: i18next.t(`Min`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,
@@ -200,7 +200,7 @@ export const complexityFields = (): FieldData[] => ([
     {
         fieldName: "maxComplexity",
         label: i18next.t(`Max`),
-        type: InputType.QuantityBox,
+        type: InputType.IntegerInput,
         props: {
             min: 0,
             defaultValue: 0,

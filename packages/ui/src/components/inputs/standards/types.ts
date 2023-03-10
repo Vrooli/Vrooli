@@ -1,5 +1,5 @@
 import { InputType } from "@shared/consts";
-import { CheckboxProps, DropzoneProps, FieldData, FieldDataBase, JsonProps, MarkdownProps, QuantityBoxProps, RadioProps, SwitchProps, TextFieldProps } from "forms/types";
+import { CheckboxProps, DropzoneProps, FieldData, FieldDataBase, JsonProps, MarkdownProps, IntegerInputProps, RadioProps, SwitchProps, TextFieldProps } from "forms/types";
 
 /**
  * Handles all parts of creating a standard input, from props, to labels, to validation
@@ -43,11 +43,11 @@ export interface MarkdownStandardInputProps extends StandardInputCommonProps<Mar
     defaultValue?: MarkdownProps['defaultValue'];
 };
 
-export interface QuantityBoxStandardInputProps extends StandardInputCommonProps<QuantityBoxProps> {
-    defaultValue?: QuantityBoxProps['defaultValue'];
-    max?: QuantityBoxProps['max'];
-    min?: QuantityBoxProps['min'];
-    step?: QuantityBoxProps['step'];
+export interface IntegerStandardInputProps extends StandardInputCommonProps<IntegerInputProps> {
+    defaultValue?: IntegerInputProps['defaultValue'];
+    max?: IntegerInputProps['max'];
+    min?: IntegerInputProps['min'];
+    step?: IntegerInputProps['step'];
 };
 
 export interface RadioStandardInputProps extends StandardInputCommonProps<RadioProps> {

@@ -11,7 +11,7 @@ export * from './LeftHandedCheckbox/LeftHandedCheckbox';
 export * from './MarkdownInput/MarkdownInput';
 export * from './PasswordTextField/PasswordTextField';
 export * from './PreviewSwitch/PreviewSwitch';
-export * from './QuantityBox/QuantityBox';
+export * from './IntegerInput/IntegerInput';
 export * from './RelationshipButtons/RelationshipButtons';
 export * from './search';
 export * from './Selector/Selector';

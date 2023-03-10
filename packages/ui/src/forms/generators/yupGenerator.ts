@@ -11,13 +11,13 @@ import { InputType } from "@shared/consts";
 export const InputToYupType: { [key in InputType]?: YupType } = {
     // [InputType.Checkbox]: 'array', //TODO
     [InputType.JSON]: 'string',
+    [InputType.IntegerInput]: 'number',
     [InputType.Markdown]: 'string',
     [InputType.Radio]: 'string',
     [InputType.Selector]: 'string',
     [InputType.Slider]: 'number',
     [InputType.Switch]: 'boolean',
     [InputType.TextField]: 'string',
-    [InputType.QuantityBox]: 'number',
 };
 
 /**

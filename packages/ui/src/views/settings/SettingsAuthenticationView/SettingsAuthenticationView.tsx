@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
+import { Box, Button, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useCustomMutation } from "api/hooks";
 import { useCallback, useState } from "react";
 import { mutationWrapper } from 'api/utils';
@@ -7,7 +7,7 @@ import { useFormik } from 'formik';
 import { PubSub, useProfileQuery, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationViewProps } from "../types";
 import { useLocation } from '@shared/route';
-import { GridSubmitButtons, HelpButton } from "components/buttons";
+import { GridSubmitButtons } from "components/buttons";
 import { EmailList, SettingsList, WalletList } from "components/lists";
 import { DeleteAccountDialog, PasswordTextField, SettingsTopBar, Subheader } from "components";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";

@@ -5,7 +5,7 @@ import { GeneratedDropzone } from "../GeneratedDropzone/GeneratedDropzone";
 import { GeneratedJsonInput } from "../GeneratedJsonInput/GeneratedJsonInput";
 import { GeneratedLanguageInput } from "../GeneratedLanguageInput/GeneratedLanguageInput";
 import { GeneratedMarkdownInput } from "../GeneratedMarkdownInput/GeneratedMarkdownInput";
-import { GeneratedQuantityBox } from "../GeneratedQuantityBox/GeneratedQuantityBox";
+import { GeneratedIntegerInput } from "../GeneratedIntegerInput/GeneratedIntegerInput";
 import { GeneratedRadio } from "../GeneratedRadio/GeneratedRadio";
 import { GeneratedSelector } from "../GeneratedSelector/GeneratedSelector";
 import { GeneratedSlider } from "../GeneratedSlider/GeneratedSlider";
@@ -21,6 +21,7 @@ const typeMap: { [key in InputType]: (props: GeneratedInputComponentProps) => JS
     [InputType.Checkbox]: GeneratedCheckbox,
     [InputType.Dropzone]: GeneratedDropzone,
     [InputType.JSON]: GeneratedJsonInput,
+    [InputType.IntegerInput]: GeneratedIntegerInput,
     [InputType.LanguageInput]: GeneratedLanguageInput,
     [InputType.Markdown]: GeneratedMarkdownInput,
     [InputType.Radio]: GeneratedRadio,
@@ -29,7 +30,6 @@ const typeMap: { [key in InputType]: (props: GeneratedInputComponentProps) => JS
     [InputType.Switch]: GeneratedSwitch,
     [InputType.TagSelector]: GeneratedTagSelector,
     [InputType.TextField]: GeneratedTextField,
-    [InputType.QuantityBox]: GeneratedQuantityBox,
 }
 
 export const GeneratedInputComponent = (props: GeneratedInputComponentProps) => {

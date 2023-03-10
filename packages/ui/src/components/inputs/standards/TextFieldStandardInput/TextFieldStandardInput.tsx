@@ -1,14 +1,14 @@
-/**
- * Input for entering (and viewing format of) TextField data that 
- * must match a certain schema.
- */
 import { TextFieldStandardInputProps } from '../types';
 import { textFieldStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { Grid, TextField } from '@mui/material';
-import { QuantityBox } from 'components/inputs/QuantityBox/QuantityBox';
+import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
 import { useEffect } from 'react';
 
+/**
+ * Input for entering (and viewing format of) TextField data that 
+ * must match a certain schema.
+ */
 export const TextFieldStandardInput = ({
     autoComplete,
     defaultValue,
@@ -66,7 +66,7 @@ export const TextFieldStandardInput = ({
                 />
             </Grid> */}
             <Grid item xs={12}>
-                <QuantityBox
+                <IntegerInput
                     id="maxRows"
                     disabled={!isEditing}
                     label="Max Rows"

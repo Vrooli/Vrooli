@@ -1,14 +1,14 @@
-/**
- * Input for entering (and viewing format of) Checkbox data that 
- * must match a certain schema.
- */
 import { InputType } from '@shared/consts';
 import { createDefaultFieldData } from 'forms/generators';
 import { FieldData } from 'forms/types';
 import { useCallback, useEffect, useMemo } from 'react';
-import { CheckboxStandardInput, DropzoneStandardInput, JsonStandardInput, MarkdownStandardInput, QuantityBoxStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from '../';
+import { CheckboxStandardInput, DropzoneStandardInput, JsonStandardInput, MarkdownStandardInput, IntegerStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from '../';
 import { BaseStandardInputProps } from '../types';
 
+/**
+ * Input for entering (and viewing format of) Checkbox data that 
+ * must match a certain schema.
+ */
 export const BaseStandardInput = ({
     fieldName,
     inputType,
@@ -87,8 +87,8 @@ export const BaseStandardInput = ({
                 return <TextFieldStandardInput {...props} {...schema.props} />;
             case InputType.JSON:
                 return <JsonStandardInput {...props} {...schema.props} />;
-            case InputType.QuantityBox:
-                return <QuantityBoxStandardInput {...props} {...schema.props} />;
+            case InputType.IntegerInput:
+                return <IntegerStandardInput {...props} {...schema.props} />;
             case InputType.Radio:
                 return <RadioStandardInput {...props} {...schema.props} />;
             case InputType.Checkbox:

@@ -21,7 +21,7 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
-import { subscribeUserToPush } from 'serviceWorkerRegistration'
+import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { authEmailSignUp } from 'api/generated/endpoints/auth_emailSignUp';
 import { useTranslation } from 'react-i18next';
 

@@ -16,7 +16,7 @@ import {
 import { SubroutineInfoDialogProps } from '../types';
 import { defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
-import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
+import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, IntegerInput, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
@@ -274,7 +274,7 @@ export const SubroutineInfoDialog = ({
                                     marginBottom: 2,
                                 }}>
                                     <Typography variant="h6">Order</Typography>
-                                    <QuantityBox
+                                    <IntegerInput
                                         id="subroutine-position"
                                         disabled={!canUpdate}
                                         label="Order"

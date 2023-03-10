@@ -6,13 +6,14 @@ import { useFormik } from "formik";
 import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
 import { userValidation } from "@shared/validation";
 import { BaseForm } from "forms";
-import { ListContainer, SettingsList, SettingsToggleListItem, SettingsTopBar } from "components";
+import { ListContainer, IntegerInput, SettingsList, SettingsToggleListItem, SettingsTopBar, PushList, Subheader } from "components";
 import { useTranslation } from "react-i18next";
 import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
 import { notificationSettings } from "api/generated/endpoints/notification_settings";
 import { useQuery } from "@apollo/client";
 import { Wrap } from "types";
 import { mutationWrapper } from "api";
+import { PhoneIcon } from "@shared/icons";
 
 export const SettingsNotificationsView = ({
     display = 'page',
@@ -74,12 +75,44 @@ export const SettingsNotificationsView = ({
                     {/* Overall notifications toggle */}
                     <ListContainer>
                         <SettingsToggleListItem
-                            title={t('PushNotification', { count: 2 })}
+                            title={t('Notification', { count: 2 })}
                             description={t('PushNotificationSettingsDescription')}
+                            checked={formik.values.enabled}
+                            onChange={() => formik.setFieldValue('enabled', !formik.values.enabled)}
+                        />
+                    </ListContainer>
+                    {/* Daily limit input */}
+                    {/* <IntegerInput 
+                        title={t('DailyLimit')}
+                        // description={t('DailyLimitNotificationDescription')}
+                        disabled={!formik.values.enabled}
+                        value={formik.values.dailyLimit}
+                        onChange={(value) => formik.setFieldValue('dailyLimit', value)}
+                    /> */}
+                    {/* Push notifications toggle */}
+                    <ListContainer>
+                        <SettingsToggleListItem
+                            title={t('PushNotification', { count: 2 })}
+                            description={t('PushNotificationToggleDescription')}
+                            disabled={!formik.values.enabled}
                             checked={true}
                             onChange={() => { }}
                         />
                     </ListContainer>
+                    {/* Push Device list */}
+                    <Subheader
+                        Icon={PhoneIcon}
+                        title={t('Device', { count: 2 })} />
+                    <PushList
+                        handleUpdate={() => {}}
+                        list={[]}
+                    />
+                    {/* Email notifications toggle */}
+                    {/* TODO */}
+                    {/* Email list */}
+                    {/* TODO */}
+                    {/* Toggle individual categories */}
+                    {/* TODO */}
                 </BaseForm>
             </Stack>
         </>

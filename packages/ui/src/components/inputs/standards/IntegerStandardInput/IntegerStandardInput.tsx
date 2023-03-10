@@ -1,22 +1,22 @@
-/**
- * Input for entering (and viewing format of) QuantityBox data that 
- * must match a certain schema.
- */
-import { QuantityBoxStandardInputProps } from '../types';
+import { IntegerStandardInputProps } from '../types';
 import { quantityBoxStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
 import { Grid } from '@mui/material';
-import { QuantityBox } from 'components/inputs/QuantityBox/QuantityBox';
+import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
 
-export const QuantityBoxStandardInput = ({
+/**
+ * Input for entering (and viewing format of) IntegerInput data that 
+ * must match a certain schema.
+ */
+export const IntegerStandardInput = ({
     defaultValue,
     isEditing,
     max,
     min,
     step,
     onPropsChange,
-}: QuantityBoxStandardInputProps) => {
+}: IntegerStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
@@ -39,7 +39,7 @@ export const QuantityBoxStandardInput = ({
     return (
         <Grid container spacing={2}>
             <Grid item xs={12}>
-                <QuantityBox
+                <IntegerInput
                     id="defaultValue"
                     disabled={!isEditing}
                     label="Default Value"
@@ -52,7 +52,7 @@ export const QuantityBoxStandardInput = ({
                 />
             </Grid>
             <Grid item xs={12}>
-                <QuantityBox
+                <IntegerInput
                     id="min"
                     disabled={!isEditing}
                     label="Minimum"
@@ -65,7 +65,7 @@ export const QuantityBoxStandardInput = ({
                 />
             </Grid>
             <Grid item xs={12}>
-                <QuantityBox
+                <IntegerInput
                     id="max"
                     disabled={!isEditing}
                     label="Maximum"
@@ -78,7 +78,7 @@ export const QuantityBoxStandardInput = ({
                 />
             </Grid>
             <Grid item xs={12}>
-                <QuantityBox
+                <IntegerInput
                     id="step"
                     disabled={!isEditing}
                     label="Step"

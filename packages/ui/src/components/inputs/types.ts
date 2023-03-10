@@ -242,7 +242,7 @@ export type PreviewSwitchProps = Omit<BoxProps, 'onChange'> & {
     onChange: (isPreviewOn: boolean) => void;
 }
 
-export interface QuantityBoxProps extends BoxProps {
+export interface IntegerInputProps extends BoxProps {
     autoFocus?: boolean;
     disabled?: boolean;
     error?: boolean;
