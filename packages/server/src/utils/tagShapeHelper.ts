@@ -2,7 +2,7 @@ import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } fr
 import { RelationshipType } from "../builders/types";
 
 // Types of objects which have tags
-type TaggedObjectType = 'Api' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Routine' | 'SmartContract' | 'Standard';
+type TaggedObjectType = 'Api' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard';
 
 /**
  * Maps type of a tag's parent with the unique field
@@ -13,6 +13,7 @@ const parentMapper: { [key in TaggedObjectType]: string } = {
     'Organization': 'organization_tags_taggedid_tagTag_unique',
     'Post': 'post_tags_taggedid_tagTag_unique',
     'Project': 'project_tags_taggedid_tagTag_unique',
+    'Question': 'question_tags_taggedid_tagTag_unique',
     'Routine': 'routine_tags_taggedid_tagTag_unique',
     'SmartContract': 'smart_contract_tags_taggedid_tagTag_unique',
     'Standard': 'standard_tags_taggedid_tagTag_unique',

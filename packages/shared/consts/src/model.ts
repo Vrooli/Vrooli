@@ -14,6 +14,7 @@ export enum InputType {
     Checkbox = 'Checkbox',
     Dropzone = 'Dropzone',
     JSON = 'JSON',
+    IntegerInput = 'IntegerInput',
     LanguageInput = 'LanguageInput',
     Markdown = 'Markdown',
     Radio = 'Radio',
@@ -22,7 +23,6 @@ export enum InputType {
     Switch = 'Switch',
     TagSelector = 'TagSelector',
     TextField = 'TextField',
-    QuantityBox = 'QuantityBox',
 }
 
 export enum ViewFor {

@@ -1,13 +1,24 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, Question, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou } from '@shared/consts';
+import { MaxObjects, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions } from "../utils";
+import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { questionValidation } from "@shared/validation";
+import { noNull } from "../builders";
+
+const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs['create'] } = {
+    Api: 'api',
+    Note: 'note',
+    Organization: 'organization',
+    Project: 'project',
+    Routine: 'routine',
+    SmartContract: 'smartContract',
+    Standard: 'standard',
+}
 
 const __typename = 'Question' as const;
 type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
@@ -94,12 +105,24 @@ export const QuestionModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any),
+                referencing: noNull(data.referencing),
+                createdBy: { connect: { id: userData.id } },
+                [forMapper[data.forType]]: { connect: { id: data.forConnect } },
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Question', relation: 'tags', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
             update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                ...(data.acceptedAnswerConnect ? {
+                    answers: {
+                        update: {
+                            where: { id: data.acceptedAnswerConnect },
+                            data: { isAccepted: true },
+                        },
+                    },
+                } : {}),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Question', relation: 'tags', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            })
         },
         yup: questionValidation,
     },

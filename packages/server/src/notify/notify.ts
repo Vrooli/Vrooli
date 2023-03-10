@@ -1,13 +1,13 @@
-import { CustomError, logger, SubscribableObject } from "../events";
+import { CustomError, logger } from "../events";
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
 import { sendMail } from "./email";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
-import { OrganizationModel, subscriberMapper } from "../models";
+import { OrganizationModel, subscribableMapper } from "../models";
 import { getLogic } from "../getters";
-import { GqlModelType, NotificationSettings } from '@shared/consts';
+import { GqlModelType, NotificationSettings, SubscribableObject } from '@shared/consts';
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 
@@ -314,7 +314,7 @@ const NotifyResult = ({
             const batch = await prisma.notification_subscription.findMany({
                 where: {
                     AND: [
-                        { [subscriberMapper[objectType]]: { id: objectId } },
+                        { [subscribableMapper[objectType]]: { id: objectId } },
                         { subscriberId: { not: excludeUserId } }
                     ]
                 },

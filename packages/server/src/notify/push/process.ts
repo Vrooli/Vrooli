@@ -4,8 +4,8 @@ import { PushPayload, PushSubscription } from "./queue";
 
 webpush.setVapidDetails(
     `mailto:${process.env.LETSENCRYPT_EMAIL}`,
-    process.env.PUSH_NOTIFICATIONS_PUBLIC_KEY ?? '',
-    process.env.PUSH_NOTIFICATIONS_PRIVATE_KEY ?? ''
+    process.env.VAPID_PUBLIC_KEY ?? '',
+    process.env.VAPID_PRIVATE_KEY ?? ''
 );
 
 export async function pushProcess(job: PushSubscription & PushPayload) {
