@@ -1,6 +1,7 @@
 import { ValueOf } from '.';
 
 export const APP_LINKS = {
+    About: '/about',
     Api: '/api',
     Awards: '/awards',
     Calendar: '/calendar',
@@ -44,7 +45,6 @@ export const APP_LINKS = {
 export type APP_LINKS = ValueOf<typeof APP_LINKS>;
 
 export const LANDING_LINKS = {
-    AboutUs: '/about',
     Contribute: '/contribute',
     Features: '/features',
     Home: '/',

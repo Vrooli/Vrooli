@@ -10,10 +10,11 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, tagShapeHelper } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { noNull, shapeHelper } from "../builders";
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -197,31 +198,6 @@ import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 //     // }
 // })
 
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) => {
-    return {
-        // root: {
-        //     isPrivate: data.isPrivate ?? undefined,
-        //     hasCompleteVersion: (data.isComplete === true) ? true : (data.isComplete === false) ? false : undefined,
-        //     completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
-        //     project: data.projectId ? { connect: { id: data.projectId } } : undefined,
-        //     tags: await tagRelationshipBuilder(prisma, userData, data, 'Routine', isAdd),
-        //     permissions: JSON.stringify({}),
-        // },
-        // version: {
-        //     isAutomatable: data.isAutomatable ?? undefined,
-        //     isComplete: data.isComplete ?? undefined,
-        //     isInternal: data.isInternal ?? undefined,
-        //     versionLabel: data.versionLabel ?? undefined,
-        //     resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        //     inputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'input', objectType: 'RoutineVersionInput', prisma, userData }),
-        //     outputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'output', objectType: 'RoutineVersionOutput', prisma, userData }),
-        //     nodes: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'node', objectType: 'Node', prisma, userData }),
-        //     nodeLinks: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'nodeLink', objectType: 'NodeLink', prisma, userData }),
-        //     translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-        // }
-    }
-}
-
 const __typename = 'Routine' as const;
 type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
 const suppFields = ['you', 'translatedName'] as const;
@@ -304,74 +280,29 @@ export const RoutineModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
-                // const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data);
-                // const base = await shapeBase(prisma, userData, data, true);
-                // return {
-                //     id: data.id,
-                //     ...base.root,
-                //     hasCompleteVersion: data.isComplete ? true : false,
-                //     versions: {
-                //         create: {
-                //             ...base.version,
-                //             complexity,
-                //             simplicity,
-                //         }
-                //     }
-                // }
-                return {} as any;
-            },
-            update: async ({ data, prisma, userData, where }) => {
-                // const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data, data.versionId);
-                // const base = await shapeBase(prisma, userData, data, false);
-                // // Determine hasCompleteVersion. 
-                // let hasCompleteVersion: boolean | undefined = undefined;
-                // // If setting isComplete to true, set hasCompleteVersion to true
-                // if (data.isComplete === true) hasCompleteVersion = true;
-                // // Otherwise, query for existing versions
-                // else {
-                //     const existingVersions = await prisma.routine_version.findMany({
-                //         where: { rootId: where.id },
-                //         select: { id: true, isComplete: true }
-                //     });
-                //     // Set hasCompleteVersion to true if any version is complete. 
-                //     // Exclude the version being updated, if it exists
-                //     if (existingVersions.some(v => v.id !== data.versionId && v.isComplete)) hasCompleteVersion = true;
-                //     // If none of the existing versions are complete, set hasCompleteVersion to false
-                //     else hasCompleteVersion = false;
-                // }
-                // return {
-                //     ...base.root,
-                //     //
-                //     hasCompleteVersion,
-                //     // parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
-                //     creator: { connect: { id: userData.id } },
-                //     organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                //     user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-                //     // If versionId is provided, update that version. 
-                //     // Otherwise, versionLabel is provided, so create new version with that label
-                //     versions: {
-                //         ...(data.versionId ? {
-                //             update: {
-                //                 where: { id: data.versionId },
-                //                 data: {
-                //                     ...base.version,
-                //                     complexity: complexity,
-                //                     simplicity: simplicity,
-                //                 }
-                //             }
-                //         } : {
-                //             create: {
-                //                 ...base.version,
-                //                 versionLabel: data.versionLabel as string,
-                //                 complexity: complexity,
-                //                 simplicity: simplicity,
-                //             }
-                //         })
-                //     },
-                // }
-                return {} as any;
-            },
+            create: async ({ prisma, userData, data }) => ({
+                id: data.id,
+                isInternal: noNull(data.isInternal),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'forks', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'labels', data, prisma, userData })),
+            }),
+            update: async ({ prisma, userData, data }) => ({
+                isInternal: noNull(data.isInternal),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'tags', data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'labels', data, prisma, userData })),
+            }),
         },
         trigger: {
             onCreated: ({ created, prisma, userData }) => {

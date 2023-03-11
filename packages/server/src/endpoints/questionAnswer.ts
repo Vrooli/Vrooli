@@ -21,6 +21,7 @@ export const typeDef = gql`
 
     input QuestionAnswerCreateInput {
         id: ID!
+        questionConnect: ID!
         translationsCreate: [QuestionAnswerTranslationCreateInput!]
     }
     input QuestionAnswerUpdateInput {

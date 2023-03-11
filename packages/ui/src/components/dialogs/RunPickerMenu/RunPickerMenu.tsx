@@ -186,7 +186,7 @@ export const RunPickerMenu = ({
             }}
         >
             <MenuTitle
-                id={titleId}
+                ariaLabel={titleId}
                 onClose={handleClose}
                 title={'Continue Existing Run?'}
             />

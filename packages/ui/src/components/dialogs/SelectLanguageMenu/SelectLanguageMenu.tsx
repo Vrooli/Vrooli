@@ -142,7 +142,7 @@ export const SelectLanguageMenu = ({
         // Filter selected and user languages from auto-translateLanguages TODO put back when this is implemented
         //const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => selected.indexOf(l) === -1 && userLanguages.indexOf(l) === -1);
         // Filter selected and user and auto-translate languages from all languages (only when editing)
-        const allLanguagesFiltered = isEditing ? (Object.keys(AllLanguages)).filter(l => selected.indexOf(l) === -1 && userLanguages.indexOf(l) === -1 && autoTranslateLanguages.indexOf(l) === -1) : [];
+        const allLanguagesFiltered = isEditing ? (Object.keys(AllLanguages)).filter(l => selected.indexOf(l as any) === -1 && userLanguages.indexOf(l) === -1 && autoTranslateLanguages.indexOf(l as any) === -1) : [];
         // Create array with all available languages.
         const displayed = [...sortedSelectedLanguages, ...userLanguagesFiltered, ...allLanguagesFiltered];//, ...autoTranslateLanguagesFiltered, ...allLanguagesFiltered]; TODO
         // Convert to array of [languageCode, languageDisplayName]
@@ -211,7 +211,7 @@ export const SelectLanguageMenu = ({
             >
                 {/* Title */}
                 <MenuTitle
-                    id={titleId}
+                    ariaLabel={titleId}
                     title={'Select Language'}
                     onClose={onClose}
                 />
@@ -267,7 +267,7 @@ export const SelectLanguageMenu = ({
                             const canDelete = isSelected && isEditing && translations.length > 1;
                             // Can auto-translate if the language is not selected, is in auto-translate languages, and one of 
                             // the existing translations is in the auto-translate languages.
-                            const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 &&  autoTranslateLanguages.includes(option[0]);
+                            const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 &&  autoTranslateLanguages.includes(option[0] as any);
                             return (
                                 <ListItem
                                     key={index}

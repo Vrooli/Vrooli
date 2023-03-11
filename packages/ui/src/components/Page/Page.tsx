@@ -1,8 +1,7 @@
-import { useEffect } from 'react';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation, Redirect } from '@shared/route';
 import { PageProps } from '../../views/wrapper/types';
-import { getTranslatedTitleAndHelp, PubSub } from 'utils';
+import { PubSub } from 'utils';
 import { PageContainer } from 'components';
 
 export const Page = ({
@@ -12,14 +11,8 @@ export const Page = ({
     session,
     sessionChecked,
     sx,
-    titleData,
 }: PageProps) => {
     const [location] = useLocation();
-
-    useEffect(() => {
-        const { title } = getTranslatedTitleAndHelp(titleData);
-        if (title) document.title = title;
-    }, [titleData]);
 
     // If this page has restricted access
     if (mustBeLoggedIn) {

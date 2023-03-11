@@ -7,6 +7,7 @@ import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInputModel } from ".";
 import { defaultPermissions } from '../utils';
+import { runRoutineInputValidation } from '@shared/validation';
 
 const __typename = 'RunRoutineInput' as const;
 const suppFields = [] as const;
@@ -71,7 +72,7 @@ export const RunRoutineInputModel: ModelLogic<{
                 }
             }
         },
-        yup: {} as any,
+        yup: runRoutineInputValidation,
     },
     search: {
         defaultSort: RunRoutineInputSortBy.DateUpdatedDesc,

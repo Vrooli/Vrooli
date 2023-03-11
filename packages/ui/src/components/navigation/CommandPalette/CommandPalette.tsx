@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Button,
     DialogContent,
-    Grid,
-    Stack,
-    Typography,
     useTheme,
 } from '@mui/material';
 import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, ShortcutOption, shortcuts, useDisplayApolloError } from 'utils';

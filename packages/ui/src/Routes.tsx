@@ -1,7 +1,6 @@
-import { useCallback } from 'react';
 import { lazily } from 'react-lazily';
 import { Route, RouteProps, Switch } from '@shared/route';
-import { APP_LINKS as LINKS, BUSINESS_NAME } from '@shared/consts';
+import { APP_LINKS as LINKS } from '@shared/consts';
 import {
     ForgotPasswordForm,
     ResetPasswordForm
@@ -31,6 +30,7 @@ const {
 } = lazily(() => import('./views/settings'));
 const { TutorialView } = lazily(() => import('./views/tutorial'));
 const { WelcomeView } = lazily(() => import('./views/WelcomeView/WelcomeView'));
+const { AboutView } = lazily(() => import('./views/AboutView/AboutView'));
 const { AwardsView } = lazily(() => import('./views/AwardsView/AwardsView'));
 const { CalendarView } = lazily(() => import('./views/CalendarView/CalendarView'));
 const { FormView } = lazily(() => import('./views/wrapper/FormView'));
@@ -93,13 +93,19 @@ const noSidePadding = {
 }
 
 export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
-    // Tab title for static (non-dynamic) pages (e.g. Home, Search, Create, Notifications).
-    const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
-
     return (
         <>
             <ScrollToTop />
             <Switch fallback={Fallback}>
+                <NavRoute
+                    path={LINKS.About}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="monthly"
+                    {...props}
+                >
+                    <AboutView {...props} />
+                </NavRoute>
                 <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
                     <ApiCreate {...props} />
                 </NavRoute>

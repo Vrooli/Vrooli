@@ -1,6 +1,7 @@
+
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, PullRequestSortBy, PullRequestToObjectType, PullRequestStatus, PullRequest, PullRequestSearchInput, PullRequestCreateInput, PullRequestUpdateInput } from '@shared/consts';
+import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, PullRequestSortBy, PullRequestToObjectType, PullRequestStatus, PullRequest, PullRequestSearchInput, PullRequestCreateInput, PullRequestUpdateInput, PullRequestFromObjectType } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { resolveUnion } from './resolvers';
@@ -24,6 +25,15 @@ export const typeDef = gql`
         Standard
     }
 
+    enum PullRequestFromObjectType {
+        ApiVersion
+        NoteVersion
+        ProjectVersion
+        RoutineVersion
+        SmartContractVersion
+        StandardVersion
+    }
+
     enum PullRequestStatus {
         Open
         Merged
@@ -38,6 +48,7 @@ export const typeDef = gql`
         id: ID!
         toObjectType: PullRequestToObjectType!
         toConnect: ID!
+        fromObjectType: PullRequestFromObjectType!
         fromConnect: ID!
         translationsCreate: [PullRequestTranslationCreateInput!]
     }
@@ -131,6 +142,7 @@ const objectType = 'PullRequest';
 export const resolvers: {
     PullRequestSortBy: typeof PullRequestSortBy;
     PullRequestToObjectType: typeof PullRequestToObjectType;
+    PullRequestFromObjectType: typeof PullRequestFromObjectType;
     PullRequestStatus: typeof PullRequestStatus;
     PullRequestTo: UnionResolver;
     PullRequestFrom: UnionResolver;
@@ -147,6 +159,7 @@ export const resolvers: {
 } = {
     PullRequestSortBy,
     PullRequestToObjectType,
+    PullRequestFromObjectType,
     PullRequestStatus,
     PullRequestTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
     PullRequestFrom: { __resolveType(obj: any) { return resolveUnion(obj) } },

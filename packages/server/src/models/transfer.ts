@@ -4,7 +4,7 @@ import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { selPad, permissionsSelectHelper } from "../builders";
+import { selPad, permissionsSelectHelper, noNull } from "../builders";
 import { Prisma } from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { getLogic } from "../getters";
@@ -240,16 +240,6 @@ const transfer = (prisma: PrismaType) => ({
     },
 })
 
-// const mutater = (): Mutater<Model> => ({
-//     shape: {
-//         update: async ({ data }) => ({
-//             id: data.id,
-//             message: data.message
-//         }),
-//     },
-//     yup: { update: {} as any },
-// })
-
 export const TransferModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -334,10 +324,9 @@ export const TransferModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                message: data.message
-            } as any)
+            update: async ({ data }) => ({
+                message: noNull(data.message),
+            })
         },
         yup: transferValidation,
     },

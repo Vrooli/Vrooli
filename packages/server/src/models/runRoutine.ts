@@ -8,6 +8,7 @@ import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLIn
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
+import { runRoutineValidation } from "@shared/validation";
 
 const __typename = 'RunRoutine' as const;
 type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
@@ -153,7 +154,7 @@ export const RunRoutineModel: ModelLogic<{
                 }
             },
         },
-        yup: {} as any,
+        yup: runRoutineValidation,
     },
     run: {
         /**

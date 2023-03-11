@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { APP_LINKS } from '@shared/consts';
+import { useCallback, useEffect, useMemo } from 'react';
+import { APP_LINKS, BUSINESS_NAME } from '@shared/consts';
 import { AppBar, Box, useTheme, Stack } from '@mui/material';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from '@shared/route';
@@ -9,8 +9,7 @@ import { noSelect } from 'styles'
 import { Header } from 'components/text';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
 import { NavbarLogoState } from '../types';
-import { PubSub, useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
-import { getCookieIsLeftHanded } from 'utils/cookies';
+import { useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -52,6 +51,12 @@ export const Navbar = ({
     }, [isMobile, title]);
 
     const isLeftHanded = useIsLeftHanded();
+
+    // Set tab to title
+    useEffect(() => {
+        if (!title) return;
+        document.title = `${title} | ${BUSINESS_NAME}`;
+    }, [title]);
 
     const logo = useMemo(() => (
         <Box

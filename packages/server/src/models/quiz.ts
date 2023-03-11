@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
@@ -10,6 +10,7 @@ import { VoteModel } from "./vote";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { quizValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Quiz' as const;
 type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
@@ -77,12 +78,31 @@ export const QuizModel: ModelLogic<{
         shape: {
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
-                //TODO
-            } as any),
+                isPrivate: noNull(data.isPrivate),
+                maxAttempts: noNull(data.maxAttempts),
+                randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
+                revealCorrectAnswers: noNull(data.revealCorrectAnswers),
+                timeLimit: noNull(data.timeLimit),
+                pointsToPass: noNull(data.pointsToPass),
+                createdBy: { connect: { id: userData.id } },
+                ...(await shapeHelper({ relation: 'project', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'quizzes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routine', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Routine', parentRelationshipName: 'quizzes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'quizQuestions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestion', parentRelationshipName: 'answers', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
             update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                isPrivate: noNull(data.isPrivate),
+                maxAttempts: noNull(data.maxAttempts),
+                randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
+                revealCorrectAnswers: noNull(data.revealCorrectAnswers),
+                timeLimit: noNull(data.timeLimit),
+                pointsToPass: noNull(data.pointsToPass),
+                createdBy: { connect: { id: userData.id } },
+                ...(await shapeHelper({ relation: 'project', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'quizzes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routine', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Routine', parentRelationshipName: 'quizzes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'quizQuestions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestion', parentRelationshipName: 'answers', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            })
         },
         yup: quizValidation,
     },

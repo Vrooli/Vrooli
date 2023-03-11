@@ -4110,6 +4110,7 @@ export type PullRequest = {
 
 export type PullRequestCreateInput = {
   fromConnect: Scalars['ID'];
+  fromObjectType: PullRequestFromObjectType;
   id: Scalars['ID'];
   toConnect: Scalars['ID'];
   toObjectType: PullRequestToObjectType;
@@ -4123,6 +4124,15 @@ export type PullRequestEdge = {
 };
 
 export type PullRequestFrom = ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion;
+
+export enum PullRequestFromObjectType {
+  ApiVersion = 'ApiVersion',
+  NoteVersion = 'NoteVersion',
+  ProjectVersion = 'ProjectVersion',
+  RoutineVersion = 'RoutineVersion',
+  SmartContractVersion = 'SmartContractVersion',
+  StandardVersion = 'StandardVersion'
+}
 
 export type PullRequestSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -4265,6 +4275,7 @@ export type Query = {
   noteVersions: NoteVersionSearchResult;
   notes: NoteSearchResult;
   notification?: Maybe<Notification>;
+  notificationSettings: NotificationSettings;
   notificationSubscription?: Maybe<NotificationSubscription>;
   notificationSubscriptions: NotificationSubscriptionSearchResult;
   notifications: NotificationSearchResult;
@@ -4993,6 +5004,7 @@ export type QuestionAnswer = {
 
 export type QuestionAnswerCreateInput = {
   id: Scalars['ID'];
+  questionConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<QuestionAnswerTranslationCreateInput>>;
 };
 
@@ -5296,7 +5308,7 @@ export type QuizCreateInput = {
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
   quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
-  randomizeQuestionOder?: InputMaybe<Scalars['Boolean']>;
+  randomizeQuestionOrder?: InputMaybe<Scalars['Boolean']>;
   revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
   timeLimit?: InputMaybe<Scalars['Int']>;
@@ -5566,14 +5578,14 @@ export type QuizUpdateInput = {
   maxAttempts?: InputMaybe<Scalars['Int']>;
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
-  projectDisconnect?: InputMaybe<Scalars['ID']>;
+  projectDisconnect?: InputMaybe<Scalars['Boolean']>;
   quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
   quizQuestionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   quizQuestionsUpdate?: InputMaybe<Array<QuizQuestionUpdateInput>>;
   randomizeQuestionOrder?: InputMaybe<Scalars['Boolean']>;
   revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
-  routineDisconnect?: InputMaybe<Scalars['ID']>;
+  routineDisconnect?: InputMaybe<Scalars['Boolean']>;
   timeLimit?: InputMaybe<Scalars['Int']>;
   translationsCreate?: InputMaybe<Array<QuizTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -6274,12 +6286,12 @@ export type RoutineCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<RoutineVersionCreateInput>>;
 };
 
@@ -6355,12 +6367,12 @@ export type RoutineUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<RoutineVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<RoutineVersionUpdateInput>>;
@@ -9491,6 +9503,7 @@ export type ResolversTypes = {
   PullRequestCreateInput: PullRequestCreateInput;
   PullRequestEdge: ResolverTypeWrapper<PullRequestEdge>;
   PullRequestFrom: ResolversTypes['ApiVersion'] | ResolversTypes['NoteVersion'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
+  PullRequestFromObjectType: PullRequestFromObjectType;
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: ResolverTypeWrapper<PullRequestSearchResult>;
   PullRequestSortBy: PullRequestSortBy;
@@ -12004,6 +12017,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   noteVersions?: Resolver<ResolversTypes['NoteVersionSearchResult'], ParentType, ContextType, RequireFields<QueryNoteVersionsArgs, 'input'>>;
   notes?: Resolver<ResolversTypes['NoteSearchResult'], ParentType, ContextType, RequireFields<QueryNotesArgs, 'input'>>;
   notification?: Resolver<Maybe<ResolversTypes['Notification']>, ParentType, ContextType, RequireFields<QueryNotificationArgs, 'input'>>;
+  notificationSettings?: Resolver<ResolversTypes['NotificationSettings'], ParentType, ContextType>;
   notificationSubscription?: Resolver<Maybe<ResolversTypes['NotificationSubscription']>, ParentType, ContextType, RequireFields<QueryNotificationSubscriptionArgs, 'input'>>;
   notificationSubscriptions?: Resolver<ResolversTypes['NotificationSubscriptionSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationSubscriptionsArgs, 'input'>>;
   notifications?: Resolver<ResolversTypes['NotificationSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationsArgs, 'input'>>;

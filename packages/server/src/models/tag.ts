@@ -6,23 +6,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions } from "../utils";
-
-// const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
-//     return {
-//         tag: data.tag,
-//         createdByUserId: userData.id,
-//         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-//     }
-// }
-
-// const mutater = (): Mutater<Model> => ({
-//     shape: {
-//         create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
-//         update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
-//     },
-//     yup: tagValidation,
-// })
+import { defaultPermissions, translationShapeHelper } from "../utils";
 
 const __typename = 'Tag' as const;
 const suppFields = ['you'] as const;
@@ -103,11 +87,14 @@ export const TagModel: ModelLogic<{
     mutate: {
         shape: {
             create: async ({ data, prisma, userData }) => ({
-                //TODO
-            } as any),
+                tag: data.tag,
+                createdBy: data.anonymous ? undefined : { connect: { id: userData.id } },
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
             update: async ({ data, prisma, userData }) => ({
-                //TODO
-            } as any)
+                ...(data.anonymous ? { createdBy: { disconnect: true } } : {}),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            })
         },
         yup: tagValidation,
     },
