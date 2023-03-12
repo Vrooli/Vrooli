@@ -1,5 +1,5 @@
 /**
- * Creates a sitemap files and a sitemap index file for public user-generated content. This includes 
+ * Creates sitemap files and a sitemap index file for public user-generated content. This includes 
  * APIs, notes, organizations, projects, questions, routines, smart contracts, standards, and users.
  * 
  * A cron job is triggered to run this every day at 4:43am (UTC).

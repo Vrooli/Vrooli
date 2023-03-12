@@ -15,6 +15,7 @@ import { initStatsCronJobs } from './schedules/stats';
 import { initEventsCronJobs } from './schedules/events';
 import { initCountsCronJobs } from './schedules/counts';
 import { initSitemapCronJob } from './schedules';
+import { initModerationCronJobs } from './schedules/moderate';
 
 const debug = process.env.NODE_ENV === 'development';
 
@@ -118,6 +119,7 @@ const main = async () => {
     initEventsCronJobs();
     initCountsCronJobs();
     initSitemapCronJob();
+    initModerationCronJobs();
 
     logger.info( `🚀 Server running at ${SERVER_URL}`);
 }

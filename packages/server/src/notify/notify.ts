@@ -7,19 +7,22 @@ import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
 import { OrganizationModel, subscribableMapper } from "../models";
 import { getLogic } from "../getters";
-import { GqlModelType, NotificationSettings, SubscribableObject } from '@shared/consts';
+import { APP_LINKS, GqlModelType, IssueStatus, NotificationSettings, PullRequestStatus, SubscribableObject } from '@shared/consts';
+import { ReportStatus } from "@prisma/client";
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 
 export type NotificationCategory = 'AccountCreditsOrApi' |
     'Award' |
-    'IssueActivity' |
+    'IssueStatus' |
+    'NewObjectInOrganization' |
+    'NewObjectInProject' |
     'NewQuestionOrIssue' |
     'ObjectActivity' |
     'Promotion' |
-    'PullRequestClose' |
+    'PullRequestStatus' |
     'QuestionActivity' |
-    'ReportClose' |
+    'ReportStatus' |
     'Run' |
     'Schedule' |
     'Security' |
@@ -56,6 +59,15 @@ type NotifyResultParams = {
     silent?: boolean,
     titleKey?: TransKey,
     titleVariables?: { [key: string]: string | number },
+}
+
+/**
+ * Checks if an object type can be subscribed to
+ * @param objectType The object type to check
+ * @returns True if the object type can be subscribed to
+ */
+export const isObjectSubscribable = <T extends keyof typeof GqlModelType>(objectType: T): boolean => {
+    return objectType in SubscribableObject;
 }
 
 /**
@@ -163,7 +175,7 @@ type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toOrganization: (organizationId: string, excludeUserId?: string) => Promise<void>,
     toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string) => Promise<void>,
-    toSubscribers: (objectType: SubscribableObject, objectId: string, excludeUserId?: string) => Promise<void>,
+    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludeUserId?: string) => Promise<void>,
 }
 
 /**
@@ -279,7 +291,7 @@ const NotifyResult = ({
         // Find every admin of the organization, excluding the user who triggered the notification
         const adminData = await OrganizationModel.query.findAdminInfo(prisma, organizationId, excludeUserId);
         // Shape and translate the notification for each admin
-        const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, adminData.map(({ id, languages}) => ({
+        const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, adminData.map(({ id, languages }) => ({
             languages,
             userId: id,
         })));
@@ -415,14 +427,19 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'AwardEarnedTitle',
     }),
-    pushIssueActivity: (issueId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'IssueActivityBody',
-        bodyVariables: { issueName: `<Label|Issue:${issueId}>` },
-        category: 'IssueActivity',
+    pushIssueStatusChange: (
+        issueId: string,
+        objectId: string,
+        objectType: GqlModelType | `${GqlModelType}`,
+        status: IssueStatus | `${IssueStatus}`
+    ): NotifyResultType => NotifyResult({
+        bodyKey: `IssueStatus${status}Body`,
+        bodyVariables: { issueName: `<Label|Issue:${issueId}>`, objectName: `<Label|${objectType}:${objectId}>` },
+        category: 'IssueStatus',
         languages,
         link: `/issues/${issueId}`,
         prisma,
-        titleKey: 'IssueActivityTitle',
+        titleKey: `IssueStatus${status}Title`,
     }),
     pushNewDeviceSignIn: (): NotifyResultType => NotifyResult({
         bodyKey: 'NewDeviceBody',
@@ -430,13 +447,6 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         languages,
         prisma,
         titleKey: 'NewDeviceTitle',
-    }),
-    pushNewComment: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
-        category: 'ObjectActivity',
-        languages,
-        prisma,
-        titleKey: 'NewCommentTitle',
-        titleVariables: { objectName: `<Label|${objectType}:${objectId}>` },
     }),
     pushNewEmailVerification: (): NotifyResultType => NotifyResult({
         bodyKey: 'NewEmailVerificationBody',
@@ -454,84 +464,92 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewQuestionOnObjectTitle',
     }),
-    pushNewIssueOnObject: (issueId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'NewIssueOnObjectBody',
-        bodyVariables: { objectName: `<Label|Issue:${issueId}>` },
-        category: 'NewQuestionOrIssue',
+    pushNewObjectInOrganization: (objectType: `${GqlModelType}`, objectId: string, organizationId: string): NotifyResultType => NotifyResult({
+        bodyKey: 'NewObjectInOrganizationBody',
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, organizationName: `<Label|Organization:${organizationId}>` },
+        category: 'NewObjectInOrganization',
         languages,
-        link: `/issues/${issueId}`,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'NewIssueOnObjectTitle',
+        titleKey: 'NewObjectInOrganizationTitle',
+        titleVariables: { organizationName: `<Label|Organization:${organizationId}>` },
+    }),
+    pushNewObjectInProject: (objectType: `${GqlModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
+        bodyKey: 'NewObjectInProjectBody',
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, projectName: `<Label|Project:${projectId}>` },
+        category: 'NewObjectInProject',
+        languages,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        prisma,
+        titleKey: 'NewObjectInProjectTitle',
+        titleVariables: { projectName: `<Label|Project:${projectId}>` },
     }),
     pushObjectReceivedBookmark: (objectType: `${GqlModelType}`, objectId: string, totalBookmarks: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedBookmarkBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalBookmarks },
         category: 'ObjectActivity',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
         prisma,
-        titleKey: 'ObjectReceivedBodyTitle',
+        titleKey: 'ObjectReceivedBookmarkTitle',
+    }),
+    pushObjectReceivedComment: (objectType: `${GqlModelType}`, objectId: string, totalComments: number): NotifyResultType => NotifyResult({
+        bodyKey: 'ObjectReceivedCommentBody',
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalComments },
+        category: 'ObjectActivity',
+        languages,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}?comments`,
+        prisma,
+        titleKey: 'ObjectReceivedCommentTitle',
+    }),
+    pushObjectReceivedCopy: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
+        category: 'ObjectActivity',
+        languages,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        prisma,
+        titleKey: 'ObjectReceivedCopyTitle',
+        titleVariables: { objectName: `<Label|${objectType}:${objectId}>` },
     }),
     pushObjectReceivedUpvote: (objectType: `${GqlModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedUpvoteBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalScore },
         category: 'ObjectActivity',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'ObjectReceivedUpvoteTitle',
     }),
-    pushObjectReceivedFork: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'ObjectReceivedForkBody',
+    /**
+     * NOTE: If object is being deleted, this should be called before the object is deleted. 
+     * Otherwise, we cannot display the name of the object in the notification.
+     */
+    pushReportStatusChange: (
+        reportId: string,
+        objectId: string,
+        objectType: GqlModelType | `${GqlModelType}`,
+        status: ReportStatus | `${ReportStatus}`
+    ): NotifyResultType => NotifyResult({
+        bodyKey: `ReportStatus${status}Body`,
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'ObjectActivity',
+        category: 'ReportStatus',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}/reports/${reportId}`,
         prisma,
-        titleKey: 'ObjectReceivedForkTitle',
+        titleKey: `ReportStatus${status}Title`,
     }),
-    pushReportClosedObjectDeleted: (reportId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'ReportClosedObjectDeletedBody',
-        bodyVariables: { objectName: `<Label|Report:${reportId}>` },
-        category: 'ReportClose',
-        languages,
-        prisma,
-        titleKey: 'ReportClosedObjectDeletedTitle',
-    }),
-    pushReportClosedObjectHidden: (objectType: string, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'ReportClosedObjectHiddenBody',
+    pushPullRequestStatusChange: (
+        reportId: string,
+        objectId: string,
+        objectType: GqlModelType | `${GqlModelType}`,
+        status: PullRequestStatus | `${PullRequestStatus}`
+    ): NotifyResultType => NotifyResult({
+        bodyKey: `PullRequestStatus${status}Body`,
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'ReportClose',
+        category: 'PullRequestStatus',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}/pulls/${reportId}`,
         prisma,
-        titleKey: 'ReportClosedObjectHiddenTitle',
-    }),
-    pushReportClosedAccountSuspended: (reportId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'ReportClosedAccountSuspendedBody',
-        bodyVariables: { objectName: `<Label|Report:${reportId}>` },
-        category: 'ReportClose',
-        languages,
-        prisma,
-        titleKey: 'ReportClosedAccountSuspendedTitle',
-    }),
-    pushPullRequestAccepted: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'PullRequestAcceptedBody',
-        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'PullRequestClose',
-        languages,
-        link: `/${objectType}/${objectId}`,
-        prisma,
-        titleKey: 'PullRequestAcceptedTitle',
-    }),
-    pushPullRequestRejected: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
-        bodyKey: 'PullRequestRejectedBody',
-        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-        category: 'PullRequestClose',
-        languages,
-        link: `/${objectType}/${objectId}`,
-        prisma,
-        titleKey: 'PullRequestRejectedTitle',
+        titleKey: `PullRequestStatus${status}Title`,
     }),
     pushQuestionActivity: (questionId: string): NotifyResultType => NotifyResult({
         bodyKey: 'QuestionActivityBody',
@@ -622,7 +640,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'TransferAcceptedTitle',
     }),
@@ -631,7 +649,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'TransferRejectedTitle',
     }),

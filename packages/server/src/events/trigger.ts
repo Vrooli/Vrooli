@@ -1,11 +1,10 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { DeleteType, CopyType, BookmarkFor, VoteFor, GqlModelType } from "@shared/consts";
+import { CopyType, BookmarkFor, VoteFor, GqlModelType, AwardCategory, SubscribableObject } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
-import { getLogic } from "../getters";
-import { Notify } from "../notify";
+import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
-import { Award } from "./awards";
-import { logger } from "./logger";
+import { Award, objectAwardCategory } from "./awards";
+import { objectReputationEvent, Reputation, ReputationEvent } from "./reputation";
 
 export type ActionTrigger = 'AccountNew' |
     'ObjectComplete' | // except runs
@@ -43,144 +42,210 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Give the user an award
         Award(prisma, userId, languages).update('AccountNew', 1);
     },
-    createApi: async (userId: string, apiId: string) => {
-        // // Track award progress
-        // asdfasfdasdf
-        // // If the version is public and complete, increase reputation score
-        // adfdsfsa
-    },
-    deleteApiVersion: async (userId: string, apiId: string, versionId: string, versionStatus: string) => {
-        // If the version was public and complete and has never been transferred, decrease reputation score
-        //fdsafdsafdsa
-    },
-    createComment: async (userId: string, commentId: string) => {
-        // Send notification to object owner(s)
-        //asdfasdf
-        // Track award progress
-        Award(prisma, userId, languages).update('CommentCreate', 1);
-    },
-    createEmail: async (userId: string) => {
-        // Send notification to user warning them that a new sign in method was added
-        Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
-    },
-    createPhone: async (userId: string) => {
-        // Send notification to user warning them that a new sign in method was added
-        Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
-    },
-    createIssue: async (issueId: string, owner: Owner, createdById: string) => {
-        // Send notification to object owner(s)
-        Notify(prisma, languages).pushNewIssueOnObject(issueId).toOwner(owner, createdById);
-    },
-    createOrganization: async (userId: string, organizationId: string) => {
-        // Track award progress
-        Award(prisma, userId, languages).update('OrganizationCreate', 1);
-    },
-    createProject: async (userId: string, projectId: string) => {
-        // Track award progress
-        Award(prisma, userId, languages).update('ProjectCreate', 1);
-        // If the version is public and complete, increase reputation score
-       // asdfdsfdsd
-    },
-    deleteProjectVersion: async (userId: string, projectId: string, versionId: string, versionStatus: string) => {
-        //asdfasdf
-    },
-    createQuestion: async (userId: string, questionId: string) => {
-        // Send notification to object owner(s)
-        //Notify(prisma, languages).pushNewQuestion().fdsafdsafd
-    },
-    createRoutine: async (userId: string, routineId: string) => {
-        // Track award progress
-        Award(prisma, userId, languages).update('RoutineCreate', 1);
-        // If the version is public and complete, increase reputation score
-        //asdfdsfdsd
-    },
-    deleteRoutineVersion: async (userId: string, routineId: string, versionId: string, versionStatus: string) => {
-        //fdsafdsafd
-    },
-    createSmartContract: async (userId: string, smartContractId: string) => {
-        // Track award progress
-        Award(prisma, userId, languages).update('SmartContractCreate', 1);
-        // If the version is public and complete, increase reputation score
-        //asdfdsfdsd
-    },
-    deleteSmartContractVersion: async (userId: string, smartContractId: string, versionId: string, versionStatus: string) => {
-        //fdsafdsaf
-    },
-    createStandard: async (userId: string, standardId: string) => {
-        // Track award progress
-        Award(prisma, userId, languages).update('StandardCreate', 1);
-        // If the version is public and complete, increase reputation score
-        //asdfdsfdsd
-    },
-    deleteStandardVersion: async (userId: string, standardId: string, versionId: string, versionStatus: string) => {
-       // fdsafdsaf
-    },
-    createWallet: async (userId: string, walletAddress: string) => {
-        // Send notification to user warning them that a new sign in method was added
-        Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
-    },
-    issueClosed: async (owner: Owner, closedByUserId: string, issueId: string, issueStatus: IssueStatus) => {
-        // Send notification to object owner(s)
-       // Notify(prisma, languages).pushIssueClosed(issueId).toOwner(owner, closedByUserId);
-        // Track award progress of issue creator
-        //fdsafdsafds
-        // If issue marked as resolved, icrease reputation of issue creator
-        //fdsafdasfd
-        // If issue marked as rejected, decrease reputation of issue creator
-        //asdfasdf
-    },
-    objectAddedToOrganization: async (userId: string, organizationId: string, objectId: string, objectType: `${GqlModelType}`) => {
-        // const notification = Notify(prisma, languages).pushOrganizationActivity();
-        // // Send notification to admins, except the user who added it
-        // notification.toOrganization(organizationId, userId);
-        // // Send notification to subscribers of the organization
-        // notification.toSubscribers('Organization', organizationId, userId);
-    },
-    objectAddedToProject: async (owner: Owner, addedByUserId: string, projectId: string, objectId: string, objectType: `${GqlModelType}`) => {
-        // const notification = Notify(prisma, languages).pushProjectActivity();
-        // // Send notification to object owner
-        // notification.toOwner(owner, addedByUserId)
-        // // Send notification to subscribers of the project
-        // notification.toSubscribers('Project', projectId, addedByUserId);
-    },
-    objectNewVersion: async (
-        updatedByUserId: string,
-        objectType: `${GqlModelType}`,
+    issueActivity: async ({
+        issueCreatedById,
+        issueHasBeenClosedOrRejected,
+        issueId,
+        issueStatus,
+        objectId,
+        objectOwner,
+        objectType,
+        userUpdatingIssueId,
+    }: {
+        issueCreatedById: string,
+        issueHasBeenClosedOrRejected: boolean,
+        issueId: string,
+        issueStatus: IssueStatus,
         objectId: string,
-        owner: Owner | null,
-        hasOriginalOwner: boolean,
-        wasCompleteAndPublic: boolean,
-        isCompleteAndPublic: boolean,
-    ) => {
-        // // If the object has a complete version and is public (and wasn't before)
-        // if (!wasCompleteAndPublic && isCompleteAndPublic) {
-        //     // If never transferred, increase reputation score of creator
-        //     if (hasOriginalOwner) {
-        //         asdfasfdasfd
-        //     }
-        //     // Notify owners and subscribers of new version
-        //     const notification = Notify(prisma, languages).pushObjectNewVersion();
-        //     notification.toOwner(owner, updatedByUserId);
-        //     notification.toSubscribers(objectType, objectId, updatedByUserId);
-        // }
-        // // If the version was public and complete, but is now not
-        // else if (wasCompleteAndPublic && !isCompleteAndPublic) {
-        //     // If never transferred, decrease reputation score of creator
-        //     if (hasOriginalOwner) {
-        //         asdfasfdasfd
-        //     }
-        // }
+        objectOwner: Owner,
+        objectType: GqlModelType | `${GqlModelType}`,
+        userUpdatingIssueId: string,
+    }) => {
+        // If issue has never been closed or rejected (to prevent users from reopning issues to get awards/reputation)
+        if (!issueHasBeenClosedOrRejected) {
+            // If creating, track award progress of issue creator. 
+            if (issueStatus === 'Open') {
+                await Award(prisma, issueCreatedById, languages).update('IssueCreate', 1);
+            }
+            // If issue marked as resolved, increase reputation of issue creator
+            else if (issueStatus === 'ClosedResolved') {
+                await Reputation().update('IssueCreatedWasAccepted', prisma, issueCreatedById);
+            }
+            // If issue marked as rejected, decrease reputation of issue creator
+            else if (issueStatus === 'Rejected') {
+                await Reputation().update('IssueCreatedWasRejected', prisma, issueCreatedById);
+            }
+        }
+        // Send notification to object owner(s) and subscribers of both the organization and the object with the issue
+        const isSubscribable = isObjectSubscribable(objectType);
+        if (isSubscribable) {
+            const notification = Notify(prisma, languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
+            if (objectOwner.__typename === 'Organization') {
+                notification.toOrganization(objectOwner.id, userUpdatingIssueId);
+                notification.toSubscribers('Organization', objectOwner.id, userUpdatingIssueId)
+            }
+            notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingIssueId);
+        }
     },
-    //objectDeletedVersion: fdsafdsafasfdasfdsfsa,
     /**
-     * NOTE: Unless the object is soft-deleted, this must be called BEFORE the object is deleted.
+     * Handle object creation. 
+     * 
+     * NOTE: Do NOT use this to handle new objects that are being transferred immediately 
+     * to a user/organization that's not yours
+     * 
+     * Steps: 
+     * 1. If trackable for Awards AND the object was not copied/forked, increment progress
+     * 2. If trackable for Reputation AND the object was not copied/forked, increment progress if:
+     *     - Is a root object and has a public, complete version
+     *     - Is a version and is public and complete
+     *     - Is not a versionable object and is public and complete
+     * 3. If added to organization, send notification to organization members
+     * 4. If added to project, send notification to project members
+     * 5. Handle object-specific cases
      */
-    objectDelete: async (owner: Owner, deletedByUserId: string, objectType: DeleteType, objectId: string) => {
-        // const notification = Notify(prisma, languages).pushObjectDelete();
-        // // Send notification to owner(s) (except for who deleted it)
-        // notification.toOwner(owner, deletedByUserId);
-        // // Send notification to anyone subscribed to the object
-        // notification.toSubscribers(objectType, objectId, deletedByUserId);
+    objectCreated: async ({
+        createdById,
+        hasCompleteAndPublic,
+        hasParent,
+        owner,
+        objectId,
+        objectType,
+        projectId,
+    }: {
+        createdById: string,
+        hasCompleteAndPublic: boolean,
+        hasParent: boolean,
+        owner: Owner,
+        objectId: string,
+        objectType: `${GqlModelType}`,
+        projectId?: string,
+    }) => {
+        // Step 1
+        const awardCategory = objectAwardCategory(objectType);
+        if (!hasParent && awardCategory) {
+            await Award(prisma, createdById, languages).update(awardCategory as AwardCategory, 1);
+        }
+        // Step 2
+        // If the object is public and complete, increase reputation score
+        const reputationEvent = objectReputationEvent(objectType);
+        if (!hasParent && reputationEvent && hasCompleteAndPublic) {
+            await Reputation().update(reputationEvent as any, prisma, createdById);
+        }
+        // Step 3
+        // Determine if the object is subscribable
+        const isSubscribable = isObjectSubscribable(objectType);
+        // If the object was added to an organization, send notification to organization members
+        if (isSubscribable && owner.__typename === 'Organization') {
+            const notification = Notify(prisma, languages).pushNewObjectInOrganization(objectType, objectId, owner.id);
+            // Send notification to admins, except the user who added it
+            notification.toOrganization(owner.id, createdById);
+            // Send notification to subscribers of the organization
+            notification.toSubscribers('Organization', owner.id, createdById);
+        }
+        // Step 4
+        // If the object was added to a project, send notification to project members
+        if (isSubscribable && projectId) {
+            const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
+            // Send notification to object owner
+            notification.toOwner(owner, createdById)
+            // Send notification to subscribers of the project
+            notification.toSubscribers('Project', projectId, createdById);
+        }
+        // Step 5
+        // If object is an email, phone, or wallet
+        if (['Email', 'Phone', 'Wallet'].includes(objectType)) {
+            // Send notification to user warning them that a new sign in method was added
+            Notify(prisma, languages).pushNewDeviceSignIn().toUser(createdById)
+        }
+    },
+    /**
+     * Object update logic: 
+     * 0. Don't do anything for Award progress, nor for adding to organization. Neither of these are applicable to updates.
+     * 1. If trackable for Reputation AND the object was not copied/forked, increment progress if:
+     *    - Is a root object, had no public and complete version before, and now has a public, complete version
+     *    - Is a version, is public and complete, and there were no public and complete versions before. 
+     *    In this case, make sure that this is done only once per root object (since you could theoretically 
+     *    complete multiple versions in one mutation)
+     *    - Is not a versionable object, is public and complete, and was not public and complete before
+     * 2. If added to a project that it wasn't in before, send notification to project members
+     */
+    objectUpdated: async ({
+        updatedByUserId,
+        hasCompleteAndPublic,
+        hasParent,
+        owner,
+        objectId,
+        objectType,
+        originalProjectId,
+        projectId,
+        wasCompleteAndPublic,
+    }: {
+        updatedByUserId: string,
+        hasCompleteAndPublic: boolean,
+        hasOriginalOwner: boolean,
+        hasParent: boolean,
+        owner: Owner,
+        objectId: string,
+        objectType: `${GqlModelType}`,
+        originalProjectId?: string,
+        projectId?: string,
+        wasCompleteAndPublic: boolean,
+    }) => {
+        // Step 1
+        // If the object was not copied/forked (i.e. has no parent), was not public and complete before, and is now public and complete
+        if (!hasParent && !wasCompleteAndPublic && hasCompleteAndPublic) {
+            // If the object is trackable for reputation, increase reputation score
+            const reputationEvent = objectReputationEvent(objectType);
+            if (reputationEvent) {
+                await Reputation().update(reputationEvent as any, prisma, updatedByUserId);
+            }
+        }
+        // Step 2
+        // If the object has a new project
+        if (projectId && projectId !== originalProjectId) {
+            // If the object is subscribable, send notification to project members
+            const isSubscribable = isObjectSubscribable(objectType);
+            if (isSubscribable) {
+                const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
+                // Send notification to object owner
+                notification.toOwner(owner, updatedByUserId)
+                // Send notification to subscribers of the project
+                notification.toSubscribers('Project', projectId, updatedByUserId);
+            }
+        }
+    },
+    /**
+     * Object delete logic:
+     * 0. Don't do anything for Award progress, nor for adding to organization or project, 
+     * nor for notifying subscribers. None of these are applicable to deletes.
+     * 1. If trackable for Reputation AND the object was not copied/forked AND you are the original owner, decrement progress if:
+     *    - Is a root object and had at least one public, complete version
+     *    - Is a version and is public and complete, and there are no other public and complete versions
+     *    - Is not a versionable object and is public and complete
+     */
+    objectDeleted: async ({
+        deletedByUserId,
+        hasCompleteAndPublic,
+        hasParent,
+        objectId,
+        objectType,
+    }: {
+        deletedByUserId: string,
+        hasCompleteAndPublic: boolean,
+        hasOriginalOwner: boolean,
+        hasParent: boolean,
+        objectId: string,
+        objectType: `${GqlModelType}`,
+    }) => {
+        // Step 1
+        // If the object was not copied/forked (i.e. has no parent) and was public and complete
+        if (!hasParent && hasCompleteAndPublic) {
+            // If the object is trackable for reputation, decrease reputation score
+            const reputationEvent = objectReputationEvent(objectType);
+            if (reputationEvent) {
+                await Reputation().unCreateObject(prisma, objectId, deletedByUserId);
+            }
+        }
     },
     objectCopy: async (owner: Owner, forkedByUserId: string, objectType: CopyType, parentId: string) => {
         // const notification = Notify(prisma, languages).pushObjectFork();
@@ -207,16 +272,51 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // // Send notification to admins of organization
         // asdf
     },
-    pullRequestClose: async (objectType: `${GqlModelType}`, objectId: string, status: PullRequestStatus, userId: string) => {
-        // // If pull request was accepted, increase award progress and reputation of pull request creator
-        // asdf
-        // // If pull request was rejected, decrease reputation of pull request creator
-        // asdf
-        // const notification = Notify(prisma, languages).pushPullRequestClose();
-        // // Send notification to owner(s) (except for who created it)
-        // asdfasfdsf
-        // // Send notifications to subscribers
-        // asdfasdfas
+    pullRequestActivity: async ({
+        pullRequestCreatedById,
+        pullRequestHasBeenClosedOrRejected,
+        pullRequestId,
+        pullRequestStatus,
+        objectId,
+        objectOwner,
+        objectType,
+        userUpdatingPullRequestId,
+    }: {
+        pullRequestCreatedById: string,
+        pullRequestHasBeenClosedOrRejected: boolean,
+        pullRequestId: string,
+        pullRequestStatus: PullRequestStatus,
+        objectId: string,
+        objectOwner: Owner,
+        objectType: GqlModelType | `${GqlModelType}`,
+        userUpdatingPullRequestId: string,
+    }) => {
+        // If pullRequest has never been closed or rejected (to prevent users from reopning pullRequests to get awards/reputation)
+        if (!pullRequestHasBeenClosedOrRejected) {
+            // If creating, track award progress of pullRequest creator. 
+            if (pullRequestStatus === 'Open') {
+                await Award(prisma, pullRequestCreatedById, languages).update('PullRequestCreate', 1);
+            }
+            // If pullRequest marked as merged, track award and increase reputation of pullRequest creator
+            else if (pullRequestStatus === 'Merged') {
+                await Award(prisma, pullRequestCreatedById, languages).update('PullRequestComplete', 1);
+                await Reputation().update('PullRequestWasAccepted', prisma, pullRequestCreatedById);
+            }
+            // If pullRequest marked as rejected, decrease reputation of pullRequest creator
+            else if (pullRequestStatus === 'Rejected') {
+                await Reputation().update('PullRequestWasRejected', prisma, pullRequestCreatedById);
+            }
+        }
+        // Send notification to object owner(s) and subscribers of both the organization and the object with the pullRequest
+        const isSubscribable = isObjectSubscribable(objectType);
+        if (isSubscribable) {
+            const notification = Notify(prisma, languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
+            if (objectOwner.__typename === 'Organization') {
+                notification.toOrganization(objectOwner.id, userUpdatingPullRequestId);
+                notification.toSubscribers('Organization', objectOwner.id, userUpdatingPullRequestId)
+            }
+            notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingPullRequestId);
+        }
     },
     questionAccepted: async (questionId: string, answerId: string, userId: string) => {
         // // Increase award progress and reputation of answer creator
@@ -238,23 +338,103 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // // Increase reputation of answer creator
         // fdsafsafdsa
     },
-    reportClose: async (reportId: string, userId: string, status: ReportStatus) => {
-        // // Send notification to creator of report
-        // asdf
-        // // Send notification to anyone subscribed to the report
-        // asdf
-        // // Track award progress and reputation for anyone who contributed to the report
-        // asdf
-        // // If report was accepted, increase reputation of user who created the report
-        // asdf
-        // // If report was rejected, decrease reputation of user who created the report
-        // asdf
-        // // If report resulted in object being deleted, reduce reputation of owner
-        // asdf
-    },
-    reportOpen: async (reportId: string, userId: string) => {
-        // // Send notification to owner(s) of object
-        // asdfasfdsafds
+    /**
+     * NOTE 1: Unlike issues and pull requests, reports can never be reopened. 
+     * So we don't need to worry about users gaming awards/reputation from reopening reports.
+     * 
+     * NOTE 2: If object is being deleted, this should be called before the object is deleted. 
+     * Otherwise, we cannot display the name of the object in the notification.
+     */
+    reportActivity: async ({
+        reportCreatedById,
+        reportId,
+        reportStatus,
+        objectId,
+        objectOwner,
+        objectType,
+        userUpdatingReportId,
+    }: {
+        reportCreatedById: string,
+        reportId: string,
+        reportStatus: ReportStatus,
+        objectId: string,
+        objectOwner: Owner,
+        objectType: GqlModelType | `${GqlModelType}`,
+        userUpdatingReportId: string,
+    }) => {
+        // If report was closed, track award progress and reputation of contributors 
+        // (those who responded to the report)
+        if (reportStatus !== 'Open') {
+            // Find contributors to report
+            const report = await prisma.report.findUnique({
+                where: { id: reportId },
+                select: {
+                    responses: {
+                        select: {
+                            createdBy: {
+                                select: {
+                                    id: true,
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            // Make sure each contributor is only counted once (even though this should already be the case)
+            const contributors = [...new Set(report?.responses.map(response => response.createdBy.id) ?? [])];
+            for (const contributorId of contributors) {
+                // Track award progress
+                await Award(prisma, contributorId, languages).update('ReportContribute', 1);
+                // Increase reputation
+                await Reputation().update('ContributedToReport', prisma, contributorId);
+            }
+            // Increase reputation of report creator
+        }
+        // If report was successfull, track award progress and reputation of report creator
+        if (['ClosedDeleted', 'ClosedResolved', 'ClosedSuspended'].includes(reportStatus)) {
+            await Award(prisma, reportCreatedById, languages).update('ReportEnd', 1);
+            await Reputation().update('ReportWasAccepted', prisma, reportCreatedById);
+        }
+        // If report was not successfull, track award progress and reputation of report creator
+        if (['ClosedFalseReport', 'ClosedNonIssue'].includes(reportStatus)) {
+            await Award(prisma, reportCreatedById, languages).update('ReportEnd', 1);
+            await Reputation().update('ReportWasRejected', prisma, reportCreatedById);
+        }
+        // If object was deleted, decrease reputation of object owner(s)
+        if (reportStatus === 'ClosedDeleted') {
+            // If owners are an organization, decrease reputation of all admins
+            if (objectOwner.__typename === 'Organization') {
+                const admins = await prisma.organization.findUnique({
+                    where: { id: objectOwner.id },
+                    select: {
+                        members: {
+                            select: {
+                                id: true,
+                                isAdmin: true,
+                            }
+                        }
+                    }
+                });
+                const adminIds = admins?.members.filter(member => member.isAdmin).map(member => member.id) ?? [];
+                for (const adminId of adminIds) {
+                    await Reputation().update('ObjectDeletedFromReport', prisma, adminId);
+                }
+            }
+            // Otherwise, decrease reputation of object owner
+            else {
+                await Reputation().update('ObjectDeletedFromReport', prisma, objectOwner.id);
+            }
+        }
+        // Send notification to object owner(s) and subscribers of both the organization and the object with the report
+        const isSubscribable = isObjectSubscribable(objectType);
+        if (isSubscribable) {
+            const notification = Notify(prisma, languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
+            if (objectOwner.__typename === 'Organization') {
+                notification.toOrganization(objectOwner.id, userUpdatingReportId);
+                notification.toSubscribers('Organization', objectOwner.id, userUpdatingReportId)
+            }
+            notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingReportId);
+        }
     },
     runProjectComplete: async (runTitle: string, runId: string, userId: string) => {
         // Track award progress

@@ -80,6 +80,7 @@ export async function init(prisma: PrismaType) {
             id: adminId,
             name: 'Matt Halloran',
             password: hashPassword(process.env.ADMIN_PASSWORD ?? ''),
+            reputation: 1000000, // TODO temporary until community grows
             status: 'Unlocked',
             emails: {
                 create: [

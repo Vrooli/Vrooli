@@ -153,8 +153,6 @@ export const resolvers: {
     Mutation: {
         pullRequestCreate: GQLEndpoint<PullRequestCreateInput, CreateOneResult<PullRequest>>;
         pullRequestUpdate: GQLEndpoint<PullRequestUpdateInput, UpdateOneResult<PullRequest>>;
-        pullRequestAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<PullRequest>>;
-        pullRequestReject: GQLEndpoint<FindByIdInput, UpdateOneResult<PullRequest>>;
     }
 } = {
     PullRequestSortBy,
@@ -181,14 +179,7 @@ export const resolvers: {
         pullRequestUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req })
+            // TODO make sure to set hasBeenClosedOrRejected to true if status is closed or rejected
         },
-        pullRequestAccept: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
-        },
-        pullRequestReject: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
-        }
     }
 }

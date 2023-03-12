@@ -2,29 +2,42 @@
  * Handles giving reputation to users when some action is performed.
  */
 
+import { GqlModelType } from "@shared/consts";
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
 import { logger } from "./logger";
 
-export type ReputationEvent = 'ObjectDeletedFromReport' |
-    'ReportWasAccepted' |
-    'ReportWasRejected' |
-    'PullRequestWasAccepted' |
-    'PullRequestWasRejected' |
-    'IssueCreatedWasAccepted' |
-    'IssueCreatedWasRejected' |
-    'AnsweredQuestion' |
-    'AnsweredQuestionWasAccepted' |
-    'PublicApiCreated' |
-    'PublicProjectCreated' |
-    'PublicRoutineCreated' |
-    'PublicSmartContractCreated' |
-    'PublicStandardCreated' |
-    'ReceivedVote' |
-    'ReceivedStar' |
-    'ContributedToReport';
+export enum ReputationEvent {
+    ObjectDeletedFromReport = 'ObjectDeletedFromReport',
+    ReportWasAccepted = 'ReportWasAccepted',
+    ReportWasRejected = 'ReportWasRejected',
+    PullRequestWasAccepted = 'PullRequestWasAccepted',
+    PullRequestWasRejected = 'PullRequestWasRejected',
+    IssueCreatedWasAccepted = 'IssueCreatedWasAccepted',
+    IssueCreatedWasRejected = 'IssueCreatedWasRejected',
+    AnsweredQuestion = 'AnsweredQuestion',
+    AnsweredQuestionWasAccepted = 'AnsweredQuestionWasAccepted',
+    PublicApiCreated = 'PublicApiCreated',
+    PublicProjectCreated = 'PublicProjectCreated',
+    PublicRoutineCreated = 'PublicRoutineCreated',
+    PublicSmartContractCreated = 'PublicSmartContractCreated',
+    PublicStandardCreated = 'PublicStandardCreated',
+    ReceivedVote = 'ReceivedVote',
+    ReceivedStar = 'ReceivedStar',
+    ContributedToReport = 'ContributedToReport',
+};
 
 const MaxReputationGainPerDay = 100;
+
+/**
+ * Checks if an object type is tracked by the repuation system
+ * @param objectType The object type to check
+ * @returns `Public${objectType}Created` if it's a tracked reputation nevent
+ */
+export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objectType: T): `Public${T}Created` | null => {
+    return `Public${objectType}Created` in ReputationEvent ? `Public${objectType}Created` : null;
+}
+
 
 /**
  * Generates the reputation which should be rewarded to a user for receiving a vote. 
@@ -128,7 +141,7 @@ const updateReputationHelper = async (
     delta: number,
     prisma: PrismaType,
     userId: string,
-    event: ReputationEvent,
+    event: ReputationEvent | `${ReputationEvent}`,
     objectId1?: string,
     objectId2?: string
 ) => {
@@ -173,17 +186,30 @@ const updateReputationHelper = async (
  */
 export const Reputation = () => ({
     /**
+     * Deletes a reputation history entry for an object creation, and updates the user's reputation accordingly
+     * @param prisma The prisma client
+     * @param objectId The id of the object that was deleted
+     * @param userId The id of the user who created the object
+     */
+    unCreateObject: async (prisma: PrismaType, objectId: string, userId: string) => {
+        asdfasd
+    },
+    /**
      * Updates a user's reputation based on an event
      * @param event The event that occurred
      * @param prisma The prisma client
      * @param userId Typically the user who performed the event, 
      * but can also be the user who owns the object that was affected
      */
-    update: async (event: Exclude<ReputationEvent, 'ReceivedVote' | 'ReceivedStar' | 'ContributedToReport'>, prisma: PrismaType, userId: string) => {
+    update: async (
+        event: Exclude<ReputationEvent, 'ReceivedVote' | 'ReceivedStar' | 'ContributedToReport'> | `${Exclude<ReputationEvent, 'ReceivedVote' | 'ReceivedStar' | 'ContributedToReport'>}`,
+        prisma: PrismaType, 
+        userId: string
+        ) => {
         // Determine reputation delta
         const delta = reputationMap[event] || 0;
         // Update reputation
-        await updateReputationHelper(delta, prisma, userId, event);
+        await updateReputationHelper(delta, prisma, userId, event, object1Id, object2Id);
     },
     /**
      * Custom reputation update function for votes
@@ -209,7 +235,7 @@ export const Reputation = () => ({
     },
     /**
      * Custom reputation update function for report contributions
-     * @param totalContributions The total number of contributions you've made to any report
+     * @param totalContributions The total number of contributions you've made to all reports
      * @param prisma The prisma client
      * @param userId The user who contributed to the report
      */

@@ -6,7 +6,7 @@
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
 import i18next from 'i18next';
-import { AwardCategory, awardNames, awardVariants } from "@shared/consts";
+import { AwardCategory, awardNames, awardVariants, GqlModelType } from "@shared/consts";
 
 /**
  * Given an ordered list of numbers, returns the closest lower number in the list
@@ -41,6 +41,15 @@ const shouldAward = (awardCategory: `${AwardCategory}`, previousCount: number, c
     const current = closestLower(currentCount, tiers);
     // Only award if moving to a new tier
     return current !== null && current > (previous ?? 0);
+}
+
+/**
+ * Checks if an object type is tracked by the award system
+ * @param objectType The object type to check
+ * @returns `${objectType}Create` if it's a tracked award category
+ */
+export const objectAwardCategory = <T extends keyof typeof GqlModelType>(objectType: T): `${T}Create` | null => {
+    return `${objectType}Create` in AwardCategory ? `${objectType}Create` : null;
 }
 
 /**
