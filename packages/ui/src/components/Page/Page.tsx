@@ -1,4 +1,4 @@
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { useLocation, Redirect } from '@shared/route';
 import { PageProps } from '../../views/wrapper/types';
 import { PubSub } from 'utils';
@@ -7,7 +7,7 @@ import { PageContainer } from 'components';
 export const Page = ({
     children,
     mustBeLoggedIn = false,
-    redirect = APP_LINKS.Start,
+    redirect = LINKS.Start,
     session,
     sessionChecked,
     sx,

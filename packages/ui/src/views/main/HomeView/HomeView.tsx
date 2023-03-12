@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
 import { SiteSearchBar, TitleContainer, PageTabs, TopBar, ResourceListVertical, HomePrompt } from 'components';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, HomeInput, HomeResult, ResourceList } from '@shared/consts';
+import { LINKS, HomeInput, HomeResult, ResourceList } from '@shared/consts';
 import { HomeViewProps } from '../types';
 import { actionsItems, getUserLanguages, listToAutocomplete, openObject, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
@@ -65,12 +65,12 @@ export const HomeView = ({
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
         index: 0,
-        href: APP_LINKS.Home,
+        href: LINKS.Home,
         label: t('ForYou'),
         value: TabOptions.ForYou,
     }, {
         index: 1,
-        href: APP_LINKS.History,
+        href: LINKS.History,
         label: t('History'),
         value: TabOptions.History,
     }]), [t]);
@@ -95,11 +95,11 @@ export const HomeView = ({
             firstResults.push({
                 __typename: "Shortcut",
                 label: `Help - Beginner's Guide`,
-                id: APP_LINKS.Welcome,
+                id: LINKS.Welcome,
             }, {
                 __typename: "Shortcut",
                 label: 'Help - FAQ',
-                id: APP_LINKS.FAQ,
+                id: LINKS.FAQ,
             });
         }
         // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
@@ -122,8 +122,8 @@ export const HomeView = ({
         }
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
-        if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
-        else setLocation(APP_LINKS.Home, { replace: true });
+        if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
+        else setLocation(LINKS.Home, { replace: true });
         // If selected item is a shortcut, navigate to it
         if (newValue.__typename === 'Shortcut') {
             setLocation(newValue.id);
@@ -139,7 +139,7 @@ export const HomeView = ({
      */
     const beforeNavigation = useCallback((item: NavigableObject) => {
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(APP_LINKS.Home, { replace: true, searchParams: { search: searchString } });
+        if (searchString) setLocation(LINKS.Home, { replace: true, searchParams: { search: searchString } });
     }, [searchString, setLocation]);
 
     return (

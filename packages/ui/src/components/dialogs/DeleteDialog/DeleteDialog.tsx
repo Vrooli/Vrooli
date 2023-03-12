@@ -10,7 +10,7 @@ import { DeleteDialogProps } from '../types';
 import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'api/utils';
 import { useCustomMutation } from 'api/hooks';
-import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
+import { LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle, LargeDialog } from 'components';
 import { DeleteIcon } from '@shared/icons';
@@ -45,7 +45,7 @@ export const DeleteDialog = ({
             successCondition: (data) => data.success,
             successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName } }),
             onSuccess: () => {
-                setLocation(APP_LINKS.Home);
+                setLocation(LINKS.Home);
                 close(true);
             },
             errorMessage: () => ({ key: 'FailedToDelete' }),

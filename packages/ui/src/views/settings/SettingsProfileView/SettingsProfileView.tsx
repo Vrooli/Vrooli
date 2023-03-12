@@ -2,7 +2,7 @@ import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'api/utils';
-import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
+import { LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
 import { getUserLanguages, shapeProfile, useProfileQuery, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { SettingsProfileViewProps } from "../types";
@@ -118,7 +118,7 @@ export const SettingsProfileView = ({
     }, [formik, languages.length, setLanguage])
 
     const handleCancel = useCallback(() => {
-        setLocation(APP_LINKS.Profile, { replace: true })
+        setLocation(LINKS.Profile, { replace: true })
     }, [setLocation]);
 
     return (

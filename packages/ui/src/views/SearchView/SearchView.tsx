@@ -8,7 +8,7 @@ import { centeredDiv } from "styles";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { SearchViewProps } from "../types";
 import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions } from "utils";
-import { APP_LINKS, GqlModelType } from "@shared/consts";
+import { LINKS, GqlModelType } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { useTranslation } from "react-i18next";
@@ -142,16 +142,16 @@ export const SearchView = ({
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
             PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: 'Error' });
-            setLocation(APP_LINKS.Start, { searchParams: { redirect: addUrl } });
+            setLocation(LINKS.Start, { searchParams: { redirect: addUrl } });
             return;
         }
         // If search type is a routine, open create routine page
         if (searchType === SearchType.Routine) {
-            setLocation(`${APP_LINKS.Routine}/add`);
+            setLocation(`${LINKS.Routine}/add`);
         }
         // If search type is a user, open start page
         else if (searchType === SearchType.User) {
-            setLocation(`${APP_LINKS.Start}`);
+            setLocation(`${LINKS.Start}`);
         }
         // Otherwise, navigate to add page
         else {

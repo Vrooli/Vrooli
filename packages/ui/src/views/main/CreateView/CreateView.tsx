@@ -3,7 +3,7 @@ import { CardGrid, TIDCard, TopBar } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { CreateViewProps } from '../types';
 import { useTranslation } from 'react-i18next';
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 
@@ -71,7 +71,7 @@ export const CreateView = ({
     const { t } = useTranslation();
 
     const onSelect = useCallback((objectType: CreateType) => {
-        setLocation(`${APP_LINKS[objectType]}/add`);
+        setLocation(`${LINKS[objectType]}/add`);
     }, [setLocation]);
 
     return (

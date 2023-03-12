@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
+import { LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
 import { ProjectViewProps } from "../types";
@@ -190,7 +190,7 @@ export const ProjectView = ({
     * Opens add new page
     */
     const toAddNew = useCallback((event: any) => {
-        setLocation(`${APP_LINKS[currTab.value]}/add`);
+        setLocation(`${LINKS[currTab.value]}/add`);
     }, [currTab.value, setLocation]);
 
     return (

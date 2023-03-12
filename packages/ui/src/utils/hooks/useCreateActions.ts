@@ -1,4 +1,4 @@
-import { APP_LINKS } from "@shared/consts";
+import { LINKS } from "@shared/consts";
 import { useLocation } from "@shared/route";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
@@ -27,7 +27,7 @@ export const useCreateActions = <T extends { __typename: string, id: string }>()
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
                 if (hasPreviousPage) window.history.back();
-                else setLocation(APP_LINKS.Home);
+                else setLocation(LINKS.Home);
                 break;
         }
     }, [hasPreviousPage, setLocation]);

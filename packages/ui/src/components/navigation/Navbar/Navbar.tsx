@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { APP_LINKS, BUSINESS_NAME } from '@shared/consts';
+import { LINKS, BUSINESS_NAME } from '@shared/consts';
 import { AppBar, Box, useTheme, Stack } from '@mui/material';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from '@shared/route';
@@ -40,7 +40,7 @@ export const Navbar = ({
 
     const { dimensions, ref } = useDimensions();
 
-    const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
+    const toHome = useCallback(() => setLocation(LINKS.Home), [setLocation]);
     const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
 
     // Determine display texts and states

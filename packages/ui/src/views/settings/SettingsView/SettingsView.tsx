@@ -4,7 +4,7 @@ import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, Prof
 import { useTranslation } from 'react-i18next';
 import { useLocation } from '@shared/route';
 import { useCallback } from 'react';
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 
 
 export const accountSettingsData: SettingsData[] = [
@@ -58,7 +58,7 @@ export const SettingsView = ({
 
     const onSelect = useCallback((newValue: any) => {
         if (!newValue) return;
-        setLocation(APP_LINKS[newValue]);
+        setLocation(LINKS[newValue]);
     }, [setLocation]);
 
     return (

@@ -6,7 +6,7 @@ import {
     Grid,
     Paper,
 } from '@mui/material';
-import { APP_LINKS, EmailResetPasswordInput, Session } from '@shared/consts';
+import { LINKS, EmailResetPasswordInput, Session } from '@shared/consts';
 import { mutationWrapper } from 'api/utils';
 import { parseSearchParams, useLocation } from '@shared/route';
 import { formPaper, formSubmit } from './styles';
@@ -48,7 +48,7 @@ export const ResetPasswordForm = () => {
                 input: { id: userId, code, newPassword: values.newPassword },
                 onSuccess: (data) => {
                     PubSub.get().publishSession(data);
-                    setLocation(APP_LINKS.Home)
+                    setLocation(LINKS.Home)
                 },
                 successMessage: () => ({ key: 'PasswordReset' }),
                 onError: () => { formik.setSubmitting(false) },

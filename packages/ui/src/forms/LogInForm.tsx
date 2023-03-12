@@ -1,6 +1,6 @@
 import { parseSearchParams, useLocation } from '@shared/route';
 import { useCustomMutation } from 'api/hooks';
-import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
+import { LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -55,7 +55,7 @@ export const LogInForm = ({
                 onSuccess: (data) => {
                     if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
                     PubSub.get().publishSession(data);
-                    setLocation(redirect ?? APP_LINKS.Home);
+                    setLocation(redirect ?? LINKS.Home);
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {
@@ -64,7 +64,7 @@ export const LogInForm = ({
                         PubSub.get().publishAlertDialog({
                             messageKey: 'ChangePasswordBeforeLogin',
                             buttons: [
-                                { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
+                                { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? LINKS.Home) } },
                             ]
                         });
                     }

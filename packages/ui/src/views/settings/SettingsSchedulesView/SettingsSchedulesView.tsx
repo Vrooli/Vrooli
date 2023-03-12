@@ -2,7 +2,7 @@ import { Grid, Stack, useTheme } from "@mui/material"
 import { useCustomMutation } from "api/hooks";
 import { useCallback } from "react";
 import { mutationWrapper } from 'api/utils';
-import { APP_LINKS, ProfileUpdateInput, User } from '@shared/consts';
+import { LINKS, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
 import { getUserLanguages, shapeProfile, useProfileQuery, usePromptBeforeUnload } from "utils";
 import { SettingsSchedulesViewProps } from "../types";
@@ -66,7 +66,7 @@ export const SettingsSchedulesView = ({
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     const handleCancel = useCallback(() => {
-        setLocation(APP_LINKS.Profile, { replace: true })
+        setLocation(LINKS.Profile, { replace: true })
     }, [setLocation]);
 
     return (

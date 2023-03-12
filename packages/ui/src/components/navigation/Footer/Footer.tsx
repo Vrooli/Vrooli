@@ -1,4 +1,4 @@
-import { APP_LINKS, LANDING_LINKS, LANDING_URL, SOCIALS } from '@shared/consts';
+import { LINKS, SOCIALS } from '@shared/consts';
 import {
     Box,
     List,
@@ -22,8 +22,8 @@ const contactLinks: [string, string, string, string, SvgComponent][] = [
     ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
 ]
 
-const aboutUsLink = `${LANDING_URL}${LANDING_LINKS.AboutUs}`
-const viewStatsLink = APP_LINKS.Stats
+const aboutUsLink = LINKS.About;
+const viewStatsLink = LINKS.Stats;
 
 export const Footer = () => {
     const { palette } = useTheme();
@@ -32,7 +32,7 @@ export const Footer = () => {
     const [pathname, setLocation] = useLocation();
     // Hides footer on certain pages (e.g. /routine)
     const showFooter = useMemo(() => {
-        const disableList = [APP_LINKS.Routine];
+        const disableList = [LINKS.Routine];
         return !disableList.some(disable => pathname.startsWith(disable));
     }, [pathname]);
 

@@ -1,4 +1,4 @@
-import { APP_LINKS, LANDING_LINKS, LANDING_URL, SOCIALS } from '@shared/consts';
+import { LINKS, SOCIALS } from '@shared/consts';
 import {
     BottomNavigation,
     BottomNavigationAction,
@@ -30,9 +30,9 @@ export const ContactInfo = ({
     const { additionalInfo, contactInfo } = useMemo(() => {
         return {
             additionalInfo: [
-                [t(`AboutUs`), 'About', `${LANDING_URL}${LANDING_LINKS.AboutUs}`, InfoIcon],
+                [t(`AboutUs`), 'About', LINKS.About, InfoIcon],
                 [t(`DocumentationShort`), 'Docs', 'https://docs.vrooli.com', ArticleIcon],
-                [t(`StatisticsShort`), 'Stats', APP_LINKS.Stats, StatsIcon],
+                [t(`StatisticsShort`), 'Stats', LINKS.Stats, StatsIcon],
             ] as NavActionListData[],
             contactInfo: [
                 [t(`ContactHelpTwitter`), 'Twitter', SOCIALS.Twitter, TwitterIcon],

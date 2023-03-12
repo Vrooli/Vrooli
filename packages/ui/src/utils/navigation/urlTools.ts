@@ -1,4 +1,4 @@
-import { APP_LINKS } from "@shared/consts";
+import { LINKS } from "@shared/consts";
 import { getLastUrlPart } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { adaHandleRegex } from "@shared/validation";
@@ -86,12 +86,12 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
     // root ID or handle defined. To check, we must see if any part of the url 
     // contains the name of a versioned object
     const objectsWithVersions = [
-        APP_LINKS.Api, 
-        APP_LINKS.Note, 
-        APP_LINKS.Project, 
-        APP_LINKS.Routine, 
-        APP_LINKS.SmartContract, 
-        APP_LINKS.Standard
+        LINKS.Api, 
+        LINKS.Note, 
+        LINKS.Project, 
+        LINKS.Routine, 
+        LINKS.SmartContract, 
+        LINKS.Standard
     ].map(link => link.split('/').pop());
     const allUrlParts = window.location.pathname.split('/');
     const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));

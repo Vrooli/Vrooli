@@ -1,5 +1,5 @@
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, useTheme } from '@mui/material';
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,7 @@ export const SettingsList = () => {
 
     const onSelect = useCallback((newValue: any) => {
         if (!newValue) return;
-        setLocation(APP_LINKS[newValue]);
+        setLocation(LINKS[newValue]);
     }, [setLocation]);
 
     const [accountListOpen, setAccountListOpen] = useState(false);

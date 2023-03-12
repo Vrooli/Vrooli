@@ -832,7 +832,7 @@ export const BuildView = ({
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
-        //setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
+        //setLocation(`${LINKS.Build}/${selectedSubroutine.id}`);
     }, [changedRoutineVersion, openedSubroutine, routineVersion]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {

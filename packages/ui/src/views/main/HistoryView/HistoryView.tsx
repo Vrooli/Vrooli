@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
 import { SiteSearchBar, ListTitleContainer, PageTabs, TopBar } from 'components';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
+import { LINKS, HistoryInput, HistoryResult, RunStatus } from '@shared/consts';
 import { HistoryViewProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
@@ -43,12 +43,12 @@ export const HistoryView = ({
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
         index: 0,
-        href: APP_LINKS.Home,
+        href: LINKS.Home,
         label: t('ForYou'),
         value: TabOptions.ForYou,
     }, {
         index: 1,
-        href: APP_LINKS.History,
+        href: LINKS.History,
         label: t('History'),
         value: TabOptions.History,
     }]), [t]);
@@ -107,15 +107,15 @@ export const HistoryView = ({
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost. 
-        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
-        else setLocation(APP_LINKS.Home, { replace: true });
+        if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
+        else setLocation(LINKS.Home, { replace: true });
         // Navigate to item page
         openObject(newValue, setLocation);
     }, [searchString, setLocation]);
 
     const toSeeAllActiveRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(APP_LINKS.HistorySearch, {
+        setLocation(LINKS.HistorySearch, {
             searchParams: {
                 type: HistorySearchPageTabOption.Runs,
                 status: RunStatus.InProgress
@@ -125,7 +125,7 @@ export const HistoryView = ({
 
     const toSeeAllCompletedRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(APP_LINKS.HistorySearch, {
+        setLocation(LINKS.HistorySearch, {
             searchParams: {
                 type: HistorySearchPageTabOption.Runs,
                 status: RunStatus.Completed
@@ -135,12 +135,12 @@ export const HistoryView = ({
 
     const toSeeAllViewed = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Viewed } });
+        setLocation(LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Viewed } });
     }, [setLocation]);
 
     const toSeeAllBookmarked = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(APP_LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Bookmarked } });
+        setLocation(LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Bookmarked } });
     }, [setLocation]);
 
     return (

@@ -1,5 +1,5 @@
 import { useCustomMutation } from 'api/hooks';
-import { APP_LINKS, BUSINESS_NAME, EmailSignUpInput, Session } from '@shared/consts';
+import { LINKS, BUSINESS_NAME, EmailSignUpInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -57,7 +57,7 @@ export const SignUpForm = ({
                         messageVariables: { appName: BUSINESS_NAME },
                         buttons: [{
                             labelKey: 'Ok', onClick: () => {
-                                setLocation(APP_LINKS.Welcome);
+                                setLocation(LINKS.Welcome);
                                 // Request user to enable notifications
                                 subscribeUserToPush();
                             }

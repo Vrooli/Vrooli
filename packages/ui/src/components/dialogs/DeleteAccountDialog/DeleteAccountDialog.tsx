@@ -12,7 +12,7 @@ import { DeleteAccountDialogProps } from '../types';
 import { useCallback, useMemo } from 'react';
 import { mutationWrapper } from 'api/utils';
 import { useCustomMutation } from 'api/hooks';
-import { APP_LINKS, Success, UserDeleteInput } from '@shared/consts';
+import { LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle, LargeDialog, PasswordTextField } from 'components';
 import { DeleteIcon } from '@shared/icons';
@@ -59,7 +59,7 @@ export const DeleteAccountDialog = ({
                 successCondition: (data) => data.success,
                 successMessage: () => ({ key: 'AccountDeleteSuccess' }),
                 onSuccess: () => {
-                    setLocation(APP_LINKS.Home);
+                    setLocation(LINKS.Home);
                     close(true);
                 },
                 errorMessage: () => ({ key: 'AccountDeleteFail' }),

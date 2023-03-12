@@ -1,4 +1,4 @@
-import { APP_LINKS, WHITE_PAPER_URL } from '@shared/consts';
+import { LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import { openLink, useLocation } from '@shared/route';
 import { clickSize } from 'styles';
@@ -64,17 +64,17 @@ export const WelcomeView = ({
                     <Typography component="h2" variant="h4" mb={3}>{t(`NotSureWhereToStart`)}</Typography>
                     <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                         <Button
-                            onClick={() => setLocation(APP_LINKS.Tutorial)}
+                            onClick={() => setLocation(LINKS.Tutorial)}
                             startIcon={<LearnIcon fill="black" />}
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t(`Tutorial`)}</Button>
                         <Button
-                            onClick={() => setLocation(APP_LINKS.Example)}
+                            onClick={() => setLocation(LINKS.Example)}
                             startIcon={<PlayIcon fill="black" />}
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t(`RunExample`)}</Button>
                         {checkIfLoggedIn(session) && <Button
-                            onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
+                            onClick={() => setLocation(`${LINKS.Settings}?page="profile"`)}
                             startIcon={<ProfileIcon fill="black" />}
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t(`SetUpProfile`)}</Button>}
@@ -89,7 +89,7 @@ export const WelcomeView = ({
                         justifyContent: 'end',
                     }}
                     >
-                        <Link onClick={() => setLocation(APP_LINKS.Home)} sx={{
+                        <Link onClick={() => setLocation(LINKS.Home)} sx={{
                             cursor: 'pointer',
                             '&:hover': {
                                 brightness: '120%',

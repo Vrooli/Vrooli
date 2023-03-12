@@ -2,7 +2,7 @@ import { Box, Button, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useCustomMutation } from "api/hooks";
 import { useCallback, useState } from "react";
 import { mutationWrapper } from 'api/utils';
-import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
+import { LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { useFormik } from 'formik';
 import { PubSub, useProfileQuery, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationViewProps } from "../types";
@@ -39,7 +39,7 @@ export const SettingsAuthenticationView = ({
             onError: () => { PubSub.get().publishSession(guestSession) },
         })
         PubSub.get().publishSession(guestSession);
-        setLocation(APP_LINKS.Home);
+        setLocation(LINKS.Home);
     }, [logOut, session, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {

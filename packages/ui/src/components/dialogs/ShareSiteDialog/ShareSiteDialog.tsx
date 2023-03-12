@@ -1,7 +1,7 @@
 /**
  * Dialog for spreading the word about the site.
  */
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { ShareSiteDialogProps } from '../types';
 import QRCode from "react-qr-code";
@@ -12,7 +12,7 @@ import { ColorIconButton, LargeDialog } from 'components';
 import { useTranslation } from 'react-i18next';
 
 // Invite link
-const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
+const inviteLink = `https://vrooli.com${LINKS.Start}`;
 // Title for social media posts
 const postTitle = 'Vrooli - Visual Work Routines';
 // Invite message for social media posts

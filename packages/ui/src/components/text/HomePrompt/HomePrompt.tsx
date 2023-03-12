@@ -25,7 +25,7 @@ export const HomePrompt = () => {
 
     return (
         <Typography component="h1" variant="h4" textAlign="center">
-            {quoteNumber > 0 ? t(`Inspirational${quoteNumber}`) : t('WhatWouldYouLikeToDo')}
+            {quoteNumber > 0 ? t(`Inspirational${quoteNumber}` as any) : t('WhatWouldYouLikeToDo')}
         </Typography>
     )
 }

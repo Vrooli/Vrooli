@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { APP_LINKS as LINKS, Session } from '@shared/consts';
+import { LINKS, Session } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
