@@ -133,39 +133,39 @@ export const OrganizationModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
+            create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
                     permissions: JSON.stringify({}), //TODO
-                    createdBy: { connect: { id: userData.id } },
+                    createdBy: { connect: { id: rest.userData.id } },
                     members: {
                         create: {
                             isAdmin: true,
                             permissions: JSON.stringify({}), //TODO
-                            user: { connect: { id: userData.id } },
+                            user: { connect: { id: rest.userData.id } },
                         }
                     },
-                    ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
-                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
-                    ...(await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, prisma, userData })),
-                    ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
-                    ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                    ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Organization', relation: 'tags', data, ...rest })),
                 }
             },
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 handle: noNull(data.handle),
                 isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                 isPrivate: noNull(data.isPrivate),
                 permissions: JSON.stringify({}), //TODO
-                ...(await shapeHelper({ relation: 'members', relTypes: ['Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'roles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'members', relTypes: ['Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await shapeHelper({ relation: 'roles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Organization', relation: 'tags', data, ...rest })),
             })
         },
         trigger: {
@@ -189,7 +189,7 @@ export const OrganizationModel: ModelLogic<{
                         }
                     });
                     // Handle trigger
-                    Trigger(prisma, userData.languages).createOrganization(userData.id, organizationId);
+                    // Trigger(prisma, userData.languages).createOrganization(userData.id, organizationId);
                 }
             }
         },
@@ -270,13 +270,13 @@ export const OrganizationModel: ModelLogic<{
          * @param excludeUserId An option user to exclude from the results
          * @returns A list of admin ids and their preferred languages. Useful for sending notifications
          */
-        async findAdminInfo(prisma: PrismaType, organizationId: string, excludeUserId?: string): Promise<{ id: string, languages: string[] }[]> {
+        async findAdminInfo(prisma: PrismaType, organizationId: string, excludeUserId?: string | null | undefined): Promise<{ id: string, languages: string[] }[]> {
             const admins = await prisma.member.findMany({
                 where: {
                     AND: [
                         { organizationId },
                         { isAdmin: true },
-                        { userId: { not: excludeUserId } }
+                        { userId: { not: excludeUserId ?? undefined } },
                     ]
                 },
                 select: {

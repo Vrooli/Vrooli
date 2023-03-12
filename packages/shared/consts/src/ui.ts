@@ -1,6 +1,6 @@
 import { ValueOf } from '.';
 
-export const APP_LINKS = {
+export const LINKS = {
     About: '/about',
     Api: '/api',
     Awards: '/awards',
@@ -15,8 +15,9 @@ export const APP_LINKS = {
     Home: '/', // Main dashboard for logged in users
     Note: '/note',
     Notifications: '/notifications',
-    Organization: '/organization',
+    Organization: '/org',
     Premium: '/premium',
+    PrivacyPolicy: '/privacy',
     Profile: '/profile',
     Project: '/project',
     Question: '/question',
@@ -38,21 +39,12 @@ export const APP_LINKS = {
     Start: '/start',
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     Tag: '/tag',
+    Terms: '/terms',
     Tutorial: '/tutorial',
     User: '/user',
     Welcome: '/welcome', // Displays the first time you enter the application (either as guest or as logged in user)
 }
-export type APP_LINKS = ValueOf<typeof APP_LINKS>;
-
-export const LANDING_LINKS = {
-    Contribute: '/contribute',
-    Features: '/features',
-    Home: '/',
-    PrivacyPolicy: '/privacy-policy', // Privacy policy
-    Roadmap: '/mission#roadmap', // Start of roadmap slide
-    Terms: '/terms-and-conditions', // Terms and conditions
-}
-export type LANDING_LINKS = ValueOf<typeof LANDING_LINKS>;
+export type LINKS = ValueOf<typeof LINKS>;
 
 export const THEME = {
     Light: 'light',

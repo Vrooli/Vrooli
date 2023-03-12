@@ -11,7 +11,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { SelectWrap } from "../builders/types";
-import { onlyValidIds, selPad, shapeHelper, uppercaseFirstLetter } from "../builders";
+import { findFirstRel, onlyValidIds, selPad, shapeHelper, uppercaseFirstLetter } from "../builders";
 import { NoteModel } from "./note";
 import { exists } from "@shared/utils";
 import { bookmarkValidation } from "@shared/validation";
@@ -35,27 +35,6 @@ const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs['create
     Standard: 'standard',
     Tag: 'tag',
     User: 'user',
-}
-
-/**
- * Searches for the first non-null field in an object that matches one of the specified fields.
- *
- * @param obj - The object to search.
- * @param fieldsToCheck - The list of field names to check.
- * @returns An array with the field name and its value if found, or `undefined` if none of the fields exist in the object.
- */
-const findFirstRel = (obj: Record<string, any>, fieldsToCheck: string[]): [string | undefined, string | undefined] => {
-    // Loop through each field in the list of fields to check
-    for (const fieldName of fieldsToCheck) {
-        // Get the value of the current field from the object
-        const value = obj[fieldName];
-        // If the value is not null or undefined, return the field name and value as an array
-        if (value !== null && value !== undefined) {
-            return [fieldName, value];
-        }
-    }
-    // If no non-null field is found, return undefined
-    return [undefined, undefined];
 }
 
 const __typename = 'Bookmark' as const;
@@ -184,14 +163,14 @@ export const BookmarkModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
-                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 id: data.id,
-                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Update'], isOneToOne: true, isRequired: false, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect', 'Update'], isOneToOne: true, isRequired: false, objectType: 'BookmarkList', parentRelationshipName: 'bookmarks', data, ...rest })),
             })
         },
         trigger: {

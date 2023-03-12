@@ -8,9 +8,7 @@ import { postValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Post' as const;
-
 const suppFields = [] as const;
-
 export const PostModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -68,21 +66,21 @@ export const PostModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isPinned: noNull(data.isPinned),
                 isPrivate: noNull(data.isPrivate),
                 organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
-                user: !data.organizationConnect ? { connect: { id: userData.id } } : undefined,
-                ...(await shapeHelper({ relation: 'repostedFrom', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Post', parentRelationshipName: 'reposts', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Post', relation: 'tags', data, prisma, userData })),
+                user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
+                ...(await shapeHelper({ relation: 'repostedFrom', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Post', parentRelationshipName: 'reposts', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Post', relation: 'tags', data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 isPinned: noNull(data.isPinned),
                 isPrivate: noNull(data.isPrivate),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Post', relation: 'tags', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Post', relation: 'tags', data, ...rest })),
             })
         },
         yup: postValidation,

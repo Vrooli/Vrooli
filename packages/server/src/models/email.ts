@@ -44,7 +44,7 @@ export const EmailModel: ModelLogic<{
         shape: {
             create: async ({ data, userData }) => ({
                 emailAddress: data.emailAddress,
-                user: { connect: { id: userData!.id } },
+                user: { connect: { id: userData.id } },
             }),
         },
         trigger: {

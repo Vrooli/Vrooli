@@ -10,6 +10,7 @@ export * from './constructUnions';
 export * from './deconstructUnions';
 export * from './existsArray';
 export * from './filterFields';
+export * from './findFirstRel';
 export * from './groupPrismaData';
 export * from './injectTypenames';
 export * from './isRelationshipArray';

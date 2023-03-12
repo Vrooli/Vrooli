@@ -143,39 +143,39 @@ type GroupRoutineVersionDataResult = {
     linkData: { [linkId: string]: LinkData },
     nodeData: { [nodeId: string]: { subroutines: WeightData[] } },
     subroutineItemData: { [itemId: string]: string },
-    optionalRootRutineInputCounts: { [routineId: string]: number }
-    allRootRoutineInputCounts: { [routineId: string]: number }
+    optionalRoutineVersionInputCounts: { [routineId: string]: number }
+    allRoutineVersionInputCounts: { [routineId: string]: number }
 }
 
 /**
  * Queries and groups existing routine data from the database into links, nodes, and a map of routineListItems to subroutines
  * @param ids The routine version IDs
  * @param prisma The prisma client
- * @returns Object with linkData, nodeData, subroutineItemData, and input counts by root routine
+ * @returns Object with linkData, nodeData, subroutineItemData, and input counts by routine version ID
  */
 const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promise<GroupRoutineVersionDataResult> => {
     // Initialize data
     const linkData: { [id: string]: LinkData } = {};
     const nodeData: { [id: string]: { subroutines: WeightData[] } } = {};
     const subroutineItemData: { [id: string]: string } = {};
-    const optionalRootRutineInputCounts: { [routineId: string]: number } = {};
-    const allRootRoutineInputCounts: { [routineId: string]: number } = {};
+    const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
+    const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
     // Query database. New routine versions will be ignored
     let data = await prisma.routine_version.findMany({
         where: { id: { in: ids } },
         select: routineVersionSelect,
     });
     // Add existing links, nodes data, subroutineItemData, and input counts
-    for (const routine of data) {
+    for (const routineVersion of data) {
         // Links
-        for (const link of routine.nodeLinks) {
+        for (const link of routineVersion.nodeLinks) {
             linkData[link.id] = {
                 fromId: link.fromId,
                 toId: link.toId,
             }
         }
         // Nodes and subroutineItemData
-        for (const node of routine.nodes) {
+        for (const node of routineVersion.nodes) {
             if (node.routineList) {
                 nodeData[node.id] = {
                     subroutines: node.routineList.items.map(item => {
@@ -196,18 +196,18 @@ const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promi
             }
         }
     }
-    // Add input counts for root routines
-    for (const routine of data) {
-        optionalRootRutineInputCounts[routine.id] = routine.inputs.filter(input => !input.isRequired).length;
-        allRootRoutineInputCounts[routine.id] = routine.inputs.length;
+    // Add input counts for main (i.e. not subroutines) routine version
+    for (const routineVersion of data) {
+        optionalRoutineVersionInputCounts[routineVersion.id] = routineVersion.inputs.filter(input => !input.isRequired).length;
+        allRoutineVersionInputCounts[routineVersion.id] = routineVersion.inputs.length;
     }
     // Return data
     return {
         linkData,
         nodeData,
         subroutineItemData,
-        optionalRootRutineInputCounts,
-        allRootRoutineInputCounts,
+        optionalRoutineVersionInputCounts,
+        allRoutineVersionInputCounts,
     };
 }
 
@@ -217,13 +217,15 @@ type CalculateComplexityResult = {
 }
 
 /**
- * Calculates the weight data (complexity, simplicity, and num all/required inputs) of a list of routines based on the number of steps. 
- * Simplicity is a the minimum number of inputs and decisions required to complete the routine, while 
- * complexity is the maximum. Inputs are used to 
+ * Calculates the weight data (complexity, simplicity, and num all/required inputs) of a list of 
+ * routine versions based on the number of steps. 
+ * Simplicity is a the minimum number of inputs and decisions required to complete the routine version, while 
+ * complexity is the maximum. 
  * @param prisma The prisma client
  * @param languages Preferred languages for error messages
  * @param inputs The routine version's create or update input
- * @param disallowIds IDs of routines that are not allowed to be used. This is used to prevent multiple updates of the same routine.
+ * @param disallowIds IDs of routine versions that are not allowed to be used. This is used to 
+ * prevent multiple updates of the same version.
  * @returns Data used for recursion, as well as an array of weightData (in same order as inputs)
  */
 export const calculateWeightData = async (
@@ -238,11 +240,11 @@ export const calculateWeightData = async (
         throw new CustomError('0370', 'InvalidArgs', languages);
     }
     // Initialize data used to calculate complexity/simplicity
-    const linkData: { [id: string]: { rootRoutineId: string, link: LinkData } } = {};
-    const nodeData: { [id: string]: { rootRoutineId: string, subroutines: (WeightData & { id: string })[] } } = {};
+    const linkData: { [id: string]: { routineVersionId: string, link: LinkData } } = {};
+    const nodeData: { [id: string]: { routineVersionId: string, subroutines: (WeightData & { id: string })[] } } = {};
     const subroutineItemData: { [id: string]: string } = {}; // Routine list item ID to subroutine ID
-    const optionalRootRutineInputCounts: { [routineId: string]: number } = {}; // Excludes subroutine inputs
-    const allRootRoutineInputCounts: { [routineId: string]: number } = {}; // Includes subroutine inputs
+    const optionalRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Excludes subroutine inputs
+    const allRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Includes subroutine inputs
     // Initialize data used to query/recurse nested complexities/simplicities
     const connectingSubroutineDataIds: string[] = []; // Subroutines that we need to query data for
     const updatingSubroutineData: (RoutineVersionUpdateInput | RoutineVersionCreateInput)[] = []; // Subroutines that are being updated (we will recurse on these)
@@ -252,20 +254,20 @@ export const calculateWeightData = async (
         linkData: existingLinkData,
         nodeData: existingNodeData,
         subroutineItemData: existingSubroutineItemData,
-        optionalRootRutineInputCounts: existingOptionalRootRutineInputCounts,
-        allRootRoutineInputCounts: existingAllRootRoutineInputCounts,
+        optionalRoutineVersionInputCounts: existingOptionalRoutineVersionInputCounts,
+        allRoutineVersionInputCounts: existingAllRoutineVersionInputCounts,
     } = await groupRoutineVersionData(inputs.map(i => i.id), prisma);
     Object.assign(linkData, existingLinkData);
     Object.assign(nodeData, existingNodeData);
     Object.assign(subroutineItemData, existingSubroutineItemData);
-    Object.assign(optionalRootRutineInputCounts, existingOptionalRootRutineInputCounts);
-    Object.assign(allRootRoutineInputCounts, existingAllRootRoutineInputCounts);
+    Object.assign(optionalRoutineVersionInputCounts, existingOptionalRoutineVersionInputCounts);
+    Object.assign(allRoutineVersionInputCounts, existingAllRoutineVersionInputCounts);
     // Add new/updated links and nodes data from inputs
-    for (const input of inputs) {
+    for (const rVerCreateOrUpdate of inputs) {
         // Adding links
-        for (const link of input.nodeLinksCreate ?? []) {
+        for (const link of rVerCreateOrUpdate.nodeLinksCreate ?? []) {
             linkData[link.id] = {
-                rootRoutineId: input.id,
+                routineVersionId: rVerCreateOrUpdate.id,
                 link: {
                     fromId: link.fromConnect,
                     toId: link.toConnect,
@@ -273,28 +275,28 @@ export const calculateWeightData = async (
             }
         }
         // Updating links
-        const linksUpdate = (input as RoutineVersionUpdateInput).nodeLinksUpdate ?? [];
+        const linksUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksUpdate ?? [];
         for (const link of linksUpdate) {
             if (link.fromConnect) linkData[link.id].link.fromId = link.fromConnect;
             if (link.toConnect) linkData[link.id].link.toId = link.toConnect;
         }
         // Removing links
-        const linksDelete = (input as RoutineVersionUpdateInput).nodeLinksDelete ?? [];
+        const linksDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksDelete ?? [];
         for (const linkId of linksDelete) {
             delete linkData[linkId];
         }
         // Adding nodes
-        for (const node of input.nodesCreate ?? []) {
+        for (const node of rVerCreateOrUpdate.nodesCreate ?? []) {
             if (node.routineListCreate) {
                 // When adding nodes, subroutines can only be connected
                 const subroutineIds = (node.routineListCreate.itemsCreate ?? []).map(item => item.routineVersionConnect);
                 connectingSubroutineDataIds.push(...subroutineIds); // This will add the full data to nodeData later
             } else {
-                nodeData[node.id] = { rootRoutineId: input.id, subroutines: [] }
+                nodeData[node.id] = { routineVersionId: rVerCreateOrUpdate.id, subroutines: [] }
             }
         }
         // Updating nodes
-        const nodesUpdate = (input as RoutineVersionUpdateInput).nodesUpdate ?? [];
+        const nodesUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesUpdate ?? [];
         for (const node of nodesUpdate) {
             // Ignore if routine list is not being updated
             if (!node.routineListUpdate) continue;
@@ -322,7 +324,7 @@ export const calculateWeightData = async (
             }
         }
         // Removing nodes
-        const nodesDelete = (input as RoutineVersionUpdateInput).nodesDelete ?? [];
+        const nodesDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesDelete ?? [];
         for (const nodeId of nodesDelete) {
             delete nodeData[nodeId];
         }
@@ -361,25 +363,25 @@ export const calculateWeightData = async (
             }
         }
     }
-    // Calculate weights for each root routine
-    // Map rootRoutineId to nodes and links
-    const nodesByRootRoutineId: { [rootRoutineId: string]: { nodeId: string, subroutines: (WeightData & { id: string })[] }[] } = {};
-    const linksByRootRoutineId: { [rootRoutineId: string]: LinkData[] } = {};
+    // Calculate weights for each main (i.e. not subroutines) routine version
+    // Map routineVersionId to nodes and links
+    const nodesByRVerId: { [routineVersionId: string]: { nodeId: string, subroutines: (WeightData & { id: string })[] }[] } = {};
+    const linksByRVerId: { [routineVersionId: string]: LinkData[] } = {};
     for (const nodeId in nodeData) {
         const node = nodeData[nodeId];
-        if (!nodesByRootRoutineId[node.rootRoutineId]) nodesByRootRoutineId[node.rootRoutineId] = [];
-        nodesByRootRoutineId[node.rootRoutineId].push({ nodeId, subroutines: node.subroutines });
+        if (!nodesByRVerId[node.routineVersionId]) nodesByRVerId[node.routineVersionId] = [];
+        nodesByRVerId[node.routineVersionId].push({ nodeId, subroutines: node.subroutines });
     }
     for (const linkId in linkData) {
         const link = linkData[linkId];
-        if (!linksByRootRoutineId[link.rootRoutineId]) linksByRootRoutineId[link.rootRoutineId] = [];
-        linksByRootRoutineId[link.rootRoutineId].push(link.link);
+        if (!linksByRVerId[link.routineVersionId]) linksByRVerId[link.routineVersionId] = [];
+        linksByRVerId[link.routineVersionId].push(link.link);
     }
-    // For each root routine, calculate the weights using its nodes and links
+    // For each main (i.e. not subroutine) routine version, calculate the weights using its nodes and links
     const dataWeights: (WeightData & { id: string })[] = [];
-    for (const rootRoutineId in nodesByRootRoutineId) {
-        const nodes = nodesByRootRoutineId[rootRoutineId];
-        const links = linksByRootRoutineId[rootRoutineId];
+    for (const versionId in nodesByRVerId) {
+        const nodes = nodesByRVerId[versionId];
+        const links = linksByRVerId[versionId];
         // Combine the weights of all subroutines in each node
         const squishedNodes: { [nodeId: string]: WeightData } = {};
         for (const node of nodes) {
@@ -397,12 +399,12 @@ export const calculateWeightData = async (
         const [shortest, longest] = calculateShortestLongestWeightedPath(squishedNodes, links, languages);
         // Add with +1, so that nesting routines has a small (but not zero) factor in determining weight
         dataWeights.push({
-            id: rootRoutineId,
+            id: versionId,
             complexity: longest + 1,
             simplicity: shortest + 1,
-            // Use the inputs for the root routine (i.e. ignore inputs for subroutines)
-            optionalInputs: optionalRootRutineInputCounts[rootRoutineId] ?? 0,
-            allInputs: allRootRoutineInputCounts[rootRoutineId] ?? 0,
+            // Use the inputs for the main routine version (i.e. ignore inputs for subroutines)
+            optionalInputs: optionalRoutineVersionInputCounts[versionId] ?? 0,
+            allInputs: allRoutineVersionInputCounts[versionId] ?? 0,
         });
     }
     return { updatingSubroutineIds, dataWeights };

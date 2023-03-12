@@ -55,27 +55,27 @@ export const NodeModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 columnIndex: noNull(data.columnIndex),
                 nodeType: data.nodeType,
                 rowIndex: noNull(data.rowIndex),
-                ...(await shapeHelper({ relation: 'end', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'loop', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'end', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, ...rest })),
+                ...(await shapeHelper({ relation: 'loop', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 id: data.id,
                 columnIndex: noNull(data.columnIndex),
                 nodeType: noNull(data.nodeType),
                 rowIndex: noNull(data.rowIndex),
-                ...(await shapeHelper({ relation: 'end', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'loop', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'end', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, ...rest })),
+                ...(await shapeHelper({ relation: 'loop', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         yup: nodeValidation,

@@ -79,16 +79,12 @@ export const ResourceListModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
-                return {
-                    ...await shapeBase(prisma, userData, data, true),
-                };
-            },
-            update: async ({ data, prisma, userData }) => {
-                return {
-                    ...await shapeBase(prisma, userData, data, false),
-                };
-            },
+            create: async ({ data, ...rest }) => ({
+                //TODO
+            } as any),
+            update: async ({ data, ...rest }) => ({
+                //TODO
+            } as any),
         },
         yup: resourceListValidation,
     },

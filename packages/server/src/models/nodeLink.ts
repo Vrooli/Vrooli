@@ -53,20 +53,20 @@ export const NodeLinkModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 operation: noNull(data.operation),
-                ...(await shapeHelper({ relation: 'from', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'next', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'to', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'previous', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLinks', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'whens', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'from', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'next', data, ...rest })),
+                ...(await shapeHelper({ relation: 'to', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'previous', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLinks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'whens', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, ...rest })),
     
             }),
-            update: async ({ prisma, userData, data }) => ({
+            update: async ({ data, ...rest }) => ({
                 operation: noNull(data.operation),
-                ...(await shapeHelper({ relation: 'from', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'next', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'to', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'previous', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'whens', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'from', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'next', data, ...rest })),
+                ...(await shapeHelper({ relation: 'to', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'previous', data, ...rest })),
+                ...(await shapeHelper({ relation: 'whens', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, ...rest })),
             }),
         },
         yup: nodeLinkValidation,

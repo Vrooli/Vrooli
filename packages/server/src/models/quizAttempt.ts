@@ -6,6 +6,7 @@ import { QuizModel } from "./quiz";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { quizAttemptValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'QuizAttempt' as const;
 type Permissions = Pick<QuizAttemptYou, 'canDelete' | 'canUpdate'>;
@@ -69,14 +70,20 @@ export const QuizAttemptModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                contextSwitches: noNull(data.contextSwitches),
+                timeTaken: noNull(data.timeTaken),
+                language: data.language,
+                user: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'quiz', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Quiz', parentRelationshipName: 'attempts', data, ...rest })),
+                ...(await shapeHelper({ relation: 'responses', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestionResponse', parentRelationshipName: 'quizAttempt', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                contextSwitches: noNull(data.contextSwitches),
+                timeTaken: noNull(data.timeTaken),
+                ...(await shapeHelper({ relation: 'responses', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestionResponse', parentRelationshipName: 'quizAttempt', data, ...rest })),
+            })
         },
         yup: quizAttemptValidation,
     },

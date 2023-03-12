@@ -153,13 +153,13 @@ export const StandardVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => {
+            create: async ({ data, ...rest }) => {
                 // If jsonVariables defined, sort them. 
                 // This makes comparing standards a whole lot easier
-                const { translations } = await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData });
+                const { translations } = await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest });
                 if (translations?.create?.length) {
                     translations.create = translations.create.map(t => {
-                        t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+                        t.jsonVariables = sortify(t.jsonVariables, rest.userData.languages);
                         return t;
                     })
                 }
@@ -170,32 +170,32 @@ export const StandardVersionModel: ModelLogic<{
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
-                    props: data.props,
+                    props: sortify(data.props),
                     standardType: data.standardType,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
-                    yup: noNull(data.yup),
-                    ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, prisma, userData })),
-                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, prisma, userData })),
-                    ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, prisma, userData })),
+                    yup: data.yup ? sortify(data.yup) : undefined,
+                    ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, ...rest })),
                     translations,
                 }
             },
-            update: async ({ prisma, userData, data }) => {
+            update: async ({ data, ...rest }) => {
                 // If jsonVariables defined, sort them
-                const { translations } = await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData });
+                const { translations } = await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest });
                 if (translations?.update?.length) {
                     translations.update = translations.update.map(t => {
                         t.data = {
                             ...t.data,
-                            jsonVariables: sortify(t.data.jsonVariables, userData.languages),
+                            jsonVariables: sortify(t.data.jsonVariables, rest.userData.languages),
                         }
                         return t;
                     })
                 }
                 if (translations?.create?.length) {
                     translations.create = translations.create.map(t => {
-                        t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+                        t.jsonVariables = sortify(t.jsonVariables, rest.userData.languages);
                         return t;
                     })
                 }
@@ -205,14 +205,14 @@ export const StandardVersionModel: ModelLogic<{
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
-                    props: noNull(data.props),
+                    props: data.props ? sortify(data.props) : undefined,
                     standardType: noNull(data.standardType),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
-                    yup: noNull(data.yup),
-                    ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, prisma, userData })),
-                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, prisma, userData })),
-                    ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, prisma, userData })),
+                    yup: data.yup ? sortify(data.yup) : undefined,
+                    ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, ...rest })),
                     translations,
                 }
             },

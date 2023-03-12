@@ -6,6 +6,10 @@ type GroupByTypeProps = {
     updateMany: { [x: string]: any }[] | null | undefined,
 }
 
+type GroupByTypeResult = {
+    asdfasdfasdf: asfasdfasdf
+}
+
 /**
  * Groups create/update/delete mutations inputs by type
  * @param createMany Create inputs
@@ -19,12 +23,16 @@ export const groupByType = ({
     updateMany, 
 }: GroupByTypeProps) => {
     // Initialize the return objects
-    const inputsByType: { [key in GqlModelType]?: { [x: string]: any }[] } = {};
-    const idsByType: { [key in GqlModelType]?: string[] } = {};
+    const createAndUpdateInputsByType: { [key in GqlModelType]?: { [x: string]: any }[] } = {};
+    const allIsByType: { [key in GqlModelType]?: string[] } = {};
+    const deleteIdsByType: { [key in GqlModelType]?: string[] } = {};
     // For every create input, add it to the return object
     for (const input of createMany ?? []) {
         const { __typename } = input;
         inputsByType[__typename] = inputsByType[__typename] ?? [];
         inputsByType[__typename].push(input);
     }
+    // Since we can, make sure that no object has more than a create, update, or delete action. 
+    // For example, we can't update and delete the same object in the same mutation. Doesn't make sense.
+    asdfasdfas
 }

@@ -1,4 +1,4 @@
-import { CommentSortBy, CommentYou, MaxObjects, PrependString } from "@shared/consts";
+import { CommentSortBy, CommentYou, MaxObjects } from "@shared/consts";
 import { commentValidation } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
@@ -9,7 +9,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, noNull, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, defaultPermissions, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
@@ -104,22 +104,54 @@ export const CommentModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                ownedByUser: { connect: { id: userData.id } },
+                ownedByUser: { connect: { id: rest.userData.id } },
                 [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            update: async ({ data, ...rest }) => ({
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         trigger: {
             onCreated: ({ created, prisma, userData }) => {
                 for (const c of created) {
-                    Trigger(prisma, userData.languages).createComment(userData.id, c.id as string);
+                    Trigger(prisma, userData.languages).objectCreated({
+                        createdById: userData.id,
+                        hasCompleteAndPublic: true, // Not applicable
+                        hasParent: false, // Not applicable
+                        owner: { id: userData.id, __typename: 'User' },
+                        objectId: c.id as string,
+                        objectType: __typename,
+                    });
                 }
             },
+            onUpdated: ({ updated, prisma, userData }) => {
+                for (const u of updated) {
+                    Trigger(prisma, userData.languages).objectUpdated({
+                        updatedById: userData.id,
+                        hasCompleteAndPublic: true, // Not applicable
+                        hasParent: false, // Not applicable
+                        owner: { id: userData.id, __typename: 'User' },
+                        objectId: u.id as string,
+                        objectType: __typename,
+                        wasCompleteAndPublic: true, // Not applicable
+                    });
+                }
+            },
+            onDeleted: ({ deletedIds, prisma, userData }) => {
+                for (const d of deletedIds) {
+                    Trigger(prisma, userData.languages).objectDeleted({
+                        deletedById: userData.id,
+                        hasCompleteAndPublic: true, // Not applicable
+                        hasOriginalOwner: true, // Not applicable
+                        hasParent: false, // Not applicable
+                        objectId: d,
+                        objectType: __typename,
+                    });
+                }
+            }
         },
         yup: commentValidation,
     },

@@ -101,16 +101,16 @@ export const IssueModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
                 [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Issue', relation: 'labels', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Issue', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Issue', relation: 'labels', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            update: async ({ data, ...rest }) => ({
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Issue', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         yup: issueValidation,

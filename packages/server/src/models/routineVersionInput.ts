@@ -71,11 +71,11 @@ export const RoutineVersionInputModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 //TODO
             } as any),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 id: data.id,
                 //TODO
             } as any)

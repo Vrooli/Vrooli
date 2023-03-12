@@ -59,11 +59,11 @@ export const MeetingInviteModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 message: noNull(data.message),
-                ...(await shapeHelper({ relation: 'user', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'User', parentRelationshipName: 'meetingsInvited', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'meeting', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Meeting', parentRelationshipName: 'invites', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'user', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'User', parentRelationshipName: 'meetingsInvited', data, ...rest })),
+                ...(await shapeHelper({ relation: 'meeting', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Meeting', parentRelationshipName: 'invites', data, ...rest })),
             }),
             update: async ({ data }) => ({
                 message: noNull(data.message),

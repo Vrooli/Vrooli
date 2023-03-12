@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
 import { reminderListValidation } from "@shared/validation";
+import { shapeHelper } from "../builders";
 
 const __typename = 'ReminderList' as const;
 const suppFields = [] as const;
@@ -45,14 +46,15 @@ export const ReminderListModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'reminderList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminders', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Reminder', parentRelationshipName: 'reminderList', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'reminderList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminders', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Reminder', parentRelationshipName: 'reminderList', data, ...rest })),
+            }),
         },
         yup: reminderListValidation,
     },

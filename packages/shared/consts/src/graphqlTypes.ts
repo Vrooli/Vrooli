@@ -1041,7 +1041,7 @@ export enum IssueSortBy {
 }
 
 export enum IssueStatus {
-  CloseUnresolved = 'CloseUnresolved',
+  ClosedUnresolved = 'ClosedUnresolved',
   ClosedResolved = 'ClosedResolved',
   Open = 'Open',
   Rejected = 'Rejected'
@@ -3952,7 +3952,7 @@ export type ProjectVersionDirectoryUpdateInput = {
   id: Scalars['ID'];
   isRoot?: InputMaybe<Scalars['Boolean']>;
   parentDirectoryConnect?: InputMaybe<Scalars['ID']>;
-  parentDirectoryDisconnect?: InputMaybe<Scalars['ID']>;
+  parentDirectoryDisconnect?: InputMaybe<boolean>;
   projectVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ProjectVersionDirectoryTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -5230,13 +5230,7 @@ export type QuizAttempt = {
   you: QuizAttemptYou;
 };
 
-export type QuizAttemptCreateInput = {
-  contextSwitches?: InputMaybe<Scalars['Int']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  responsesCreate?: InputMaybe<Array<QuizQuestionResponseCreateInput>>;
-  timeTaken?: InputMaybe<Scalars['Int']>;
-};
+export type QuizAttemptCreateInput = any
 
 export type QuizAttemptEdge = {
   __typename: 'QuizAttemptEdge';
@@ -5336,15 +5330,7 @@ export type QuizQuestion = {
   you: QuizQuestionYou;
 };
 
-export type QuizQuestionCreateInput = {
-  id: Scalars['ID'];
-  order?: InputMaybe<Scalars['Int']>;
-  points?: InputMaybe<Scalars['Int']>;
-  quizConnect?: InputMaybe<Scalars['ID']>;
-  standardVersionConnect?: InputMaybe<Scalars['ID']>;
-  standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
-  translationsCreate?: InputMaybe<Array<QuizQuestionTranslationCreateInput>>;
-};
+export type QuizQuestionCreateInput = any
 
 export type QuizQuestionEdge = {
   __typename: 'QuizQuestionEdge';
@@ -5426,11 +5412,8 @@ export type QuizQuestionResponseTranslationUpdateInput = {
 };
 
 export type QuizQuestionResponseUpdateInput = {
-  id: Scalars['ID'];
-  translationsCreate?: InputMaybe<Array<QuizQuestionResponseTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<QuizQuestionResponseTranslationUpdateInput>>;
-};
+    response: string | null;
+}
 
 export type QuizQuestionResponseYou = {
   __typename: 'QuizQuestionResponseYou';
@@ -5657,6 +5640,7 @@ export type ReminderItemCreateInput = {
   id: Scalars['ID'];
   index: Scalars['Int'];
   name: Scalars['String'];
+  reminderConnect: Scalars['ID'];
 };
 
 export type ReminderItemUpdateInput = {

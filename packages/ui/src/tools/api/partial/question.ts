@@ -41,6 +41,7 @@ export const question: GqlPartial<Question> = {
         updated_at: true,
         createdBy: async () => rel((await import('./user')).user, 'nav'),
         hasAcceptedAnswer: true,
+        isPrivate: true,
         score: true,
         bookmarks: true,
         answersCount: true,

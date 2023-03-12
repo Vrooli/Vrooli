@@ -7,7 +7,7 @@ import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
 import { OrganizationModel, subscribableMapper } from "../models";
 import { getLogic } from "../getters";
-import { APP_LINKS, GqlModelType, IssueStatus, NotificationSettings, PullRequestStatus, SubscribableObject } from '@shared/consts';
+import { LINKS, GqlModelType, IssueStatus, NotificationSettings, PullRequestStatus, SubscribableObject } from '@shared/consts';
 import { ReportStatus } from "@prisma/client";
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
@@ -98,7 +98,7 @@ const push = async ({
         userTitles[user.userId] = title ?? `${body!.substring(0, 10)}...`; // If no title, use shortened body
         userBodies[user.userId] = body ?? title!;
     }
-    const icon = `https://app.vrooli.com/Logo.png`; // TODO location of logo
+    const icon = `https://vrooli.com/Logo.png`; // TODO location of logo
     // Try connecting to redis
     try {
         const client = await initializeRedis();
@@ -173,9 +173,9 @@ const getEventStartLabel = (date: Date) => {
 
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
-    toOrganization: (organizationId: string, excludeUserId?: string) => Promise<void>,
-    toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string) => Promise<void>,
-    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludeUserId?: string) => Promise<void>,
+    toOrganization: (organizationId: string, excludeUserId?: string | null | undefined) => Promise<void>,
+    toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string | null | undefined) => Promise<void>,
+    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludeUserId?: string | null | undefined) => Promise<void>,
 }
 
 /**
@@ -327,7 +327,7 @@ const NotifyResult = ({
                 where: {
                     AND: [
                         { [subscribableMapper[objectType]]: { id: objectId } },
-                        { subscriberId: { not: excludeUserId } }
+                        { subscriberId: { not: excludeUserId ?? undefined } },
                     ]
                 },
                 select: { subscriberId: true, silent: true },
@@ -469,7 +469,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, organizationName: `<Label|Organization:${organizationId}>` },
         category: 'NewObjectInOrganization',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'NewObjectInOrganizationTitle',
         titleVariables: { organizationName: `<Label|Organization:${organizationId}>` },
@@ -479,7 +479,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, projectName: `<Label|Project:${projectId}>` },
         category: 'NewObjectInProject',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'NewObjectInProjectTitle',
         titleVariables: { projectName: `<Label|Project:${projectId}>` },
@@ -489,7 +489,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalBookmarks },
         category: 'ObjectActivity',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'ObjectReceivedBookmarkTitle',
     }),
@@ -498,14 +498,14 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalComments },
         category: 'ObjectActivity',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}?comments`,
+        link: `/${LINKS[objectType as any]}/${objectId}?comments`,
         prisma,
         titleKey: 'ObjectReceivedCommentTitle',
     }),
     pushObjectReceivedCopy: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         category: 'ObjectActivity',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'ObjectReceivedCopyTitle',
         titleVariables: { objectName: `<Label|${objectType}:${objectId}>` },
@@ -515,7 +515,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalScore },
         category: 'ObjectActivity',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'ObjectReceivedUpvoteTitle',
     }),
@@ -533,7 +533,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'ReportStatus',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}/reports/${reportId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}/reports/${reportId}`,
         prisma,
         titleKey: `ReportStatus${status}Title`,
     }),
@@ -547,7 +547,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'PullRequestStatus',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}/pulls/${reportId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}/pulls/${reportId}`,
         prisma,
         titleKey: `PullRequestStatus${status}Title`,
     }),
@@ -640,7 +640,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'TransferAcceptedTitle',
     }),
@@ -649,7 +649,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
         languages,
-        link: `/${APP_LINKS[objectType as any]}/${objectId}`,
+        link: `/${LINKS[objectType as any]}/${objectId}`,
         prisma,
         titleKey: 'TransferRejectedTitle',
     }),

@@ -47,12 +47,12 @@ export const UserScheduleFilterModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 filterType: data.filterType,
-                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'UserSchedule', parentRelationshipName: 'filters', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'UserSchedule', parentRelationshipName: 'filters', data, ...rest })),
                 // Can't use tagShapeHelper because in this case there isn't a join table between them
-                ...(await shapeHelper({ relation: 'tag', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Tag', parentRelationshipName: 'scheduleFilters', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'tag', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Tag', parentRelationshipName: 'scheduleFilters', data, ...rest })),
             }),
         },
         yup: userScheduleFilterValidation,

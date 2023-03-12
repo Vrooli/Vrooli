@@ -469,21 +469,27 @@ export type Mutater<Model extends {
             userData: SessionUser,
         }) => PromiseOrValue<{}>
         create?: Model['GqlCreate'] extends Record<string, any> ?
-        Model['PrismaCreate'] extends Record<string, any> ? ({ data, prisma, userData }: {
+        Model['PrismaCreate'] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
             data: Model['GqlCreate'],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<Model['PrismaCreate']> : never : never,
         update?: Model['GqlUpdate'] extends Record<string, any> ?
-        Model['PrismaUpdate'] extends Record<string, any> ? ({ data, prisma, userData, where }: {
+        Model['PrismaUpdate'] extends Record<string, any> ? ({ data, preMap, prisma, userData, where }: {
             data: Model['GqlUpdate'],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
             where: { id: string },
         }) => PromiseOrValue<Model['PrismaUpdate']> : never : never
     }
     /**
-     * Triggers when (or before in some cases) a mutation is performed on the object
+     * Triggers after (or before if specified) a mutation is performed on the object. Useful for sending notifications,
+     * tracking awards, and updating reputation.
+     * 
+     * NOTE: This is only called for top-level objects, not relationships. If you need to update 
+     * data like indexes, hasCompleteVersion, etc., or initiate triggers, you should do it in the mutate.pre function
      */
     trigger?: {
         onCommon?: ({ createAuthData, created, deleted, prisma, updateAuthData, updated, updateInput, userData }: {

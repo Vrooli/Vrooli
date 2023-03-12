@@ -135,6 +135,10 @@ export type ShapeHelperProps<
     */
     parentRelationshipName: string,
     /**
+     * A map of pre-shape data for all objects in the mutation, keyed by object type. 
+     */
+    preMap: { [x in `${GqlModelType}`]?: any },
+    /**
      * The name of the primaryKey key field. Defaults to "id"
      */
     primaryKey?: PrimaryKey,
@@ -179,6 +183,7 @@ export const shapeHelper = async<
     joinData,
     objectType,
     parentRelationshipName,
+    preMap,
     primaryKey = 'id' as PrimaryKey,
     prisma,
     relation,
@@ -225,14 +230,14 @@ export const shapeHelper = async<
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await (mutate.shape as any).create({ data: create, prisma, userData });
+            const created = await (mutate.shape as any).create({ data: create, preMap, prisma, userData });
             shaped.push(created);
         }
     }
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await (mutate.shape as any).update({ data: update, prisma, userData });
+            const updated = await (mutate.shape as any).update({ data: update, preMap, prisma, userData });
             shaped.push({ where: update.where, data: updated });
         }
     }

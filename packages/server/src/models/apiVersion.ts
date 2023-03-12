@@ -80,7 +80,7 @@ export const ApiVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 callLink: data.callLink,
                 documentationLink: noNull(data.documentationLink),
@@ -89,12 +89,12 @@ export const ApiVersionModel: ModelLogic<{
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Api', parentRelationshipName: 'versions', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Api', parentRelationshipName: 'versions', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ prisma, userData, data }) => ({
+            update: async ({ data, ...rest }) => ({
                 callLink: noNull(data.callLink),
                 documentationLink: noNull(data.documentationLink),
                 isLatest: noNull(data.isLatest),
@@ -102,10 +102,10 @@ export const ApiVersionModel: ModelLogic<{
                 isComplete: noNull(data.isComplete),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Api', parentRelationshipName: 'versions', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Api', parentRelationshipName: 'versions', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
         },
         yup: apiVersionValidation,

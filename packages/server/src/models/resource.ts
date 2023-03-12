@@ -4,9 +4,10 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
-import { bestLabel } from "../utils";
+import { bestLabel, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { resourceValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 type Model = {
     IsTransferable: false,
@@ -24,35 +25,6 @@ type Model = {
     PrismaWhere: Prisma.resourceWhereInput,
 }
 
-// const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) => {
-//     return {
-//         id: data.id,
-//         index: data.index,
-//         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-//         usedFor: data.usedFor ?? undefined,
-//     }
-// }
-
-// const mutater = (): Mutater<Model> => ({
-//     shape: {
-//         create: async ({ data, prisma, userData }) => {
-//             return {
-//                 ...await shapeBase(prisma, userData, data, true),
-//                 link: data.link,
-//                 listId: data.listId,
-//             };
-//         },
-//         update: async ({ data, prisma, userData }) => {
-//             return {
-//                 ...await shapeBase(prisma, userData, data, false),
-//                 link: data.link ?? undefined,
-//                 listId: data.listId ?? undefined,
-//             };
-//         },
-//     },
-//     yup: resourceValidation,
-// })
-
 const __typename = 'Resource' as const;
 const suppFields = [] as const;
 export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
@@ -69,14 +41,21 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                index: noNull(data.index),
+                link: data.link,
+                usedFor: data.usedFor,
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'ResourceList', parentRelationshipName: 'resources', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                index: noNull(data.index),
+                link: noNull(data.link),
+                usedFor: noNull(data.usedFor),
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'resources', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
         },
         yup: resourceValidation,
     },

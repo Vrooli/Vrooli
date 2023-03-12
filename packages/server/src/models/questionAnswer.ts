@@ -53,14 +53,14 @@ export const QuestionAnswerModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                createdBy: { connect: { id: userData.id } },
-                ...(await shapeHelper({ relation: 'question', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Question', parentRelationshipName: 'answers', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                createdBy: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'question', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Question', parentRelationshipName: 'answers', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            update: async ({ data, ...rest }) => ({
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         yup: questionAnswerValidation,

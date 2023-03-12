@@ -29,15 +29,15 @@ export const BookmarkListModel: ModelLogic<any, typeof suppFields> = ({
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 label: data.label,
-                user: { connect: { id: userData!.id } },
-                ...(await shapeHelper({ relation: 'bookmarks', relTypes: ['Connect', 'Create'], isOneToOne: false, isRequired: false, objectType: 'Bookmark', parentRelationshipName: 'list', data, prisma, userData })),
+                user: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'bookmarks', relTypes: ['Connect', 'Create'], isOneToOne: false, isRequired: false, objectType: 'Bookmark', parentRelationshipName: 'list', data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 label: noNull(data.label),
-                ...(await shapeHelper({ relation: 'bookmarks', relTypes: ['Connect', 'Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Bookmark', parentRelationshipName: 'list', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'bookmarks', relTypes: ['Connect', 'Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Bookmark', parentRelationshipName: 'list', data, ...rest })),
             })
         },
         yup: bookmarkListValidation,

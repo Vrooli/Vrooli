@@ -1061,6 +1061,7 @@ model question {
     updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
     referencing       String?                     @db.VarChar(2048) // Describes what part of object the question is about, in JSON
     hasAcceptedAnswer Boolean                     @default(false)
+    isPrivate         Boolean                     @default(false)
     score             Int                         @default(0)
     bookmarks         Int                         @default(0)
     views             Int                         @default(0)
@@ -1195,26 +1196,16 @@ model quiz_attempt {
 }
 
 model quiz_question_response {
-    id             String                               @id @default(uuid()) @db.Uuid
-    created_at     DateTime                             @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime                             @default(now()) @db.Timestamptz(6)
-    quizAttemptId  String                               @db.Uuid
-    quizQuestionId String                               @db.Uuid
-    quizAttempt    quiz_attempt                         @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
-    quizQuestion   quiz_question                        @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
-    translations   quiz_question_response_translation[]
+    id             String        @id @default(uuid()) @db.Uuid
+    created_at     DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
+    response       String        @db.VarChar(8192)
+    quizAttemptId  String        @db.Uuid
+    quizQuestionId String        @db.Uuid
+    quizAttempt    quiz_attempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+    quizQuestion   quiz_question @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
 
     @@unique([quizAttemptId, quizQuestionId])
-}
-
-model quiz_question_response_translation {
-    id          String                 @id @default(uuid()) @db.Uuid
-    response    String                 @db.VarChar(8192)
-    language    String                 @db.VarChar(3)
-    responseId  String                 @db.Uuid
-    quizAttempt quiz_question_response @relation(fields: [responseId], references: [id], onDelete: Cascade)
-
-    @@unique([responseId, language])
 }
 
 model quiz_question {
@@ -2539,7 +2530,7 @@ enum AwardCategory {
 enum IssueStatus {
     Open
     ClosedResolved
-    CloseUnresolved
+    ClosedUnresolved
     Rejected
 }
 
@@ -2592,8 +2583,8 @@ enum QuizAttemptStatus {
 enum ReportStatus {
     ClosedDeleted
     ClosedFalseReport
+    ClosedHidden
     ClosedNonIssue
-    ClosedResolved
     ClosedSuspended
     Open
 }

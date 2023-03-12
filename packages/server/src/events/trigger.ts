@@ -4,7 +4,7 @@ import { setupVerificationCode } from "../auth";
 import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
-import { objectReputationEvent, Reputation, ReputationEvent } from "./reputation";
+import { objectReputationEvent, Reputation } from "./reputation";
 
 export type ActionTrigger = 'AccountNew' |
     'ObjectComplete' | // except runs
@@ -129,7 +129,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If the object is public and complete, increase reputation score
         const reputationEvent = objectReputationEvent(objectType);
         if (!hasParent && reputationEvent && hasCompleteAndPublic) {
-            await Reputation().update(reputationEvent as any, prisma, createdById);
+            await Reputation().update(reputationEvent as any, prisma, createdById, objectId);
         }
         // Step 3
         // Determine if the object is subscribable
@@ -170,7 +170,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
      * 2. If added to a project that it wasn't in before, send notification to project members
      */
     objectUpdated: async ({
-        updatedByUserId,
+        updatedById,
         hasCompleteAndPublic,
         hasParent,
         owner,
@@ -180,9 +180,8 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         projectId,
         wasCompleteAndPublic,
     }: {
-        updatedByUserId: string,
+        updatedById: string,
         hasCompleteAndPublic: boolean,
-        hasOriginalOwner: boolean,
         hasParent: boolean,
         owner: Owner,
         objectId: string,
@@ -197,7 +196,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is trackable for reputation, increase reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (reputationEvent) {
-                await Reputation().update(reputationEvent as any, prisma, updatedByUserId);
+                await Reputation().update(reputationEvent as any, prisma, updatedById, objectId);
             }
         }
         // Step 2
@@ -208,9 +207,9 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             if (isSubscribable) {
                 const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
                 // Send notification to object owner
-                notification.toOwner(owner, updatedByUserId)
+                notification.toOwner(owner, updatedById)
                 // Send notification to subscribers of the project
-                notification.toSubscribers('Project', projectId, updatedByUserId);
+                notification.toSubscribers('Project', projectId, updatedById);
             }
         }
     },
@@ -224,13 +223,13 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
      *    - Is not a versionable object and is public and complete
      */
     objectDeleted: async ({
-        deletedByUserId,
+        deletedById,
         hasCompleteAndPublic,
         hasParent,
         objectId,
         objectType,
     }: {
-        deletedByUserId: string,
+        deletedById: string,
         hasCompleteAndPublic: boolean,
         hasOriginalOwner: boolean,
         hasParent: boolean,
@@ -243,7 +242,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is trackable for reputation, decrease reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (reputationEvent) {
-                await Reputation().unCreateObject(prisma, objectId, deletedByUserId);
+                await Reputation().unCreateObject(prisma, objectId, deletedById);
             }
         }
     },
@@ -272,6 +271,9 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // // Send notification to admins of organization
         // asdf
     },
+    /**
+     * Call this any time a pull request's status changes, including when it is first created.
+     */
     pullRequestActivity: async ({
         pullRequestCreatedById,
         pullRequestHasBeenClosedOrRejected,
@@ -339,6 +341,8 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // fdsafsafdsa
     },
     /**
+     * Call this any time a report's status changes, including when it is first created.
+     * 
      * NOTE 1: Unlike issues and pull requests, reports can never be reopened. 
      * So we don't need to worry about users gaming awards/reputation from reopening reports.
      * 
@@ -346,57 +350,44 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
      * Otherwise, we cannot display the name of the object in the notification.
      */
     reportActivity: async ({
-        reportCreatedById,
-        reportId,
-        reportStatus,
         objectId,
         objectOwner,
         objectType,
+        reportContributors,
+        reportCreatedById,
+        reportId,
+        reportStatus,
         userUpdatingReportId,
     }: {
-        reportCreatedById: string,
-        reportId: string,
-        reportStatus: ReportStatus,
         objectId: string,
         objectOwner: Owner,
         objectType: GqlModelType | `${GqlModelType}`,
-        userUpdatingReportId: string,
+        reportContributors: string[],
+        reportCreatedById: string | null,
+        reportId: string,
+        reportStatus: ReportStatus,
+        userUpdatingReportId: string | null,
     }) => {
         // If report was closed, track award progress and reputation of contributors 
         // (those who responded to the report)
         if (reportStatus !== 'Open') {
-            // Find contributors to report
-            const report = await prisma.report.findUnique({
-                where: { id: reportId },
-                select: {
-                    responses: {
-                        select: {
-                            createdBy: {
-                                select: {
-                                    id: true,
-                                }
-                            }
-                        }
-                    }
-                }
-            })
             // Make sure each contributor is only counted once (even though this should already be the case)
-            const contributors = [...new Set(report?.responses.map(response => response.createdBy.id) ?? [])];
+            const contributors = [...new Set(reportContributors)];
             for (const contributorId of contributors) {
                 // Track award progress
-                await Award(prisma, contributorId, languages).update('ReportContribute', 1);
+                const award = await Award(prisma, contributorId, languages).update('ReportContribute', 1);
                 // Increase reputation
-                await Reputation().update('ContributedToReport', prisma, contributorId);
+                await Reputation().updateReportContribute(award.progress, prisma, contributorId);
             }
             // Increase reputation of report creator
         }
         // If report was successfull, track award progress and reputation of report creator
-        if (['ClosedDeleted', 'ClosedResolved', 'ClosedSuspended'].includes(reportStatus)) {
+        if (reportCreatedById && ['ClosedDeleted', 'ClosedResolved', 'ClosedSuspended'].includes(reportStatus)) {
             await Award(prisma, reportCreatedById, languages).update('ReportEnd', 1);
             await Reputation().update('ReportWasAccepted', prisma, reportCreatedById);
         }
         // If report was not successfull, track award progress and reputation of report creator
-        if (['ClosedFalseReport', 'ClosedNonIssue'].includes(reportStatus)) {
+        if (reportCreatedById && ['ClosedFalseReport', 'ClosedNonIssue'].includes(reportStatus)) {
             await Award(prisma, reportCreatedById, languages).update('ReportEnd', 1);
             await Reputation().update('ReportWasRejected', prisma, reportCreatedById);
         }

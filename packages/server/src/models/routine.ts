@@ -12,7 +12,7 @@ import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
 import { defaultPermissions, labelShapeHelper, oneIsPublic, tagShapeHelper } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
-import { getLabels } from "../getters";
+import { getLabels, getLogic } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { noNull, shapeHelper } from "../builders";
 
@@ -280,67 +280,74 @@ export const RoutineModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'forks', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'tags', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'labels', data, prisma, userData })),
+                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, ...rest })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, ...rest })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'forks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'labels', data, ...rest })),
             }),
-            update: async ({ prisma, userData, data }) => ({
+            update: async ({ data, ...rest }) => ({
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'tags', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'labels', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, ...rest })),
+                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'labels', data, ...rest })),
             }),
         },
         trigger: {
             onCreated: ({ created, prisma, userData }) => {
                 for (const c of created) {
-                    Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
+                    // Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
                 }
             },
             onUpdated: ({ authData, prisma, updated, updateInput, userData }) => {
                 // // Initialize transfers, if any
                 // asdfasdfasfd
-                // // Handle new version triggers, if any versions have been created
-                // // Loop through updated items
-                // for (let i = 0; i < updated.length; i++) {
-                //     const u = updated[i];
-                //     const input = updateInput[i];
-                //     const permissionsData = authData[u.id];
-                //     const { Organization, User } = validator().owner(permissionsData as any);
-                //     const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
-                //         { __typename: 'Organization', id: Organization.id } :
-                //         User ? { __typename: 'User', id: User.id } : null;
-                //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
-                //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
-                //     const hadCompletedVersion = validator().hasCompleteVersion(permissionsData as any);
-                //     const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
-                //     const hasCompleteVersion = asdfasdfasdf
-                //     // Check if new version was created
-                //     if (input.versionLabel) {
-                //         Trigger(prisma, userData.languages).objectNewVersion(
-                //             userData.id,
-                //             'Routine',
-                //             u.id,
-                //             owner,
-                //             hasOriginalOwner,
-                //             hadCompletedVersion && wasPublic,
-                //             hasCompleteVersion && isPublic
-                //         );
-                //     }
-                // }
+                // Handle objectUpdated trigger
+                // Loop through updated items
+                for (let i = 0; i < updated.length; i++) {
+                    // Get data for current item
+                    const u = updated[i];
+                    const input = updateInput[i];
+                    const permissionsData = authData[u.id];
+                    // Use permissions to find orignial data
+                    const { Organization, User } = RoutineModel.validate!.owner(permissionsData as any);
+                    const originalOwner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
+                        { __typename: 'Organization', id: Organization.id } :
+                        User ? { __typename: 'User', id: User.id } : null;
+                    const wasCompleteAndPublic =
+                        RoutineModel.validate!.isPublic(permissionsData as any, userData.languages) &&
+                        RoutineModel.validate!.hasCompleteVersion(permissionsData as any);
+                    // Use input to determine which data has changed
+                    asdfasd
+
+                    const wasPublic = RoutineModel.validate!.isPublic(permissionsData as any, userData.languages);
+                    const hadCompletedVersion = RoutineModel.validate!.hasCompleteVersion(permissionsData as any);
+                    const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
+                    const hasCompleteVersion = asdfasdfasdf
+                    // Check if new version was created
+                    if (input.versionLabel) {
+                        Trigger(prisma, userData.languages).objectNewVersion(
+                            userData.id,
+                            'Routine',
+                            u.id,
+                            owner,
+                            hasOriginalOwner,
+                            hadCompletedVersion && wasPublic,
+                            hasCompleteVersion && isPublic
+                        );
+                    }
+                }
             },
         },
         yup: routineValidation,

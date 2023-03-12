@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { QuizQuestionModel } from "./quizQuestion";
-import { selPad } from "../builders";
+import { noNull, selPad, shapeHelper } from "../builders";
 import i18next from "i18next";
 import { quizQuestionResponseValidation } from "@shared/validation";
 
@@ -61,14 +61,15 @@ export const QuizQuestionResponseModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                response: data.response,
+                ...(await shapeHelper({ relation: 'quizAttempt', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'QuizAttempt', parentRelationshipName: 'responses', data, ...rest })),
+                ...(await shapeHelper({ relation: 'quizQuestion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'QuizQuestion', parentRelationshipName: 'responses', data, ...rest })),
+            }),
+            update: async ({ data }) => ({
+                response: noNull(data.response),
+            }),
         },
         yup: quizQuestionResponseValidation,
     },

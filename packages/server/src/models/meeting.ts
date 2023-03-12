@@ -76,7 +76,7 @@ export const MeetingModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
@@ -86,19 +86,19 @@ export const MeetingModel: ModelLogic<{
                 recurring: noNull(data.recurring),
                 recurrStart: noNull(data.recurrStart),
                 recurrEnd: noNull(data.recurrEnd),
-                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'meetings', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'meetings', data, ...rest })),
                 ...(await shapeHelper({ relation: 'restrictedToRoles', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: '', joinData: {
                     fieldName: 'role',
                     uniqueFieldName: 'meeting_roles_meetingid_roleid_unique',
                     childIdFieldName: 'roleId',
                     parentIdFieldName: 'meetingId',
                     parentId: data.id ?? null,
-                }, data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'invites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Meeting', relation: 'labels', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                }, data, ...rest })),
+                ...(await shapeHelper({ relation: 'invites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
                 timeZone: noNull(data.timeZone),
@@ -113,10 +113,10 @@ export const MeetingModel: ModelLogic<{
                     childIdFieldName: 'roleId',
                     parentIdFieldName: 'meetingId',
                     parentId: data.id ?? null,
-                }, data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'invites', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Meeting', relation: 'labels', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                }, data, ...rest })),
+                ...(await shapeHelper({ relation: 'invites', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         yup: meetingValidation,

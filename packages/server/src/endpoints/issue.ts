@@ -27,7 +27,7 @@ export const typeDef = gql`
     enum IssueStatus {
         Open
         ClosedResolved
-        CloseUnresolved
+        ClosedUnresolved
         Rejected
     }
 

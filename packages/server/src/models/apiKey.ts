@@ -56,7 +56,7 @@ export const ApiKeyModel: ModelLogic<{
                 creditsUsedBeforeLimit: data.creditsUsedBeforeLimit,
                 stopAtLimit: data.stopAtLimit,
                 absoluteMax: data.absoluteMax,
-                user: data.organizationConnect ? undefined : { connect: { id: userData!.id } },
+                user: data.organizationConnect ? undefined : { connect: { id: userData.id } },
                 organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
 
             }),

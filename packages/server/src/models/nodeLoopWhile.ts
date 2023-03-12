@@ -9,7 +9,6 @@ import { nodeLoopWhileValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'NodeLoopWhile' as const;
-
 const suppFields = [] as const;
 export const NodeLoopWhileModel: ModelLogic<{
     IsTransferable: false,
@@ -45,16 +44,16 @@ export const NodeLoopWhileModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 condition: data.condition,
-                ...(await shapeHelper({ relation: 'loop', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeLoop', parentRelationshipName: 'whiles', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'loop', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeLoop', parentRelationshipName: 'whiles', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
 
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 condition: noNull(data.condition),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         yup: nodeLoopWhileValidation,

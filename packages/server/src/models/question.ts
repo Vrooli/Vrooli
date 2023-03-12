@@ -103,15 +103,15 @@ export const QuestionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 referencing: noNull(data.referencing),
-                createdBy: { connect: { id: userData.id } },
+                createdBy: { connect: { id: rest.userData.id } },
                 [forMapper[data.forType]]: { connect: { id: data.forConnect } },
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Question', relation: 'tags', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Question', relation: 'tags', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 ...(data.acceptedAnswerConnect ? {
                     answers: {
                         update: {
@@ -120,8 +120,8 @@ export const QuestionModel: ModelLogic<{
                         },
                     },
                 } : {}),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Question', relation: 'tags', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Question', relation: 'tags', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         yup: questionValidation,
@@ -169,8 +169,8 @@ export const QuestionModel: ModelLogic<{
             createdBy: 'User',
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: { isPrivate: true, },
+            public: { isPrivate: false },
             owner: (userId) => ({
                 createdBy: { id: userId },
             }),

@@ -149,16 +149,16 @@ export const PullRequestModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                createdBy: { connect: { id: userData.id } },
+                createdBy: { connect: { id: rest.userData.id } },
                 [fromMapper[data.fromObjectType]]: { connect: { id: data.fromConnect } },
                 [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 status: noNull(data.status),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         yup: pullRequestValidation,

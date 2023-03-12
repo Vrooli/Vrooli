@@ -192,7 +192,32 @@ export const Reputation = () => ({
      * @param userId The id of the user who created the object
      */
     unCreateObject: async (prisma: PrismaType, objectId: string, userId: string) => {
-        asdfasd
+        // Find the reputation history entry for the object creation
+        const historyEntry = await prisma.reputation_history.findFirst({
+            where: {
+                objectId1: objectId,
+                userId,
+                event: {
+                    in: [
+                        'PublicApiCreated',
+                        'PublicProjectCreated',
+                        'PublicRoutineCreated',
+                        'PublicSmartContractCreated',
+                        'PublicStandardCreated',
+                    ]
+                }
+            }
+        });
+        // If the entry exists, delete it and decrease the user's reputation
+        if (historyEntry) {
+            await prisma.reputation_history.delete({
+                where: { id: historyEntry.id }
+            });
+            await prisma.user.update({
+                where: { id: userId },
+                data: { reputation: { decrement: historyEntry.amount } }
+            });
+        }
     },
     /**
      * Updates a user's reputation based on an event
@@ -203,9 +228,11 @@ export const Reputation = () => ({
      */
     update: async (
         event: Exclude<ReputationEvent, 'ReceivedVote' | 'ReceivedStar' | 'ContributedToReport'> | `${Exclude<ReputationEvent, 'ReceivedVote' | 'ReceivedStar' | 'ContributedToReport'>}`,
-        prisma: PrismaType, 
-        userId: string
-        ) => {
+        prisma: PrismaType,
+        userId: string,
+        object1Id?: string,
+        object2Id?: string
+    ) => {
         // Determine reputation delta
         const delta = reputationMap[event] || 0;
         // Update reputation

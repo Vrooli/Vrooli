@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { projectVersionDirectoryValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'ProjectVersionDirectory' as const;
 const suppFields = [] as const;
@@ -62,14 +63,22 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                childOrder: noNull(data.childOrder),
+                isRoot: noNull(data.isRoot),
+                ...(await shapeHelper({ relation: 'parentDirectory', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'children', data, ...rest })),
+                ...(await shapeHelper({ relation: 'projectVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'ProjectVersion', parentRelationshipName: 'directories', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+
+            }),
+            update: async ({ data, ...rest }) => ({
+                childOrder: noNull(data.childOrder),
+                isRoot: noNull(data.isRoot),
+                ...(await shapeHelper({ relation: 'parentDirectory', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'children', data, ...rest })),
+                ...(await shapeHelper({ relation: 'projectVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'directories', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
         },
         yup: projectVersionDirectoryValidation,
     },

@@ -136,13 +136,13 @@ export const NotificationSubscriptionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data }) => ({
                 id: data.id,
                 silent: noNull(data.silent),
-                subscriber: { connect: { id: userData.id } },
+                subscriber: { connect: { id: rest.userData.id } },
                 [subscribableMapper[data.objectType]]: { connect: { id: data.objectConnect } },
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data }) => ({
                 silent: noNull(data.silent),
             }),
         },

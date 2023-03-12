@@ -60,13 +60,13 @@ export const MemberInviteModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 message: noNull(data.message),
                 willBeAdmin: noNull(data.willBeAdmin),
                 willHavePermissions: noNull(data.willHavePermissions),
-                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'memberInvites', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'user', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'User', parentRelationshipName: 'membershipsInvited', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'memberInvites', data, ...rest })),
+                ...(await shapeHelper({ relation: 'user', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'User', parentRelationshipName: 'membershipsInvited', data, ...rest })),
             }),
             update: async ({ data }) => ({
                 message: noNull(data.message),

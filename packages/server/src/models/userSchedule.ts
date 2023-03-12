@@ -50,7 +50,7 @@ export const UserScheduleModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 name: data.name,
                 description: noNull(data.description),
@@ -60,14 +60,14 @@ export const UserScheduleModel: ModelLogic<{
                 recurring: noNull(data.recurring),
                 recurrStart: noNull(data.recurrStart),
                 recurrEnd: noNull(data.recurrEnd),
-                user: { connect: { id: userData.id } },
-                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'UserScheduleFilter', parentRelationshipName: 'userSchedule', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'userSchedule', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'userSchedule', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'UserSchedule', relation: 'labels', data, prisma, userData })),
+                user: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'UserScheduleFilter', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'UserSchedule', relation: 'labels', data, ...rest })),
 
             }),
-            update: async ({ prisma, userData, data }) => ({
+            update: async ({ data, ...rest }) => ({
                 name: noNull(data.name),
                 description: noNull(data.description),
                 timeZone: noNull(data.timeZone),
@@ -76,11 +76,11 @@ export const UserScheduleModel: ModelLogic<{
                 recurring: noNull(data.recurring),
                 recurrStart: noNull(data.recurrStart),
                 recurrEnd: noNull(data.recurrEnd),
-                user: { connect: { id: userData.id } },
-                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserScheduleFilter', parentRelationshipName: 'userSchedule', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Disconnect', 'Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'userSchedule', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'userSchedule', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'UserSchedule', relation: 'labels', data, prisma, userData })),
+                user: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserScheduleFilter', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Disconnect', 'Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'UserSchedule', relation: 'labels', data, ...rest })),
             }),
         },
         yup: userScheduleValidation,

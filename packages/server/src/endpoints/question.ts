@@ -35,6 +35,7 @@ export const typeDef = gql`
 
     input QuestionCreateInput {
         id: ID!
+        isPrivate: Boolean
         referencing: String
         forType: QuestionForType!
         forConnect: ID!
@@ -44,6 +45,7 @@ export const typeDef = gql`
     }
     input QuestionUpdateInput {
         id: ID!
+        isPrivate: Boolean
         acceptedAnswerConnect: ID
         tagsConnect: [String!]
         tagsDisconnect: [String!]
@@ -58,6 +60,7 @@ export const typeDef = gql`
         updated_at: Date!
         createdBy: User
         hasAcceptedAnswer: Boolean!
+        isPrivate: Boolean!
         bookmarks: Int!
         score: Int!
         forObject: QuestionFor!

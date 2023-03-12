@@ -4,6 +4,7 @@ import { ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from '
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { reminderItemValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'ReminderItem' as const;
 const suppFields = [] as const;
@@ -41,14 +42,21 @@ export const ReminderItemModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                description: noNull(data.description),
+                dueDate: noNull(data.dueDate),
+                index: data.index,
+                name: data.name,
+                ...(await shapeHelper({ relation: 'reminder', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Reminder', parentRelationshipName: 'reminderItems', data, ...rest })),
+            }),
+            update: async ({ data }) => ({
+                description: noNull(data.description),
+                dueDate: noNull(data.dueDate),
+                index: noNull(data.index),
+                isComplete: noNull(data.isComplete),
+                name: noNull(data.name),
+            }),
         },
         yup: reminderItemValidation,
     },

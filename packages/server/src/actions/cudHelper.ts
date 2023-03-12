@@ -1,4 +1,4 @@
-import { Count } from '@shared/consts';
+import { Count, GqlModelType } from '@shared/consts';
 import { getAuthenticatedData, getAuthenticatedIds, groupByType } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
@@ -45,22 +45,30 @@ export async function cudHelper<
     // Profanity check
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
-    // // Group create and update data by type TODO
-    // const { inputsByType, idsByType } = groupByType({ createMany, updateMany, deleteMany });
-    // // For each type, calculate pre-shape data (if applicable)
-    // for (const type in inputsByType) {
-    //     //TODO make sure this also gets passed down to shapeHelper. That's the only other place that needs acces to pre-shape data
-    //     asfasfdasdf
-    // }
+    // Group create and update data by type TODO
+    const { inputsByType, idsByType } = groupByType({ createMany, updateMany, deleteMany });
+    const preMap: { [x: string]: any } = {};
+    // For each type, calculate pre-shape data (if applicable)
+    for (const type in inputsByType) {
+        const { mutate } = getLogic(['mutate'], type as GqlModelType, userData.languages, 'preshape type');
+        //TODO make sure this also gets passed down to shapeHelper. That's the only other place that needs acces to pre-shape data
+        if (mutate.shape.pre) {
+            const { createList, updateList, deleteList } = inputsByType[type];
+            const preResult = await mutate.shape.pre({ createList, updateList, deleteList, prisma, userData });
+            preMap[type] = preResult;
+        }
+    }
     // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
     const shapedCreate: { [x: string]: any }[] = [];
     const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
+    // Shape create
     if (createMany && mutate.shape.create) {
-        for (const create of createMany) { shapedCreate.push(await mutate.shape.create({ data: create, prisma, userData })) }
+        for (const create of createMany) { shapedCreate.push(await mutate.shape.create({ data: create, preMap, prisma, userData })) }
     }
+    // Shape update
     if (updateMany && mutate.shape.update) {
         for (const update of updateMany) {
-            const shaped = await mutate.shape.update({ data: update.data, prisma, userData, where: update.where });
+            const shaped = await mutate.shape.update({ data: update.data, preMap, prisma, userData, where: update.where });
             shapedUpdate.push({ where: update.where, data: shaped });
         }
     }

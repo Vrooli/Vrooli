@@ -63,6 +63,7 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
      * @param category The category of the award
      * @param newProgress The new progress of the award
      * @param languages Preferred languages for the award name and body
+     * @returns The award
      */
     update: async (category: `${AwardCategory}`, newProgress: number) => {
         // Upsert the award into the database, with progress incremented

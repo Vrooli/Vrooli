@@ -20,7 +20,7 @@ export const typeDef = gql`
         points: Int
         standardVersionConnect: ID
         standardVersionCreate: StandardVersionCreateInput
-        quizConnect: ID
+        quizConnect: ID!
         translationsCreate: [QuizQuestionTranslationCreateInput!]
     }
     input QuizQuestionUpdateInput {

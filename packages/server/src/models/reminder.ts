@@ -44,22 +44,22 @@ export const ReminderModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 name: data.name,
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
                 index: data.index,
-                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'ReminderList', parentRelationshipName: 'reminders', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'reminderItems', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ReminderItem', parentRelationshipName: 'reminder', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'ReminderList', parentRelationshipName: 'reminders', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminderItems', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ReminderItem', parentRelationshipName: 'reminder', data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 name: noNull(data.name),
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
                 index: noNull(data.index),
                 isComplete: noNull(data.isComplete),
-                ...(await shapeHelper({ relation: 'reminderItems', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ReminderItem', parentRelationshipName: 'reminder', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'reminderItems', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ReminderItem', parentRelationshipName: 'reminder', data, ...rest })),
             })
         },
         yup: reminderValidation,

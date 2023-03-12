@@ -119,7 +119,7 @@ export const UserModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            update: async ({ prisma, userData, data }) => ({
+            update: async ({ data, ...rest }) => ({
                 handle: data.handle ?? null,
                 name: noNull(data.name),
                 theme: noNull(data.theme),
@@ -144,8 +144,8 @@ export const UserModel: ModelLogic<{
                 isPrivateVotes: noNull(data.isPrivateVotes),
                 notificationSettings: data.notificationSettings ?? null,
                 // languages: TODO!!!
-                ...(await shapeHelper({ relation: 'schedules', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'user', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'schedules', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'user', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
         },
         yup: userValidation,
