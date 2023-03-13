@@ -3,16 +3,13 @@ import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
-import { randomString } from "../auth/wallet";
-import { Trigger } from "../events";
 import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
-import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { noNull, shapeHelper } from "../builders";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -111,7 +108,7 @@ export const StandardModel: ModelLogic<{
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'standards', objectType: __typename, data, ...rest })),
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'standards', isCreate: true, objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'forks', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Standard', relation: 'tags', data, ...rest })),
@@ -122,27 +119,21 @@ export const StandardModel: ModelLogic<{
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'standards', objectType: __typename, data, ...rest })),
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'standards', isCreate: false, objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Standard', relation: 'tags', data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Standard', relation: 'labels', data, ...rest })),
             }),
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    // Trigger(prisma, userData.languages).createStandard(userData.id, c.id as string);
-                }
+            onCreated: async (params) => {
+                await onRootCreated({ ...params, objectType: __typename });
             },
-            onUpdated: ({ prisma, updated, updateInput, userData }) => {
-                // for (let i = 0; i < updated.length; i++) {
-                //     const u = updated[i];
-                //     const input = updateInput[i];
-                //     // Check if version changed
-                //     if (input.versionLabel && u.isComplete) {
-                //         Trigger(prisma, userData.languages).objectNewVersion('Standard', u.id as string, userData.id);
-                //     }
-                // }
+            onUpdated: async (params) => {
+                await onRootUpdated({ ...params, objectType: __typename });
+            },
+            onDeleted: async (params) => {
+                await onRootDeleted({ ...params, objectType: __typename });
             },
         },
         yup: standardValidation,

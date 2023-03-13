@@ -13,6 +13,7 @@ type HasCompleteVersionData = {
 type ObjectTriggerData = {
     hasCompleteAndPublic: boolean,
     wasCompleteAndPublic: boolean,
+    hasBeenTransferred: boolean,
     hasParent: boolean,
     owner: {
         id: string,
@@ -22,6 +23,7 @@ type ObjectTriggerData = {
 
 const originalDataSelect = {
     id: true,
+    hasBeenTransferred: true,
     isPrivate: true,
     ownedByOrganization: { select: { id: true } },
     ownedByUser: { select: { id: true } },
@@ -37,7 +39,7 @@ const originalDataSelect = {
 
 /**
  * Used in mutate.shape.pre of root objects. Has three purposes:
- * 1. Calculate hasCompleteVersion flag and completedAt date to update object in database
+ * 1. Calculate hasCompleteVersion flag and completedAt date to update object in database)
  * 2. Calculate data for objectCreated/Updated/Deleted trigger
  * 3. Determine which creates/updates require a transfer request
  * @returns versionMap and triggerMap
@@ -77,6 +79,7 @@ export const preShapeRoot = async ({
         triggerMap[create.id] = {
             wasCompleteAndPublic: true, // Doesn't matter
             hasCompleteAndPublic: !create.isPrivate && (create.versionsCreate?.some(v => v.isComplete && !v.isPrivate) ?? false),
+            hasBeenTransferred: false, // Doesn't matter
             hasParent: typeof create.parentConnect === 'string',
             owner: {
                 id: create.ownedByUser ?? create.ownedByOrganization,
@@ -120,6 +123,7 @@ export const preShapeRoot = async ({
             triggerMap[update.data.id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: !isRootPrivate && versions.some((v: any) => v.isComplete && !v.isPrivate),
+                hasBeenTransferred: original.hasBeenTransferred,
                 hasParent: exists(original.parent),
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
@@ -145,6 +149,7 @@ export const preShapeRoot = async ({
             triggerMap[id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: true, // Doesn't matter
+                hasBeenTransferred: original.hasBeenTransferred,    
                 hasParent: exists(original.parent),
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner

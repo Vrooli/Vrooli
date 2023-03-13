@@ -2,17 +2,16 @@ import { routineValidation } from "@shared/validation";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Trigger } from "../events";
-import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, SessionUser, RoutineYou, PrependString, MaxObjects } from '@shared/consts';
+import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, RoutineYou, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
-import { getLabels, getLogic } from "../getters";
+import { getLabels } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { noNull, shapeHelper } from "../builders";
 
@@ -280,13 +279,6 @@ export const RoutineModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            // TODO for morning 1: figure out how to add transfers logic to this. 
-            // Can possibly just call requestSend in pre and update requestSend to: 1. support newly-created objects, and 
-            // 2. break early if transferring to self and return some indicator. On second thought, won't work. 
-            // We don't want to create transfer and send push before creating/updating in case there is an error. 
-            // Instead, split requestSend into two functions: one that performs check and one that creates transfer and sends push.
-            // Also, we need to make sure that newly-created transfer objects don't call Trigger.objectCreated. See that func's docstring for more info.
-            // 
             // TODO for morning 2: need to create helper to handle version pre/post logic. These should 
             // also support calling Trigger, and also version index logic. I started implementing this (the version index logic) somewhere before, 
             // maybe models/routineVersion.
@@ -301,7 +293,7 @@ export const RoutineModel: ModelLogic<{
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', objectType: __typename, data, ...rest })),
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', isCreate: true, objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'forks', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'tags', data, ...rest })),
@@ -312,46 +304,21 @@ export const RoutineModel: ModelLogic<{
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', objectType: __typename, data, ...rest })),
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', isCreate: false, objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'tags', data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'labels', data, ...rest })),
             }),
         },
         trigger: {
-            onCreated: ({ created, preMap, prisma, userData }) => {
-                for (const c of created) {
-                    // Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
-                }
+            onCreated: async (params) => {
+                await onRootCreated({ ...params, objectType: __typename });
             },
-            onUpdated: ({ authData, preMap, prisma, updated, updateInput, userData }) => {
-                // // Initialize transfers, if any
-                // asdfasdfasfd
-                // Handle objectUpdated trigger
-                // Loop through updated items
-                for (let i = 0; i < updated.length; i++) {
-                    // Get data for current item that we calculated in pre
-                    const objectId = updated[i].id;
-                    const {
-                        hasCompleteAndPublic,
-                        hasParent,
-                        owner,
-                        wasCompleteAndPublic,
-                    } = preMap[__typename].triggerMap[objectId];
-                    // Trigger objectUpdated
-                    Trigger(prisma, userData.languages).objectUpdated({
-                        updatedById: userData.id,
-                        hasCompleteAndPublic,
-                        hasParent,
-                        owner,
-                        objectId,
-                        objectType: __typename,
-                        // Projects are attached to versions, not root objects
-                        originalProjectId: undefined,
-                        projectId: undefined,
-                        wasCompleteAndPublic,
-                    });
-                }
+            onUpdated: async (params) => {
+                await onRootUpdated({ ...params, objectType: __typename });
+            },
+            onDeleted: async (params) => {
+                await onRootDeleted({ ...params, objectType: __typename });
             },
         },
         yup: routineValidation,

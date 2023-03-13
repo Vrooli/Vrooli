@@ -224,21 +224,22 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
      */
     objectDeleted: async ({
         deletedById,
+        hasBeenTransferred,
         hasParent,
         objectId,
         objectType,
         wasCompleteAndPublic,
     }: {
         deletedById: string,
-        hasOriginalOwner: boolean,
+        hasBeenTransferred: boolean,
         hasParent: boolean,
         objectId: string,
         objectType: `${GqlModelType}`,
         wasCompleteAndPublic: boolean,
     }) => {
         // Step 1
-        // If the object was not copied/forked (i.e. has no parent) and was public and complete
-        if (!hasParent && wasCompleteAndPublic) {
+        // If the object was not copied/forked (i.e. has no parent), was public and complete, and you are the original owner
+        if (!hasParent && !hasBeenTransferred && wasCompleteAndPublic) {
             // If the object is trackable for reputation, decrease reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (reputationEvent) {

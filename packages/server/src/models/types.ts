@@ -499,12 +499,14 @@ export type Mutater<Model extends {
             updateAuthData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             updateInput: Model['GqlUpdate'][],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
         onCreated?: Model['GqlCreate'] extends Record<string, any> ? ({ created, prisma, userData }: {
             authData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void> : never,
@@ -512,6 +514,7 @@ export type Mutater<Model extends {
             authData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             updateInput: Model['GqlUpdate'][],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void> : never,
@@ -528,6 +531,7 @@ export type Mutater<Model extends {
             beforeDeletedData: any,
             deleted: Count,
             deletedIds: string[],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,

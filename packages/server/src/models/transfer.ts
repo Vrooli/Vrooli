@@ -68,7 +68,6 @@ const transfer = (prisma: PrismaType) => ({
      * @returns The ID of the transfer request
      */
     requestSend: async (
-        info: GraphQLResolveInfo | PartialGraphQLInfo,
         input: TransferRequestSendInput,
         userData: SessionUser,
     ): Promise<string> => {
@@ -83,15 +82,9 @@ const transfer = (prisma: PrismaType) => ({
         // Check if user is allowed to transfer this object
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
-        // Check if the user is transferring to themselves
+        // Get 'to' data
         const toType = input.toOrganizationConnect ? 'Organization' : 'User';
         const toId: string = input.toOrganizationConnect || input.toUserConnect as string;
-        const { delegate: toDelegate, validate: toValidate } = getLogic(['delegate', 'validate'], toType, userData.languages, 'Transfer.request-validator');
-        const toPermissionData = await toDelegate(prisma).findUnique({
-            where: { id: toId },
-            select: permissionsSelectHelper(toValidate.permissionsSelect, userData.id, userData.languages),
-        });
-        const isAdmin = toPermissionData && isOwnerAdminCheck(toValidate.owner(toPermissionData), userData.id)
         // Create transfer request
         const request = await prisma.transfer.create({
             data: {
@@ -100,7 +93,7 @@ const transfer = (prisma: PrismaType) => ({
                 [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
                 toUser: toType === 'User' ? { connect: { id: toId } } : undefined,
                 toOrganization: toType === 'Organization' ? { connect: { id: toId } } : undefined,
-                status: isAdmin ? 'Accepted' : 'Pending',
+                status: 'Pending',
                 message: input.message,
             },
             select: { id: true }
@@ -211,7 +204,8 @@ const transfer = (prisma: PrismaType) => ({
                 }
             }
         });
-        // Notify user/org that sent the transfer request
+        //TODO update object's hasBeenTransferred flag
+        // TODO Notify user/org that sent the transfer request
         //const pushNotification = Notify(prisma, userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
         // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
         // else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);

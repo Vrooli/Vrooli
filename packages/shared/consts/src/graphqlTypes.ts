@@ -8601,7 +8601,6 @@ export enum TransferObjectType {
 }
 
 export type TransferRequestReceiveInput = {
-  id: Scalars['ID'];
   message?: InputMaybe<Scalars['String']>;
   objectConnect: Scalars['ID'];
   objectType: TransferObjectType;
@@ -8609,7 +8608,6 @@ export type TransferRequestReceiveInput = {
 };
 
 export type TransferRequestSendInput = {
-  id: Scalars['ID'];
   message?: InputMaybe<Scalars['String']>;
   objectConnect: Scalars['ID'];
   objectType: TransferObjectType;

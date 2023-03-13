@@ -9,7 +9,7 @@ import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { smartContractValidation } from "@shared/validation";
@@ -104,7 +104,7 @@ export const SmartContractModel: ModelLogic<{
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'smartContracts', objectType: __typename, data, ...rest })),
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'smartContracts', isCreate: true, objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'forks', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'SmartContract', relation: 'tags', data, ...rest })),
@@ -114,11 +114,22 @@ export const SmartContractModel: ModelLogic<{
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
                 ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'smartContracts', objectType: __typename, data, ...rest })),
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'smartContracts', isCreate: false, objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'SmartContract', relation: 'tags', data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'SmartContract', relation: 'labels', data, ...rest })),
             }),
+        },
+        trigger: {
+            onCreated: async (params) => {
+                await onRootCreated({ ...params, objectType: __typename });
+            },
+            onUpdated: async (params) => {
+                await onRootUpdated({ ...params, objectType: __typename });
+            },
+            onDeleted: async (params) => {
+                await onRootDeleted({ ...params, objectType: __typename });
+            },
         },
         yup: smartContractValidation,
     },

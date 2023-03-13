@@ -27,6 +27,7 @@ model api {
     score                 Int                         @default(0)
     bookmarks             Int                         @default(0)
     views                 Int                         @default(0)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     isDeleted             Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
@@ -441,6 +442,9 @@ model note {
     id                      String                      @id @default(uuid()) @db.Uuid
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred      Boolean                     @default(false)
+    hasCompleteVersion      Boolean                     @default(false)
+    completedAt             DateTime?                   @db.Timestamptz(6)
     isPrivate               Boolean                     @default(false)
     score                   Int                         @default(0)
     bookmarks               Int                         @default(0)
@@ -493,6 +497,7 @@ model note_version {
     created_at          DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
     intendToPullRequest Boolean                     @default(true)
+    isComplete          Boolean                     @default(false)
     isLatest            Boolean                     @default(false)
     isPrivate           Boolean                     @default(false)
     rootId              String                      @db.Uuid
@@ -871,6 +876,7 @@ model project {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     isDeleted             Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
@@ -1412,6 +1418,7 @@ model routine {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     isDeleted             Boolean                     @default(false)
@@ -1755,6 +1762,7 @@ model smart_contract {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     isDeleted             Boolean                     @default(false)
@@ -1853,6 +1861,7 @@ model standard {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     score                 Int                         @default(0)

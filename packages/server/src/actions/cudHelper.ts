@@ -115,7 +115,13 @@ export async function cudHelper<
         // Filter authDataById to only include objects which were created
         createAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => created.map(c => c.id).includes(id)));
         // Call onCreated
-        mutate.trigger?.onCreated && await mutate.trigger.onCreated({ authData: createAuthData, created, prisma, userData });
+        mutate.trigger?.onCreated && await mutate.trigger.onCreated({
+            authData: createAuthData,
+            created,
+            preMap,
+            prisma,
+            userData
+        });
     }
     if (shapedUpdate.length > 0) {
         // Perform custom validation
@@ -134,7 +140,13 @@ export async function cudHelper<
         // Filter authDataById to only include objects which were updated
         updateAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => updated.map(u => u.id).includes(id)));
         // Call onUpdated
-        mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({ authData: updateAuthData, prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
+        mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({
+            authData: updateAuthData,
+            preMap,
+            prisma,
+            updated,
+            updateInput: updateMany!.map(u => u.data), userData
+        });
     }
     if (deleteMany && deleteMany.length > 0) {
         // Call beforeDeleted
@@ -156,6 +168,7 @@ export async function cudHelper<
             createAuthData,
             created,
             deleted,
+            preMap,
             prisma,
             updateAuthData,
             updated,
