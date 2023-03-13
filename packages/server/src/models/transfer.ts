@@ -2,7 +2,7 @@ import { CustomError } from "../events";
 import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, Vote } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
-import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
+import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { selPad, permissionsSelectHelper, noNull } from "../builders";
 import { Prisma } from "@prisma/client";
@@ -37,6 +37,32 @@ export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
  *   and they can accept or reject the transfer.
  */
 const transfer = (prisma: PrismaType) => ({
+    /**
+     * Checks if objects being created/updated require a transfer request. Used by mutate functions 
+     * of other models, so model-specific permissions checking is not required.
+     * @param owners List of owners of the objects being created/updated
+     * @param userData Session data of the user making the request
+     * @returns List of booleans indicating if the object requires a transfer request. 
+     * List is in same order as owners list.
+     */
+    checkTransferRequests: async (
+        owners: { id: string, __typename: 'Organization' | 'User' }[],
+        userData: SessionUser,
+    ): Promise<boolean[]> => {
+        // Grab all create organization IDs
+        const orgIds = owners.filter(o => o.__typename === 'Organization').map(o => o.id);
+        // Check if user is an admin of each organization
+        const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
+        // Create return list
+        const requiresTransferRequest: boolean[] = owners.map((o, i) => {
+            // If owner is a user, transfer is required if user is not the same as the session user
+            if (o.__typename === 'User') return o.id !== userData.id;
+            // If owner is an organization, transfer is required if user is not an admin
+            const orgIdIndex = orgIds.indexOf(o.id);
+            return !isAdmins[orgIdIndex];
+        });
+        return requiresTransferRequest;
+    },
     /**
      * Initiates a transfer request from an object you own, to another user/org
      * @returns The ID of the transfer request

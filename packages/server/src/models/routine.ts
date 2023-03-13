@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, preHasPublics, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels, getLogic } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
@@ -280,8 +280,18 @@ export const RoutineModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
-                const maps = await preHasPublics({ createList, updateList, objectType: __typename, prisma, userData });
+            // TODO for morning 1: figure out how to add transfers logic to this. 
+            // Can possibly just call requestSend in pre and update requestSend to: 1. support newly-created objects, and 
+            // 2. break early if transferring to self and return some indicator. On second thought, won't work. 
+            // We don't want to create transfer and send push before creating/updating in case there is an error. 
+            // Instead, split requestSend into two functions: one that performs check and one that creates transfer and sends push.
+            // Also, we need to make sure that newly-created transfer objects don't call Trigger.objectCreated. See that func's docstring for more info.
+            // 
+            // TODO for morning 2: need to create helper to handle version pre/post logic. These should 
+            // also support calling Trigger, and also version index logic. I started implementing this (the version index logic) somewhere before, 
+            // maybe models/routineVersion.
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps }
             },
             create: async ({ data, ...rest }) => ({
@@ -290,9 +300,8 @@ export const RoutineModel: ModelLogic<{
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].hasCompleteVersion[data.id],
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, ...rest })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, ...rest })),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'forks', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Routine', relation: 'tags', data, ...rest })),
@@ -302,55 +311,46 @@ export const RoutineModel: ModelLogic<{
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].hasCompleteVersion[data.id],
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, ...rest })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, ...rest })),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'routines', objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'tags', data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Routine', relation: 'labels', data, ...rest })),
             }),
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
+            onCreated: ({ created, preMap, prisma, userData }) => {
                 for (const c of created) {
                     // Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
                 }
             },
-            onUpdated: ({ authData, prisma, updated, updateInput, userData }) => {
+            onUpdated: ({ authData, preMap, prisma, updated, updateInput, userData }) => {
                 // // Initialize transfers, if any
                 // asdfasdfasfd
                 // Handle objectUpdated trigger
                 // Loop through updated items
                 for (let i = 0; i < updated.length; i++) {
-                    // Get data for current item
-                    const u = updated[i];
-                    const input = updateInput[i];
-                    const permissionsData = authData[u.id];
-                    // Use permissions to find orignial data
-                    const { Organization, User } = RoutineModel.validate!.owner(permissionsData as any);
-                    const originalOwner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
-                        { __typename: 'Organization', id: Organization.id } :
-                        User ? { __typename: 'User', id: User.id } : null;
-                    const wasCompleteAndPublic =
-                        RoutineModel.validate!.isPublic(permissionsData as any, userData.languages) &&
-                        RoutineModel.validate!.hasCompleteVersion(permissionsData as any);
-                    const hasParent = asdfasdf
-                    const originalProjectId = asdfasdf;
-                    // Use input to determine which data has changed
-                    const hasCompleteAndPublic = asdfasdf
-                    const projectId = asdfasdf
+                    // Get data for current item that we calculated in pre
+                    const objectId = updated[i].id;
+                    const {
+                        hasCompleteAndPublic,
+                        hasParent,
+                        owner,
+                        wasCompleteAndPublic,
+                    } = preMap[__typename].triggerMap[objectId];
                     // Trigger objectUpdated
-                    Trigger(prisma, userData.languages).objectUpdated(
+                    Trigger(prisma, userData.languages).objectUpdated({
                         updatedById: userData.id,
                         hasCompleteAndPublic,
                         hasParent,
                         owner,
-                        objectId: u.id,
+                        objectId,
                         objectType: __typename,
-                        originalProjectId,
-                        projectId,
+                        // Projects are attached to versions, not root objects
+                        originalProjectId: undefined,
+                        projectId: undefined,
                         wasCompleteAndPublic,
-                    );
+                    });
                 }
             },
         },

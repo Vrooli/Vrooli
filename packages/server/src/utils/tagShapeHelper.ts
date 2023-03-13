@@ -40,8 +40,7 @@ export const tagShapeHelper = async <
     parentType,
     prisma,
     relation,
-    relTypes,
-    userData,
+    ...rest
 }: TagShapeHelperProps<Input, Types, FieldName>):
     Promise<ShapeHelperOutput<false, false, Types[number], any, 'tag'>> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
     // Tags get special logic because they are treated as strings in GraphQL, 
@@ -90,7 +89,6 @@ export const tagShapeHelper = async <
         primaryKey: 'tag',
         prisma,
         relation,
-        relTypes,
-        userData,
+        ...rest
     })
 }

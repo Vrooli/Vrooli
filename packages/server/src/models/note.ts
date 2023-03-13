@@ -9,7 +9,7 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { defaultPermissions, labelShapeHelper, preHasPublics, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { noteValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
@@ -92,8 +92,8 @@ export const NoteModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
-                const maps = await preHasPublics({ createList, updateList, objectType: __typename, prisma, userData });
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps }
             },
             create: async ({ data, ...rest }) => ({
@@ -101,9 +101,8 @@ export const NoteModel: ModelLogic<{
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].hasCompleteVersion[data.id],
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'notesCreated', data, ...rest })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'notes', data, ...rest })),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'forks', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'tags', data, ...rest })),
@@ -112,9 +111,8 @@ export const NoteModel: ModelLogic<{
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].hasCompleteVersion[data.id],
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'notesCreated', data, ...rest })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'notes', data, ...rest })),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Note', relation: 'tags', data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Note', relation: 'labels', data, ...rest })),

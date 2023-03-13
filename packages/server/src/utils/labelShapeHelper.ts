@@ -42,8 +42,7 @@ export const labelShapeHelper = async <
     parentType,
     prisma,
     relation,
-    relTypes,
-    userData,
+    ...rest
 }: LabelShapeHelperProps<Input, Types, FieldName>):
     Promise<ShapeHelperOutput<false, false, Types[number], FieldName, 'id'>> => {
     // Labels get special logic because they are treated as strings in GraphQL, 
@@ -92,7 +91,6 @@ export const labelShapeHelper = async <
         primaryKey: 'id',
         prisma,
         relation,
-        relTypes,
-        userData,
+        ...rest
     })
 }

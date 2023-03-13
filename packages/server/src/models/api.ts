@@ -8,7 +8,7 @@ import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
-import { defaultPermissions, labelShapeHelper, preHasPublics, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { noNull, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
@@ -96,8 +96,8 @@ export const ApiModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            pre: async ({ createList, updateList, prisma, userData }) => {
-                const maps = await preHasPublics({ createList, updateList, objectType: __typename, prisma, userData });
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps }
             },
             create: async ({ data, ...rest }) => ({
@@ -105,9 +105,8 @@ export const ApiModel: ModelLogic<{
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].hasCompleteVersion[data.id],
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'apisCreated', data, ...rest })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'apis', data, ...rest })),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'apis', objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'forks', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Api', relation: 'tags', data, ...rest })),
@@ -116,9 +115,8 @@ export const ApiModel: ModelLogic<{
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].hasCompleteVersion[data.id],
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'apisCreated', data, ...rest })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'apis', data, ...rest })),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'apis', objectType: __typename, data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'tags', data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'labels', data, ...rest })),
