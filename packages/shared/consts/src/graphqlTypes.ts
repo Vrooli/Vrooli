@@ -6346,6 +6346,7 @@ export enum RoutineSortBy {
 }
 
 export type RoutineUpdateInput = {
+id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;

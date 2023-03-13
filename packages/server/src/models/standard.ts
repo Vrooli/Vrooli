@@ -12,7 +12,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { noNull, shapeHelper } from "../builders";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, preHasPublics, tagShapeHelper } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -100,12 +100,17 @@ export const StandardModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList, prisma, userData }) => {
+                const maps = await preHasPublics({ createList, updateList, objectType: __typename, prisma, userData });
+                return { ...maps }
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].hasCompleteVersion[data.id],
                 ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'standardsCreated', data, ...rest })),
                 ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'standards', data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'forks', data, ...rest })),
@@ -117,6 +122,7 @@ export const StandardModel: ModelLogic<{
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
+                ...rest.preMap[__typename].hasCompleteVersion[data.id],
                 ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'standardsCreated', data, ...rest })),
                 ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'standards', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'root', data, ...rest })),

@@ -100,12 +100,17 @@ export const ProjectModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList, prisma, userData }) => {
+                const maps = await preHasPublics({ createList, updateList, objectType: __typename, prisma, userData });
+                return { ...maps }
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 handle: noNull(data.handle),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].hasCompleteVersion[data.id],
                 ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'projectsCreated', data, ...rest })),
                 ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'projects', data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'forks', data, ...rest })),
@@ -117,6 +122,7 @@ export const ProjectModel: ModelLogic<{
                 handle: noNull(data.handle),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
+                ...rest.preMap[__typename].hasCompleteVersion[data.id],
                 ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'projectsCreated', data, ...rest })),
                 ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'projects', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'root', data, ...rest })),

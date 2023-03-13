@@ -45,6 +45,7 @@ export const typeDef = gql`
         versionsCreate: [RoutineVersionCreateInput!]
     }
     input RoutineUpdateInput {
+        id: ID!
         isInternal: Boolean
         isPrivate: Boolean
         permissions: String

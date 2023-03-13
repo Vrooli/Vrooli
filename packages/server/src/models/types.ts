@@ -459,7 +459,7 @@ export type Mutater<Model extends {
          * things like routine complexity, where the calculation depends on the complexity of subroutines.
          */
         pre?: ({ createList, updateList, deleteList, prisma, userData }: {
-            createList: Model['GqlUpdate'][],
+            createList: Model['GqlCreate'][],
             updateList: {
                 where: { id: string },
                 data: Model['GqlUpdate'],

@@ -169,8 +169,8 @@ export const RoutineVersionModel: ModelLogic<{
             create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
-                    simplicity: rest.preMap[data.id].simplicity,
-                    complexity: rest.preMap[data.id].complexity,
+                    simplicity: rest.preMap[__typename][data.id].simplicity,
+                    complexity: rest.preMap[__typename][data.id].complexity,
                     apiCallData: noNull(data.apiCallData),
                     isAutomatable: noNull(data.isAutomatable),
                     isLatest: noNull(data.isLatest),
@@ -193,8 +193,8 @@ export const RoutineVersionModel: ModelLogic<{
                 }
             },
             update: async ({ data, ...rest }) => ({
-                simplicity: rest.preMap[data.id].simplicity,
-                complexity: rest.preMap[data.id].complexity,
+                simplicity: rest.preMap[__typename][data.id].simplicity,
+                complexity: rest.preMap[__typename][data.id].complexity,
                 apiCallData: noNull(data.apiCallData),
                 isAutomatable: noNull(data.isAutomatable),
                 isLatest: noNull(data.isLatest),

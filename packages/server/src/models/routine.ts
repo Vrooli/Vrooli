@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, oneIsPublic, preHasPublics, tagShapeHelper } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels, getLogic } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
@@ -280,12 +280,17 @@ export const RoutineModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList, prisma, userData }) => {
+                const maps = await preHasPublics({ createList, updateList, objectType: __typename, prisma, userData });
+                return { ...maps }
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
                 createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].hasCompleteVersion[data.id],
                 ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, ...rest })),
                 ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, ...rest })),
                 ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'forks', data, ...rest })),
@@ -297,6 +302,7 @@ export const RoutineModel: ModelLogic<{
                 isInternal: noNull(data.isInternal),
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
+                ...rest.preMap[__typename].hasCompleteVersion[data.id],
                 ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'routinesCreated', data, ...rest })),
                 ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'routines', data, ...rest })),
                 ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'root', data, ...rest })),
@@ -328,25 +334,23 @@ export const RoutineModel: ModelLogic<{
                     const wasCompleteAndPublic =
                         RoutineModel.validate!.isPublic(permissionsData as any, userData.languages) &&
                         RoutineModel.validate!.hasCompleteVersion(permissionsData as any);
+                    const hasParent = asdfasdf
+                    const originalProjectId = asdfasdf;
                     // Use input to determine which data has changed
-                    asdfasd
-
-                    const wasPublic = RoutineModel.validate!.isPublic(permissionsData as any, userData.languages);
-                    const hadCompletedVersion = RoutineModel.validate!.hasCompleteVersion(permissionsData as any);
-                    const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
-                    const hasCompleteVersion = asdfasdfasdf
-                    // Check if new version was created
-                    if (input.versionLabel) {
-                        Trigger(prisma, userData.languages).objectNewVersion(
-                            userData.id,
-                            'Routine',
-                            u.id,
-                            owner,
-                            hasOriginalOwner,
-                            hadCompletedVersion && wasPublic,
-                            hasCompleteVersion && isPublic
-                        );
-                    }
+                    const hasCompleteAndPublic = asdfasdf
+                    const projectId = asdfasdf
+                    // Trigger objectUpdated
+                    Trigger(prisma, userData.languages).objectUpdated(
+                        updatedById: userData.id,
+                        hasCompleteAndPublic,
+                        hasParent,
+                        owner,
+                        objectId: u.id,
+                        objectType: __typename,
+                        originalProjectId,
+                        projectId,
+                        wasCompleteAndPublic,
+                    );
                 }
             },
         },

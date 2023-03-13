@@ -1,5 +1,5 @@
 import { Count, GqlModelType } from '@shared/consts';
-import { getAuthenticatedData, getAuthenticatedIds, groupByType } from "../utils";
+import { cudInputsToMaps, getAuthenticatedData, getAuthenticatedIds, groupByType } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
 import { modelToGraphQL, selectHelper } from "../builders";
@@ -45,13 +45,19 @@ export async function cudHelper<
     // Profanity check
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
-    // Group create and update data by type TODO
-    const { inputsByType, idsByType } = groupByType({ createMany, updateMany, deleteMany });
+    // Group create and update data by action and type
+    const { idsByAction, idsByType, inputsByType } = await cudInputsToMaps({
+        createMany,
+        updateMany,
+        deleteMany,
+        objectType,
+        prisma,
+        languages: userData.languages,
+    });
     const preMap: { [x: string]: any } = {};
     // For each type, calculate pre-shape data (if applicable)
     for (const type in inputsByType) {
         const { mutate } = getLogic(['mutate'], type as GqlModelType, userData.languages, 'preshape type');
-        //TODO make sure this also gets passed down to shapeHelper. That's the only other place that needs acces to pre-shape data
         if (mutate.shape.pre) {
             const { createList, updateList, deleteList } = inputsByType[type];
             const preResult = await mutate.shape.pre({ createList, updateList, deleteList, prisma, userData });
@@ -72,14 +78,6 @@ export async function cudHelper<
             shapedUpdate.push({ where: update.where, data: shaped });
         }
     }
-    // Get IDs of all objects which need to be authenticated
-    const { idsByType, idsByAction } = await getAuthenticatedIds([
-        ...(shapedCreate.map(data => ({ actionType: 'Create', data }))),
-        ...(shapedUpdate.map(data => ({ actionType: 'Update', data: data.data }))),
-        ...((deleteMany || [] as any).map(id => ({ actionType: 'Delete', id }))),
-    ], objectType, prisma, userData.languages)
-    console.log('got auth data idsByType: ', JSON.stringify(idsByType), '\n\n');
-    console.log('got auth data idsByAction: ', JSON.stringify(idsByAction), '\n\n');
     // Query for all authentication data
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
     // Validate permissions
