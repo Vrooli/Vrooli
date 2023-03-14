@@ -213,11 +213,9 @@ export const RoutineVersionModel: ModelLogic<{
                 // ...(await shapeHelper({ relation: 'suggestedNextByRoutineVersion', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
-        },
-        trigger: {
-            onCommon: async (params) => {
-                await onCommonVersion({ ...params, objectType: __typename });
-            },
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
+            }
         },
         yup: routineVersionValidation,
     },

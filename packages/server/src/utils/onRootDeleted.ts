@@ -31,4 +31,4 @@ export const onRootDeleted = async ({ deletedIds, objectType, preMap, prisma, us
             wasCompleteAndPublic,
         });
     }
-},
+}

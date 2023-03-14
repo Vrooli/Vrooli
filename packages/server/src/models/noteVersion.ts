@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, onCommonVersion, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
 import { NoteModel } from "./note";
@@ -87,11 +87,9 @@ export const NoteVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Note', parentRelationshipName: 'versions', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
-        },
-        trigger: {
-            onCommon: async (params) => {
-                await onCommonVersion({ ...params, objectType: __typename });
-            },
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
+            }
         },
         yup: noteVersionValidation,
     },

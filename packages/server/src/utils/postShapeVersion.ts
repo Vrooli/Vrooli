@@ -4,12 +4,11 @@ import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 
 /**
- * Used in mutate.trigger.onCommon of version objects. Has two purposes:
- * 1. Update versionIndex and isLatest flags. Cannot be done in pre 
+ * Used in mutate.shape.post of version objects. Updates  
+ * versionIndex and isLatest flags. Cannot be done in pre 
  * because we might need to update additional versions not specified in the mutation
- * 2. Calculate data and call objectCreated/Updated/Deleted triggers
  */
-export const onCommonVersion = async ({ created, deletedIds, objectType, prisma, updated, userData }: {
+export const postShapeVersion = async ({ created, deletedIds, objectType, prisma, updated, userData }: {
     created: { id: string }[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
@@ -84,5 +83,4 @@ export const onCommonVersion = async ({ created, deletedIds, objectType, prisma,
             data: updatedRoots,
         })
     }
-    //TODO trigger stuff
 }

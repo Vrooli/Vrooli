@@ -5,7 +5,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, onCommonVersion, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -138,11 +138,9 @@ export const ProjectVersionModel: ModelLogic<{
                 // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
-        },
-        trigger: {
-            onCommon: async (params) => {
-                await onCommonVersion({ ...params, objectType: __typename });
-            },
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
+            }
         },
         yup: projectVersionValidation,
     },

@@ -16,7 +16,7 @@ export * from './onRootUpdated';
 export * from './origin';
 export * from './ownerShapeHelper';
 export * from './preShapeRoot';
-export * from './onCommonVersion';
+export * from './postShapeVersion';
 export * from './resolveGraphQLInfo';
 export * from './routineComplexity';
 export * from './searchMap';

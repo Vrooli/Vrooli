@@ -7,7 +7,7 @@ import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, onCommonVersion, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
@@ -214,11 +214,9 @@ export const StandardVersionModel: ModelLogic<{
                     translations,
                 }
             },
-        },
-        trigger: {
-            onCommon: async (params) => {
-                await onCommonVersion({ ...params, objectType: __typename });
-            },
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
+            }
         },
         yup: standardVersionValidation,
     },

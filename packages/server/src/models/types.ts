@@ -467,7 +467,21 @@ export type Mutater<Model extends {
             deleteList: string[],
             prisma: PrismaType,
             userData: SessionUser,
-        }) => PromiseOrValue<{}>
+        }) => PromiseOrValue<{}>,
+        /**
+         * Performs additional shaping after the main mutation has been performed, 
+         * AND after all triggers functions have been called. This is useful 
+         * for things like updating a version label, where all versions tied to that root object 
+         * might need their version indexes updated. Since these versions don't appear in the 
+         * create/update/delete lists, they can't be updated in the pre function.
+         */
+        post?: ({ created, deletedIds, updated, prisma, userData }: {
+            created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            deletedIds: string[],
+            updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<void>,
         create?: Model['GqlCreate'] extends Record<string, any> ?
         Model['PrismaCreate'] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
             data: Model['GqlCreate'],

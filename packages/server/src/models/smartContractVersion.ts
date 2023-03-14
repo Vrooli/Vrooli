@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, onCommonVersion, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { SmartContractModel } from "./smartContract";
@@ -99,11 +99,9 @@ export const SmartContractVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: true, objectType: 'SmartContract', parentRelationshipName: 'versions', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
-        },
-        trigger: {
-            onCommon: async (params) => {
-                await onCommonVersion({ ...params, objectType: __typename });
-            },
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
+            }
         },
         yup: smartContractVersionValidation,
     },

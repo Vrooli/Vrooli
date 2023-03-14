@@ -1,5 +1,5 @@
 import { Count, GqlModelType } from '@shared/consts';
-import { cudInputsToMaps, getAuthenticatedData, getAuthenticatedIds, groupByType } from "../utils";
+import { cudInputsToMaps, getAuthenticatedData } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
 import { modelToGraphQL, selectHelper } from "../builders";
@@ -160,14 +160,22 @@ export async function cudHelper<
             where: { id: { in: deleteMany } }
         }).then(({ count }) => ({ __typename: 'Count' as const, count }));
         // Call onDeleted
-        mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({ beforeDeletedData, deleted, deletedIds: deleteMany, prisma, userData });
+        mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({
+            beforeDeletedData,
+            deleted,
+            deletedIds: deleteMany,
+            preMap,
+            prisma,
+            userData
+        });
     }
-    // Perform custom triggers for mutate.trigger.common
+    // Perform custom triggers for mutate.trigger.onCommon
     if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
         mutate.trigger?.onCommon && await mutate.trigger.onCommon({
             createAuthData,
             created,
             deleted,
+            deletedIds: deleteMany ?? [],
             preMap,
             prisma,
             updateAuthData,
@@ -175,6 +183,19 @@ export async function cudHelper<
             updateInput: updateMany?.map(u => u.data) ?? [],
             userData
         });
+    }
+    // For each type, calculate post-shape data (if applicable)
+    for (const type in inputsByType) {
+        const { mutate } = getLogic(['mutate'], type as GqlModelType, userData.languages, 'postshape type');
+        if (mutate.shape.post) {
+            await mutate.shape.post({
+                created,
+                deletedIds: deleteMany ?? [],
+                prisma,
+                updated,
+                userData,
+            });
+        }
     }
     console.log('finished cudHelper');
     return {
