@@ -46,7 +46,7 @@ export const NodeEndModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
+            create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
@@ -54,7 +54,7 @@ export const NodeEndModel: ModelLogic<{
                     ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, ...rest })),
                 }
             },
-            update: async ({ data, prisma, userData }) => {
+            update: async ({ data, ...rest }) => {
                 return {
                     wasSuccessful: noNull(data.wasSuccessful),
                     ...(await nodeEndNextShapeHelper({ relTypes: ['Connect', 'Disconnect'], data, ...rest })),

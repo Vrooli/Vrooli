@@ -136,7 +136,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 silent: noNull(data.silent),
                 subscriber: { connect: { id: rest.userData.id } },

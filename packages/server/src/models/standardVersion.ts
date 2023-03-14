@@ -7,7 +7,7 @@ import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { noNull, selPad, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, onCommonVersion, oneIsPublic, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
@@ -166,15 +166,14 @@ export const StandardVersionModel: ModelLogic<{
                 return {
                     id: data.id,
                     default: noNull(data.default),
-                    isLatest: noNull(data.isLatest),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
-                    props: sortify(data.props),
+                    props: sortify(data.props, rest.userData.languages),
                     standardType: data.standardType,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
-                    yup: data.yup ? sortify(data.yup) : undefined,
+                    yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
                     ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, ...rest })),
                     ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, ...rest })),
                     ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, ...rest })),
@@ -201,20 +200,24 @@ export const StandardVersionModel: ModelLogic<{
                 }
                 return {
                     default: noNull(data.default),
-                    isLatest: noNull(data.isLatest),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
-                    props: data.props ? sortify(data.props) : undefined,
+                    props: data.props ? sortify(data.props, rest.userData.languages) : undefined,
                     standardType: noNull(data.standardType),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
-                    yup: data.yup ? sortify(data.yup) : undefined,
+                    yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
                     ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childStandardVersions', data, ...rest })),
                     ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'standardVersion', data, ...rest })),
                     ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: true, objectType: 'Standard', parentRelationshipName: 'versions', data, ...rest })),
                     translations,
                 }
+            },
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonVersion({ ...params, objectType: __typename });
             },
         },
         yup: standardVersionValidation,

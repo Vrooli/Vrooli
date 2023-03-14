@@ -5,7 +5,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, onCommonVersion, oneIsPublic, translationShapeHelper } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -120,7 +120,6 @@ export const ProjectVersionModel: ModelLogic<{
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
@@ -131,7 +130,6 @@ export const ProjectVersionModel: ModelLogic<{
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
@@ -142,16 +140,9 @@ export const ProjectVersionModel: ModelLogic<{
             }),
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    // Trigger(prisma, userData.languages).createProject(userData.id, c.id);
-                }
+            onCommon: async (params) => {
+                await onCommonVersion({ ...params, objectType: __typename });
             },
-            onUpdated: ({ updated, prisma, userData }) => {
-                // for (const u of updated) {
-                //     Trigger(prisma, userData.languages).updateProject(userData.id, u.id as string);
-                // }
-            }
         },
         yup: projectVersionValidation,
     },

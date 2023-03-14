@@ -121,15 +121,3 @@ export const versionsCheck = async ({
     }
 
 }
-
-//TODO move to utils, and also call this in versioned models
-/**
- * Reorders version indexes for a root object, when one or more 
- * versions are created, updated, or deleted. Also updates the 
- * isLatest flag for the latest version, and the hasCompleteVersion 
- * and completedAt fields for the root object.
- * @param prisma Prisma client to query existing data
- */
-export const reorderVersions = () => {
-
-}

@@ -5354,7 +5354,7 @@ export type QuizQuestionResponseCreateInput = {
   id: Scalars['ID'];
   quizAttemptConnect: Scalars['ID'];
   quizQuestionConnect: Scalars['ID'];
-  response?: InputMaybe<Scalars['String']>;
+  response: Scalars['String'];
   translationsCreate?: InputMaybe<Array<QuizQuestionResponseTranslationCreateInput>>;
 };
 

@@ -7,7 +7,7 @@ import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
-import { bestLabel, calculateWeightData, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestLabel, calculateWeightData, defaultPermissions, onCommonVersion, oneIsPublic, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { RoutineModel } from "./routine";
 
@@ -173,7 +173,6 @@ export const RoutineVersionModel: ModelLogic<{
                     complexity: rest.preMap[__typename][data.id].complexity,
                     apiCallData: noNull(data.apiCallData),
                     isAutomatable: noNull(data.isAutomatable),
-                    isLatest: noNull(data.isLatest),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     smartContractCallData: noNull(data.smartContractCallData),
@@ -197,7 +196,6 @@ export const RoutineVersionModel: ModelLogic<{
                 complexity: rest.preMap[__typename][data.id].complexity,
                 apiCallData: noNull(data.apiCallData),
                 isAutomatable: noNull(data.isAutomatable),
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 isComplete: noNull(data.isComplete),
                 smartContractCallData: noNull(data.smartContractCallData),
@@ -217,42 +215,8 @@ export const RoutineVersionModel: ModelLogic<{
             }),
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
-                }
-            },
-            onUpdated: ({ authData, prisma, updated, updateInput, userData }) => {
-                // // Initialize transfers, if any
-                // asdfasdfasfd
-                // // Handle new version triggers, if any versions have been created
-                // // Loop through updated items
-                // for (let i = 0; i < updated.length; i++) {
-                //     const u = updated[i];
-                //     const input = updateInput[i];
-                //     const permissionsData = authData[u.id];
-                //     const { Organization, User } = validator().owner(permissionsData as any);
-                //     const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
-                //         { __typename: 'Organization', id: Organization.id } :
-                //         User ? { __typename: 'User', id: User.id } : null;
-                //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
-                //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
-                //     const hadCompletedVersion = validator().hasCompleteVersion(permissionsData as any);
-                //     const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
-                //     const hasCompleteVersion = asdfasdfasdf
-                //     // Check if new version was created
-                //     if (input.versionLabel) {
-                //         Trigger(prisma, userData.languages).objectNewVersion(
-                //             userData.id,
-                //             'Routine',
-                //             u.id,
-                //             owner,
-                //             hasOriginalOwner,
-                //             hadCompletedVersion && wasPublic,
-                //             hasCompleteVersion && isPublic
-                //         );
-                //     }
-                // }
+            onCommon: async (params) => {
+                await onCommonVersion({ ...params, objectType: __typename });
             },
         },
         yup: routineVersionValidation,

@@ -38,7 +38,6 @@ export const typeDef = gql`
 
     input ProjectVersionCreateInput {
         id: ID!
-        isLatest: Boolean
         isPrivate: Boolean
         isComplete: Boolean
         versionLabel: String!
@@ -51,7 +50,6 @@ export const typeDef = gql`
     }
     input ProjectVersionUpdateInput {
         id: ID!
-        isLatest: Boolean
         isPrivate: Boolean
         isComplete: Boolean
         versionLabel: String

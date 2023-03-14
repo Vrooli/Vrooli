@@ -26,7 +26,6 @@ export const typeDef = gql`
         id: ID!
         callLink: String!
         documentationLink: String
-        isLatest: Boolean
         isPrivate: Boolean
         isComplete: Boolean
         versionLabel: String!
@@ -41,7 +40,6 @@ export const typeDef = gql`
         id: ID!
         callLink: String
         documentationLink: String
-        isLatest: Boolean
         isPrivate: Boolean
         isComplete: Boolean
         versionLabel: String

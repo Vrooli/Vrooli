@@ -121,7 +121,7 @@ export const CommentModel: ModelLogic<{
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // Not applicable
                         hasParent: false, // Not applicable
-                        owner: { id: userData.id, __typename: 'User' },
+                        owner: { id: userData.id, __typename: 'User' }, //TODO could be org
                         objectId: c.id as string,
                         objectType: __typename,
                     });
@@ -144,8 +144,8 @@ export const CommentModel: ModelLogic<{
                 for (const d of deletedIds) {
                     Trigger(prisma, userData.languages).objectDeleted({
                         deletedById: userData.id,
-                        hasCompleteAndPublic: true, // Not applicable
-                        hasOriginalOwner: true, // Not applicable
+                        wasCompleteAndPublic: true, // Not applicable
+                        hasBeenTransferred: true, // Not applicable
                         hasParent: false, // Not applicable
                         objectId: d,
                         objectType: __typename,

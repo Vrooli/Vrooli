@@ -496,6 +496,7 @@ export type Mutater<Model extends {
             createAuthData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             deleted: Count,
+            deletedIds: string[],
             updateAuthData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             updateInput: Model['GqlUpdate'][],

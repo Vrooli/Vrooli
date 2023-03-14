@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, onCommonVersion, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { SmartContractModel } from "./smartContract";
@@ -77,7 +77,6 @@ export const SmartContractVersionModel: ModelLogic<{
                 content: data.content,
                 contractType: data.contractType,
                 default: noNull(data.default),
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
@@ -91,7 +90,6 @@ export const SmartContractVersionModel: ModelLogic<{
                 content: noNull(data.content),
                 contractType: noNull(data.contractType),
                 default: noNull(data.default),
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 isComplete: noNull(data.isComplete),
                 versionLabel: noNull(data.versionLabel),
@@ -101,6 +99,11 @@ export const SmartContractVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: true, objectType: 'SmartContract', parentRelationshipName: 'versions', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonVersion({ ...params, objectType: __typename });
+            },
         },
         yup: smartContractVersionValidation,
     },

@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, onCommonVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
 import { NoteModel } from "./note";
@@ -72,7 +72,6 @@ export const NoteVersionModel: ModelLogic<{
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
@@ -81,7 +80,6 @@ export const NoteVersionModel: ModelLogic<{
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
@@ -89,6 +87,11 @@ export const NoteVersionModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Note', parentRelationshipName: 'versions', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonVersion({ ...params, objectType: __typename });
+            },
         },
         yup: noteVersionValidation,
     },
