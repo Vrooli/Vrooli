@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, tagShapeHelper } from "../utils";
+import { bestLabel, onCommonPlain, tagShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { postValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
@@ -82,6 +82,16 @@ export const PostModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, ...rest })),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Post', relation: 'tags', data, ...rest })),
             })
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonPlain({
+                    ...params,
+                    objectType: __typename,
+                    ownerOrganizationField: 'organization',
+                    ownerUserField: 'user',
+                });
+            },
         },
         yup: postValidation,
     },

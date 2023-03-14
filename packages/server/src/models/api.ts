@@ -8,7 +8,7 @@ import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
-import { defaultPermissions, labelShapeHelper, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { noNull, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
@@ -123,14 +123,8 @@ export const ApiModel: ModelLogic<{
             }),
         },
         trigger: {
-            onCreated: async (params) => {
-                await onRootCreated({ ...params, objectType: __typename });
-            },
-            onUpdated: async (params) => {
-                await onRootUpdated({ ...params, objectType: __typename });
-            },
-            onDeleted: async (params) => {
-                await onRootDeleted({ ...params, objectType: __typename });
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
             },
         },
         yup: apiValidation,

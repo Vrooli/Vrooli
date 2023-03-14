@@ -9,7 +9,7 @@ import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { smartContractValidation } from "@shared/validation";
@@ -121,14 +121,8 @@ export const SmartContractModel: ModelLogic<{
             }),
         },
         trigger: {
-            onCreated: async (params) => {
-                await onRootCreated({ ...params, objectType: __typename });
-            },
-            onUpdated: async (params) => {
-                await onRootUpdated({ ...params, objectType: __typename });
-            },
-            onDeleted: async (params) => {
-                await onRootDeleted({ ...params, objectType: __typename });
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
             },
         },
         yup: smartContractValidation,

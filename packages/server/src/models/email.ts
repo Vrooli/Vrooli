@@ -48,8 +48,17 @@ export const EmailModel: ModelLogic<{
             }),
         },
         trigger: {
-            onCreated: ({ prisma, userData }) => {
-                Trigger(prisma, userData.languages).createEmail(userData.id)
+            onCreated: async ({ created, prisma, userData }) => {
+                for (const { id: objectId } of created) {
+                    await Trigger(prisma, userData.languages).objectCreated({
+                        createdById: userData.id,
+                        hasCompleteAndPublic: true, // N/A
+                        hasParent: true, // N/A
+                        owner: { id: userData.id, __typename: 'User' },
+                        objectId,
+                        objectType: __typename,
+                    })
+                }
             },
         },
         yup: emailValidation,

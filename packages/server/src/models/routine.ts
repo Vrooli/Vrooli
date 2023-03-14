@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
@@ -311,14 +311,8 @@ export const RoutineModel: ModelLogic<{
             }),
         },
         trigger: {
-            onCreated: async (params) => {
-                await onRootCreated({ ...params, objectType: __typename });
-            },
-            onUpdated: async (params) => {
-                await onRootUpdated({ ...params, objectType: __typename });
-            },
-            onDeleted: async (params) => {
-                await onRootDeleted({ ...params, objectType: __typename });
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
             },
         },
         yup: routineValidation,

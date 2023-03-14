@@ -8,7 +8,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions, labelShapeHelper, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -128,14 +128,8 @@ export const ProjectModel: ModelLogic<{
             })
         },
         trigger: {
-            onCreated: async (params) => {
-                await onRootCreated({ ...params, objectType: __typename });
-            },
-            onUpdated: async (params) => {
-                await onRootUpdated({ ...params, objectType: __typename });
-            },
-            onDeleted: async (params) => {
-                await onRootDeleted({ ...params, objectType: __typename });
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
             },
         },
         yup: projectValidation,

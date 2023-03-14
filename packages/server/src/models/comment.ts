@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
 import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { getUser } from "../auth";
@@ -115,43 +115,14 @@ export const CommentModel: ModelLogic<{
             })
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).objectCreated({
-                        createdById: userData.id,
-                        hasCompleteAndPublic: true, // Not applicable
-                        hasParent: false, // Not applicable
-                        owner: { id: userData.id, __typename: 'User' }, //TODO could be org
-                        objectId: c.id as string,
-                        objectType: __typename,
-                    });
-                }
+            onCommon: async (params) => {
+                await onCommonPlain({
+                    ...params,
+                    objectType: __typename,
+                    ownerOrganizationField: 'ownedByOrganization',
+                    ownerUserField: 'ownedByUser',
+                });
             },
-            onUpdated: ({ updated, prisma, userData }) => {
-                for (const u of updated) {
-                    Trigger(prisma, userData.languages).objectUpdated({
-                        updatedById: userData.id,
-                        hasCompleteAndPublic: true, // Not applicable
-                        hasParent: false, // Not applicable
-                        owner: { id: userData.id, __typename: 'User' },
-                        objectId: u.id as string,
-                        objectType: __typename,
-                        wasCompleteAndPublic: true, // Not applicable
-                    });
-                }
-            },
-            onDeleted: ({ deletedIds, prisma, userData }) => {
-                for (const d of deletedIds) {
-                    Trigger(prisma, userData.languages).objectDeleted({
-                        deletedById: userData.id,
-                        wasCompleteAndPublic: true, // Not applicable
-                        hasBeenTransferred: true, // Not applicable
-                        hasParent: false, // Not applicable
-                        objectId: d,
-                        objectType: __typename,
-                    });
-                }
-            }
         },
         yup: commentValidation,
     },

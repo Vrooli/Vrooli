@@ -9,7 +9,7 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { defaultPermissions, labelShapeHelper, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { noteValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
@@ -119,14 +119,8 @@ export const NoteModel: ModelLogic<{
             })
         },
         trigger: {
-            onCreated: async (params) => {
-                await onRootCreated({ ...params, objectType: __typename });
-            },
-            onUpdated: async (params) => {
-                await onRootUpdated({ ...params, objectType: __typename });
-            },
-            onDeleted: async (params) => {
-                await onRootDeleted({ ...params, objectType: __typename });
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
             },
         },
         yup: noteValidation,

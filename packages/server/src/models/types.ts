@@ -503,7 +503,7 @@ export type Mutater<Model extends {
      * tracking awards, and updating reputation.
      * 
      * NOTE: This is only called for top-level objects, not relationships. If you need to update 
-     * data like indexes, hasCompleteVersion, etc., or initiate triggers, you should do it in the mutate.pre function
+     * data like indexes, hasCompleteVersion, etc., or initiate triggers, you should do it in the shape.pre or shape.post functions
      */
     trigger?: {
         onCommon?: ({ createAuthData, created, deleted, prisma, updateAuthData, updated, updateInput, userData }: {

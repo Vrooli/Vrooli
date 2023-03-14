@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, labelShapeHelper, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
@@ -118,6 +118,15 @@ export const MeetingModel: ModelLogic<{
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonPlain({
+                    ...params,
+                    objectType: __typename,
+                    ownerOrganizationField: 'organization',
+                });
+            },
         },
         yup: meetingValidation,
     },
