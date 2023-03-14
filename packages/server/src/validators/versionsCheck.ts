@@ -1,18 +1,18 @@
 import { GqlModelType } from "@shared/consts";
 import { CustomError } from "../events";
-import { ObjectMap } from "../models";
+import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 
 type VersionsCheckProps = {
     prisma: PrismaType,
     objectType: `${GqlModelType.Api | GqlModelType.Note | GqlModelType.Project | GqlModelType.Routine | GqlModelType.SmartContract | GqlModelType.Standard}`,
-    createMany: { 
-        id: string, 
+    createMany: {
+        id: string,
         rootConnect?: string | null | undefined,
         rootCreate?: { id: string } | null | undefined,
-        versionLabel?: string | null | undefined 
+        versionLabel?: string | null | undefined
     }[],
-    updateMany: { 
+    updateMany: {
         where: { id: string },
         data: { versionLabel?: string | null | undefined },
     }[],
@@ -37,25 +37,28 @@ export const versionsCheck = async ({
     deleteMany,
     languages,
 }: VersionsCheckProps) => {
+    console.log('versionsCheck 1', JSON.stringify(createMany), '\n\n');
     // Filter unchanged versions from create and update data
     const create = createMany.filter(x => x.versionLabel).map(x => ({
         id: x.id,
         rootId: x.rootConnect || x.rootCreate?.id as string,
         versionLabel: x.versionLabel,
     }));
+    console.log('versionsCheck 2');
     const update = updateMany.filter(x => x.data.versionLabel).map(x => ({
         id: x.where.id,
         versionLabel: x.data.versionLabel,
     }));
+    console.log('versionsCheck 3');
     // Find unique root ids from create data
     const createRootIds = create.map(x => x.rootId);
     const uniqueRootIds = [...new Set(createRootIds)];
+    console.log('versionsCheck 4', createRootIds, uniqueRootIds);
     // Find unique version ids from update and delete data
     const updateIds = update.map(x => x.id);
     const deleteIds = deleteMany;
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
-    // Query the database for existing data (by root)
-    const existingRoots = await ObjectMap[objectType]!.delegate(prisma).findMany({
+    console.log('versionsCheck 5', JSON.stringify({
         where: {
             OR: [
                 { id: { in: uniqueRootIds } },
@@ -79,7 +82,44 @@ export const versionsCheck = async ({
                 }
             }
         }
-    });
+    }), '\n\n');
+    // Query the database for existing data (by root)
+    const { delegate } = getLogic(['delegate'], objectType, languages, 'versionsCheck');
+    let existingRoots: any[];
+    let where: { [key: string]: any } = {};
+    let select: { [key: string]: any } = {};
+    try {
+        where = {
+            OR: [
+                { id: { in: uniqueRootIds } },
+                { versions: { some: { id: { in: uniqueVersionIds } } } },
+            ]
+        };
+        select =  {
+            id: true,
+            hasCompleteVersion: true,
+            isDeleted: true,
+            // Also query isInternal for routine and standard versions
+            ...([GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any) && { isInternal: true }),
+            isPrivate: true,
+            versions: {
+                select: {
+                    id: true,
+                    isComplete: true,
+                    isDeleted: true,
+                    isPrivate: true,
+                    versionLabel: true,
+                }
+            }
+        }
+        existingRoots = await delegate(prisma).findMany({
+            where,
+            select,
+        });
+    } catch (error) {
+        throw new CustomError('0414', 'InternalError', languages, { error, where, select });
+    }
+    console.log('versionsCheck 6');
     for (const root of existingRoots) {
         // Check 1
         // Root cannot already be deleted
@@ -119,5 +159,5 @@ export const versionsCheck = async ({
             }
         }
     }
-
+    console.log('versionsCheck END');
 }

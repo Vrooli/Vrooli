@@ -8,12 +8,13 @@ import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { ApiModel } from "./api";
 import { PostModel } from "./post";
 import { UserScheduleModel } from "./userSchedule";
 import { SmartContractModel } from "./smartContract";
+import { shapeHelper } from "../builders";
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) => {
     return {
@@ -80,11 +81,22 @@ export const ResourceListModel: ModelLogic<{
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                //TODO
-            } as any),
+                id: data.id,
+                ...(await shapeHelper({ relation: 'apiVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'post', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Post', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'projectVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resources', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Resource', parentRelationshipName: 'list', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
             update: async ({ data, ...rest }) => ({
-                //TODO
-            } as any),
+                ...(await shapeHelper({ relation: 'resources', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Resource', parentRelationshipName: 'list', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
         },
         yup: resourceListValidation,
     },

@@ -86,6 +86,7 @@ mutation questionCreate($input: QuestionCreateInput!) {
         handle
     }
     hasAcceptedAnswer
+    isPrivate
     score
     bookmarks
     answersCount

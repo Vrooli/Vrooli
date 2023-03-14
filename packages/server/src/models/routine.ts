@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, onRootCreated, onRootDeleted, onRootUpdated, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";

@@ -43,6 +43,7 @@ export * from './reminder';
 export * from './reminderItem';
 export * from './reminderList';
 export * from './report';
+export * from './reportResponse';
 export * from './resource';
 export * from './resourceList';
 export * from './role';

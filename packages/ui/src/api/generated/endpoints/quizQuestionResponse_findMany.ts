@@ -63,11 +63,6 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                     canUpdate
                 }
             }
-            translations {
-                id
-                language
-                response
-            }
             you {
                 canDelete
                 canUpdate

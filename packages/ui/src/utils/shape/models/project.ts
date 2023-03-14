@@ -4,7 +4,7 @@ import { createOwner, createRel, ProjectVersionShape, LabelShape, shapeTag, shap
 
 export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permissions'> & {
     labels?: ({ id: string } | LabelShape)[];
-    owner?: { __typename: 'User' | 'Organization', id: string } | null;
+    owner: { __typename: 'User' | 'Organization', id: string } | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 
@@ -15,7 +15,7 @@ export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permis
 export const shapeProject: ShapeModel<ProjectShape, ProjectCreateInput, ProjectUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, 'id', 'handle', 'isPrivate', 'permissions'),
-        ...createOwner(d),
+        ...createOwner(d, 'ownedBy'),
         ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
         ...createRel(d, 'parent', ['Connect'], 'one'),
         ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
@@ -23,7 +23,7 @@ export const shapeProject: ShapeModel<ProjectShape, ProjectCreateInput, ProjectU
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'handle', 'isPrivate', 'permissions'),
-        ...updateOwner(o, u),
+        ...updateOwner(o, u, 'ownedBy'),
         ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
         ...updateVersion(o, u, shapeProjectVersion, (v, i) => ({ ...v, root: { id: i.id } })),

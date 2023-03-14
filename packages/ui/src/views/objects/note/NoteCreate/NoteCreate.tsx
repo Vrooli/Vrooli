@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TagSelector, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn } from "utils/authentication";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
 import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { parseSearchParams } from "@shared/route";
@@ -45,25 +45,35 @@ export const NoteCreate = ({
     const formik = useFormik({
         initialValues: {
             id: uuid(),
-            translationsCreate: [{
-                id: uuid(),
-                language: getUserLanguages(session)[0],
-                description: '',
-                name: '',
-                text: '',
-            }]
+            translationsCreate: [],
+            versionLabel: '1.0.0',
         },
         validationSchema: noteVersionValidation.create({}),
         onSubmit: (values) => {
-            // mutationWrapper<NoteVersion, NoteVersionCreateInput>({
-            //     mutation,
-            //     input: shapeNoteVersion.create({
-            //         id: values.id,
-
-            //     }),
-            //     onSuccess: (data) => { onCreated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
+            let temp = shapeNoteVersion.create({
+                ...values,
+                root: {
+                    id: uuid(),
+                    isPrivate: relationships.isPrivate,
+                    owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+                },
+                isPrivate: relationships.isPrivate,
+            })
+            console.log(temp)
+            mutationWrapper<NoteVersion, NoteVersionCreateInput>({
+                mutation,
+                input: shapeNoteVersion.create({
+                    ...values,
+                    root: {
+                        id: uuid(),
+                        isPrivate: relationships.isPrivate,
+                        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+                    },
+                    isPrivate: relationships.isPrivate,
+                }),
+                onSuccess: (data) => { onCreated(data) },
+                onError: () => { formik.setSubmitting(false) },
+            })
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
@@ -136,6 +146,7 @@ export const NoteCreate = ({
                                 textArea: {
                                     borderRadius: 0,
                                     resize: 'none',
+                                    minHeight: '100vh',
                                 }
                             }}
                         />

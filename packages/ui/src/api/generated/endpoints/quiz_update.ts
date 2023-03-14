@@ -62,11 +62,6 @@ mutation quizUpdate($input: QuizUpdateInput!) {
                     canUpdate
                 }
             }
-            translations {
-                id
-                language
-                response
-            }
             you {
                 canDelete
                 canUpdate

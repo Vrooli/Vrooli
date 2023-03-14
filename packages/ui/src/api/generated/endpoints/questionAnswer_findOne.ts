@@ -62,6 +62,7 @@ query questionAnswer($input: FindByIdInput!) {
             handle
         }
         hasAcceptedAnswer
+        isPrivate
         score
         bookmarks
         answersCount

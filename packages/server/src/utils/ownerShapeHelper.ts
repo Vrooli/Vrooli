@@ -34,6 +34,7 @@ export const ownerShapeHelper = async <
     (ShapeHelperOutput<true, false, Types[number], `${FieldName}Organization`, 'id'> &
     ShapeHelperOutput<true, false, Types[number], `${FieldName}User`, 'id'>) | {}
 > => {
+    console.log('in ownershape helper', relation)
     // Check preMap to see if we're allowed to set the owner
     const requiresTransfer = rest.preMap[objectType].transferMap[data.id];
     // If a transfer is required

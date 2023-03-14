@@ -96,10 +96,10 @@ export const ReportModel: ModelLogic<{
             __typename,
             responses: 'ReportResponse',
         },
-        hiddenFields: ['userId'], // Always hide report creator
+        hiddenFields: ['createdById'], // Always hide report creator
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['userId'],
+            dbFields: ['createdById'],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -135,7 +135,7 @@ export const ReportModel: ModelLogic<{
         trigger: {
             onCreated: ({ created, prisma, userData }) => {
                 for (const c of created) {
-                    Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
+                    // Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
                 }
             },
         },

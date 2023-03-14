@@ -16,7 +16,6 @@ export const projectVersionTranslationValidation: YupModel = transRel({
 export const projectVersionValidation: YupModel = {
     create: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(bool),
         isPrivate: opt(bool),
         isComplete: opt(bool),
         versionLabel: req(versionLabel(minVersion)),
@@ -29,7 +28,6 @@ export const projectVersionValidation: YupModel = {
     ], [['rootConnect', 'rootCreate']], o),
     update: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(bool),
         isPrivate: opt(bool),
         isComplete: opt(bool),
         versionLabel: opt(versionLabel(minVersion)),

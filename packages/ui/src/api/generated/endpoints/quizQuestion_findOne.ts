@@ -61,11 +61,6 @@ query quizQuestion($input: FindByIdInput!) {
                 canUpdate
             }
         }
-        translations {
-            id
-            language
-            response
-        }
         you {
             canDelete
             canUpdate

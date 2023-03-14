@@ -8,16 +8,14 @@ export const typeDef = gql`
         routineVersionConnect: ID!
         standardVersionConnect: ID
         standardVersionCreate: StandardVersionCreateInput
-        translationsDelete: [ID!]
         translationsCreate: [RoutineVersionOutputTranslationCreateInput!]
-        translationsUpdate: [RoutineVersionOutputTranslationUpdateInput!]
     }
     input RoutineVersionOutputUpdateInput {
         id: ID!
         index: Int
         name: String
         standardVersionConnect: ID
-        standardVersionDisconnect: ID
+        standardVersionDisconnect: Boolean
         standardVersionCreate: StandardVersionCreateInput
         translationsDelete: [ID!]
         translationsCreate: [RoutineVersionOutputTranslationCreateInput!]

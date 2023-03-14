@@ -194,9 +194,9 @@ export const shapeHelper = async<
     Promise<ShapeHelperOutput<IsOneToOne, IsRequired, Types[number], RelField, PrimaryKey>> => {
     // Initialize result
     const result: { [x: string]: any } = {};
-    // If both conData and createData do not exist, and it's required, throw an error
-    if (!data[`${relation}Connect` as string] && !data[`${relation}Connect` as string] && isRequired) {
-        throw new CustomError('0368', 'InvalidArgs', ['en'], { relation });
+    // If both connect and create do not exist, and it's required, throw an error
+    if (!data[`${relation}Connect` as string] && !data[`${relation}Create` as string] && isRequired) {
+        throw new CustomError('0368', 'InvalidArgs', ['en'], { relation, data });
     }
     // Loop through relation types, and convert all to a Prisma-shaped array
     for (const t of relTypes) {

@@ -6,7 +6,7 @@ CREATE TYPE "AccountStatus" AS ENUM ('Deleted', 'Unlocked', 'SoftLocked', 'HardL
 CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCreate', 'CommentCreate', 'IssueCreate', 'NoteCreate', 'ObjectBookmark', 'ObjectVote', 'OrganizationCreate', 'OrganizationJoin', 'PostCreate', 'ProjectCreate', 'PullRequestCreate', 'PullRequestComplete', 'QuestionAnswer', 'QuestionCreate', 'QuizPass', 'ReportEnd', 'ReportContribute', 'Reputation', 'RunRoutine', 'RunProject', 'RoutineCreate', 'SmartContractCreate', 'StandardCreate', 'Streak', 'UserInvite');
 
 -- CreateEnum
-CREATE TYPE "IssueStatus" AS ENUM ('Open', 'ClosedResolved', 'CloseUnresolved', 'Rejected');
+CREATE TYPE "IssueStatus" AS ENUM ('Open', 'ClosedResolved', 'ClosedUnresolved', 'Rejected');
 
 -- CreateEnum
 CREATE TYPE "MemberInviteStatus" AS ENUM ('Pending', 'Accepted', 'Declined');
@@ -30,7 +30,7 @@ CREATE TYPE "PullRequestStatus" AS ENUM ('Open', 'Merged', 'Rejected');
 CREATE TYPE "QuizAttemptStatus" AS ENUM ('NotStarted', 'InProgress', 'Passed', 'Failed');
 
 -- CreateEnum
-CREATE TYPE "ReportStatus" AS ENUM ('ClosedDeleted', 'ClosedFalseReport', 'ClosedNonIssue', 'ClosedResolved', 'ClosedSuspended', 'Open');
+CREATE TYPE "ReportStatus" AS ENUM ('ClosedDeleted', 'ClosedFalseReport', 'ClosedHidden', 'ClosedNonIssue', 'ClosedSuspended', 'Open');
 
 -- CreateEnum
 CREATE TYPE "ReportSuggestedAction" AS ENUM ('Delete', 'FalseReport', 'HideUntilFixed', 'NonIssue', 'SuspendUser');
@@ -71,6 +71,7 @@ CREATE TABLE "api" (
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
@@ -217,6 +218,7 @@ CREATE TABLE "issue" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
     "closedAt" TIMESTAMPTZ(6),
+    "hasBeenClosedOrRejected" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
@@ -420,6 +422,9 @@ CREATE TABLE "note" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
+    "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
+    "completedAt" TIMESTAMPTZ(6),
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
@@ -458,6 +463,7 @@ CREATE TABLE "note_version" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "intendToPullRequest" BOOLEAN NOT NULL DEFAULT true,
+    "isComplete" BOOLEAN NOT NULL DEFAULT false,
     "isLatest" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "rootId" UUID NOT NULL,
@@ -770,6 +776,7 @@ CREATE TABLE "project" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
@@ -880,6 +887,7 @@ CREATE TABLE "pull_request" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "PullRequestStatus" NOT NULL DEFAULT 'Open',
+    "hasBeenClosedOrRejected" BOOLEAN NOT NULL DEFAULT false,
     "mergedOrRejectedAt" TIMESTAMPTZ(6),
     "createdById" UUID,
     "toApiId" UUID,
@@ -909,6 +917,7 @@ CREATE TABLE "question" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "referencing" VARCHAR(2048),
     "hasAcceptedAnswer" BOOLEAN NOT NULL DEFAULT false,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
@@ -1021,20 +1030,11 @@ CREATE TABLE "quiz_question_response" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "response" VARCHAR(8192) NOT NULL,
     "quizAttemptId" UUID NOT NULL,
     "quizQuestionId" UUID NOT NULL,
 
     CONSTRAINT "quiz_question_response_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz_question_response_translation" (
-    "id" UUID NOT NULL,
-    "response" VARCHAR(8192) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "responseId" UUID NOT NULL,
-
-    CONSTRAINT "quiz_question_response_translation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1224,6 +1224,7 @@ CREATE TABLE "routine" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -1523,6 +1524,7 @@ CREATE TABLE "smart_contract" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -1598,6 +1600,7 @@ CREATE TABLE "standard" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "score" INTEGER NOT NULL DEFAULT 0,
@@ -1991,6 +1994,7 @@ CREATE TABLE "user" (
     "notificationSettings" VARCHAR(2048),
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
+    "reputation" INTEGER NOT NULL DEFAULT 0,
     "premiumId" UUID,
     "status" "AccountStatus" NOT NULL DEFAULT 'Unlocked',
 
@@ -2357,9 +2361,6 @@ CREATE UNIQUE INDEX "quiz_translation_quizId_language_key" ON "quiz_translation"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "quiz_question_response_quizAttemptId_quizQuestionId_key" ON "quiz_question_response"("quizAttemptId", "quizQuestionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "quiz_question_response_translation_responseId_language_key" ON "quiz_question_response_translation"("responseId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "quiz_question_translation_questionId_language_key" ON "quiz_question_translation"("questionId", "language");
@@ -3065,9 +3066,6 @@ ALTER TABLE "quiz_question_response" ADD CONSTRAINT "quiz_question_response_quiz
 
 -- AddForeignKey
 ALTER TABLE "quiz_question_response" ADD CONSTRAINT "quiz_question_response_quizQuestionId_fkey" FOREIGN KEY ("quizQuestionId") REFERENCES "quiz_question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_question_response_translation" ADD CONSTRAINT "quiz_question_response_translation_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "quiz_question_response"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_standardVersionId_fkey" FOREIGN KEY ("standardVersionId") REFERENCES "standard_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;

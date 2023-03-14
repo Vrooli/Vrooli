@@ -1,6 +1,6 @@
-import { PrismaUpdate } from "../builders/types";
+import { getLogic } from "../getters";
 import { PrismaRelMap } from "../models/types";
-import { IdsByAction, IdsByType, QueryAction } from "./types";
+import { IdsByAction, IdsByType, InputsByType, QueryAction } from "./types";
 
 /**
  * Helper function to grab ids from an object, and map them to their action and object type. For implicit ids (i.e. they 
@@ -50,129 +50,103 @@ import { IdsByAction, IdsByType, QueryAction } from "./types";
  *          }
  *    ]
  * }) => { 
- *     idsByAction: { 'Connect': ['ghi789'], 'Disconnect': ['Routine-jkl012.grandChild.org'], 'Update': ['abc123', 'jkl012'] },
- *     idsByType: { 'Routine': ['abc123', 'jkl012'], 'Organization': ['Routine-jkl012.grandChild.org'] }
+ *     idsByAction: { 'Connect': ['ghi789'], 'Disconnect': ['Routine|jkl012.grandChild.org'], 'Update': ['abc123', 'jkl012'] },
+ *     idsByType: { 'Routine': ['abc123', 'jkl012'], 'Organization': ['Routine|jkl012.grandChild.org'] }
  * }
  */
 export const inputToMapWithPartials = <T extends Record<string, any>>(
     actionType: QueryAction,
     relMap: PrismaRelMap<T>,
-    object: PrismaUpdate | string,
+    object: any,//PrismaUpdate | { where: { [key: string]: any }, data: PrismaUpdate } | string,
     languages: string[],
 ): {
     idsByAction: IdsByAction,
     idsByType: IdsByType,
+    inputsByType: InputsByType,
 } => {
+    console.log('inputToMapWithPartials', actionType, JSON.stringify(object, null, 2), 'relMap', JSON.stringify(relMap, null, 2), 'languages', languages);
     // Initialize return objects
     const idsByAction: IdsByAction = {};
     const idsByType: IdsByType = {};
-    // If object is a string, this must be a 'Delete' action, and the string is the id
-    if (typeof object === 'string') {
-        idsByAction['Delete'] = [object];
-        idsByType[relMap.__typename] = [object];
-        return { idsByAction, idsByType };
+    const inputsByType: InputsByType = {};
+    // If action is Create, Update, or Delete, add input to inputsByType
+    if (['Create', 'Update', 'Delete'].includes(actionType)) {
+        inputsByType[relMap.__typename] = { Create: [], Update: [], Delete: [], [actionType]: [object as any] };
     }
+    // If action is Connect, Disconnect, or Delete, add to maps and return. 
+    // The rest of the function is for parsing objects
+    if (['Connect', 'Disconnect', 'Delete'].includes(actionType)) {
+        idsByAction[actionType] = [object as string];
+        idsByType[relMap.__typename] = [object as string];
+        return { idsByAction, idsByType, inputsByType };
+    }
+    // Can only be Create, Update, or Read past this point
     // If not a 'Create' (i.e. already exists in database), add id of this object to return object
-    if (actionType !== 'Create' && object.id) {
-        idsByAction[actionType] = [object.id];
-        idsByType[relMap.__typename] = [object.id];
+    if (actionType !== 'Create') {
+        const objectId = actionType === 'Update' ? object.where.id : object.id;
+        idsByAction[actionType] = [objectId];
+        idsByType[relMap.__typename] = [objectId];
     }
     console.log('in objectToIds a', JSON.stringify(object, null, 2));
     // Loop through all keys in relationship map
-    Object.keys(relMap).forEach(key => {
-        // // Loop through all key variations. Multiple variations can be set at once (e.g. resourcesCreate, resourcesUpdate)
-        // const variations = ['', 'Id', 'Ids', 'Connect', 'Create', 'Delete', 'Disconnect', 'Update']; // TODO this part won't work now that we're using PrismaUpdate type
-        // variations.forEach(variation => {
-        //     // If key is in object
-        //     if (`${key}${variation}` in object) {
-        //         // Get child relationship map
-        //         const childRelMap = getValidator(relMap[key], languages, 'objectToIds').validateMap; //TODO must account for dot notation
-        //         // Get child action type
-        //         let childActionType: QueryAction = 'Read';
-        //         if (actionType !== 'Read') {
-        //             switch (variation) {
-        //                 case 'Id':
-        //                 case 'Ids':
-        //                 case 'Connect':
-        //                     childActionType = 'Connect';
-        //                     break;
-        //                 case 'Create':
-        //                     childActionType = 'Create';
-        //                     break;
-        //                 case 'Delete':
-        //                     childActionType = 'Delete';
-        //                     break;
-        //                 case 'Disconnect':
-        //                     childActionType = 'Disconnect';
-        //                     break;
-        //                 case 'Update':
-        //                     childActionType = 'Update';
-        //                     break;
-        //                 default:
-        //                     childActionType = actionType;
-        //             }
-        //         }
-        //         // Get value of key
-        //         const value = object[`${key}${variation}`];
-        //         // If value is an array of objects
-        //         if (isRelationshipArray(value)) {
-        //             // 'Connect', 'Delete', and 'Disconnect' are invalid for object arrays
-        //             if (['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-        //                 throw new CustomError('0282', 'InternalError', languages)
-        //             }
-        //             // Recursively call objectToIds on each object in array
-        //             value.forEach((item: any) => {
-        //                 const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, item, languages);
-        //                 Object.keys(nestedIds).forEach(nestedKey => {
-        //                     if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
-        //                     else { ids[nestedKey] = nestedIds[nestedKey]; }
-        //                 });
-        //             });
-        //         }
-        //         // If value is an array of ids
-        //         else if (Array.isArray(value)) {
-        //             // Only 'Connect', 'Delete', and 'Disconnect' are valid for id arrays
-        //             if (!['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-        //                 throw new CustomError('0283', 'InternalError', languages)
-        //             }
-        //             // Add ids to return object
-        //             if (ids[relMap[key]]) { ids[relMap[key]] = [...(ids[relMap[key]] ?? []), ...value.map(id => `${childActionType}-${id}`)]; }
-        //         }
-        //         // If value is a single object
-        //         else if (isRelationshipObject(value)) {
-        //             // 'Connect', 'Delete', and 'Disconnect' are invalid for objects
-        //             if (['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-        //                 throw new CustomError('0284', 'InternalError', languages)
-        //             }
-        //             // Recursively call objectToIds on object
-        //             const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, value as any, languages);
-        //             Object.keys(nestedIds).forEach(nestedKey => {
-        //                 if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
-        //                 else { ids[nestedKey] = nestedIds[nestedKey]; }
-        //             });
-        //         }
-        //         // If value is a single id
-        //         else if (typeof value === 'string') {
-        //             // Only 'Connect', 'Delete', and 'Disconnect' are valid for ids
-        //             if (!['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-        //                 throw new CustomError('0285', 'InternalError', languages)
-        //             }
-        //             // Add id to return object
-        //             if (ids[relMap[key]]) { ids[relMap[key]] = [...(ids[relMap[key]] ?? []), `${childActionType}-${value}`]; }
-        //             // If child action is a 'Connect' and parent action is 'Update', add 'Disconnect' placeholder. 
-        //             // This id will have to be queried for later. 
-        //             // NOTE: This is the only place where this check must be done. This is because one-to-one relationships 
-        //             // automatically disconnect the old object when a new one is connected.
-        //             else if (childActionType === 'Connect' && actionType === 'Update') {
-        //                 ids[relMap[key]] = [`Disconnect-${value}.${key}${variation}`];
-        //             }
-        //         }
-        //     }
-        // });
-        // Check if relation is in object
-        if (object[key]) {
-            
-        }
+    Object.keys(relMap).forEach((key) => {
+        // Ignore __typename
+        if (key === '__typename') return;
+
+        // Get relationship type
+        const relType = relMap[key]!;
+
+        // Helper function to process relationship action
+        const processRelationshipAction = (action, relationshipAction, relationshipType) => {
+            // Get nested relMap data
+            const { format } = getLogic(['format'], relationshipType, languages, 'inputToMapWithPartials loop');
+            const childRelMap = format.gqlRelMap;
+
+            if (object.hasOwnProperty(relationshipAction)) {
+                // Get the nested object(s) corresponding to the relationship action
+                const nestedObjects = Array.isArray(object[relationshipAction])
+                    ? object[relationshipAction]
+                    : [object[relationshipAction]];
+
+                // Process each nested object
+                nestedObjects.forEach((nestedObject) => {
+                    // Handle Disconnect case (boolean or array of strings)
+                    if (action === 'Disconnect' && typeof nestedObject === 'boolean') {
+                        nestedObject = `${relationshipType}|${key}`;
+                    }
+
+                    // Recursive call for nested objects
+                    const { idsByAction: nestedIdsByAction, idsByType: nestedIdsByType, inputsByType: nestedInputsByType } = inputToMapWithPartials(
+                        action,
+                        childRelMap as any,
+                        nestedObject,
+                        languages
+                    );
+
+                    // Merge results
+                    Object.assign(idsByAction, nestedIdsByAction);
+                    Object.assign(idsByType, nestedIdsByType);
+                    Object.assign(inputsByType, nestedInputsByType);
+                });
+            }
+        };
+
+        // Check for each action type in the object
+        (['Connect', 'Disconnect', 'Create', 'Update', 'Delete'] as const).forEach((action) => {
+            if (typeof relType === 'object') {
+                // Process union relationship actions
+                Object.keys(relType).forEach((unionKey) => {
+                    const unionRelType = relType[unionKey];
+                    const relationshipAction = `${unionKey}${action}`;
+                    processRelationshipAction(action, relationshipAction, unionRelType);
+                });
+            } else {
+                // Process regular relationship actions
+                const relationshipAction = `${key}${action}`;
+                processRelationshipAction(action, relationshipAction, relType);
+            }
+        });
     });
-    return { idsByAction, idsByType };
+    console.log('in objectToIds end', JSON.stringify(idsByAction), '\n\n', JSON.stringify(idsByType), '\n\n', JSON.stringify(inputsByType), '\n\n');
+    return { idsByAction, idsByType, inputsByType };
 };
