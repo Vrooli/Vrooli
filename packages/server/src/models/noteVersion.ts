@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
+import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -70,6 +70,18 @@ export const NoteVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages));
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isPrivate: noNull(data.isPrivate),
@@ -134,24 +146,6 @@ export const NoteVersionModel: ModelLogic<{
             root: ['Note', ['versions']],
         }),
         permissionResolvers: defaultPermissions,
-        validations: {
-            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
-                await versionsCheck({
-                    createMany,
-                    deleteMany,
-                    languages,
-                    objectType: 'Note',
-                    prisma,
-                    updateMany: updateMany as any,
-                });
-            },
-            async create({ createMany, languages }) {
-                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
-            },
-            async update({ languages, updateMany }) {
-                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
-            },
-        },
         visibility: {
             private: {
                 OR: [

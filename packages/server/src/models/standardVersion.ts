@@ -153,6 +153,18 @@ export const StandardVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages));
+            },
             create: async ({ data, ...rest }) => {
                 // If jsonVariables defined, sort them. 
                 // This makes comparing standards a whole lot easier
@@ -275,24 +287,6 @@ export const StandardVersionModel: ModelLogic<{
             root: ['Standard', ['versions']],
         }),
         permissionResolvers: defaultPermissions,
-        validations: {
-            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
-                await versionsCheck({
-                    createMany,
-                    deleteMany,
-                    languages,
-                    objectType: 'Standard',
-                    prisma,
-                    updateMany: updateMany as any,
-                });
-            },
-            async create({ createMany, languages }) {
-                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
-            },
-            async update({ languages, updateMany }) {
-                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
-            },
-        },
         visibility: {
             private: {
                 isDeleted: false,

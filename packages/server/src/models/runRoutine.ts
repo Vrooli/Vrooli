@@ -103,6 +103,12 @@ export const RunRoutineModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ updateList }) => {
+                if (updateList.length) {
+                    // TODO if status passed in for update, make sure it's not the same 
+                    // as the current status, or an invalid transition (e.g. failed -> in progress)
+                }
+            },
             create: async ({ data, prisma, userData }) => {
                 // TODO - when scheduling added, don't assume that it is being started right away
                 return {
@@ -326,12 +332,6 @@ export const RunRoutineModel: ModelLogic<{
             ['user', 'User'],
         ], languages),
         profanityFields: ['name'],
-        validations: {
-            async update({ languages, updateMany }) {
-                // TODO if status passed in for update, make sure it's not the same 
-                // as the current status, or an invalid transition (e.g. failed -> in progress)
-            },
-        },
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },

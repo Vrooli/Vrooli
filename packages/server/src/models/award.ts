@@ -91,7 +91,6 @@ export const AwardModel: ModelLogic<{
             user: 'User',
         }),
         permissionResolvers: defaultPermissions,
-        validations: {},
         visibility: {
             private: {},
             public: {},

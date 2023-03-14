@@ -133,6 +133,13 @@ export const OrganizationModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList, prisma, userData }) => {
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio', userData.languages));
+                // Validate AdaHandles
+                let handleData = updateList.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
+                await handlesCheck(prisma, 'Organization', handleData, userData.languages);
+            },
             create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
@@ -343,18 +350,6 @@ export const OrganizationModel: ModelLogic<{
                 }
             } : {}),
         }),
-        validations: {
-            create({ createMany, languages }) {
-                createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio', languages))
-            },
-            async update({ languages, prisma, updateMany }) {
-                // Validate AdaHandles
-                let handleData = updateMany.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
-                await handlesCheck(prisma, 'Organization', handleData, languages);
-                // Validate line breaks
-                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['bio'], 'LineBreaksBio', languages));
-            },
-        },
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },

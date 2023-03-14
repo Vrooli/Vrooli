@@ -55,6 +55,21 @@ export const NodeModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, deleteList, prisma, userData }) => {
+                // Don't allow more than 100 nodes in a routine
+                if (createList.length) {
+                    const deltaAdding = createList.length - deleteList.length;
+                    if (deltaAdding < 0) return;
+                    const existingCount = await prisma.routine_version.findUnique({
+                        where: { id: createList[0].routineVersionConnect },
+                        include: { _count: { select: { nodes: true } } }
+                    });
+                    const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding
+                    if (totalCount > MAX_NODES_IN_ROUTINE) {
+                        throw new CustomError('0052', 'MaxNodesReached', userData.languages, { totalCount });
+                    }
+                }
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 columnIndex: noNull(data.columnIndex),
@@ -88,21 +103,6 @@ export const NodeModel: ModelLogic<{
         owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),
         isDeleted: (data, languages) => RoutineModel.validate!.isDeleted(data.routineVersion as any, languages),
         isPublic: (data, languages) => RoutineModel.validate!.isPublic(data.routineVersion as any, languages),
-        validations: {
-            create: async ({ createMany, deltaAdding, prisma, userData }) => {
-                if (createMany.length === 0) return;
-                // Don't allow more than 100 nodes in a routine
-                if (deltaAdding < 0) return;
-                const existingCount = await prisma.routine_version.findUnique({
-                    where: { id: createMany[0].routineVersionConnect },
-                    include: { _count: { select: { nodes: true } } }
-                });
-                const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding
-                if (totalCount > MAX_NODES_IN_ROUTINE) {
-                    throw new CustomError('0052', 'MaxNodesReached', userData.languages, { totalCount });
-                }
-            }
-        },
         visibility: {
             private: { routineVersion: RoutineModel.validate!.visibility.private },
             public: { routineVersion: RoutineModel.validate!.visibility.public },

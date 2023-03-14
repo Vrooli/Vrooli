@@ -80,6 +80,18 @@ export const ApiVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['summary'], 'LineBreaksBio', userData.languages));
+            },
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 callLink: data.callLink,
@@ -155,24 +167,6 @@ export const ApiVersionModel: ModelLogic<{
             root: ['Api', ['versions']],
         }),
         permissionResolvers: defaultPermissions,
-        validations: {
-            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
-                await versionsCheck({
-                    createMany,
-                    deleteMany,
-                    languages,
-                    objectType: 'Api',
-                    prisma,
-                    updateMany: updateMany as any,
-                });
-            },
-            async create({ createMany, languages }) {
-                createMany.forEach(input => lineBreaksCheck(input, ['summary'], 'LineBreaksBio', languages))
-            },
-            async update({ languages, updateMany }) {
-                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['summary'], 'LineBreaksBio', languages));
-            },
-        },
         visibility: {
             private: {
                 isDeleted: false,

@@ -336,54 +336,6 @@ export type Validator<
      */
     profanityFields?: string[];
     /**
-     * Any custom validations you want to perform before a create mutation. You must throw 
-     * an error if a validation fails, since that'll return a customized error message to the
-     * user
-     */
-    validations?: {
-        common?: ({ connectMany, createMany, deleteMany, disconnectMany, languages, prisma, updateMany, userData }: {
-            connectMany: string[],
-            createMany: Model['GqlCreate'][],
-            deleteMany: string[],
-            disconnectMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            updateMany: { where: Model['PrismaWhere'], data: Model['GqlUpdate'] }[],
-            userData: SessionUser,
-        }) => Promise<void> | void,
-        create?: Model['GqlCreate'] extends Record<string, any> ? ({ createMany, deltaAdding, languages, prisma, userData }: {
-            createMany: Model['GqlCreate'][],
-            deltaAdding: number,
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void : never,
-        update?: Model['GqlUpdate'] extends Record<string, any> ? ({ languages, prisma, updateMany, userData }: {
-            languages: string[],
-            prisma: PrismaType,
-            updateMany: { where: Model['PrismaWhere'], data: Model['GqlUpdate'] }[],
-            userData: SessionUser,
-        }) => Promise<void> | void : never,
-        connect?: ({ connectMany, languages, prisma, userData }: {
-            connectMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void,
-        delete?: ({ deleteMany, languages, prisma, userData }: {
-            deleteMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void,
-        disconnect?: ({ disconnectMany, languages, prisma, userData }: {
-            disconnectMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void,
-    }
-    /**
      * Any custom transformations you want to perform before a create/update mutation, 
      * besides the ones supported by default in cudHelper. This includes converting creates to 
      * connects, which means this function has to be pretty flexible in what it allows

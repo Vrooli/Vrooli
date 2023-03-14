@@ -149,13 +149,24 @@ export const RoutineVersionModel: ModelLogic<{
     mutate: {
         shape: {
             pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages))
+                await Promise.all(combined.map(async (input) => { await validateNodePositions(prisma, input, userData.languages) }));
                 // Calculate simplicity and complexity of all versions. Since these calculations 
                 // can depend on other versions, we need to do them all at once. 
                 // We exclude deleting versions to ensure that they don't affect the calculations. 
                 // If a deleting version appears in the calculations, an error will be thrown.
                 const { dataWeights } = await calculateWeightData(
-                    prisma, 
-                    userData.languages, 
+                    prisma,
+                    userData.languages,
                     [...createList, ...updateList.map(u => u.data)],
                     deleteList
                 );
@@ -278,26 +289,6 @@ export const RoutineVersionModel: ModelLogic<{
             root: ['Routine', ['versions']],
         }),
         permissionResolvers: defaultPermissions,
-        validations: {
-            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
-                await versionsCheck({
-                    createMany,
-                    deleteMany,
-                    languages,
-                    objectType: 'Routine',
-                    prisma,
-                    updateMany: updateMany as any,
-                });
-            },
-            async create({ createMany, languages, prisma }) {
-                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
-                await Promise.all(createMany.map(async (input) => { await validateNodePositions(prisma, input, languages) }));
-            },
-            async update({ languages, prisma, updateMany }) {
-                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
-                await Promise.all(updateMany.map(async (input) => { await validateNodePositions(prisma, input.data, languages) }));
-            },
-        },
         visibility: {
             private: {
                 isDeleted: false,

@@ -58,7 +58,8 @@ export async function cudHelper<
     });
     const preMap: { [x: string]: any } = {};
     console.log('cudhelper c', JSON.stringify(inputsByType), '\n\n');
-    // For each type, calculate pre-shape data (if applicable)
+    // For each type, calculate pre-shape data (if applicable). 
+    // This often also doubles as a way to perform custom input validation
     for (const [type, inputs] of Object.entries(inputsByType)) {
         // Initialize type as empty object
         preMap[type] = {};
@@ -97,25 +98,8 @@ export async function cudHelper<
     // Max objects check
     maxObjectsCheck(authDataById, idsByAction, prisma, userData);
     console.log('cudhelper i');
-    // Perform custom validation for validations.common
-    if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
-        console.log('cudhelper i.1', objectType, validate?.validations?.common?.toString())
-        validate?.validations?.common && await validate.validations.common({
-            connectMany: [],
-            createMany: shapedCreate,
-            deleteMany: deleteMany ?? [],
-            disconnectMany: [],
-            languages: userData.languages,
-            prisma,
-            updateMany: shapedUpdate,
-            userData
-        });
-    }
     console.log('cudhelper j');
     if (shapedCreate.length > 0) {
-        // Perform custom validation
-        const deltaAdding = shapedCreate.length - (deleteMany ? deleteMany.length : 0);
-        validate?.validations?.create && await validate.validations.create({ createMany: shapedCreate, languages: userData.languages, prisma, userData, deltaAdding });
         for (const data of shapedCreate) {
             // Create
             const select = await delegate(prisma).create({
@@ -140,8 +124,6 @@ export async function cudHelper<
     }
     console.log('cudhelper k');
     if (shapedUpdate.length > 0) {
-        // Perform custom validation
-        validate?.validations?.update && await validate.validations.update({ updateMany: shapedUpdate, languages: userData.languages, prisma, userData });
         for (const update of shapedUpdate) {
             // Update
             const select = await delegate(prisma).update({
@@ -171,8 +153,6 @@ export async function cudHelper<
         if (mutate.trigger?.beforeDeleted) {
             beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds: deleteMany, prisma, userData });
         }
-        // Perform custom validation
-        validate?.validations?.delete && await validate.validations.delete({ deleteMany, languages: userData.languages, prisma, userData });
         deleted = await delegate(prisma).deleteMany({
             where: { id: { in: deleteMany } }
         }).then(({ count }) => ({ __typename: 'Count' as const, count }));
