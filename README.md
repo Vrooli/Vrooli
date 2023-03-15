@@ -34,7 +34,7 @@ Routines can be used for rapid prototyping, reusable productivity workflows, and
 
 Originally focused on building with blockchain technology, I have decided to shift the project's implementation to traditional technologies first, then integrate blockchain later. This decision prioritizes user experience and accessibility.
 
-While this project aims for profitability, Vrooli is not structured as a traditional business. The founder does not want to manage employees and is not interested in being obligated to respond to comments on a regular basis. Collaborators are welcome to suggest and complete tasks on (our project board)[https://github.com/orgs/Vrooli/projects/1]. The best way to help this project, however, is to use it! Creating public routines and being an active participant on the app is ideal. Thank you for your interest in Vrooli!
+While this project aims for profitability, Vrooli is not structured as a traditional business. The founder does not want to manage employees and is not interested in being obligated to respond to comments on a regular basis. Collaborators are welcome to suggest and complete tasks on [our project board](https://github.com/orgs/Vrooli/projects/1). The best way to help this project, however, is to use it! Creating public routines and being an active participant on the app is ideal. Thank you for your interest in Vrooli!
 
 ## 👀 The Vision
 
