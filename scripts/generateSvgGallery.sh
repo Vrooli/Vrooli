@@ -53,7 +53,7 @@ header "Generating SVG gallery in $DIRECTORY/$OUT_FILE..."
 # Create the output file with initial HTML structure.
 # Should be saved one level above the SVG files folder
 OUT_FILE="$DIRECTORY/../$OUT_FILE"
-cat >$OUT_FILE <<EOL
+cat >$OUT_FILE << EOL
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,14 +61,28 @@ cat >$OUT_FILE <<EOL
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SVG Gallery</title>
 <style>
-  body { font-family: Arial, sans-serif; }
-  .container { display: flex; flex-wrap: wrap; }
+  body { font-family: Arial, sans-serif; background-color: #f0f0f0; }
+  h1 { text-align: center; }
+  .container { display: flex; flex-wrap: wrap; justify-content: center; }
   .item { padding: 15px; text-align: center; }
   .item img { max-width: 100%; height: auto; }
 </style>
+<script>
+  function resizeIcons() {
+    var size = document.getElementById("sizeSlider").value;
+    var icons = document.getElementsByTagName("img");
+    for (var i = 0; i < icons.length; i++) {
+      icons[i].style.width = size + "px";
+    }
+  }
+</script>
 </head>
 <body>
 <h1>SVG Gallery</h1>
+<div style="text-align: center;">
+  <label for="sizeSlider">Icon size:</label>
+  <input type="range" id="sizeSlider" name="sizeSlider" min="50" max="300" value="100" onchange="resizeIcons()" style="width: 50%;">
+</div>
 <div class="container">
 EOL
 
