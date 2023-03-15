@@ -1,4 +1,4 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip, useTheme } from "@mui/material";
+import { Grid, useTheme } from "@mui/material";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
 import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
@@ -7,7 +7,7 @@ import { defaultRelationships, getUserLanguages, shapeNoteVersion, TagShape, use
 import { NoteCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TagSelector, TopBar } from "components";
-import { DUMMY_ID, uuid } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
@@ -45,8 +45,13 @@ export const NoteCreate = ({
     const formik = useFormik({
         initialValues: {
             id: uuid(),
+            root: {
+                id: uuid(),
+                isPrivate: false,
+                owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+            },
             translations: [{
-                id: DUMMY_ID,
+                id: uuid(),
                 language: getUserLanguages(session)[0],
                 description: '',
                 name: '',
@@ -56,26 +61,13 @@ export const NoteCreate = ({
         },
         validationSchema: noteVersionValidation.create({}),
         onSubmit: (values) => {
-            console.log('VALUES', values);
-            let temp = shapeNoteVersion.create({
-                ...values,
-                root: {
-                    id: uuid(),
-                    isPrivate: relationships.isPrivate,
-                    owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
-                },
-                isPrivate: relationships.isPrivate,
-            })
-            console.log('TEMP', temp)
-            return;
             mutationWrapper<NoteVersion, NoteVersionCreateInput>({
                 mutation,
                 input: shapeNoteVersion.create({
                     ...values,
                     root: {
-                        id: uuid(),
+                        ...values.root,
                         isPrivate: relationships.isPrivate,
-                        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
                     },
                     isPrivate: relationships.isPrivate,
                 }),
@@ -98,7 +90,7 @@ export const NoteCreate = ({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name', 'text'],
         formik,
-        formikField: 'translationsCreate',
+        formikField: 'translations',
         validationSchema: noteVersionTranslationValidation.create({}),
     });
 
@@ -133,7 +125,7 @@ export const NoteCreate = ({
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             session={session}
-                            translations={formik.values.translationsCreate}
+                            translations={formik.values.translations}
                             zIndex={zIndex}
                         />
                     </Grid>

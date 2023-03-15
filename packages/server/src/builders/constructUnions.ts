@@ -1,4 +1,5 @@
 import { GqlModelType } from "@shared/consts";
+import { exists } from "@shared/utils";
 import { GqlRelMap } from "../models/types";
 
 /**
@@ -21,14 +22,19 @@ export const constructUnions = <
     for (const [gqlField, unionData] of unionFields) {
         // For each entry in the union
         for (const [dbField, type] of Object.entries(unionData)) {
+            console.log('checking union pair', gqlField, dbField, type, result[dbField])
             // If the current field is in the partial info, use it as the union data
-            const isInPartialInfo = result[dbField] !== undefined;
+            const isInPartialInfo = exists(result[dbField]);
             if (isInPartialInfo) {
                 // Set the union field to the type
                 result[gqlField] = { ...result[dbField], __typename: type };
             }
             // Delete the dbField from the result
             delete result[dbField];
+        }
+        // If no union data was found, set the union field to null
+        if (!exists(result[gqlField])) {
+            result[gqlField] = null;
         }
     }
     return result;

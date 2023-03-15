@@ -103,6 +103,7 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
         if (isVersioned) returnObject.idRoot = base36ToUuid(lastPart, false);
         else returnObject.id = base36ToUuid(lastPart, false);
     }
+    console.log('parseSingleItemUrl RESULT', returnObject);
     // Return the object
     return returnObject;
 }

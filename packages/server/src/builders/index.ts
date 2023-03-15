@@ -31,7 +31,6 @@ export * from './removeTypenames';
 export * from './selectHelper';
 export * from './shapeHelper';
 export * from './shapeRelationshipData';
-export * from './subsetsMatch';
 export * from './timeFrameToPrisma';
 export * from './toPartialGraphQLInfo';
 export * from './toPartialPrismaSelect';

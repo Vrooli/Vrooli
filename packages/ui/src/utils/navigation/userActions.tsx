@@ -35,7 +35,6 @@ interface GetUserActionsProps {
 }
 export function getUserActions({ session, exclude = [] }: GetUserActionsProps): Action[] {
     // Check if user is logged in using session
-    console.log('action getUserActions', session, exclude);
     let isLoggedIn = checkIfLoggedIn(session);
     let actions: ActionArray[] = [];
     // Home only available to logged in users

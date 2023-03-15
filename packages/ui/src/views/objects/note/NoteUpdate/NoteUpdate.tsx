@@ -1,18 +1,20 @@
-import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip, useTheme } from "@mui/material"
+import { Grid, useTheme } from "@mui/material"
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NoteUpdateProps } from "../types";
 import { mutationWrapper } from 'api/utils';
 import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, TagSelector, TopBar } from "components";
+import { defaultRelationships, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TopBar } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { FindByIdInput, NoteVersion, NoteVersionUpdateInput, ResourceList } from "@shared/consts";
+import { FindVersionInput, NoteVersion, NoteVersionUpdateInput } from "@shared/consts";
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 import { noteVersionUpdate } from "api/generated/endpoints/noteVersion_update";
 import { BaseForm } from "forms";
+import { getCurrentUser } from "utils/authentication";
+import { useTranslation } from "react-i18next";
 
 export const NoteUpdate = ({
     display = 'page',
@@ -20,18 +22,20 @@ export const NoteUpdate = ({
     zIndex = 200,
 }: NoteUpdateProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     
     const { onCancel, onUpdated } = useUpdateActions<NoteVersion>();
 
     // Fetch existing data
-    const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data: noteVersion, loading }] = useCustomLazyQuery<NoteVersion, FindByIdInput>(noteVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    const fetchParams = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data: noteVersion, loading }] = useCustomLazyQuery<NoteVersion, FindVersionInput>(noteVersionFindOne);
+    useEffect(() => { Object.keys(fetchParams).length && getData({ variables: fetchParams }) }, [fetchParams, getData]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
     const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
+    console.log('rendering note update', noteVersion)
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
@@ -40,34 +44,41 @@ export const NoteUpdate = ({
     const [mutation] = useCustomMutation<NoteVersion, NoteVersionUpdateInput>(noteVersionUpdate);
     const formik = useFormik({
         initialValues: {
-            id: noteVersion?.id ?? uuid(),
-            translationsUpdate: noteVersion?.translations ?? [{
+            id: noteVersion?.id ?? DUMMY_ID,
+            root: noteVersion?.root ?? {
+                id: DUMMY_ID,
+                isPrivate: false,
+                owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+            },
+            translations: noteVersion?.translations ?? [{
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
                 description: '',
                 name: '',
                 text: '',
             }],
+            versionLabel: noteVersion?.versionLabel ?? '1.0.0',
         },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
+        enableReinitialize: true,
         validationSchema: noteVersionValidation.update({}),
         onSubmit: (values) => {
             if (!noteVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadNote', severity: 'Error' });
                 return;
             }
-            // mutationWrapper<NoteVersion, NoteVersionUpdateInput>({
-            //     mutation,
-            //     input: shapeNoteVersion.update(noteVersion, {
-            //         id: noteVersion.id,
-            //         isOpenToNewMembers: values.isOpenToNewMembers,
-            //         isPrivate: relationships.isPrivate,
-            //         tags: tags,
-            //         translations: values.translationsUpdate,
-            //     }),
-            //     onSuccess: (data) => { onUpdated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
+            mutationWrapper<NoteVersion, NoteVersionUpdateInput>({
+                mutation,
+                input: shapeNoteVersion.update(noteVersion, {
+                    ...values,
+                    root: {
+                        ...values.root,
+                        isPrivate: relationships.isPrivate,
+                    },
+                    isPrivate: relationships.isPrivate,
+                }),
+                onSuccess: (data) => { onUpdated(data) },
+                onError: () => { formik.setSubmitting(false) },
+            })
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
@@ -84,7 +95,7 @@ export const NoteUpdate = ({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name', 'text'],
         formik,
-        formikField: 'translationsUpdate',
+        formikField: 'translations',
         validationSchema: noteVersionTranslationValidation.update({}),
     });
 
@@ -131,7 +142,7 @@ export const NoteUpdate = ({
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
                             session={session}
-                            translations={formik.values.translationsUpdate}
+                            translations={formik.values.translations}
                             zIndex={zIndex}
                         />
                     </Grid>

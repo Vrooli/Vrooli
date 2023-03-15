@@ -102,9 +102,6 @@ export async function cudHelper<
     console.log('cudhelper j');
     if (shapedCreate.length > 0) {
         for (const data of shapedCreate) {
-            // prisma.note_version.create({
-                
-            // })
             // Create
             let createResult: any = {};
             let select: { [key: string]: any } | undefined;
@@ -118,9 +115,10 @@ export async function cudHelper<
                 throw new CustomError('0415', 'InternalError', userData.languages, { error, data, select, objectType });
             }
             // Convert
-            console.log('cudhelper j.1', JSON.stringify(createResult));
+            console.log('cudhelper j.0 select', JSON.stringify(select), '\n\n');
+            console.log('cudhelper j.1', JSON.stringify(createResult), '\n\n');
             const converted = modelToGraphQL<GqlModel>(createResult, partialInfo);
-            console.log('cudhelper j.2', JSON.stringify(converted));
+            console.log('cudhelper j.2', JSON.stringify(converted), '\n\n');
             created.push(converted as any);
         }
         // Filter authDataById to only include objects which were created
