@@ -21,7 +21,7 @@ import { useCustomMutation } from 'api/hooks';
 import { HistorySearchPageTabOption, PubSub, shapeProfile, useIsLeftHanded, useWindowSize } from 'utils';
 import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
-import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
+import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 import { ContactInfo } from 'components/navigation';
@@ -106,7 +106,7 @@ export const AccountMenu = ({
         handleClose(event);
         // If already selected, go to profile page
         if (userId === user.id) {
-            setLocation(APP_LINKS.Profile);
+            setLocation(LINKS.Profile);
         }
         // Otherwise, switch to selected account
         else {
@@ -120,7 +120,7 @@ export const AccountMenu = ({
     }, [handleClose, userId, setLocation, switchCurrentAccount]);
 
     const handleAddAccount = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        setLocation(APP_LINKS.Start);
+        setLocation(LINKS.Start);
         handleClose(event);
     }, [handleClose, setLocation]);
 
@@ -136,7 +136,7 @@ export const AccountMenu = ({
             // If error, log out anyway
             onError: () => { PubSub.get().publishSession(guestSession) },
         })
-        setLocation(APP_LINKS.Home);
+        setLocation(LINKS.Home);
     }, [handleClose, session, logOut, setLocation]);
 
     const handleOpen = useCallback((event: React.MouseEvent<HTMLElement>, link: string) => {
@@ -144,19 +144,19 @@ export const AccountMenu = ({
         handleClose(event);
     }, [handleClose, setLocation]);
     const handleOpenSettings = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, APP_LINKS.Settings);
+        handleOpen(event, LINKS.Settings);
     }, [handleOpen]);
     const handleOpenBookmarks = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`);
+        handleOpen(event, `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`);
     }, [handleOpen]);
     const handleOpenHistory = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, APP_LINKS.History);
+        handleOpen(event, LINKS.History);
     }, [handleOpen]);
     const handleOpenAwards = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, APP_LINKS.Awards);
+        handleOpen(event, LINKS.Awards);
     }, [handleOpen]);
     const handleOpenPremium = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, APP_LINKS.Premium);
+        handleOpen(event, LINKS.Premium);
     }, [handleOpen]);
 
 

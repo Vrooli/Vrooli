@@ -14,7 +14,7 @@ import {
     Typography,
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
-import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
+import { LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { DialogTitle, HelpButton, TopBar, WalletInstallDialog, WalletSelectDialog } from 'components';
@@ -91,14 +91,14 @@ export const StartView = ({
                     onSuccess: (data) => {
                         PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
                         PubSub.get().publishSession(data);
-                        setLocation(redirect ?? APP_LINKS.Home)
+                        setLocation(redirect ?? LINKS.Home)
                     },
                     onError: (response) => {
                         if (hasErrorCode(response, 'MustResetPassword')) {
                             PubSub.get().publishAlertDialog({
                                 messageKey: 'ChangePasswordBeforeLogin',
                                 buttons: [
-                                    { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
+                                    { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? LINKS.Home) } },
                                 ]
                             });
                         }
@@ -152,7 +152,7 @@ export const StartView = ({
             PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: 'Success' })
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
-            setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
+            setLocation(walletCompleteResult?.firstLogIn ? LINKS.Welcome : (redirect ?? LINKS.Home));
             // Request user to enable notifications
             subscribeUserToPush();
         }
@@ -163,7 +163,7 @@ export const StartView = ({
             mutation: guestLogIn,
             onSuccess: (data) => {
                 PubSub.get().publishSession(data)
-                setLocation(redirect ?? APP_LINKS.Welcome);
+                setLocation(redirect ?? LINKS.Welcome);
             },
         })
     }, [guestLogIn, setLocation, redirect]);

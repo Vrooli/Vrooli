@@ -31,7 +31,6 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         versionLabel: String!
         versionNotes: String
@@ -54,7 +53,6 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         versionLabel: String
         versionNotes: String

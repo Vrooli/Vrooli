@@ -46,18 +46,18 @@ export const NodeEndModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
+            create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'end', data, prisma, userData })),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'end', data, ...rest })),
+                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, ...rest })),
                 }
             },
-            update: async ({ data, prisma, userData }) => {
+            update: async ({ data, ...rest }) => {
                 return {
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect', 'Disconnect'], data, prisma, userData })),
+                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect', 'Disconnect'], data, ...rest })),
                 }
             },
         },

@@ -1,6 +1,5 @@
 import {
     Button,
-    Dialog,
     DialogContent,
     Stack,
     TextField,
@@ -11,9 +10,9 @@ import { DeleteDialogProps } from '../types';
 import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'api/utils';
 import { useCustomMutation } from 'api/hooks';
-import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
+import { LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DialogTitle } from 'components';
+import { DialogTitle, LargeDialog } from 'components';
 import { DeleteIcon } from '@shared/icons';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +45,7 @@ export const DeleteDialog = ({
             successCondition: (data) => data.success,
             successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName } }),
             onSuccess: () => {
-                setLocation(APP_LINKS.Home);
+                setLocation(LINKS.Home);
                 close(true);
             },
             errorMessage: () => ({ key: 'FailedToDelete' }),
@@ -57,12 +56,11 @@ export const DeleteDialog = ({
     }, [close, deleteOne, objectId, objectName, objectType, setLocation]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="delete-dialog"
+            isOpen={isOpen}
             onClose={() => { close(); }}
-            sx={{
-                zIndex
-            }}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id=''
@@ -83,9 +81,14 @@ export const DeleteDialog = ({
                         helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
                         sx={{ paddingBottom: 2 }}
                     />
-                    <Button startIcon={<DeleteIcon />} color="secondary" onClick={handleDelete}>{t('Delete')}</Button>
+                    <Button 
+                    startIcon={<DeleteIcon />} 
+                    color="secondary" 
+                    onClick={handleDelete}
+                    disabled={nameInput.trim() !== objectName.trim()}
+                    >{t('Delete')}</Button>
                 </Stack>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

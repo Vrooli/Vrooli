@@ -28,6 +28,12 @@ export interface TitleContainerProps {
     tooltip?: string;
 }
 
+export interface ListContainerProps {
+    children: JSX.Element | JSX.Element[];
+    emptyText?: string;
+    isEmpty?: boolean;
+}
+
 export interface ListTitleContainerProps extends TitleContainerProps {
     emptyText?: string;
     isEmpty: boolean;

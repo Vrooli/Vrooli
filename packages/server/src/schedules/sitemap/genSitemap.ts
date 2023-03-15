@@ -2,7 +2,7 @@ import { generateSitemap, generateSitemapIndex, SitemapEntryContent } from '@sha
 import fs from 'fs';
 import zlib from 'zlib';
 import pkg from '@prisma/client';
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { PrismaType } from '../../types';
 import { getLogic } from '../../getters';
 import { logger } from '../../events';
@@ -14,15 +14,15 @@ const sitemapObjectTypes = ['ApiVersion', 'NoteVersion', 'Organization', 'Projec
  * Maps object types to their url base
  */
 const Links: Record<typeof sitemapObjectTypes[number], string> = {
-    ApiVersion: APP_LINKS.Api,
-    NoteVersion: APP_LINKS.Note,
-    Organization: APP_LINKS.Organization,
-    ProjectVersion: APP_LINKS.Project,
-    Question: APP_LINKS.Question,
-    RoutineVersion: APP_LINKS.Routine,
-    SmartContractVersion: APP_LINKS.SmartContract,
-    StandardVersion: APP_LINKS.Standard,
-    User: APP_LINKS.User,
+    ApiVersion: LINKS.Api,
+    NoteVersion: LINKS.Note,
+    Organization: LINKS.Organization,
+    ProjectVersion: LINKS.Project,
+    Question: LINKS.Question,
+    RoutineVersion: LINKS.Routine,
+    SmartContractVersion: LINKS.SmartContract,
+    StandardVersion: LINKS.Standard,
+    User: LINKS.User,
 }
 
 // Where to save the sitemap index and files
@@ -30,7 +30,7 @@ const sitemapIndexDir = '../../packages/ui/public';
 const sitemapDir =  `${sitemapIndexDir}/sitemaps`;
 
 // Name of website
-const siteName = 'https://app.vrooli.com';
+const siteName = 'https://vrooli.com';
 
 /**
  * Generates and saves one or more sitemap files for an object
@@ -93,7 +93,7 @@ const genSitemapForObject = async (
             skip += batchSize;
             // Update current batch size
             currentBatchSize = batch.length;
-            const baseUrlSize = siteName.length + APP_LINKS[objectType.replace('Version', '')].length;
+            const baseUrlSize = siteName.length + LINKS[objectType.replace('Version', '')].length;
             for (const entry of batch) {
                 // Convert batch to SiteMapEntryContent
                 const entryContent: SitemapEntryContent = {
@@ -140,7 +140,7 @@ export const genSitemap = async (): Promise<void> => {
     // Check if sitemap file for main route exists
     const routeSitemapFileName = 'sitemap-routes.xml';
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
-        logger.warn('Sitemap file for main routes does not exist');
+        logger.warning('Sitemap file for main routes does not exist');
     }
     // Initialize the Prisma client
     const prisma = new PrismaClient();

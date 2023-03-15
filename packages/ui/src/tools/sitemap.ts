@@ -12,7 +12,7 @@ import fs from 'fs';
  */
 const getRouteMap = async (): Promise<{ [x: string]: string }> => {
     const routeMapLocation = new URL('../../../shared/consts/src/ui.ts', import.meta.url);
-    const routeMapName = 'APP_LINKS';
+    const routeMapName = 'LINKS';
     console.info(`Reading ${routeMapName} from ${routeMapLocation}...`);
     try {
         const data = await fs.promises.readFile(routeMapLocation, 'utf8');
@@ -76,7 +76,7 @@ const main = async () => {
         console.info(`Found ${routes.length} ${componentName}s in ${routesLocation} after filtering`);
         // For the remaining routes, extract the path, priority, and changeFreq
         const entries: SitemapEntryMain[] = routes.map((route) => {
-            // Match path (e.g. path="/about" => /about, path={"/about"} => /about, path={APP_LINKS.ABOUT} => /about)
+            // Match path (e.g. path="/about" => /about, path={"/about"} => /about, path={LINKS.ABOUT} => /about)
             // May need to use route map object to convert to path
             let path = route.match(/path=".*?"/g)?.[0] ?? route.match(/path={.*?}/g)?.[0];
             if (path) {
@@ -101,7 +101,7 @@ const main = async () => {
         }).filter((route) => route.path) as SitemapEntryMain[];
         console.info('Parsed sitemap data from routes: ', entries);
         // Generate sitemap.xml
-        const sitemap = generateSitemap('https://app.vrooli.com', { main: entries });
+        const sitemap = generateSitemap('https://vrooli.com', { main: entries });
         console.info('Generated sitemap: ', sitemap)
         // Check if sitemap save directory exists
         const sitemapDir = new URL('../../public/sitemaps', import.meta.url);

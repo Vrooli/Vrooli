@@ -1,5 +1,5 @@
 import { useCustomMutation } from 'api/hooks';
-import { APP_LINKS, BUSINESS_NAME, EmailSignUpInput, Session } from '@shared/consts';
+import { LINKS, BUSINESS_NAME, EmailSignUpInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -21,7 +21,7 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
-import { subscribeUserToPush } from 'serviceWorkerRegistration'
+import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { authEmailSignUp } from 'api/generated/endpoints/auth_emailSignUp';
 import { useTranslation } from 'react-i18next';
 
@@ -57,7 +57,7 @@ export const SignUpForm = ({
                         messageVariables: { appName: BUSINESS_NAME },
                         buttons: [{
                             labelKey: 'Ok', onClick: () => {
-                                setLocation(APP_LINKS.Welcome);
+                                setLocation(LINKS.Welcome);
                                 // Request user to enable notifications
                                 subscribeUserToPush();
                             }

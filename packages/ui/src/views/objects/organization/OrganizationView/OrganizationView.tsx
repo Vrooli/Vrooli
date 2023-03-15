@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, BookmarkFor, VisibilityType } from "@shared/consts";
+import { LINKS, FindByIdOrHandleInput, Organization, ResourceList, BookmarkFor, VisibilityType } from "@shared/consts";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
 import { OrganizationViewProps } from "../types";
@@ -276,7 +276,7 @@ export const OrganizationView = ({
     const toAddNew = useCallback((event: any) => {
         // TODO need member page
         if (currTab.value === TabOptions.Member) return;
-        setLocation(`${APP_LINKS[currTab.value]}/add`);
+        setLocation(`${LINKS[currTab.value]}/add`);
     }, [currTab, setLocation]);
 
     return (

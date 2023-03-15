@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { roleValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Role' as const;
 const suppFields = [] as const;
@@ -56,14 +57,20 @@ export const RoleModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                name: data.name,
+                permissions: data.permissions,
+                ...(await shapeHelper({ relation: 'members', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'roles', data, ...rest })),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'roles', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                name: noNull(data.name),
+                permissions: noNull(data.permissions),
+                ...(await shapeHelper({ relation: 'members', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'roles', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
         },
         yup: roleValidation,
     },

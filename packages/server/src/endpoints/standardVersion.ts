@@ -26,7 +26,6 @@ export const typeDef = gql`
         id: ID!
         default: String
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         isFile: Boolean
         props: String!
@@ -43,7 +42,6 @@ export const typeDef = gql`
     input StandardVersionUpdateInput {
         id: ID!
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         isFile: Boolean
         default: String

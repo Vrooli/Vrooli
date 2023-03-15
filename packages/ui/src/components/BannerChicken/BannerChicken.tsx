@@ -1,14 +1,19 @@
-import { BannerAdProps } from "components/types"
-import { useMemo } from "react"
+import { BannerChickenProps } from "components/types"
+import { useMemo, useState } from "react"
 import { getCurrentUser } from "utils/authentication"
 
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 
  * Uses session to display no ads for premium users, and less ads if logged in.
+ * 
+ * NOTE: If we call this "BannerAd", ad blockers will cause the whole site to break. 
+ * Hence the name "BannerChicken".
  */
-export const BannerAd = ({
+export const BannerChicken = ({
     session
-}: BannerAdProps) => {
+}: BannerChickenProps) => {
+    const [adDisplayed, setAdDisplayed] = useState<boolean | null>(null);
+
     const adFrequency = useMemo(() => {
         const user = getCurrentUser(session);
         if (!user) return 'full';
@@ -34,6 +39,8 @@ export const BannerAd = ({
                 async
                 src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7109871095821789"
                 crossOrigin="anonymous"
+                onLoad={() => setAdDisplayed(true)}
+                onError={() => setAdDisplayed(false)}
             ></script>
             <ins className="adsbygoogle"
                 style={{ display: 'block' }}

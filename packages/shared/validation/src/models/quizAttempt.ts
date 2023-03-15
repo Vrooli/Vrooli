@@ -8,6 +8,7 @@ export const quizAttemptValidation: YupModel = {
         timeTaken: opt(intPositiveOrOne),
         language: opt(language),
     }, [
+        ['quiz', ['Connect'], 'one', 'req'],
         ['responses', ['Create'], 'one', 'opt', quizQuestionResponseValidation],
     ], [], o),
     update: ({ o }) => yupObj({

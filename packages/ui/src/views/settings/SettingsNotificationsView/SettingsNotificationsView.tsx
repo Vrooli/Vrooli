@@ -1,57 +1,51 @@
-import { Grid, Stack, Switch, Typography } from "@mui/material"
-import { SettingsNotificationsProps } from "../types";
-import { PageTitle } from "components/text";
-import { getUserLanguages, PubSub, shapeProfile, usePromptBeforeUnload } from "utils";
-import { mutationWrapper } from "api/utils";
+import { Stack } from "@mui/material"
+import { SettingsNotificationsViewProps } from "../types";
+import { useDisplayApolloError, usePromptBeforeUnload } from "utils";
 import { useCustomMutation } from "api/hooks";
 import { useFormik } from "formik";
-import { NotificationSettings, NotificationSettingsUpdateInput } from "@shared/consts";
-import { DUMMY_ID, uuid } from "@shared/uuid";
+import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
 import { userValidation } from "@shared/validation";
 import { BaseForm } from "forms";
-import { SettingsTopBar } from "components";
+import { ListContainer, IntegerInput, SettingsList, SettingsToggleListItem, SettingsTopBar, PushList, Subheader } from "components";
+import { useTranslation } from "react-i18next";
+import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
+import { notificationSettings } from "api/generated/endpoints/notification_settings";
+import { useQuery } from "@apollo/client";
+import { Wrap } from "types";
+import { mutationWrapper } from "api";
+import { PhoneIcon } from "@shared/icons";
 
 export const SettingsNotificationsView = ({
     display = 'page',
     session,
-}: SettingsNotificationsProps) => {
+}: SettingsNotificationsViewProps) => {
+    const { t } = useTranslation();
+
+    const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, 'notificationSettings'>>(notificationSettings, { errorPolicy: 'all' });
+    useDisplayApolloError(error);
+
     // Handle update
-    // const [mutation] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
+    const [mutation, { loading: isUpdating }] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
     const formik = useFormik({
         initialValues: {
-            name: profile?.name ?? '',
-            translationsUpdate: profile?.translations ?? [{
-                id: DUMMY_ID,
-                language: getUserLanguages(session)[0],
-                bio: '',
-            }],
+            includedEmails: [] as string[],
+            includedSms: [] as string[],
+            includedPush: [] as string[],
+            toEmails: false,
+            toSms: false,
+            toPush: false,
+            dailyLimit: 0,
+            enabled: false,
+            categories: [] as NotificationSettingsCategory[],
         },
         enableReinitialize: true,
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
-            // if (!profile) {
-            //     PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
-            //     return;
-            // }
-            // if (!formik.isValid) {
-            //     PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: 'Error' });
-            //     return;
-            // }
-            // const input = shapeProfile.update(profile, {
-            //     id: profile.id,
-            //     name: values.name,
-            //     handle: selectedHandle,
-            //     translations: values.translationsUpdate,
-            // })
-            // if (!input || Object.keys(input).length === 0) {
-            //     PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: 'Info' });
-            //     return;
-            // }
-            // mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
-            //     mutation,
-            //     input,
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
+            mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
+                mutation,
+                input: values,
+                onError: () => { formik.setSubmitting(false) },
+            })
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
@@ -64,38 +58,61 @@ export const SettingsNotificationsView = ({
                 session={session}
                 titleData={{
                     titleKey: 'Notification',
-                    count: 2,
+                    titleVariables: { count: 2 }
                 }}
             />
             <Stack direction="row">
-                <SettingsList showOnMobile={true} />
+                <SettingsList />
                 <BaseForm
-                    isLoading={isProfileLoading || isUpdating}
+                    isLoading={isLoading || isUpdating}
                     onSubmit={formik.handleSubmit}
                     style={{
                         width: { xs: '100%', md: 'min(100%, 700px)' },
-                        marginRight: 'auto',
+                        margin: 'auto',
                         display: 'block',
                     }}
                 >
-                    {/* <PageTitle titleKey='Notification' titleVariables={{ count: 2 }} /> */}
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                            {/* Toggle all notifications */}
-                            <Stack direction="row" marginRight="auto" alignItems="center">
-                                <Typography component="h2" variant="h5" textAlign="center">Toggle all</Typography>
-                                {/* <Switch
-                            checked={formik.values.strictlyNecessary}
-                            onChange={formik.handleChange}
-                            name="toggleAll"
-                            sx={{
-                                position: 'absolute',
-                                right: '16px',
-                            }}
-                        /> */}
-                            </Stack>
-                        </Grid>
-                    </Grid>
+                    {/* Overall notifications toggle */}
+                    <ListContainer>
+                        <SettingsToggleListItem
+                            title={t('Notification', { count: 2 })}
+                            description={t('PushNotificationSettingsDescription')}
+                            checked={formik.values.enabled}
+                            onChange={() => formik.setFieldValue('enabled', !formik.values.enabled)}
+                        />
+                    </ListContainer>
+                    {/* Daily limit input */}
+                    {/* <IntegerInput 
+                        title={t('DailyLimit')}
+                        // description={t('DailyLimitNotificationDescription')}
+                        disabled={!formik.values.enabled}
+                        value={formik.values.dailyLimit}
+                        onChange={(value) => formik.setFieldValue('dailyLimit', value)}
+                    /> */}
+                    {/* Push notifications toggle */}
+                    <ListContainer>
+                        <SettingsToggleListItem
+                            title={t('PushNotification', { count: 2 })}
+                            description={t('PushNotificationToggleDescription')}
+                            disabled={!formik.values.enabled}
+                            checked={true}
+                            onChange={() => { }}
+                        />
+                    </ListContainer>
+                    {/* Push Device list */}
+                    <Subheader
+                        Icon={PhoneIcon}
+                        title={t('Device', { count: 2 })} />
+                    <PushList
+                        handleUpdate={() => {}}
+                        list={[]}
+                    />
+                    {/* Email notifications toggle */}
+                    {/* TODO */}
+                    {/* Email list */}
+                    {/* TODO */}
+                    {/* Toggle individual categories */}
+                    {/* TODO */}
                 </BaseForm>
             </Stack>
         </>

@@ -66,7 +66,6 @@ export const ProjectCreate = ({
                     id: values.id,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
-                    isLatest: true,
                     root: {
                         id: uuid(),
                         owner: relationships.owner,

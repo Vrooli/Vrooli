@@ -65,11 +65,17 @@ export const RunProjectModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            pre: async ({ updateList }) => {
+                if (updateList.length) {
+                    // TODO if status passed in for update, make sure it's not the same 
+                    // as the current status, or an invalid transition (e.g. failed -> in progress)
+                }
+            },
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 //TODO
             } as any),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 id: data.id,
                 //TODO
             } as any)
@@ -117,12 +123,6 @@ export const RunProjectModel: ModelLogic<{
             ['user', 'User'],
         ], languages),
         profanityFields: ['name'],
-        validations: {
-            async update({ languages, updateMany }) {
-                // TODO if status passed in for update, make sure it's not the same 
-                // as the current status, or an invalid transition (e.g. failed -> in progress)
-            },
-        },
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },

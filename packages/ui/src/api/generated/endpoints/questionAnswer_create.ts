@@ -62,6 +62,7 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
             handle
         }
         hasAcceptedAnswer
+        isPrivate
         score
         bookmarks
         answersCount

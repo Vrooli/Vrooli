@@ -19,7 +19,7 @@ export const quizQuestionValidation: YupModel = {
         points: opt(intPositiveOrOne),
     }, [
         ['standardVersion', ['Connect', 'Create'], 'one', 'opt', standardVersionValidation],
-        ['quiz', ['Connect'], 'one', 'opt'],
+        ['quiz', ['Connect'], 'one', 'req'],
         ['translations', ['Create'], 'many', 'opt', quizQuestionTranslationValidation],
     ], [['standardVersionConnect', 'standardVersionCreate']], o),
     update: ({ o }) => yupObj({

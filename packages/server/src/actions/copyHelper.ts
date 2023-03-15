@@ -39,7 +39,7 @@ export async function copyHelper({
     // await maxObjectsCheck(authDataById, { ['Create']: [input.id] }, prisma, userData);
     // const { object } = await model.mutate(prisma).duplicate!({ userId: userData.id, objectId: input.id, isFork: false, createCount: 0 });
     // // Handle trigger
-    // await Trigger(prisma, req.languages).objectFork(input.objectType, input.id, userData.id);
+    // await Trigger(prisma, req.languages).objectCopy(input.objectType, input.id, userData.id);
     // // Query for object
     // const fullObject = await readOneHelper({
     //     info,

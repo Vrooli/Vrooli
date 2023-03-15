@@ -61,7 +61,17 @@ export const MaxObjects = {
             },
             public: 0,
         },
-        Organization: 0
+        Organization: 0,
+    },
+    BookmarkList: {
+        User: {
+            private: {
+                noPremium: 3,
+                premium: 50,
+            },
+            public: 0,
+        },
+        Organization: 0,
     },
     Comment: {
         User: {
@@ -182,6 +192,10 @@ export const MaxObjects = {
         noPremium: 1,
         premium: 5,
     },
+    Post: {
+        noPremium: 10000,
+        premium: 100000,
+    },
     Project: {
         private: {
             noPremium: 3,
@@ -193,6 +207,7 @@ export const MaxObjects = {
         },
     },
     ProjectVersion: 100000,
+    ProjectVersionDirectory: 1000000,
     PushDevice: {
         User: 5,
         Organization: 0,
@@ -209,10 +224,29 @@ export const MaxObjects = {
         User: 2000,
         Organization: 0,
     },
+    QuizQuestion: {
+        User: 200000,
+        Organization: 0,
+    },
+    QuizQuestionResponse: {
+        User: 200000,
+        Organization: 0,
+    },
     Report: {
         User: {
             private: 0,
             public: 10000,
+        },
+        Organization: 0,
+    },
+    ReminderItem: {
+        User: 100000,
+        Organization: 0,
+    },
+    ReminderList: {
+        User: {
+            noPremium: 25,
+            premium: 250,
         },
         Organization: 0,
     },
@@ -264,6 +298,10 @@ export const MaxObjects = {
     Tag: {
         User: 5000,
         Organization: 0,
+    },
+    Transfer: {
+        User: 5000,
+        Organization: 5000,
     },
     User: 0,
     UserSchedule: {

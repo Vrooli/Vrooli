@@ -234,6 +234,7 @@ export async function getMultiTypePermissions(
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
         const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
+        console.log('before isOwnerAdminCheck', JSON.stringify(authDataById[id]));
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);

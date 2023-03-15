@@ -6,7 +6,7 @@ const text = yup.string().transform(blankToUndefined).max(65536, maxStrErr)
 
 export const noteVersionTranslationValidation: YupModel = transRel({
     create: {
-        description: req(description),
+        description: opt(description),
         name: opt(name),
         text: req(text),
     },
@@ -20,7 +20,6 @@ export const noteVersionTranslationValidation: YupModel = transRel({
 export const noteVersionValidation: YupModel = {
     create: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(bool),
         isPrivate: opt(bool),
         versionLabel: req(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
@@ -31,7 +30,6 @@ export const noteVersionValidation: YupModel = {
     ], [['rootConnect', 'rootCreate']], o),
     update: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
-        isLatest: opt(bool),
         isPrivate: opt(bool),
         versionLabel: opt(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),

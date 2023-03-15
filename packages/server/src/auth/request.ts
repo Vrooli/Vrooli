@@ -102,7 +102,7 @@ interface ApiToken extends BasicToken {
  */
 const basicToken = (): BasicToken => ({
     iat: Date.now(),
-    iss: `https://app.vrooli.com/`,
+    iss: `https://vrooli.com/`,
     exp: Date.now() + SESSION_MILLI,
 })
 

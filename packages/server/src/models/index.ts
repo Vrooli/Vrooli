@@ -45,6 +45,7 @@ import { ReminderModel } from './reminder';
 import { ReminderItemModel } from './reminderItem';
 import { ReminderListModel } from './reminderList';
 import { ReportModel } from './report';
+import { ReportResponseModel } from './reportResponse';
 import { ResourceModel } from './resource';
 import { ResourceListModel } from './resourceList';
 import { RoleModel } from './role';
@@ -132,6 +133,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     ReminderItem: ReminderItemModel,
     ReminderList: ReminderListModel,
     Report: ReportModel,
+    ReportResponse: ReportResponseModel,
     Resource: ResourceModel,
     ResourceList: ResourceListModel,
     Role: RoleModel,
@@ -217,6 +219,7 @@ export * from './reminder';
 export * from './reminderItem';
 export * from './reminderList';
 export * from './report';
+export * from './reportResponse';
 export * from './resource';
 export * from './resourceList';
 export * from './role';

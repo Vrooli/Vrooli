@@ -1,4 +1,4 @@
-import { description, enumToYup, id, name, opt, referencing, req, transRel, YupModel, yupObj } from "../utils";
+import { bool, description, enumToYup, id, name, opt, referencing, req, transRel, YupModel, yupObj } from "../utils";
 import { QuestionForType } from "@shared/consts";
 
 const forType = enumToYup(QuestionForType);
@@ -17,6 +17,7 @@ export const questionTranslationValidation: YupModel = transRel({
 export const questionValidation: YupModel = {
     create: ({ o }) => yupObj({
         id: req(id),
+        isPrivate: opt(bool),
         referencing: opt(referencing),
         for: req(forType),
     }, [
@@ -25,6 +26,7 @@ export const questionValidation: YupModel = {
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
+        isPrivate: opt(bool),
     }, [
         ['acceptedAnswer', ['Connect'], 'one', 'opt'],
         ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', questionTranslationValidation],

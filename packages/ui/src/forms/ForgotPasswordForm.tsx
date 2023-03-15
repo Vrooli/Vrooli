@@ -9,7 +9,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { APP_LINKS, EmailRequestPasswordChangeInput, Success } from '@shared/consts';
+import { LINKS, EmailRequestPasswordChangeInput, Success } from '@shared/consts';
 import { Forms } from 'utils';
 import { mutationWrapper } from 'api/utils';
 import { useLocation } from '@shared/route';
@@ -37,7 +37,7 @@ export const ForgotPasswordForm = ({
                 mutation: emailRequestPasswordChange,
                 input: { ...values },
                 successCondition: (data) => data.success === true,
-                onSuccess: () => setLocation(APP_LINKS.Home),
+                onSuccess: () => setLocation(LINKS.Home),
                 onError: () => { formik.setSubmitting(false) },
                 successMessage: () => ({ key: 'RequestSentCheckEmail' }),
             })

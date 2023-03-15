@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Bookmark, View, Vote } from "@shared/consts";
+import { LINKS, GqlModelType, RunProject, RunRoutine, Bookmark, View, Vote } from "@shared/consts";
 import { SetLocation, stringifySearchParams } from "@shared/route";
 import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
@@ -33,7 +33,7 @@ export type ObjectType = 'Api' |
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
     // If object is a user, use 'Profile'
-    if (isOfType(object, 'User')) return APP_LINKS.Profile;
+    if (isOfType(object, 'User')) return LINKS.Profile;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getObjectUrlBase((object as Bookmark | View | Vote).to as any);
     // If the object is a run routine, use the routine version
@@ -41,7 +41,7 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
     // If the object is a run project, use the project version
     if (isOfType(object, 'RunProject')) return getObjectUrlBase((object as RunProject).projectVersion as any);
     // Otherwise, use __typename (or root if versioned object)
-    return APP_LINKS[object.__typename.replace('Version', '')];
+    return LINKS[object.__typename.replace('Version', '')];
 }
 
 /**

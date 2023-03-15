@@ -24,7 +24,6 @@ export const smartContractVersionValidation: YupModel = {
     create: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
         isComplete: opt(bool),
-        isLatest: opt(bool),
         isPrivate: opt(bool),
         default: opt(smartContractDefault),
         contractType: req(contractType),
@@ -40,7 +39,6 @@ export const smartContractVersionValidation: YupModel = {
     update: ({ o, minVersion = '0.0.1' }) => yupObj({
         id: req(id),
         isComplete: opt(bool),
-        isLatest: opt(bool),
         isPrivate: opt(bool),
         default: opt(smartContractDefault),
         contractType: opt(contractType),

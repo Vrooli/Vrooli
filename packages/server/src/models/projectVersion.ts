@@ -5,24 +5,11 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ProjectModel } from "./project";
-
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
-    return {
-        id: data.id,
-        // isComplete: data.isComplete ?? undefined,
-        // isPrivate: data.isPrivate ?? undefined,
-        // completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
-        permissions: JSON.stringify({}),
-        // resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        // tags: await tagRelationshipBuilder(prisma, userData, data, 'Project', isAdd),
-        // translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-    }
-}
 
 const __typename = 'ProjectVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -131,39 +118,40 @@ export const ProjectVersionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => ({
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages));
+            },
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                isLatest: noNull(data.isLatest),
                 isPrivate: noNull(data.isPrivate),
                 isComplete: noNull(data.isComplete),
                 versionLabel: data.versionLabel,
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Project', parentRelationshipName: 'versions', data, prisma, userData })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Project', parentRelationshipName: 'versions', data, ...rest })),
+                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ prisma, userData, data }) => ({
-                isLatest: noNull(data.isLatest),
+            update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 versionLabel: noNull(data.versionLabel),
                 versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'versions', data, prisma, userData })),
-                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'versions', data, ...rest })),
+                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
-        },
-        trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).createProject(userData.id, c.id);
-                }
-            },
-            onUpdated: ({ updated, prisma, userData }) => {
-                // for (const u of updated) {
-                //     Trigger(prisma, userData.languages).updateProject(userData.id, u.id as string);
-                // }
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
             }
         },
         yup: projectVersionValidation,
@@ -332,24 +320,6 @@ export const ProjectVersionModel: ModelLogic<{
             root: ['Project', ['versions']],
         }),
         permissionResolvers: defaultPermissions,
-        validations: {
-            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
-                await versionsCheck({
-                    createMany,
-                    deleteMany,
-                    languages,
-                    objectType: 'Project',
-                    prisma,
-                    updateMany: updateMany as any,
-                });
-            },
-            async create({ createMany, languages }) {
-                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
-            },
-            async update({ languages, updateMany }) {
-                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
-            },
-        },
         visibility: {
             private: {
                 isDeleted: false,

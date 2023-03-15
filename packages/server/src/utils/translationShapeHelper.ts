@@ -18,6 +18,7 @@ export const translationShapeHelper = async <
 >({
     data,
     isRequired,
+    preMap,
     prisma,
     relTypes,
     userData,
@@ -29,6 +30,7 @@ export const translationShapeHelper = async <
         isRequired,
         objectType: 'Translation' as GqlModelType,
         parentRelationshipName: '',
+        preMap,
         primaryKey: 'id',
         prisma,
         relation: 'translations',

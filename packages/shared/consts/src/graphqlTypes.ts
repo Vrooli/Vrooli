@@ -218,7 +218,6 @@ export type ApiVersionCreateInput = {
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
@@ -313,7 +312,6 @@ export type ApiVersionUpdateInput = {
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
@@ -1041,8 +1039,8 @@ export enum IssueSortBy {
 }
 
 export enum IssueStatus {
-  CloseUnresolved = 'CloseUnresolved',
   ClosedResolved = 'ClosedResolved',
+  ClosedUnresolved = 'ClosedUnresolved',
   Open = 'Open',
   Rejected = 'Rejected'
 }
@@ -1260,6 +1258,7 @@ export type MeetingCreateInput = {
   id: Scalars['ID'];
   invitesCreate?: InputMaybe<Array<MeetingInviteCreateInput>>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationConnect: Scalars['ID'];
   recurrEnd?: InputMaybe<Scalars['Date']>;
@@ -1431,6 +1430,7 @@ export type MeetingUpdateInput = {
   invitesDelete?: InputMaybe<Array<Scalars['ID']>>;
   invitesUpdate?: InputMaybe<Array<MeetingInviteUpdateInput>>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   recurrEnd?: InputMaybe<Scalars['Date']>;
@@ -2534,32 +2534,33 @@ export type NodeLoopCreateInput = {
   id: Scalars['ID'];
   loops?: InputMaybe<Scalars['Int']>;
   maxLoops?: InputMaybe<Scalars['Int']>;
+  nodeConnect: Scalars['ID'];
   operation?: InputMaybe<Scalars['String']>;
-  whilesCreate: Array<NodeLoopWhileCreateInput>;
+  whilesCreate?: InputMaybe<Array<NodeLoopWhileCreateInput>>;
 };
 
 export type NodeLoopUpdateInput = {
   id: Scalars['ID'];
   loops?: InputMaybe<Scalars['Int']>;
   maxLoops?: InputMaybe<Scalars['Int']>;
+  nodeConnect?: InputMaybe<Scalars['ID']>;
   operation?: InputMaybe<Scalars['String']>;
-  whilesCreate: Array<NodeLoopWhileCreateInput>;
+  whilesCreate?: InputMaybe<Array<NodeLoopWhileCreateInput>>;
   whilesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  whilesUpdate: Array<NodeLoopWhileUpdateInput>;
+  whilesUpdate?: InputMaybe<Array<NodeLoopWhileUpdateInput>>;
 };
 
 export type NodeLoopWhile = {
   __typename: 'NodeLoopWhile';
   condition: Scalars['String'];
   id: Scalars['ID'];
-  toId?: Maybe<Scalars['ID']>;
   translations: Array<NodeLoopWhileTranslation>;
 };
 
 export type NodeLoopWhileCreateInput = {
   condition: Scalars['String'];
   id: Scalars['ID'];
-  toConnect?: InputMaybe<Scalars['ID']>;
+  loopConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<NodeLoopWhileTranslationCreateInput>>;
 };
 
@@ -2588,7 +2589,6 @@ export type NodeLoopWhileTranslationUpdateInput = {
 export type NodeLoopWhileUpdateInput = {
   condition?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  toConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<NodeLoopWhileTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<NodeLoopWhileTranslationUpdateInput>>;
@@ -2751,12 +2751,12 @@ export type NoteCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<NoteVersionCreateInput>>;
 };
 
@@ -2816,18 +2816,19 @@ export enum NoteSortBy {
 
 export type NoteUpdateInput = {
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
-  versionsCreate?: InputMaybe<Array<ApiVersionCreateInput>>;
+  versionsCreate?: InputMaybe<Array<NoteVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  versionsUpdate?: InputMaybe<Array<ApiVersionUpdateInput>>;
+  versionsUpdate?: InputMaybe<Array<NoteVersionUpdateInput>>;
 };
 
 export type NoteVersion = {
@@ -2857,7 +2858,6 @@ export type NoteVersion = {
 export type NoteVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<NoteCreateInput>;
@@ -2945,7 +2945,6 @@ export type NoteVersionUpdateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   rootUpdate?: InputMaybe<NoteUpdateInput>;
   translationsCreate?: InputMaybe<Array<NoteVersionTranslationCreateInput>>;
@@ -3580,12 +3579,12 @@ export type ProjectCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<ProjectVersionCreateInput>>;
 };
 
@@ -3801,12 +3800,12 @@ export type ProjectUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<ProjectVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<ProjectVersionUpdateInput>>;
@@ -3882,7 +3881,6 @@ export type ProjectVersionCreateInput = {
   directoryListingsCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ProjectCreateInput>;
@@ -3949,7 +3947,7 @@ export type ProjectVersionDirectoryUpdateInput = {
   id: Scalars['ID'];
   isRoot?: InputMaybe<Scalars['Boolean']>;
   parentDirectoryConnect?: InputMaybe<Scalars['ID']>;
-  parentDirectoryDisconnect?: InputMaybe<Scalars['ID']>;
+  parentDirectoryDisconnect?: InputMaybe<Scalars['Boolean']>;
   projectVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ProjectVersionDirectoryTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -4051,7 +4049,6 @@ export type ProjectVersionUpdateInput = {
   directoryListingsUpdate?: InputMaybe<Array<ProjectVersionDirectoryUpdateInput>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   rootUpdate?: InputMaybe<ProjectUpdateInput>;
   suggestedNextByProjectConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -4107,6 +4104,7 @@ export type PullRequest = {
 
 export type PullRequestCreateInput = {
   fromConnect: Scalars['ID'];
+  fromObjectType: PullRequestFromObjectType;
   id: Scalars['ID'];
   toConnect: Scalars['ID'];
   toObjectType: PullRequestToObjectType;
@@ -4120,6 +4118,15 @@ export type PullRequestEdge = {
 };
 
 export type PullRequestFrom = ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion;
+
+export enum PullRequestFromObjectType {
+  ApiVersion = 'ApiVersion',
+  NoteVersion = 'NoteVersion',
+  ProjectVersion = 'ProjectVersion',
+  RoutineVersion = 'RoutineVersion',
+  SmartContractVersion = 'SmartContractVersion',
+  StandardVersion = 'StandardVersion'
+}
 
 export type PullRequestSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -4262,6 +4269,7 @@ export type Query = {
   noteVersions: NoteVersionSearchResult;
   notes: NoteSearchResult;
   notification?: Maybe<Notification>;
+  notificationSettings: NotificationSettings;
   notificationSubscription?: Maybe<NotificationSubscription>;
   notificationSubscriptions: NotificationSubscriptionSearchResult;
   notifications: NotificationSearchResult;
@@ -4962,6 +4970,7 @@ export type Question = {
   forObject: QuestionFor;
   hasAcceptedAnswer: Scalars['Boolean'];
   id: Scalars['ID'];
+  isPrivate: Scalars['Boolean'];
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
@@ -4990,6 +4999,7 @@ export type QuestionAnswer = {
 
 export type QuestionAnswerCreateInput = {
   id: Scalars['ID'];
+  questionConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<QuestionAnswerTranslationCreateInput>>;
 };
 
@@ -5062,6 +5072,7 @@ export type QuestionCreateInput = {
   forConnect: Scalars['ID'];
   forType: QuestionForType;
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   referencing?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
@@ -5157,6 +5168,7 @@ export type QuestionTranslationUpdateInput = {
 export type QuestionUpdateInput = {
   acceptedAnswerConnect?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
@@ -5219,6 +5231,7 @@ export type QuizAttemptCreateInput = {
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   language: Scalars['String'];
+  quizConnect: Scalars['ID'];
   responsesCreate?: InputMaybe<Array<QuizQuestionResponseCreateInput>>;
   timeTaken?: InputMaybe<Scalars['Int']>;
 };
@@ -5293,7 +5306,7 @@ export type QuizCreateInput = {
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
   quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
-  randomizeQuestionOder?: InputMaybe<Scalars['Boolean']>;
+  randomizeQuestionOrder?: InputMaybe<Scalars['Boolean']>;
   revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
   timeLimit?: InputMaybe<Scalars['Int']>;
@@ -5325,7 +5338,7 @@ export type QuizQuestionCreateInput = {
   id: Scalars['ID'];
   order?: InputMaybe<Scalars['Int']>;
   points?: InputMaybe<Scalars['Int']>;
-  quizConnect?: InputMaybe<Scalars['ID']>;
+  quizConnect: Scalars['ID'];
   standardVersionConnect?: InputMaybe<Scalars['ID']>;
   standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
   translationsCreate?: InputMaybe<Array<QuizQuestionTranslationCreateInput>>;
@@ -5344,7 +5357,6 @@ export type QuizQuestionResponse = {
   quizAttempt: QuizAttempt;
   quizQuestion: QuizQuestion;
   response?: Maybe<Scalars['String']>;
-  translations: Array<QuizQuestionResponseTranslation>;
   updated_at: Scalars['Date'];
   you: QuizQuestionResponseYou;
 };
@@ -5353,8 +5365,7 @@ export type QuizQuestionResponseCreateInput = {
   id: Scalars['ID'];
   quizAttemptConnect: Scalars['ID'];
   quizQuestionConnect: Scalars['ID'];
-  response?: InputMaybe<Scalars['String']>;
-  translationsCreate?: InputMaybe<Array<QuizQuestionResponseTranslationCreateInput>>;
+  response: Scalars['String'];
 };
 
 export type QuizQuestionResponseEdge = {
@@ -5391,30 +5402,9 @@ export enum QuizQuestionResponseSortBy {
   QuestionOrderDesc = 'QuestionOrderDesc'
 }
 
-export type QuizQuestionResponseTranslation = {
-  __typename: 'QuizQuestionResponseTranslation';
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  response: Scalars['String'];
-};
-
-export type QuizQuestionResponseTranslationCreateInput = {
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  response: Scalars['String'];
-};
-
-export type QuizQuestionResponseTranslationUpdateInput = {
-  id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
-  response?: InputMaybe<Scalars['String']>;
-};
-
 export type QuizQuestionResponseUpdateInput = {
   id: Scalars['ID'];
-  translationsCreate?: InputMaybe<Array<QuizQuestionResponseTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<QuizQuestionResponseTranslationUpdateInput>>;
+  response?: InputMaybe<Scalars['String']>;
 };
 
 export type QuizQuestionResponseYou = {
@@ -5563,14 +5553,14 @@ export type QuizUpdateInput = {
   maxAttempts?: InputMaybe<Scalars['Int']>;
   pointsToPass?: InputMaybe<Scalars['Int']>;
   projectConnect?: InputMaybe<Scalars['ID']>;
-  projectDisconnect?: InputMaybe<Scalars['ID']>;
+  projectDisconnect?: InputMaybe<Scalars['Boolean']>;
   quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
   quizQuestionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   quizQuestionsUpdate?: InputMaybe<Array<QuizQuestionUpdateInput>>;
   randomizeQuestionOrder?: InputMaybe<Scalars['Boolean']>;
   revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
-  routineDisconnect?: InputMaybe<Scalars['ID']>;
+  routineDisconnect?: InputMaybe<Scalars['Boolean']>;
   timeLimit?: InputMaybe<Scalars['Int']>;
   translationsCreate?: InputMaybe<Array<QuizTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -5642,6 +5632,7 @@ export type ReminderItemCreateInput = {
   id: Scalars['ID'];
   index: Scalars['Int'];
   name: Scalars['String'];
+  reminderConnect: Scalars['ID'];
 };
 
 export type ReminderItemUpdateInput = {
@@ -6271,12 +6262,12 @@ export type RoutineCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<RoutineVersionCreateInput>>;
 };
 
@@ -6347,17 +6338,18 @@ export enum RoutineSortBy {
 }
 
 export type RoutineUpdateInput = {
+  id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<RoutineVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<RoutineVersionUpdateInput>>;
@@ -6419,7 +6411,6 @@ export type RoutineVersionCreateInput = {
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
@@ -6494,7 +6485,7 @@ export type RoutineVersionInputUpdateInput = {
   name?: InputMaybe<Scalars['String']>;
   standardVersionConnect?: InputMaybe<Scalars['ID']>;
   standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
-  standardVersionDisconnect?: InputMaybe<Scalars['ID']>;
+  standardVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
   translationsCreate?: InputMaybe<Array<RoutineVersionInputTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<RoutineVersionInputTranslationUpdateInput>>;
@@ -6550,7 +6541,7 @@ export type RoutineVersionOutputUpdateInput = {
   name?: InputMaybe<Scalars['String']>;
   standardVersionConnect?: InputMaybe<Scalars['ID']>;
   standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
-  standardVersionDisconnect?: InputMaybe<Scalars['ID']>;
+  standardVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
   translationsCreate?: InputMaybe<Array<RoutineVersionOutputTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<RoutineVersionOutputTranslationUpdateInput>>;
@@ -6659,7 +6650,6 @@ export type RoutineVersionUpdateInput = {
   inputsUpdate?: InputMaybe<Array<RoutineVersionInputUpdateInput>>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodeLinksDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -7462,12 +7452,12 @@ export type SmartContractCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
 };
 
@@ -7540,12 +7530,12 @@ export type SmartContractUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<SmartContractVersionUpdateInput>>;
@@ -7590,7 +7580,6 @@ export type SmartContractVersionCreateInput = {
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect: Scalars['ID'];
@@ -7691,7 +7680,6 @@ export type SmartContractVersionUpdateInput = {
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
@@ -7761,12 +7749,12 @@ export type StandardCreateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   name: Scalars['String'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
 };
 
@@ -7841,12 +7829,12 @@ export type StandardUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  userConnect?: InputMaybe<Scalars['ID']>;
   versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
   versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   versionsUpdate?: InputMaybe<Array<StandardVersionUpdateInput>>;
@@ -7892,7 +7880,6 @@ export type StandardVersionCreateInput = {
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isFile?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   props: Scalars['String'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -7992,7 +7979,6 @@ export type StandardVersionUpdateInput = {
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isFile?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   props?: InputMaybe<Scalars['String']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
@@ -8601,7 +8587,6 @@ export enum TransferObjectType {
 }
 
 export type TransferRequestReceiveInput = {
-  id: Scalars['ID'];
   message?: InputMaybe<Scalars['String']>;
   objectConnect: Scalars['ID'];
   objectType: TransferObjectType;
@@ -8609,7 +8594,6 @@ export type TransferRequestReceiveInput = {
 };
 
 export type TransferRequestSendInput = {
-  id: Scalars['ID'];
   message?: InputMaybe<Scalars['String']>;
   objectConnect: Scalars['ID'];
   objectType: TransferObjectType;
@@ -9488,6 +9472,7 @@ export type ResolversTypes = {
   PullRequestCreateInput: PullRequestCreateInput;
   PullRequestEdge: ResolverTypeWrapper<PullRequestEdge>;
   PullRequestFrom: ResolversTypes['ApiVersion'] | ResolversTypes['NoteVersion'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
+  PullRequestFromObjectType: PullRequestFromObjectType;
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: ResolverTypeWrapper<PullRequestSearchResult>;
   PullRequestSortBy: PullRequestSortBy;
@@ -9548,9 +9533,6 @@ export type ResolversTypes = {
   QuizQuestionResponseSearchInput: QuizQuestionResponseSearchInput;
   QuizQuestionResponseSearchResult: ResolverTypeWrapper<QuizQuestionResponseSearchResult>;
   QuizQuestionResponseSortBy: QuizQuestionResponseSortBy;
-  QuizQuestionResponseTranslation: ResolverTypeWrapper<QuizQuestionResponseTranslation>;
-  QuizQuestionResponseTranslationCreateInput: QuizQuestionResponseTranslationCreateInput;
-  QuizQuestionResponseTranslationUpdateInput: QuizQuestionResponseTranslationUpdateInput;
   QuizQuestionResponseUpdateInput: QuizQuestionResponseUpdateInput;
   QuizQuestionResponseYou: ResolverTypeWrapper<QuizQuestionResponseYou>;
   QuizQuestionSearchInput: QuizQuestionSearchInput;
@@ -10216,9 +10198,6 @@ export type ResolversParentTypes = {
   QuizQuestionResponseEdge: QuizQuestionResponseEdge;
   QuizQuestionResponseSearchInput: QuizQuestionResponseSearchInput;
   QuizQuestionResponseSearchResult: QuizQuestionResponseSearchResult;
-  QuizQuestionResponseTranslation: QuizQuestionResponseTranslation;
-  QuizQuestionResponseTranslationCreateInput: QuizQuestionResponseTranslationCreateInput;
-  QuizQuestionResponseTranslationUpdateInput: QuizQuestionResponseTranslationUpdateInput;
   QuizQuestionResponseUpdateInput: QuizQuestionResponseUpdateInput;
   QuizQuestionResponseYou: QuizQuestionResponseYou;
   QuizQuestionSearchInput: QuizQuestionSearchInput;
@@ -11280,7 +11259,6 @@ export type NodeLoopResolvers<ContextType = any, ParentType extends ResolversPar
 export type NodeLoopWhileResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeLoopWhile'] = ResolversParentTypes['NodeLoopWhile']> = {
   condition?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  toId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeLoopWhileTranslation']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12002,6 +11980,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   noteVersions?: Resolver<ResolversTypes['NoteVersionSearchResult'], ParentType, ContextType, RequireFields<QueryNoteVersionsArgs, 'input'>>;
   notes?: Resolver<ResolversTypes['NoteSearchResult'], ParentType, ContextType, RequireFields<QueryNotesArgs, 'input'>>;
   notification?: Resolver<Maybe<ResolversTypes['Notification']>, ParentType, ContextType, RequireFields<QueryNotificationArgs, 'input'>>;
+  notificationSettings?: Resolver<ResolversTypes['NotificationSettings'], ParentType, ContextType>;
   notificationSubscription?: Resolver<Maybe<ResolversTypes['NotificationSubscription']>, ParentType, ContextType, RequireFields<QueryNotificationSubscriptionArgs, 'input'>>;
   notificationSubscriptions?: Resolver<ResolversTypes['NotificationSubscriptionSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationSubscriptionsArgs, 'input'>>;
   notifications?: Resolver<ResolversTypes['NotificationSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationsArgs, 'input'>>;
@@ -12106,6 +12085,7 @@ export type QuestionResolvers<ContextType = any, ParentType extends ResolversPar
   forObject?: Resolver<ResolversTypes['QuestionFor'], ParentType, ContextType>;
   hasAcceptedAnswer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12277,7 +12257,6 @@ export type QuizQuestionResponseResolvers<ContextType = any, ParentType extends 
   quizAttempt?: Resolver<ResolversTypes['QuizAttempt'], ParentType, ContextType>;
   quizQuestion?: Resolver<ResolversTypes['QuizQuestion'], ParentType, ContextType>;
   response?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  translations?: Resolver<Array<ResolversTypes['QuizQuestionResponseTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizQuestionResponseYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12292,13 +12271,6 @@ export type QuizQuestionResponseEdgeResolvers<ContextType = any, ParentType exte
 export type QuizQuestionResponseSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionResponseSearchResult'] = ResolversParentTypes['QuizQuestionResponseSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['QuizQuestionResponseEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type QuizQuestionResponseTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionResponseTranslation'] = ResolversParentTypes['QuizQuestionResponseTranslation']> = {
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  response?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14024,7 +13996,6 @@ export type Resolvers<ContextType = any> = {
   QuizQuestionResponse?: QuizQuestionResponseResolvers<ContextType>;
   QuizQuestionResponseEdge?: QuizQuestionResponseEdgeResolvers<ContextType>;
   QuizQuestionResponseSearchResult?: QuizQuestionResponseSearchResultResolvers<ContextType>;
-  QuizQuestionResponseTranslation?: QuizQuestionResponseTranslationResolvers<ContextType>;
   QuizQuestionResponseYou?: QuizQuestionResponseYouResolvers<ContextType>;
   QuizQuestionSearchResult?: QuizQuestionSearchResultResolvers<ContextType>;
   QuizQuestionTranslation?: QuizQuestionTranslationResolvers<ContextType>;

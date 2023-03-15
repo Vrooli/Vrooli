@@ -37,6 +37,7 @@ query questions($input: QuestionSearchInput!) {
                 handle
             }
             hasAcceptedAnswer
+            isPrivate
             score
             bookmarks
             answersCount

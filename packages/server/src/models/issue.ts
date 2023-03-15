@@ -1,13 +1,23 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects, PrependString } from '@shared/consts';
+import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { VoteModel } from "./vote";
 import { issueValidation } from "@shared/validation";
+
+const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs['create'] } = {
+    Api: 'api',
+    Note: 'note',
+    Organization: 'organization',
+    Project: 'project',
+    Routine: 'routine',
+    SmartContract: 'smartContract',
+    Standard: 'standard',
+}
 
 const __typename = 'Issue' as const;
 type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReport' | 'canRead' | 'canVote'>;
@@ -91,14 +101,17 @@ export const IssueModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
+                [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Issue', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Issue', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
         },
         yup: issueValidation,
     },

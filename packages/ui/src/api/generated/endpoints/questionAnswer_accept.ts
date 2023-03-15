@@ -62,6 +62,7 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
             handle
         }
         hasAcceptedAnswer
+        isPrivate
         score
         bookmarks
         answersCount

@@ -42,6 +42,7 @@ function arrayConvert<T, U>(arr: T[] | undefined, convert?: (T) => U): U[] | und
 const inputTypeToSearch: { [key in InputType]: (value: any) => any } = {
     [InputType.Checkbox]: (value) => value, //TODO
     [InputType.Dropzone]: (value) => value, //TODO
+    [InputType.IntegerInput]: (value) => value, //TODO
     [InputType.JSON]: (value) => value, //TODO
     [InputType.LanguageInput]: (value: string[]) => arrayConvert(value),
     [InputType.Markdown]: (value: string) => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined,
@@ -51,7 +52,6 @@ const inputTypeToSearch: { [key in InputType]: (value: any) => any } = {
     [InputType.Switch]: (value) => value, //TODO 
     [InputType.TagSelector]: (value: Tag[]) => arrayConvert(value, ({ tag }) => tag),
     [InputType.TextField]: (value: string) => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined,
-    [InputType.QuantityBox]: (value) => value, //TODO
 }
 
 /**
@@ -60,6 +60,7 @@ const inputTypeToSearch: { [key in InputType]: (value: any) => any } = {
 const searchToInputType: { [key in InputType]: (value: any) => any } = {
     [InputType.Checkbox]: (value) => value, //TODO
     [InputType.Dropzone]: (value) => value, //TODO
+    [InputType.IntegerInput]: (value) => value, //TODO
     [InputType.JSON]: (value) => value, //TODO
     [InputType.LanguageInput]: (value: string[]) => arrayConvert(value),
     [InputType.Markdown]: (value: string) => value,
@@ -69,7 +70,6 @@ const searchToInputType: { [key in InputType]: (value: any) => any } = {
     [InputType.Switch]: (value) => value, //TODO
     [InputType.TagSelector]: (value: string[]) => arrayConvert(value, (tag) => ({ tag })),
     [InputType.TextField]: (value: string) => value,
-    [InputType.QuantityBox]: (value) => value, //TODO
 }
 
 /**

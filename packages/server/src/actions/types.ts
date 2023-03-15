@@ -26,7 +26,10 @@ export interface CUDHelperInput {
     objectType: `${GqlModelType}`,
     partialInfo: PartialGraphQLInfo,
     prisma: PrismaType,
-    updateMany?: { [x: string]: any }[] | null | undefined,
+    updateMany?: { 
+        where: { [x: string]: any },
+        data: { [x: string]: any },
+    }[] | null | undefined,
     userData: SessionUser,
 }
 

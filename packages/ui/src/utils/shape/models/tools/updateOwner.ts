@@ -1,19 +1,23 @@
 import { createOwner } from "./createOwner";
 
+type OwnerPrefix = '' | 'ownedBy';
+type OwnerType = 'User' | 'Organization';
+
 /**
  * Shapes ownership connect fields for a GraphQL update input
  * @param item The item to shape, with an "owner" field
  * @returns Ownership connect object
  */
 export const updateOwner = <
-    Item extends { owner?: { __typename: 'User' | 'Organization', id: string } | null | undefined }
+    OType extends OwnerType,
+    OriginalItem extends { owner?: { __typename: OwnerType, id: string } | null | undefined },
+    UpdatedItem extends { owner?: { __typename: OType, id: string } | null | undefined },
+    Prefix extends OwnerPrefix & string
 >(
-    originalItem: Item,
-    updatedItem: Item,
-): {
-    organizationConnect?: string | null | undefined;
-    userConnect?: string | null | undefined;
-} => {
+    originalItem: OriginalItem,
+    updatedItem: UpdatedItem,
+    prefix: Prefix = '' as Prefix,
+): { [K in `${Prefix}${OType}Connect`]?: string } => {
     // Find owner data in item
     const originalOwnerData = originalItem.owner;
     const updatedOwnerData = updatedItem.owner;
@@ -27,5 +31,5 @@ export const updateOwner = <
     // If updated missing, disconnect
     // TODO disabled for now
     // Treat as create
-    return createOwner(updatedItem);
+    return createOwner(updatedItem as any, prefix);
 };

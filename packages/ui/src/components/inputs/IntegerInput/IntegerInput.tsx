@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect } from "react";
 import { Box, FormControl, Input, InputLabel, Tooltip, useTheme } from '@mui/material';
-import { QuantityBoxProps } from "../types";
+import { IntegerInputProps } from "../types";
 import { MinusIcon, PlusIcon } from "@shared/icons";
 import { ColorIconButton } from "components/buttons";
 
@@ -19,7 +19,7 @@ type HoldRefs = {
     value: number;
 }
 
-export const QuantityBox = ({
+export const IntegerInput = ({
     autoFocus = false,
     disabled = false,
     error = false, // TODO use
@@ -28,14 +28,14 @@ export const QuantityBox = ({
     id,
     key,
     initial = 0,
-    label = 'Quantity',
+    label = 'Number',
     max = 2097151,
     min = -2097151,
     step = 1,
     tooltip = '',
     value,
     ...props
-}: QuantityBoxProps) => {
+}: IntegerInputProps) => {
     const { palette } = useTheme();
 
     const holdRefs = useRef<HoldRefs>({

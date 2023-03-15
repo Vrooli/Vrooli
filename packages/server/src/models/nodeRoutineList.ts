@@ -9,7 +9,6 @@ import { nodeRoutineListValidation } from '@shared/validation';
 import { defaultPermissions } from '../utils';
 
 const __typename = 'NodeRoutineList' as const;
-
 const suppFields = [] as const;
 export const NodeRoutineListModel: ModelLogic<{
     IsTransferable: false,
@@ -46,17 +45,17 @@ export const NodeRoutineListModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isOrdered: noNull(data.isOrdered),
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'items', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'node', data, ...rest })),
+                ...(await shapeHelper({ relation: 'items', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 isOrdered: noNull(data.isOrdered),
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: 'items', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'items', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, ...rest })),
             }),
         },
         yup: nodeRoutineListValidation,

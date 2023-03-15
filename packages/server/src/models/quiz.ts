@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
@@ -10,6 +10,7 @@ import { VoteModel } from "./vote";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { quizValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Quiz' as const;
 type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
@@ -75,14 +76,42 @@ export const QuizModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                isPrivate: noNull(data.isPrivate),
+                maxAttempts: noNull(data.maxAttempts),
+                randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
+                revealCorrectAnswers: noNull(data.revealCorrectAnswers),
+                timeLimit: noNull(data.timeLimit),
+                pointsToPass: noNull(data.pointsToPass),
+                createdBy: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'project', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'quizzes', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routine', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Routine', parentRelationshipName: 'quizzes', data, ...rest })),
+                ...(await shapeHelper({ relation: 'quizQuestions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestion', parentRelationshipName: 'answers', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                isPrivate: noNull(data.isPrivate),
+                maxAttempts: noNull(data.maxAttempts),
+                randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
+                revealCorrectAnswers: noNull(data.revealCorrectAnswers),
+                timeLimit: noNull(data.timeLimit),
+                pointsToPass: noNull(data.pointsToPass),
+                createdBy: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'project', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'quizzes', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routine', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Routine', parentRelationshipName: 'quizzes', data, ...rest })),
+                ...(await shapeHelper({ relation: 'quizQuestions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestion', parentRelationshipName: 'answers', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            })
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonPlain({
+                    ...params,
+                    objectType: __typename,
+                    ownerUserField: 'createdBy',
+                });
+            },
         },
         yup: quizValidation,
     },

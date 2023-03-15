@@ -107,7 +107,7 @@ export const CommentCreateInput = ({
                 <Typography component="h3" variant="h6" textAlign="left">{t('AddComment')}</Typography>
                 <MarkdownInput
                     id={`add-comment-${parent?.id ?? 'root'}`}
-                    placeholder="Please be nice to each other."
+                    placeholder={t(`PleaseBeNice`)}
                     value={translations.text}
                     minRows={3}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}

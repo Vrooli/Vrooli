@@ -1,7 +1,3 @@
-/**
- * Input for entering (and viewing format of) Markdown data that 
- * must match a certain schema.
- */
 import { MarkdownStandardInputProps } from '../types';
 import { markdownStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -9,6 +5,10 @@ import { useEffect } from 'react';
 import { Grid } from '@mui/material';
 import { MarkdownInput } from 'components/inputs/MarkdownInput/MarkdownInput';
 
+/**
+ * Input for entering (and viewing format of) Markdown data that 
+ * must match a certain schema.
+ */
 export const MarkdownStandardInput = ({
     defaultValue,
     isEditing,

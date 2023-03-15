@@ -1,15 +1,15 @@
-import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
+import { Box, Button, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useCustomMutation } from "api/hooks";
 import { useCallback, useState } from "react";
 import { mutationWrapper } from 'api/utils';
-import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
+import { LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { useFormik } from 'formik';
 import { PubSub, useProfileQuery, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationViewProps } from "../types";
 import { useLocation } from '@shared/route';
-import { GridSubmitButtons, HelpButton } from "components/buttons";
+import { GridSubmitButtons } from "components/buttons";
 import { EmailList, SettingsList, WalletList } from "components/lists";
-import { DeleteAccountDialog, PasswordTextField, SettingsTopBar } from "components";
+import { DeleteAccountDialog, PasswordTextField, SettingsTopBar, Subheader } from "components";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { userValidation } from "@shared/validation";
@@ -39,7 +39,7 @@ export const SettingsAuthenticationView = ({
             onError: () => { PubSub.get().publishSession(guestSession) },
         })
         PubSub.get().publishSession(guestSession);
-        setLocation(APP_LINKS.Home);
+        setLocation(LINKS.Home);
     }, [logOut, session, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
@@ -113,30 +113,27 @@ export const SettingsAuthenticationView = ({
             <Stack direction="row">
                 <SettingsList />
                 <Box style={{ overflow: 'hidden' }}>
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <WalletIcon fill={palette.background.textPrimary} />
-                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('Wallet', { count: 2 })}</Typography>
-                        <HelpButton markdown={t('WalletListHelp')} />
-                    </Stack>
+                    <Subheader
+                        help={t('WalletListHelp')}
+                        Icon={WalletIcon}
+                        title={t('Wallet', { count: 2 })} />
                     <WalletList
                         handleUpdate={updateWallets}
                         list={profile?.wallets ?? []}
                         numVerifiedEmails={numVerifiedEmails}
                     />
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <EmailIcon fill={palette.background.textPrimary} />
-                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('Email', { count: 2 })}</Typography>
-                        <HelpButton markdown={t('EmailListHelp')} />
-                    </Stack>
+                    <Subheader
+                        help={t('EmailListHelp')}
+                        Icon={EmailIcon}
+                        title={t('Email', { count: 2 })} />
                     <EmailList
                         handleUpdate={updateEmails}
                         list={profile?.emails ?? []}
                         numVerifiedWallets={numVerifiedWallets}
                     />
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h5" textAlign="center">{t('ChangePassword')}</Typography>
-                        <HelpButton markdown={t('PasswordChangeHelp')} />
-                    </Stack>
+                    <Subheader
+                        help={t('PasswordChangeHelp')}
+                        title={t('ChangePassword')} />
                     <BaseForm
                         isLoading={isProfileLoading || isUpdating}
                         onSubmit={formik.handleSubmit}

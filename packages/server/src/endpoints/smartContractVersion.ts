@@ -25,7 +25,6 @@ export const typeDef = gql`
     input SmartContractVersionCreateInput {
         id: ID!
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         default: String
         contractType: String!
@@ -41,7 +40,6 @@ export const typeDef = gql`
     input SmartContractVersionUpdateInput {
         id: ID!
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         default: String
         contractType: String

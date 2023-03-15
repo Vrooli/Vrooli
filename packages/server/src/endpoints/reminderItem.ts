@@ -3,18 +3,19 @@ import { gql } from 'apollo-server-express';
 export const typeDef = gql`
     input ReminderItemCreateInput {
         id: ID!
-        name: String!
         description: String
         dueDate: Date
         index: Int!
+        name: String!
+        reminderConnect: ID!
     }
     input ReminderItemUpdateInput {
         id: ID!
-        name: String
         description: String
         dueDate: Date
         index: Int
         isComplete: Boolean
+        name: String
     }
     type ReminderItem {
         id: ID!

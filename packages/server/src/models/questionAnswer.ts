@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { questionAnswerValidation } from "@shared/validation";
+import { shapeHelper } from "../builders";
 
 const __typename = 'QuestionAnswer' as const;
 const suppFields = [] as const;
@@ -52,14 +53,15 @@ export const QuestionAnswerModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                createdBy: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'question', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Question', parentRelationshipName: 'answers', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
         },
         yup: questionAnswerValidation,
     },

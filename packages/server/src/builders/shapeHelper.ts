@@ -135,6 +135,10 @@ export type ShapeHelperProps<
     */
     parentRelationshipName: string,
     /**
+     * A map of pre-shape data for all objects in the mutation, keyed by object type. 
+     */
+    preMap: { [x in `${GqlModelType}`]?: any },
+    /**
      * The name of the primaryKey key field. Defaults to "id"
      */
     primaryKey?: PrimaryKey,
@@ -179,6 +183,7 @@ export const shapeHelper = async<
     joinData,
     objectType,
     parentRelationshipName,
+    preMap,
     primaryKey = 'id' as PrimaryKey,
     prisma,
     relation,
@@ -189,14 +194,16 @@ export const shapeHelper = async<
     Promise<ShapeHelperOutput<IsOneToOne, IsRequired, Types[number], RelField, PrimaryKey>> => {
     // Initialize result
     const result: { [x: string]: any } = {};
-    // If both conData and createData do not exist, and it's required, throw an error
-    if (!data[`${relation}Connect` as string] && !data[`${relation}Connect` as string] && isRequired) {
-        throw new CustomError('0368', 'InvalidArgs', ['en'], { relation });
+    // If both connect and create do not exist, and it's required, throw an error
+    if (!data[`${relation}Connect` as string] && !data[`${relation}Create` as string] && isRequired) {
+        throw new CustomError('0368', 'InvalidArgs', ['en'], { relation, data });
     }
     // Loop through relation types, and convert all to a Prisma-shaped array
     for (const t of relTypes) {
         // If not in data, skip
         const curr = data[`${relation}${t}` as string];
+        console.log('curr', relation, t, curr);
+        if (relation === 'ownedByUser') console.log('ownedByUser curr', curr);
         if (!curr) continue;
         // Shape the data. Exclude parent relationship
         const currShaped = shapeRelationshipData(curr, [parentRelationshipName, `${parentRelationshipName}Id`]);
@@ -205,6 +212,7 @@ export const shapeHelper = async<
             [...result[t.toLowerCase()] as any, ...currShaped] :
             currShaped;
     }
+    console.log('result here', JSON.stringify(result), '\n\n');
     // Now we can further shape the result
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
     if (Array.isArray(result.connect) && result.connect.length > 0) result.connect = result.connect.map((e: { [x: string]: any }) => ({ [primaryKey]: e[primaryKey] }));
@@ -223,18 +231,21 @@ export const shapeHelper = async<
     // Perform nested shapes for create and update
     const mutate = ObjectMap[objectType]?.mutate;
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
+        console.log('performing nested shape create')
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await (mutate.shape as any).create({ data: create, prisma, userData });
+            const created = await (mutate.shape as any).create({ data: create, preMap, prisma, userData });
             shaped.push(created);
         }
+        result.create = shaped;
     }
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await (mutate.shape as any).update({ data: update, prisma, userData });
+            const updated = await (mutate.shape as any).update({ data: update, preMap, prisma, userData });
             shaped.push({ where: update.where, data: updated });
         }
+        result.update = shaped;
     }
     // Handle join table, if applicable
     if (joinData) {
@@ -309,7 +320,9 @@ export const shapeHelper = async<
         // one-to-one's update must not have a where, and must be an object, not an array
         if (Array.isArray(result.update)) result.update = result.update.length ? result.update[0].data : undefined;
     }
-    // Return the result, wrapped in the relation name
+    // If there are no results, return empty object
+    if (!Object.keys(result).length) return {} as any;
+    // Otherwise, return result wrapped in the relation name
     return { [relation]: result } as any;
 };
 

@@ -336,54 +336,6 @@ export type Validator<
      */
     profanityFields?: string[];
     /**
-     * Any custom validations you want to perform before a create mutation. You must throw 
-     * an error if a validation fails, since that'll return a customized error message to the
-     * user
-     */
-    validations?: {
-        common?: ({ connectMany, createMany, deleteMany, disconnectMany, languages, prisma, updateMany, userData }: {
-            connectMany: string[],
-            createMany: Model['GqlCreate'][],
-            deleteMany: string[],
-            disconnectMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            updateMany: { where: Model['PrismaWhere'], data: Model['GqlUpdate'] }[],
-            userData: SessionUser,
-        }) => Promise<void> | void,
-        create?: Model['GqlCreate'] extends Record<string, any> ? ({ createMany, deltaAdding, languages, prisma, userData }: {
-            createMany: Model['GqlCreate'][],
-            deltaAdding: number,
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void : never,
-        update?: Model['GqlUpdate'] extends Record<string, any> ? ({ languages, prisma, updateMany, userData }: {
-            languages: string[],
-            prisma: PrismaType,
-            updateMany: { where: Model['PrismaWhere'], data: Model['GqlUpdate'] }[],
-            userData: SessionUser,
-        }) => Promise<void> | void : never,
-        connect?: ({ connectMany, languages, prisma, userData }: {
-            connectMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void,
-        delete?: ({ deleteMany, languages, prisma, userData }: {
-            deleteMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void,
-        disconnect?: ({ disconnectMany, languages, prisma, userData }: {
-            disconnectMany: string[],
-            languages: string[],
-            prisma: PrismaType,
-            userData: SessionUser,
-        }) => Promise<void> | void,
-    }
-    /**
      * Any custom transformations you want to perform before a create/update mutation, 
      * besides the ones supported by default in cudHelper. This includes converting creates to 
      * connects, which means this function has to be pretty flexible in what it allows
@@ -453,37 +405,75 @@ export type Mutater<Model extends {
      * object and as a relationship object
      */
     shape: {
+        /**
+         * Calculates any data that requires the full context of the mutation. In other words, 
+         * data that can change depending on what else is being mutated. This is useful for 
+         * things like routine complexity, where the calculation depends on the complexity of subroutines.
+         */
+        pre?: ({ createList, updateList, deleteList, prisma, userData }: {
+            createList: Model['GqlCreate'][],
+            updateList: {
+                where: { id: string },
+                data: Model['GqlUpdate'],
+            }[],
+            deleteList: string[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<{}>,
+        /**
+         * Performs additional shaping after the main mutation has been performed, 
+         * AND after all triggers functions have been called. This is useful 
+         * for things like updating a version label, where all versions tied to that root object 
+         * might need their version indexes updated. Since these versions don't appear in the 
+         * create/update/delete lists, they can't be updated in the pre function.
+         */
+        post?: ({ created, deletedIds, updated, prisma, userData }: {
+            created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            deletedIds: string[],
+            updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<void>,
         create?: Model['GqlCreate'] extends Record<string, any> ?
-        Model['PrismaCreate'] extends Record<string, any> ? ({ data, prisma, userData }: {
+        Model['PrismaCreate'] extends Record<string, any> ? ({ data, preMap, prisma, userData }: {
             data: Model['GqlCreate'],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<Model['PrismaCreate']> : never : never,
         update?: Model['GqlUpdate'] extends Record<string, any> ?
-        Model['PrismaUpdate'] extends Record<string, any> ? ({ data, prisma, userData, where }: {
+        Model['PrismaUpdate'] extends Record<string, any> ? ({ data, preMap, prisma, userData, where }: {
             data: Model['GqlUpdate'],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
             where: { id: string },
         }) => PromiseOrValue<Model['PrismaUpdate']> : never : never
     }
     /**
-     * Triggers when (or before in some cases) a mutation is performed on the object
+     * Triggers after (or before if specified) a mutation is performed on the object. Useful for sending notifications,
+     * tracking awards, and updating reputation.
+     * 
+     * NOTE: This is only called for top-level objects, not relationships. If you need to update 
+     * data like indexes, hasCompleteVersion, etc., or initiate triggers, you should do it in the shape.pre or shape.post functions
      */
     trigger?: {
         onCommon?: ({ createAuthData, created, deleted, prisma, updateAuthData, updated, updateInput, userData }: {
             createAuthData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             deleted: Count,
+            deletedIds: string[],
             updateAuthData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             updateInput: Model['GqlUpdate'][],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
         onCreated?: Model['GqlCreate'] extends Record<string, any> ? ({ created, prisma, userData }: {
             authData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void> : never,
@@ -491,6 +481,7 @@ export type Mutater<Model extends {
             authData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             updateInput: Model['GqlUpdate'][],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void> : never,
@@ -507,6 +498,7 @@ export type Mutater<Model extends {
             beforeDeletedData: any,
             deleted: Count,
             deletedIds: string[],
+            preMap: { [key in GqlModelType]?: any }, // Result of pre function on every model included in the mutation, by model type
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,

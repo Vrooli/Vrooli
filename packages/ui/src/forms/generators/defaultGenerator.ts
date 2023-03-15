@@ -1,4 +1,4 @@
-import { CheckboxProps, DropzoneProps, JsonProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps, YupField } from '../types';
+import { CheckboxProps, DropzoneProps, JsonProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, IntegerInputProps, TagSelectorProps, LanguageInputProps, YupField } from '../types';
 import { FieldData } from 'forms/types';
 import { InputType } from '@shared/consts';
 
@@ -26,6 +26,9 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
     }),
     [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
         defaultValue: [],
+        ...props
+    }),
+    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, 'id' | 'value' | 'handleChange'>>): Omit<IntegerInputProps, 'id' | 'value' | 'handleChange'> => ({
         ...props
     }),
     [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id'> => ({
@@ -73,9 +76,6 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
     }),
     [InputType.TextField]: (props: Partial<TextFieldProps>): TextFieldProps => ({
         defaultValue: '',
-        ...props
-    }),
-    [InputType.QuantityBox]: (props: Partial<Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'>>): Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'> => ({
         ...props
     }),
 }

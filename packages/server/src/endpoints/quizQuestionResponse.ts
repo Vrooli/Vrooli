@@ -16,16 +16,13 @@ export const typeDef = gql`
 
     input QuizQuestionResponseCreateInput {
         id: ID!
-        response: String
+        response: String!
         quizAttemptConnect: ID!
         quizQuestionConnect: ID!
-        translationsCreate: [QuizQuestionResponseTranslationCreateInput!]
     }
     input QuizQuestionResponseUpdateInput {
         id: ID!
-        translationsCreate: [QuizQuestionResponseTranslationCreateInput!]
-        translationsUpdate: [QuizQuestionResponseTranslationUpdateInput!]
-        translationsDelete: [ID!]
+        response: String
     }
     type QuizQuestionResponse {
         id: ID!
@@ -35,28 +32,11 @@ export const typeDef = gql`
         quizAttempt: QuizAttempt!
         quizQuestion: QuizQuestion!
         you: QuizQuestionResponseYou!
-        translations: [QuizQuestionResponseTranslation!]!
     }
 
     type QuizQuestionResponseYou {
         canDelete: Boolean!
         canUpdate: Boolean!
-    }
-
-    input QuizQuestionResponseTranslationCreateInput {
-        id: ID!
-        language: String!
-        response: String!
-    }
-    input QuizQuestionResponseTranslationUpdateInput {
-        id: ID!
-        language: String
-        response: String
-    }
-    type QuizQuestionResponseTranslation {
-        id: ID!
-        language: String!
-        response: String!
     }
 
     input QuizQuestionResponseSearchInput {

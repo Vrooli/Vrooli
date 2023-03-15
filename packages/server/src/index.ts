@@ -15,6 +15,7 @@ import { initStatsCronJobs } from './schedules/stats';
 import { initEventsCronJobs } from './schedules/events';
 import { initCountsCronJobs } from './schedules/counts';
 import { initSitemapCronJob } from './schedules';
+import { initModerationCronJobs } from './schedules/moderate';
 
 const debug = process.env.NODE_ENV === 'development';
 
@@ -28,7 +29,7 @@ const main = async () => {
     logger.info('Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['VITE_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
+    const requiredEnvs = ['VITE_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);
@@ -118,6 +119,7 @@ const main = async () => {
     initEventsCronJobs();
     initCountsCronJobs();
     initSitemapCronJob();
+    initModerationCronJobs();
 
     logger.info( `🚀 Server running at ${SERVER_URL}`);
 }

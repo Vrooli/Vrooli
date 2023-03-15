@@ -107,8 +107,12 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
-export interface SettingsListProps {
-    showOnMobile?: boolean;
+export interface SettingsToggleListItemProps {
+    description?: string;
+    disabled?: boolean;
+    checked: boolean;
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    title: string;
 }
 
 export interface TagListProps {

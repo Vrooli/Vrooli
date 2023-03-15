@@ -30,8 +30,8 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         parentConnect: ID
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -41,14 +41,15 @@ export const typeDef = gql`
     }
     input NoteUpdateInput {
         id: ID!
+        isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
-        versionsCreate: [ApiVersionCreateInput!]
-        versionsUpdate: [ApiVersionUpdateInput!]
+        versionsCreate: [NoteVersionCreateInput!]
+        versionsUpdate: [NoteVersionUpdateInput!]
         versionsDelete: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]

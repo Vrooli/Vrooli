@@ -1,10 +1,10 @@
 import { CustomError } from "../events";
-import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, Vote } from '@shared/consts';
+import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
-import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
+import { ModelLogic } from "./types";
+import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { selPad, permissionsSelectHelper } from "../builders";
+import { selPad, permissionsSelectHelper, noNull } from "../builders";
 import { Prisma } from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { getLogic } from "../getters";
@@ -36,13 +36,39 @@ export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
  * 3. Otherwise, a notification is sent to the user/org that is receiving the object,
  *   and they can accept or reject the transfer.
  */
-const transfer = (prisma: PrismaType) => ({
+export const transfer = (prisma: PrismaType) => ({
+    /**
+     * Checks if objects being created/updated require a transfer request. Used by mutate functions 
+     * of other models, so model-specific permissions checking is not required.
+     * @param owners List of owners of the objects being created/updated
+     * @param userData Session data of the user making the request
+     * @returns List of booleans indicating if the object requires a transfer request. 
+     * List is in same order as owners list.
+     */
+    checkTransferRequests: async (
+        owners: { id: string, __typename: 'Organization' | 'User' }[],
+        userData: SessionUser,
+    ): Promise<boolean[]> => {
+        // Grab all create organization IDs
+        const orgIds = owners.filter(o => o.__typename === 'Organization').map(o => o.id);
+        // Check if user is an admin of each organization
+        const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
+        // Create return list
+        console.log('checking transfer requests', orgIds, userData.id, JSON.stringify(owners), '\n\n');
+        const requiresTransferRequest: boolean[] = owners.map((o, i) => {
+            // If owner is a user, transfer is required if user is not the same as the session user
+            if (o.__typename === 'User') return o.id !== userData.id;
+            // If owner is an organization, transfer is required if user is not an admin
+            const orgIdIndex = orgIds.indexOf(o.id);
+            return !isAdmins[orgIdIndex];
+        });
+        return requiresTransferRequest;
+    },
     /**
      * Initiates a transfer request from an object you own, to another user/org
      * @returns The ID of the transfer request
      */
     requestSend: async (
-        info: GraphQLResolveInfo | PartialGraphQLInfo,
         input: TransferRequestSendInput,
         userData: SessionUser,
     ): Promise<string> => {
@@ -57,15 +83,9 @@ const transfer = (prisma: PrismaType) => ({
         // Check if user is allowed to transfer this object
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
-        // Check if the user is transferring to themselves
+        // Get 'to' data
         const toType = input.toOrganizationConnect ? 'Organization' : 'User';
         const toId: string = input.toOrganizationConnect || input.toUserConnect as string;
-        const { delegate: toDelegate, validate: toValidate } = getLogic(['delegate', 'validate'], toType, userData.languages, 'Transfer.request-validator');
-        const toPermissionData = await toDelegate(prisma).findUnique({
-            where: { id: toId },
-            select: permissionsSelectHelper(toValidate.permissionsSelect, userData.id, userData.languages),
-        });
-        const isAdmin = toPermissionData && isOwnerAdminCheck(toValidate.owner(toPermissionData), userData.id)
         // Create transfer request
         const request = await prisma.transfer.create({
             data: {
@@ -74,7 +94,7 @@ const transfer = (prisma: PrismaType) => ({
                 [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
                 toUser: toType === 'User' ? { connect: { id: toId } } : undefined,
                 toOrganization: toType === 'Organization' ? { connect: { id: toId } } : undefined,
-                status: isAdmin ? 'Accepted' : 'Pending',
+                status: 'Pending',
                 message: input.message,
             },
             select: { id: true }
@@ -185,7 +205,8 @@ const transfer = (prisma: PrismaType) => ({
                 }
             }
         });
-        // Notify user/org that sent the transfer request
+        //TODO update object's hasBeenTransferred flag
+        // TODO Notify user/org that sent the transfer request
         //const pushNotification = Notify(prisma, userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
         // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
         // else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
@@ -239,16 +260,6 @@ const transfer = (prisma: PrismaType) => ({
         // else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
     },
 })
-
-// const mutater = (): Mutater<Model> => ({
-//     shape: {
-//         update: async ({ data }) => ({
-//             id: data.id,
-//             message: data.message
-//         }),
-//     },
-//     yup: { update: {} as any },
-// })
 
 export const TransferModel: ModelLogic<{
     IsTransferable: false,
@@ -334,10 +345,9 @@ export const TransferModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                message: data.message
-            } as any)
+            update: async ({ data }) => ({
+                message: noNull(data.message),
+            })
         },
         yup: transferValidation,
     },

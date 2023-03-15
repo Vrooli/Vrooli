@@ -6,7 +6,7 @@ import { useFormik } from 'formik';
 import { useCreateActions, usePromptBeforeUnload } from "utils";
 import { ReminderCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, PageTitle, TopBar } from "components";
+import { GridSubmitButtons, Header, TopBar } from "components";
 import { uuid } from '@shared/uuid';
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { Reminder, ReminderCreateInput } from "@shared/consts";

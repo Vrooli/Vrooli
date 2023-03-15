@@ -1,7 +1,7 @@
 import { BoxProps, TypographyProps } from "@mui/material";
 import { Api, Organization, Project, Quiz, Routine, Session, SmartContract, Standard, User } from "@shared/consts";
-import { CommonKey } from "@shared/translations";
-import { OptionalTranslation, VersionInfo } from "types";
+import { SvgComponent } from "@shared/icons";
+import { VersionInfo } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {
@@ -32,8 +32,8 @@ export interface OwnerLabelProps {
     }
 }
 
-export interface PageTitleProps {
-    help: string | undefined;
+export interface HeaderProps {
+    help?: string | undefined;
     sxs?: { 
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
@@ -52,6 +52,16 @@ export interface StatsCompactProps<T extends StatsCompactPropsObject> {
 export interface TextShrinkProps extends TypographyProps {
     id: string;
     minFontSize?: string | number;
+}
+
+export interface SubheaderProps {
+    help?: string | undefined;
+    Icon?: SvgComponent;
+    sxs?: { 
+        stack?: { [x: string]: any; };
+        text?: { [x: string]: any; };
+    }
+    title: string | undefined;
 }
 
 export interface VersionDisplayProps extends BoxProps {

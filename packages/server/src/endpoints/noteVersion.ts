@@ -22,7 +22,6 @@ export const typeDef = gql`
 
     input NoteVersionCreateInput {
         id: ID!
-        isLatest: Boolean
         isPrivate: Boolean
         versionLabel: String!
         versionNotes: String
@@ -33,7 +32,6 @@ export const typeDef = gql`
     }
     input NoteVersionUpdateInput {
         id: ID!
-        isLatest: Boolean
         isPrivate: Boolean
         versionLabel: String
         versionNotes: String

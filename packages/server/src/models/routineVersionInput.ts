@@ -2,31 +2,11 @@ import { Prisma } from "@prisma/client";
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { RoutineModel } from "./routine";
-import { selPad } from "../builders";
+import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput } from '@shared/consts';
 import { routineVersionInputValidation } from "@shared/validation";
-
-// const mutater = (): Mutater<Model> => ({
-//     shape: {
-//         create: async ({ prisma, userData, data }) => {
-//             return {
-//                 id: data.id,
-//                 name: data.name,
-//                 standardVersion: await relBuilderHelper({ data, isAdd: true, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'standard', objectType: 'Standard', prisma, userData }),
-//                 translations: await translationRelationshipBuilder(prisma, userData, data, true)
-//             }
-//         },
-//         create: async ({ prisma, userData, data }) => {
-//             return {
-//                 name: data.name,
-//                 standardVersion: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'standard', objectType: 'Standard', prisma, userData }),
-//                 translations: await translationRelationshipBuilder(prisma, userData, data, false),
-//             }
-//         },
-//     },
-//     yup: routineVersionInputValidation,
-// })
+import { translationShapeHelper } from "../utils";
 
 const __typename = 'RoutineVersionInput' as const;
 const suppFields = [] as const;
@@ -71,14 +51,22 @@ export const RoutineVersionInputModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                index: noNull(data.index),
+                isRequired: noNull(data.isRequired),
+                name: noNull(data.name),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'inputs', data, ...rest })),
+                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'routineVersionInputs', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                index: noNull(data.index),
+                isRequired: noNull(data.isRequired),
+                name: noNull(data.name),
+                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect', 'Create', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'routineVersionInputs', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Create', 'Delete'], isRequired: false, data, ...rest })),
+            }),
         },
         yup: routineVersionInputValidation,
     },

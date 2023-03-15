@@ -48,6 +48,21 @@ export const WalletModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ deleteList, prisma, userData }) => {
+                // Prevent deleting wallets if it will leave you with less than one verified authentication method
+                if (deleteList.length) {
+                    const allWallets = await prisma.wallet.findMany({
+                        where: { user: { id: userData.id } },
+                        select: { id: true, verified: true }
+                    });
+                    const remainingVerifiedWalletsCount = allWallets.filter(x => !deleteList.includes(x.id) && x.verified).length;
+                    const verifiedEmailsCount = await prisma.email.count({
+                        where: { user: { id: userData.id }, verified: true },
+                    });
+                    if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
+                        throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
+                }
+            },
             update: async ({ data }) => data,
         },
         yup: walletValidation,
@@ -70,21 +85,6 @@ export const WalletModel: ModelLogic<{
             ['organization', 'Organization'],
             ['user', 'User'],
         ], languages),
-        validations: {
-            delete: async ({ deleteMany, prisma, userData }) => {
-                // Prevent deleting wallets if it will leave you with less than one verified authentication method
-                const allWallets = await prisma.wallet.findMany({
-                    where: { user: { id: userData.id } },
-                    select: { id: true, verified: true }
-                });
-                const remainingVerifiedWalletsCount = allWallets.filter(x => !deleteMany.includes(x.id) && x.verified).length;
-                const verifiedEmailsCount = await prisma.email.count({
-                    where: { user: { id: userData.id }, verified: true },
-                });
-                if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
-                    throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
-            }
-        },
         visibility: {
             private: {},
             public: {},

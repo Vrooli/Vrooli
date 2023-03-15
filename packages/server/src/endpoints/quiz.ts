@@ -24,12 +24,12 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         maxAttempts: Int
-        randomizeQuestionOder: Boolean
+        randomizeQuestionOrder: Boolean
         revealCorrectAnswers: Boolean
         timeLimit: Int
         pointsToPass: Int
-        routineConnect: ID
         projectConnect: ID
+        routineConnect: ID
         translationsCreate: [QuizTranslationCreateInput!]
         quizQuestionsCreate: [QuizQuestionCreateInput!]
     }
@@ -42,9 +42,9 @@ export const typeDef = gql`
         timeLimit: Int
         pointsToPass: Int
         routineConnect: ID
-        routineDisconnect: ID
+        routineDisconnect: Boolean
         projectConnect: ID
-        projectDisconnect: ID
+        projectDisconnect: Boolean
         translationsCreate: [QuizTranslationCreateInput!]
         translationsUpdate: [QuizTranslationUpdateInput!]
         translationsDelete: [ID!]

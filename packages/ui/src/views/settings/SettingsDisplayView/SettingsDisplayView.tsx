@@ -132,7 +132,7 @@ export const SettingsDisplayView = ({
                 }}
             />
             <Stack direction="row">
-                <SettingsList showOnMobile={true} />
+                <SettingsList />
                 <BaseForm
                     isLoading={isProfileLoading || isUpdating}
                     onSubmit={formik.handleSubmit}
@@ -142,7 +142,7 @@ export const SettingsDisplayView = ({
                         display: 'block',
                     }}
                 >
-                    {/* <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' /> */}
+                    {/* <Header titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' /> */}
                     <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
                         <ThemeSwitch
                             theme={formik.values.theme as 'light' | 'dark'}

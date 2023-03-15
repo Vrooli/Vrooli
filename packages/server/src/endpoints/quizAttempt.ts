@@ -30,6 +30,7 @@ export const typeDef = gql`
         contextSwitches: Int
         timeTaken: Int
         language: String!
+        quizConnect: ID!
         responsesCreate: [QuizQuestionResponseCreateInput!]
     }
     input QuizAttemptUpdateInput {

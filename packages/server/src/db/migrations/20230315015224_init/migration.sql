@@ -6,7 +6,7 @@ CREATE TYPE "AccountStatus" AS ENUM ('Deleted', 'Unlocked', 'SoftLocked', 'HardL
 CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCreate', 'CommentCreate', 'IssueCreate', 'NoteCreate', 'ObjectBookmark', 'ObjectVote', 'OrganizationCreate', 'OrganizationJoin', 'PostCreate', 'ProjectCreate', 'PullRequestCreate', 'PullRequestComplete', 'QuestionAnswer', 'QuestionCreate', 'QuizPass', 'ReportEnd', 'ReportContribute', 'Reputation', 'RunRoutine', 'RunProject', 'RoutineCreate', 'SmartContractCreate', 'StandardCreate', 'Streak', 'UserInvite');
 
 -- CreateEnum
-CREATE TYPE "IssueStatus" AS ENUM ('Open', 'ClosedResolved', 'CloseUnresolved', 'Rejected');
+CREATE TYPE "IssueStatus" AS ENUM ('Open', 'ClosedResolved', 'ClosedUnresolved', 'Rejected');
 
 -- CreateEnum
 CREATE TYPE "MemberInviteStatus" AS ENUM ('Pending', 'Accepted', 'Declined');
@@ -30,7 +30,7 @@ CREATE TYPE "PullRequestStatus" AS ENUM ('Open', 'Merged', 'Rejected');
 CREATE TYPE "QuizAttemptStatus" AS ENUM ('NotStarted', 'InProgress', 'Passed', 'Failed');
 
 -- CreateEnum
-CREATE TYPE "ReportStatus" AS ENUM ('ClosedDeleted', 'ClosedFalseReport', 'ClosedNonIssue', 'ClosedResolved', 'ClosedSuspended', 'Open');
+CREATE TYPE "ReportStatus" AS ENUM ('ClosedDeleted', 'ClosedFalseReport', 'ClosedHidden', 'ClosedNonIssue', 'ClosedSuspended', 'Open');
 
 -- CreateEnum
 CREATE TYPE "ReportSuggestedAction" AS ENUM ('Delete', 'FalseReport', 'HideUntilFixed', 'NonIssue', 'SuspendUser');
@@ -71,6 +71,7 @@ CREATE TABLE "api" (
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
@@ -217,6 +218,7 @@ CREATE TABLE "issue" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
     "closedAt" TIMESTAMPTZ(6),
+    "hasBeenClosedOrRejected" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
@@ -325,6 +327,7 @@ CREATE TABLE "node_end_next" (
 CREATE TABLE "node_link" (
     "id" UUID NOT NULL,
     "fromId" UUID NOT NULL,
+    "operation" VARCHAR(512),
     "routineVersionId" UUID NOT NULL,
     "toId" UUID NOT NULL,
 
@@ -419,6 +422,10 @@ CREATE TABLE "note" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
+    "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
+    "completedAt" TIMESTAMPTZ(6),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
@@ -457,6 +464,8 @@ CREATE TABLE "note_version" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "intendToPullRequest" BOOLEAN NOT NULL DEFAULT true,
+    "isComplete" BOOLEAN NOT NULL DEFAULT false,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isLatest" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "rootId" UUID NOT NULL,
@@ -584,7 +593,7 @@ CREATE TABLE "meeting" (
 -- CreateTable
 CREATE TABLE "meeting_attendees" (
     "id" UUID NOT NULL,
-    "scheduleId" UUID NOT NULL,
+    "meetingId" UUID NOT NULL,
     "userId" UUID NOT NULL,
 
     CONSTRAINT "meeting_attendees_pkey" PRIMARY KEY ("id")
@@ -615,7 +624,7 @@ CREATE TABLE "meeting_labels" (
 -- CreateTable
 CREATE TABLE "meeting_roles" (
     "id" UUID NOT NULL,
-    "scheduleId" UUID NOT NULL,
+    "meetingId" UUID NOT NULL,
     "roleId" UUID NOT NULL,
 
     CONSTRAINT "meeting_roles_pkey" PRIMARY KEY ("id")
@@ -624,7 +633,7 @@ CREATE TABLE "meeting_roles" (
 -- CreateTable
 CREATE TABLE "meeting_translation" (
     "id" UUID NOT NULL,
-    "scheduleId" UUID NOT NULL,
+    "meetingId" UUID NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "name" VARCHAR(128),
     "description" VARCHAR(2048),
@@ -769,6 +778,7 @@ CREATE TABLE "project" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
@@ -879,6 +889,7 @@ CREATE TABLE "pull_request" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "PullRequestStatus" NOT NULL DEFAULT 'Open',
+    "hasBeenClosedOrRejected" BOOLEAN NOT NULL DEFAULT false,
     "mergedOrRejectedAt" TIMESTAMPTZ(6),
     "createdById" UUID,
     "toApiId" UUID,
@@ -908,6 +919,7 @@ CREATE TABLE "question" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "referencing" VARCHAR(2048),
     "hasAcceptedAnswer" BOOLEAN NOT NULL DEFAULT false,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
@@ -1020,20 +1032,11 @@ CREATE TABLE "quiz_question_response" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "response" VARCHAR(8192) NOT NULL,
     "quizAttemptId" UUID NOT NULL,
     "quizQuestionId" UUID NOT NULL,
 
     CONSTRAINT "quiz_question_response_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz_question_response_translation" (
-    "id" UUID NOT NULL,
-    "response" VARCHAR(8192) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "responseId" UUID NOT NULL,
-
-    CONSTRAINT "quiz_question_response_translation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1223,6 +1226,7 @@ CREATE TABLE "routine" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -1522,6 +1526,7 @@ CREATE TABLE "smart_contract" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -1597,6 +1602,7 @@ CREATE TABLE "standard" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "score" INTEGER NOT NULL DEFAULT 0,
@@ -1675,7 +1681,6 @@ CREATE TABLE "bookmark" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "byId" UUID NOT NULL,
     "listId" UUID,
     "apiId" UUID,
     "commentId" UUID,
@@ -1703,6 +1708,7 @@ CREATE TABLE "bookmark_list" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "index" INTEGER NOT NULL,
     "label" VARCHAR(128) NOT NULL,
+    "userId" UUID NOT NULL,
 
     CONSTRAINT "bookmark_list_pkey" PRIMARY KEY ("id")
 );
@@ -1990,6 +1996,7 @@ CREATE TABLE "user" (
     "notificationSettings" VARCHAR(2048),
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
+    "reputation" INTEGER NOT NULL DEFAULT 0,
     "premiumId" UUID,
     "status" "AccountStatus" NOT NULL DEFAULT 'Unlocked',
 
@@ -2268,7 +2275,7 @@ CREATE UNIQUE INDEX "organization_resourceListId_key" ON "organization"("resourc
 CREATE UNIQUE INDEX "organization_language_organizationId_language_key" ON "organization_language"("organizationId", "language");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "meeting_attendees_scheduleId_userId_key" ON "meeting_attendees"("scheduleId", "userId");
+CREATE UNIQUE INDEX "meeting_attendees_meetingId_userId_key" ON "meeting_attendees"("meetingId", "userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "meeting_invite_meetingId_userId_key" ON "meeting_invite"("meetingId", "userId");
@@ -2277,10 +2284,10 @@ CREATE UNIQUE INDEX "meeting_invite_meetingId_userId_key" ON "meeting_invite"("m
 CREATE UNIQUE INDEX "meeting_labels_labelledId_labelId_key" ON "meeting_labels"("labelledId", "labelId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "meeting_roles_scheduleId_roleId_key" ON "meeting_roles"("scheduleId", "roleId");
+CREATE UNIQUE INDEX "meeting_roles_meetingId_roleId_key" ON "meeting_roles"("meetingId", "roleId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "meeting_translation_scheduleId_language_key" ON "meeting_translation"("scheduleId", "language");
+CREATE UNIQUE INDEX "meeting_translation_meetingId_language_key" ON "meeting_translation"("meetingId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organization_translation_organizationId_language_key" ON "organization_translation"("organizationId", "language");
@@ -2356,9 +2363,6 @@ CREATE UNIQUE INDEX "quiz_translation_quizId_language_key" ON "quiz_translation"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "quiz_question_response_quizAttemptId_quizQuestionId_key" ON "quiz_question_response"("quizAttemptId", "quizQuestionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "quiz_question_response_translation_responseId_language_key" ON "quiz_question_response_translation"("responseId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "quiz_question_translation_questionId_language_key" ON "quiz_question_translation"("questionId", "language");
@@ -2844,7 +2848,7 @@ ALTER TABLE "organization_language" ADD CONSTRAINT "organization_language_organi
 ALTER TABLE "meeting" ADD CONSTRAINT "meeting_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2862,13 +2866,13 @@ ALTER TABLE "meeting_labels" ADD CONSTRAINT "meeting_labels_labelledId_fkey" FOR
 ALTER TABLE "meeting_labels" ADD CONSTRAINT "meeting_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "meeting_roles" ADD CONSTRAINT "meeting_roles_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "meeting_roles" ADD CONSTRAINT "meeting_roles_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "meeting_roles" ADD CONSTRAINT "meeting_roles_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "meeting_translation" ADD CONSTRAINT "meeting_translation_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "meeting_translation" ADD CONSTRAINT "meeting_translation_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "organization_translation" ADD CONSTRAINT "organization_translation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3064,9 +3068,6 @@ ALTER TABLE "quiz_question_response" ADD CONSTRAINT "quiz_question_response_quiz
 
 -- AddForeignKey
 ALTER TABLE "quiz_question_response" ADD CONSTRAINT "quiz_question_response_quizQuestionId_fkey" FOREIGN KEY ("quizQuestionId") REFERENCES "quiz_question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_question_response_translation" ADD CONSTRAINT "quiz_question_response_translation_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "quiz_question_response"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_standardVersionId_fkey" FOREIGN KEY ("standardVersionId") REFERENCES "standard_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3354,9 +3355,6 @@ ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelledId_fkey" F
 ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_listId_fkey" FOREIGN KEY ("listId") REFERENCES "bookmark_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3403,6 +3401,9 @@ ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_tagId_fkey" FOREIGN KEY ("tagId"
 
 -- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark_list" ADD CONSTRAINT "bookmark_list_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "stats_api" ADD CONSTRAINT "stats_api_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;

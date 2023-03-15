@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
-import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
+import { LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel, TopBar } from "components";
@@ -147,7 +147,7 @@ export const RoutineView = ({
             successMessage: () => ({ key: 'RoutineCompleted' }),
             onSuccess: () => {
                 PubSub.get().publishCelebration();
-                setLocation(APP_LINKS.Home)
+                setLocation(LINKS.Home)
             },
         })
     }, [formik.values, routineVersion, runComplete, setLocation, name]);

@@ -88,18 +88,18 @@ export const ReportModel: ModelLogic<{
         }
     },
     format: {
-        gqlRelMap: { 
+        gqlRelMap: {
             __typename,
             responses: 'ReportResponse',
         },
-        prismaRelMap: { 
+        prismaRelMap: {
             __typename,
             responses: 'ReportResponse',
         },
-        hiddenFields: ['userId'], // Always hide report creator
+        hiddenFields: ['createdById'], // Always hide report creator
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['userId'],
+            dbFields: ['createdById'],
             toGraphQL: async ({ ids, prisma, userData }) => {
                 return {
                     you: {
@@ -114,6 +114,22 @@ export const ReportModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ createList, prisma, userData }) => {
+                // Make sure user does not have any open reports on these objects
+                if (createList.length) {
+                    const existing = await prisma.report.findMany({
+                        where: {
+                            status: 'Open',
+                            user: { id: userData.id },
+                            OR: createList.map((x) => ({
+                                [`${forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
+                            })),
+                        },
+                    });
+                    if (existing.length > 0)
+                        throw new CustomError('0337', 'MaxReportsReached', userData.languages);
+                }
+            },
             create: async ({ data, userData }) => {
                 return {
                     id: data.id,
@@ -135,7 +151,7 @@ export const ReportModel: ModelLogic<{
         trigger: {
             onCreated: ({ created, prisma, userData }) => {
                 for (const c of created) {
-                    Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
+                    // Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
                 }
             },
         },
@@ -190,22 +206,6 @@ export const ReportModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: () => true,
         profanityFields: ['reason', 'details'],
-        validations: {
-            create: async ({ createMany, prisma, userData }) => {
-                // Make sure user does not have any open reports on these objects
-                const existing = await prisma.report.findMany({
-                    where: {
-                        status: 'Open',
-                        user: { id: userData.id },
-                        OR: createMany.map((x) => ({
-                            [`${forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
-                        })),
-                    },
-                });
-                if (existing.length > 0)
-                    throw new CustomError('0337', 'MaxReportsReached', userData.languages);
-            }
-        },
         visibility: {
             private: {},
             public: {},

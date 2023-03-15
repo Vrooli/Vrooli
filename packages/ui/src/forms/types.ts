@@ -1,6 +1,6 @@
 import { CommonProps } from "types";
 import { Forms, TagShape } from "utils";
-import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
+import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { InputType, Session } from "@shared/consts";
 import { FormEvent } from "react";
 
@@ -154,9 +154,9 @@ export interface TextFieldProps {
 }
 
 /**
- * Props for rendering a QuantityBox input component
+ * Props for rendering a IntegerInput input component
  */
-export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
+export interface IntegerInputProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
     defaultValue?: any; // Ignored
 }
 
@@ -342,17 +342,17 @@ export interface FieldDataTextField extends FieldDataBase {
 }
 
 /**
- * Field data type and props for QuantityBox input components
+ * Field data type and props for IntegerInput input components
  */
-export interface FieldDataQuantityBox extends FieldDataBase {
+export interface FieldDataIntegerInput extends FieldDataBase {
     /**
      * The type of the field
      */
-    type: InputType.QuantityBox;
+    type: InputType.IntegerInput;
     /**
      * Extra props for the input component, depending on the type
      */
-    props: QuantityBoxProps;
+    props: IntegerInputProps;
 }
 
 /**
@@ -363,14 +363,14 @@ export type FieldData =
     FieldDataDropzone |
     FieldDataJSON |
     FieldDataLanguageInput |
+    FieldDataIntegerInput |
     FieldDataMarkdown |
     FieldDataRadio |
     FieldDataSelector |
     FieldDataSlider |
     FieldDataSwitch |
     FieldDataTagSelector |
-    FieldDataTextField |
-    FieldDataQuantityBox;
+    FieldDataTextField;
 
 //==============================================================
 /* #endregion Input Component Data */

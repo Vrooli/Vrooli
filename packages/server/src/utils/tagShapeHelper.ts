@@ -2,7 +2,7 @@ import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } fr
 import { RelationshipType } from "../builders/types";
 
 // Types of objects which have tags
-type TaggedObjectType = 'Api' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Routine' | 'SmartContract' | 'Standard';
+type TaggedObjectType = 'Api' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard';
 
 /**
  * Maps type of a tag's parent with the unique field
@@ -13,6 +13,7 @@ const parentMapper: { [key in TaggedObjectType]: string } = {
     'Organization': 'organization_tags_taggedid_tagTag_unique',
     'Post': 'post_tags_taggedid_tagTag_unique',
     'Project': 'project_tags_taggedid_tagTag_unique',
+    'Question': 'question_tags_taggedid_tagTag_unique',
     'Routine': 'routine_tags_taggedid_tagTag_unique',
     'SmartContract': 'smart_contract_tags_taggedid_tagTag_unique',
     'Standard': 'standard_tags_taggedid_tagTag_unique',
@@ -39,8 +40,7 @@ export const tagShapeHelper = async <
     parentType,
     prisma,
     relation,
-    relTypes,
-    userData,
+    ...rest
 }: TagShapeHelperProps<Input, Types, FieldName>):
     Promise<ShapeHelperOutput<false, false, Types[number], any, 'tag'>> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
     // Tags get special logic because they are treated as strings in GraphQL, 
@@ -89,7 +89,6 @@ export const tagShapeHelper = async <
         primaryKey: 'tag',
         prisma,
         relation,
-        relTypes,
-        userData,
+        ...rest
     })
 }

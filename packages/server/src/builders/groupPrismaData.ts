@@ -1,6 +1,5 @@
 import { isObject } from "@shared/utils";
 import { isRelationshipObject } from "./isRelationshipObject";
-import { subsetsMatch } from "./subsetsMatch";
 import { PartialGraphQLInfo } from "./types";
 import pkg from 'lodash';
 import { GqlModelType } from "@shared/consts";

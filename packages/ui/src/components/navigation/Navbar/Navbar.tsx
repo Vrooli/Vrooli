@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { APP_LINKS } from '@shared/consts';
+import { useCallback, useEffect, useMemo } from 'react';
+import { LINKS, BUSINESS_NAME } from '@shared/consts';
 import { AppBar, Box, useTheme, Stack } from '@mui/material';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from '@shared/route';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
 import { noSelect } from 'styles'
-import { PageTitle } from 'components/text';
+import { Header } from 'components/text';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
 import { NavbarLogoState } from '../types';
-import { PubSub, useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
-import { getCookieIsLeftHanded } from 'utils/cookies';
+import { useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -41,7 +40,7 @@ export const Navbar = ({
 
     const { dimensions, ref } = useDimensions();
 
-    const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
+    const toHome = useCallback(() => setLocation(LINKS.Home), [setLocation]);
     const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
 
     // Determine display texts and states
@@ -52,6 +51,12 @@ export const Navbar = ({
     }, [isMobile, title]);
 
     const isLeftHanded = useIsLeftHanded();
+
+    // Set tab to title
+    useEffect(() => {
+        if (!title) return;
+        document.title = `${title} | ${BUSINESS_NAME}`;
+    }, [title]);
 
     const logo = useMemo(() => (
         <Box
@@ -99,7 +104,7 @@ export const Navbar = ({
                         </Box>}
                         {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
-                        {isMobile && title && <PageTitle help={help} title={title} />}
+                        {isMobile && title && <Header help={help} title={title} />}
                         {(isMobile && isLeftHanded) ? logo : <Box sx={{
                             marginLeft: 'auto',
                             maxHeight: '100%',
@@ -113,7 +118,7 @@ export const Navbar = ({
                 </AppBar>
             </HideOnScroll>
             {/* Title displayed here on desktop */}
-            {!isMobile && title && !shouldHideTitle && <PageTitle
+            {!isMobile && title && !shouldHideTitle && <Header
                 help={help}
                 title={title}
             />}

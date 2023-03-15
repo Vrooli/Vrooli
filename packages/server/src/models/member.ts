@@ -9,7 +9,6 @@ import { OrganizationModel } from "./organization";
 import { RoleModel } from "./role";
 
 const __typename = 'Member' as const;
-
 const suppFields = [] as const;
 export const MemberModel: ModelLogic<{
     IsTransferable: false,

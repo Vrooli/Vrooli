@@ -98,6 +98,7 @@ export * from './OpenInNewIcon';
 export * from './OpenThreadIcon';
 export * from './OrganizationIcon';
 export * from './PauseIcon';
+export * from './PhoneIcon';
 export * from './PlayIcon';
 export * from './PlusIcon';
 export * from './PremiumIcon';

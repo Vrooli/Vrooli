@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { GridSubmitButtons } from 'components/buttons';
 import { DialogTitle } from 'components/dialogs';
-import { QuantityBox } from 'components/inputs';
+import { IntegerInput } from 'components/inputs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ReorderInputDialogProps } from '../types';
 
@@ -85,7 +85,7 @@ export const ReorderInputDialog = ({
                         </Typography>
                     </Box>
                     {/* To */}
-                    <QuantityBox
+                    <IntegerInput
                         id="move-input-output-to-position"
                         label="To"
                         min={1}

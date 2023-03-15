@@ -1,4 +1,5 @@
 import { Resource, Session } from "@shared/consts";
+import { SvgComponent } from "@shared/icons";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay } from "types";
 
@@ -12,6 +13,11 @@ export interface CardGridProps {
     minWidth: number;
 }
 
+export interface LineGraphCardProps extends Omit<LineGraphProps, 'dims'> {
+    title?: string;
+    index: number;
+}
+
 export interface ResourceCardProps {
     canUpdate: boolean;
     data: Resource;
@@ -22,7 +28,11 @@ export interface ResourceCardProps {
     session: Session | undefined;
 }
 
-export interface LineGraphCardProps extends Omit<LineGraphProps, 'dims'> {
-    title?: string;
-    index: number;
+export interface TIDCardProps {
+    buttonText: string;
+    description: string;
+    key: string | number;
+    Icon: SvgComponent;
+    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
+    title: string;
 }

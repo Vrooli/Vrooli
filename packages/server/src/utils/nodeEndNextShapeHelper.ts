@@ -16,6 +16,7 @@ export const nodeEndNextShapeHelper = async <
     Input extends ShapeHelperInput<false, false, Types[number], 'suggestedNextRoutineVersions'>,
 >({
     data,
+    preMap,
     prisma,
     relTypes,
     userData,
@@ -34,6 +35,7 @@ export const nodeEndNextShapeHelper = async <
         },
         objectType: 'RoutineVersion' as GqlModelType,
         parentRelationshipName: 'suggestedNextByNode',
+        preMap,
         primaryKey: 'id',
         prisma,
         relation: 'suggestedNextRoutineVersions',

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { APP_LINKS as LINKS, Session } from '@shared/consts';
+import { LINKS, Session } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
@@ -35,7 +35,6 @@ interface GetUserActionsProps {
 }
 export function getUserActions({ session, exclude = [] }: GetUserActionsProps): Action[] {
     // Check if user is logged in using session
-    console.log('action getUserActions', session, exclude);
     let isLoggedIn = checkIfLoggedIn(session);
     let actions: ActionArray[] = [];
     // Home only available to logged in users

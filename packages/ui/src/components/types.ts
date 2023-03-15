@@ -1,7 +1,7 @@
 import { Session } from "@shared/consts";
 import { SvgProps } from "@shared/icons";
 
-export interface BannerAdProps {
+export interface BannerChickenProps {
     session: Session | undefined;
 }
 

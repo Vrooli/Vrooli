@@ -3,47 +3,9 @@ import { SelectWrap } from "../builders/types";
 import { MaxObjects, UserSchedule, UserScheduleCreateInput, UserScheduleSearchInput, UserScheduleSortBy, UserScheduleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, labelShapeHelper } from "../utils";
 import { userScheduleValidation } from "@shared/validation";
-
-// const searcher = (): Searcher<
-//     StandardSearchInput,
-//     StandardSortBy,
-//     Prisma.standardWhereInput
-// > => ({
-//     defaultSort: StandardSortBy.ScoreDesc,
-//     sortBy: StandardSortBy,
-//     searchFields: [
-//         'createdById',
-//         'createdTimeFrame',
-//         'issuesId',
-//         'labelsId',
-//         'minScore',
-//         'minBookmarks',
-//         'minViews',
-//         'ownedByOrganizationId',
-//         'ownedByUserId',
-//         'parentId',
-//         'pullRequestsId',
-//         'questionsId',
-//         'standardTypeLatestVersion',
-//         'tags',
-//         'transfersId',
-//         'translationLanguagesLatestVersion',
-//         'updatedTimeFrame',
-//         'visibility',
-//     ],
-//     searchStringQuery: ({ insensitive, languages }) => ({
-//         OR: [
-//             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-//             { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-//         ]
-//     }),
-//     /**
-//      * Can only query for your own schedules
-//      */
-//     customQueryData: (_, userData) => ({ user: { id: userData.id } }),
-// })
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'UserSchedule' as const;
 const suppFields = [] as const;
@@ -88,14 +50,38 @@ export const UserScheduleModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                name: data.name,
+                description: noNull(data.description),
+                timeZone: noNull(data.timeZone),
+                eventStart: noNull(data.eventStart),
+                eventEnd: noNull(data.eventEnd),
+                recurring: noNull(data.recurring),
+                recurrStart: noNull(data.recurrStart),
+                recurrEnd: noNull(data.recurrEnd),
+                user: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'UserScheduleFilter', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'UserSchedule', relation: 'labels', data, ...rest })),
+
+            }),
+            update: async ({ data, ...rest }) => ({
+                name: noNull(data.name),
+                description: noNull(data.description),
+                timeZone: noNull(data.timeZone),
+                eventStart: noNull(data.eventStart),
+                eventEnd: noNull(data.eventEnd),
+                recurring: noNull(data.recurring),
+                recurrStart: noNull(data.recurrStart),
+                recurrEnd: noNull(data.recurrEnd),
+                user: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'filters', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserScheduleFilter', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Disconnect', 'Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ReminderList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'userSchedule', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'UserSchedule', relation: 'labels', data, ...rest })),
+            }),
         },
         yup: userScheduleValidation,
     },

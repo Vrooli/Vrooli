@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
-import { PageTitle, TopBar } from 'components';
+import { Header, TopBar } from 'components';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
 import { Box, Button, List, ListItem, Typography, useTheme } from '@mui/material';
 import { NotificationsViewProps } from '../types';
 import { useTranslation } from 'react-i18next';
 import { getUserLanguages, useDisplayApolloError } from 'utils';
 import { Wrap } from 'types';
-import { APP_LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
+import { LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useQuery } from '@apollo/client';
 import { notificationFindMany } from 'api/generated/endpoints/notification_findMany';
@@ -31,7 +31,7 @@ export const NotificationsView = ({
     const hasItems = useMemo(() => notifications.length > 0, [notifications]);
 
     const onSelect = useCallback((notification: Notification) => {
-        // setLocation(`${APP_LINKS[objectType]}/add`);
+        // setLocation(`${LINKS[objectType]}/add`);
     }, [setLocation]);
 
     const onDelete = useCallback((notification: Notification) => {

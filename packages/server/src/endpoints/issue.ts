@@ -27,7 +27,7 @@ export const typeDef = gql`
     enum IssueStatus {
         Open
         ClosedResolved
-        CloseUnresolved
+        ClosedUnresolved
         Rejected
     }
 
@@ -211,6 +211,7 @@ export const resolvers: {
         },
         issueClose: async (_, { input }, { prisma, req }, info) => {
             throw new CustomError('0000', 'NotImplemented', ['en'])
+            // TODO make sure to set hasBeenClosedOrRejected to true
         },
     }
 }

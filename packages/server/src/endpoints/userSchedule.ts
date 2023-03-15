@@ -28,12 +28,12 @@ export const typeDef = gql`
         recurring: Boolean
         recurrStart: Date
         recurrEnd: Date
+        filtersCreate: [UserScheduleFilterCreateInput!]
         reminderListConnect: ID
         reminderListCreate: ReminderListCreateInput
         resourceListCreate: ResourceListCreateInput
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
-        filtersCreate: [UserScheduleFilterCreateInput!]
     }
     input UserScheduleUpdateInput {
         id: ID!
@@ -45,6 +45,8 @@ export const typeDef = gql`
         recurring: Boolean
         recurrStart: Date
         recurrEnd: Date
+        filtersCreate: [UserScheduleFilterCreateInput!]
+        filtersDelete: [ID!]
         reminderListConnect: ID
         reminderListDisconnect: Boolean
         reminderListCreate: ReminderListCreateInput
@@ -54,8 +56,6 @@ export const typeDef = gql`
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
-        filtersCreate: [UserScheduleFilterCreateInput!]
-        filtersDelete: [ID!]
     }
     type UserSchedule {
         id: ID!

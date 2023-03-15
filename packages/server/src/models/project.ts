@@ -2,31 +2,18 @@ import { projectValidation } from "@shared/validation";
 import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, ProjectYou, PrependString, MaxObjects } from '@shared/consts';
+import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, ProjectYou, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
-    return {
-        id: data.id,
-        // isComplete: data.isComplete ?? undefined,
-        // isPrivate: data.isPrivate ?? undefined,
-        // completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
-        permissions: JSON.stringify({}),
-        // resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        // tags: await tagRelationshipBuilder(prisma, userData, data, 'Project', isAdd),
-        // translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-    }
-}
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Project' as const;
 type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -112,21 +99,37 @@ export const ProjectModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
-                // id: data.id,
-                // parentId: noNull(data.parentId),
-                // createdBy: { connect: { id: userData.id } },
-                // ...connectOwner(data, userData),
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-
-            } as any)
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
+                return { ...maps }
+            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                handle: noNull(data.handle),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'projects', isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'forks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Project', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Project', relation: 'labels', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                handle: noNull(data.handle),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'projects', isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Project', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Project', relation: 'labels', data, ...rest })),
+            })
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).createProject(userData.id, c.id);
-                }
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
             },
         },
         yup: projectValidation,

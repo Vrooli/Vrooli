@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, PrependString, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
+import { MaxObjects, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { ModelLogic } from "./types";
@@ -9,10 +9,11 @@ import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
-import { defaultPermissions, oneIsPublic } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { smartContractValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'SmartContract' as const;
 type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -93,14 +94,36 @@ export const SmartContractModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
+                return { ...maps }
+            },
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'smartContracts', isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'forks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'SmartContract', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'SmartContract', relation: 'labels', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'smartContracts', isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'SmartContract', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'SmartContract', relation: 'labels', data, ...rest })),
+            }),
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
+            },
         },
         yup: smartContractValidation,
     },

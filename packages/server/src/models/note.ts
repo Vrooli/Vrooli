@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou, PrependString } from '@shared/consts';
+import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";
@@ -9,9 +9,10 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { defaultPermissions } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
 import { noteValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Note' as const;
 type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -91,14 +92,36 @@ export const NoteModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
+                return { ...maps }
+            },
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'forks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'labels', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Note', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Note', relation: 'labels', data, ...rest })),
+            })
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
+            },
         },
         yup: noteValidation,
     },
@@ -132,7 +155,7 @@ export const NoteModel: ModelLogic<{
     validate: {
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
-        isDeleted: () => false,
+        isDeleted: (data) => data.isDeleted === false,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
@@ -143,6 +166,7 @@ export const NoteModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
+            isDeleted: true,
             isPrivate: true,
             permissions: true,
             createdBy: 'User',
@@ -151,8 +175,8 @@ export const NoteModel: ModelLogic<{
             versions: ['NoteVersion', ['root']],
         }),
         visibility: {
-            private: { isPrivate: true },
-            public: { isPrivate: false },
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },

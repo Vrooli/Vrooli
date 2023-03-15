@@ -6,7 +6,7 @@ export * from './GeneratedInputComponentWithLabel/GeneratedInputComponentWithLab
 export * from './GeneratedJsonInput/GeneratedJsonInput';
 export * from './GeneratedLanguageInput/GeneratedLanguageInput';
 export * from './GeneratedMarkdownInput/GeneratedMarkdownInput';
-export * from './GeneratedQuantityBox/GeneratedQuantityBox';
+export * from './GeneratedIntegerInput/GeneratedIntegerInput';
 export * from './GeneratedRadio/GeneratedRadio';
 export * from './GeneratedSelector/GeneratedSelector';
 export * from './GeneratedSlider/GeneratedSlider';

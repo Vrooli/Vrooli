@@ -1,18 +1,18 @@
-import { QuantityBox } from "components/inputs/QuantityBox/QuantityBox";
-import { QuantityBoxProps } from "forms/types";
+import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
+import { IntegerInputProps } from "forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 
-export const GeneratedQuantityBox = ({
+export const GeneratedIntegerInput = ({
     fieldData,
     formik,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering quantity box');
-    const props = useMemo(() => fieldData.props as QuantityBoxProps, [fieldData.props]);
+    console.log('rendering integer input');
+    const props = useMemo(() => fieldData.props as IntegerInputProps, [fieldData.props]);
 
     return (
-        <QuantityBox
+        <IntegerInput
             autoFocus={index === 0}
             key={`field-${fieldData.fieldName}-${index}`}
             tabIndex={index}

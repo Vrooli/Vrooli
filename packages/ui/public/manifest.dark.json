@@ -44,7 +44,7 @@
         "browser"
     ],
     "orientation": "any",
-    "scope": "https://app.vrooli.com/",
+    "scope": "https://vrooli.com/",
     "start_url": "/",
     "screenshots": [
         {
@@ -118,7 +118,7 @@
     "related_applications": [
         {
             "platform": "webapp",
-            "url": "https://app.vrooli.com/"
+            "url": "https://vrooli.com/"
         }
     ]
 }

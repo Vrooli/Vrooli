@@ -1,11 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { QuizQuestion, QuizQuestionCreateInput, QuizQuestionYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, PrependString } from '@shared/consts';
+import { QuizQuestion, QuizQuestionCreateInput, QuizQuestionYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { quizQuestionValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
+import { QuizModel } from "./quiz";
 
 const __typename = 'QuizQuestion' as const;
 type Permissions = Pick<QuizQuestionYou, 'canDelete' | 'canUpdate'>;
@@ -60,14 +62,20 @@ export const QuizQuestionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                order: noNull(data.order),
+                points: noNull(data.points),
+                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'StandardVersion', parentRelationshipName: 'quizQuestions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'quiz', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Quiz', parentRelationshipName: 'quizQuestions', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                order: noNull(data.order),
+                points: noNull(data.points),
+                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect', 'Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'quizQuestions', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
         },
         yup: quizQuestionValidation,
     },
@@ -90,5 +98,23 @@ export const QuizQuestionModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => QuizModel.validate!.isPublic(data.quiz as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => QuizModel.validate!.owner(data.quiz as any),
+        permissionResolvers: (params) => defaultPermissions(params),
+        permissionsSelect: () => ({
+            id: true,
+            quiz: 'Quiz',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                quiz: QuizModel.validate!.visibility.owner(userId),
+            })
+        }
+    },
 })

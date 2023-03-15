@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput } from '@shared/consts';
+import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, SubscribableObject } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
@@ -19,11 +19,13 @@ import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
 import { notificationSubscriptionValidation } from "@shared/validation";
+import { noNull } from "../builders";
 
-export const subscriberMapper: { [x: string]: string } = {
+export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs['create'] } = {
     Api: 'api',
     Comment: 'comment',
     Issue: 'issue',
+    Meeting: 'meeting',
     Note: 'note',
     Organization: 'organization',
     Project: 'project',
@@ -134,14 +136,15 @@ export const NotificationSubscriptionModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                silent: noNull(data.silent),
+                subscriber: { connect: { id: rest.userData.id } },
+                [subscribableMapper[data.objectType]]: { connect: { id: data.objectConnect } },
+            }),
+            update: async ({ data }) => ({
+                silent: noNull(data.silent),
+            }),
         },
         yup: notificationSubscriptionValidation,
     },

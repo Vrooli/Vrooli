@@ -12,6 +12,7 @@ import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper }
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 import { exists } from "@shared/utils";
+import { Trigger } from "../events";
 
 const __typename = 'Organization' as const;
 type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead'>;
@@ -132,60 +133,72 @@ export const OrganizationModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
-                // ID for organization and admin role
-                const organizationId = uuid();
-                const roleId = uuid();
-                // Add "Admin" role to roles, and assign yourself to it
-                const roles = await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, prisma, userData })
-                const adminRole = {
-                    id: roleId,
-                    name: 'Admin',
-                    permissions: JSON.stringify({}), //TODO
-                    members: {
-                        create: {
-                            permissions: JSON.stringify({}), //TODO
-                            user: { connect: { id: userData.id } },
-                            organization: { connect: { id: organizationId } },
-                        }
-                    }
-                }
-                if (roles.roles.create) roles.roles.create.push(adminRole);
-                else roles.roles.create = [adminRole];
-                // Add yourself as a member
-                const adminMember = {
-                    isAdmin: true,
-                    permissions: JSON.stringify({}), //TODO
-                    user: { connect: { id: userData.id } },
-                    organization: { connect: { id: organizationId } },
-                    roles: { connect: { id: roleId } },
-                }
+            pre: async ({ createList, updateList, prisma, userData }) => {
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio', userData.languages));
+                // Validate AdaHandles
+                let handleData = updateList.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
+                await handlesCheck(prisma, 'Organization', handleData, userData.languages);
+            },
+            create: async ({ data, ...rest }) => {
                 return {
-                    id: organizationId,
+                    id: data.id,
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
                     permissions: JSON.stringify({}), //TODO
-                    createdBy: { connect: { id: userData.id } },
-                    members: { create: adminMember },
-                    ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
-                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
-                    ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
-                    ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
-                    ...roles,
+                    createdBy: { connect: { id: rest.userData.id } },
+                    members: {
+                        create: {
+                            isAdmin: true,
+                            permissions: JSON.stringify({}), //TODO
+                            user: { connect: { id: rest.userData.id } },
+                        }
+                    },
+                    ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                    ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Organization', relation: 'tags', data, ...rest })),
                 }
             },
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 handle: noNull(data.handle),
                 isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                 isPrivate: noNull(data.isPrivate),
-                ...(await shapeHelper({ relation: 'members', relTypes: ['Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
-                //...roles //TODO
+                permissions: JSON.stringify({}), //TODO
+                ...(await shapeHelper({ relation: 'members', relTypes: ['Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await shapeHelper({ relation: 'roles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Organization', relation: 'tags', data, ...rest })),
             })
+        },
+        trigger: {
+            onCreated: async ({ created, prisma, userData }) => {
+                for (const { id: organizationId } of created) {
+                    // Add 'Admin' role to organization
+                    await prisma.role.create({
+                        data: {
+                            id: uuid(),
+                            name: 'Admin',
+                            permissions: JSON.stringify({}), //TODO
+                            members: {
+                                connect: {
+                                    member_organizationid_userid_unique: {
+                                        userId: userData.id,
+                                        organizationId
+                                    }
+                                }
+                            },
+                            organizationId,
+                        }
+                    });
+                    // Handle trigger
+                    // Trigger(prisma, userData.languages).createOrganization(userData.id, organizationId);
+                }
+            }
         },
         yup: organizationValidation,
     },
@@ -264,13 +277,13 @@ export const OrganizationModel: ModelLogic<{
          * @param excludeUserId An option user to exclude from the results
          * @returns A list of admin ids and their preferred languages. Useful for sending notifications
          */
-        async findAdminInfo(prisma: PrismaType, organizationId: string, excludeUserId?: string): Promise<{ id: string, languages: string[] }[]> {
+        async findAdminInfo(prisma: PrismaType, organizationId: string, excludeUserId?: string | null | undefined): Promise<{ id: string, languages: string[] }[]> {
             const admins = await prisma.member.findMany({
                 where: {
                     AND: [
                         { organizationId },
                         { isAdmin: true },
-                        { userId: { not: excludeUserId } }
+                        { userId: { not: excludeUserId ?? undefined } },
                     ]
                 },
                 select: {
@@ -320,6 +333,7 @@ export const OrganizationModel: ModelLogic<{
                         }
                     },
                     select: {
+                        id: true,
                         permissions: true,
                     },
                 },
@@ -328,24 +342,14 @@ export const OrganizationModel: ModelLogic<{
                         userId,
                     },
                     select: {
+                        id: true,
                         isAdmin: true,
                         permissions: true,
+                        userId: true,
                     },
                 }
             } : {}),
         }),
-        validations: {
-            create({ createMany, languages }) {
-                createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio', languages))
-            },
-            async update({ languages, prisma, updateMany }) {
-                // Validate AdaHandles
-                let handleData = updateMany.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
-                await handlesCheck(prisma, 'Organization', handleData, languages);
-                // Validate line breaks
-                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['bio'], 'LineBreaksBio', languages));
-            },
-        },
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },

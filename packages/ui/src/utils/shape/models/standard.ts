@@ -5,7 +5,7 @@ import { shapeUpdate, updatePrims, TagShape, createRel, updateRel, shapeTag, cre
 
 export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPrivate' | 'permissions'> & {
     parent?: { id: string } | null;
-    owner?: { __typename: 'User' | 'Organization', id: string } | null;
+    owner: { __typename: 'User' | 'Organization', id: string } | null;
     labels?: ({ id: string } | LabelShape)[] | null;
     tags?: ({ tag: string } | TagShape)[] | null;
     // Updating, deleting, and reordering versions must be done separately. 
@@ -18,7 +18,7 @@ export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' |
 export const shapeStandard: ShapeModel<StandardShape, StandardCreateInput, StandardUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, 'id', 'name', 'isInternal', 'isPrivate', 'permissions'),
-        ...createOwner(d),
+        ...createOwner(d, 'ownedBy'),
         ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
         ...createRel(d, 'parent', ['Connect'], 'one'),
         ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
@@ -26,7 +26,7 @@ export const shapeStandard: ShapeModel<StandardShape, StandardCreateInput, Stand
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'name', 'isInternal', 'isPrivate', 'permissions'),
-        ...updateOwner(o, u),
+        ...updateOwner(o, u, 'ownedBy'),
         ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
         ...updateVersion(o, u, shapeStandardVersion, (v, i) => ({ ...v, root: { id: i.id } })),

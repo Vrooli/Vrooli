@@ -175,3 +175,6 @@ packages/ui/public/safari-pinned-tab*
 # Sitemaps
 packages/ui/public/sitemap.xml
 packages/ui/public/sitemaps/
+
+# 0x flame graph data
+**/*.0x/

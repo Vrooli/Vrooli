@@ -1,11 +1,10 @@
-import { APP_LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
+import { LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
 import { documentNodeWrapper, errorToCode } from "api/utils";
-import { ActionOption, ShortcutOption } from "types";
+import { ActionOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { PubSub } from "utils/pubsub";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { clearSearchHistory, HistorySearchPageTabOption, PreSearchItem, SearchPageTabOption } from "utils/search";
-import i18next from "i18next";
 
 export interface ShortcutItem {
     label: string;
@@ -26,163 +25,163 @@ export const shortcuts: PreSearchItem[] = [
     {
         label: 'CreateApi',
         keywords: createKeywords,
-        value: `${APP_LINKS.Api}/add`,
+        value: `${LINKS.Api}/add`,
     },
     {
         label: 'CreateNote',
         keywords: createKeywords,
-        value: `${APP_LINKS.Note}/add`,
+        value: `${LINKS.Note}/add`,
     },
     {
         label: 'CreateOrganization',
         keywords: createKeywords,
-        value: `${APP_LINKS.Organization}/add`,
+        value: `${LINKS.Organization}/add`,
     },
     {
         label: 'CreateProject',
         keywords: createKeywords,
-        value: `${APP_LINKS.Project}/add`,
+        value: `${LINKS.Project}/add`,
     },
     {
         label: 'CreateQuestion',
         keywords: createKeywords,
-        value: `${APP_LINKS.Question}/add`,
+        value: `${LINKS.Question}/add`,
     },
     {
         label: 'CreateReminder',
         keywords: createKeywords,
-        value: `${APP_LINKS.Reminder}/add`,
+        value: `${LINKS.Reminder}/add`,
     },
     {
         label: 'CreateRoutine',
         keywords: createKeywords,
-        value: `${APP_LINKS.Routine}/add`,
+        value: `${LINKS.Routine}/add`,
     },
     {
         label: 'CreateSmartContract',
         keywords: createKeywords,
-        value: `${APP_LINKS.SmartContract}/add`,
+        value: `${LINKS.SmartContract}/add`,
     },
     {
         label: 'CreateStandard',
         keywords: createKeywords,
-        value: `${APP_LINKS.Standard}/add`,
+        value: `${LINKS.Standard}/add`,
     },
     {
         label: 'ViewHistory',
         keywords: viewKeywords,
-        value: `${APP_LINKS.History}`,
+        value: `${LINKS.History}`,
     },
     {
         label: 'ViewNotifications',
         keywords: viewKeywords,
-        value: `${APP_LINKS.Notifications}`,
+        value: `${LINKS.Notifications}`,
     },
     {
         label: 'ViewProfile',
         keywords: viewKeywords,
-        value: `${APP_LINKS.Profile}`,
+        value: `${LINKS.Profile}`,
     },
     {
         label: 'ViewSettings',
         keywords: viewKeywords,
-        value: `${APP_LINKS.Settings}`,
+        value: `${LINKS.Settings}`,
     },
     {
         label: 'SearchApi',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Apis}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Apis}`,
     },
     {
         label: 'SearchNote',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Notes}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Notes}`,
     },
     {
         label: 'SearchOrganization',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Organizations}`,
     },
     {
         label: 'SearchQuestion',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Questions}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Questions}`,
     },
     {
         label: 'SearchProject',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Projects}`,
     },
     {
         label: 'SearchQuestion',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Questions}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Questions}`,
     },
     {
         label: 'SearchRoutine',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Routines}`,
     },
     {
         label: 'SearchSmartContract',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.SmartContracts}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.SmartContracts}`,
     },
     {
         label: 'SearchStandard',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Standards}`,
     },
     {
         label: 'SearchUser',
         keywords: searchKeywords,
-        value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Users}`,
     },
     {
         label: 'SearchRun',
         keywords: searchKeywords,
-        value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Runs}`,
+        value: `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Runs}`,
     },
     {
         label: 'SearchView',
         keywords: [...searchKeywords, 'SearchViewed'],
-        value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
+        value: `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
     },
     {
         label: 'SearchBookmark',
         keywords: [...searchKeywords, 'SearchBookmarked'],
-        value: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`,
+        value: `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`,
     },
     // { //TODO should be possible to replicate with normal advanced search
     //     label: 'Search your actively developing projects and routines',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
+    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
     // },
     // {
     //     label: 'Search your completed projects and routines',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}`,
+    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}`,
     // },
     // {
     //     label: 'Search your actively developing projects and routines advanced',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}&advanced=true`,
+    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}&advanced=true`,
     // },
     // {
     //     label: 'Search your completed projects and routines advanced',
-    //     link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
+    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
     // },
     {
         label: `BeginnersGuide`,
         keywords: viewKeywords,
-        value: `${APP_LINKS.Welcome}`,
+        value: `${LINKS.Welcome}`,
     },
     {
         label: 'Faq',
         keywords: viewKeywords,
-        value: `${APP_LINKS.FAQ}`,
+        value: `${LINKS.FAQ}`,
     },
     {
         label: 'Tutorial',
         keywords: viewKeywords,
-        value: `${APP_LINKS.Tutorial}`,
+        value: `${LINKS.Tutorial}`,
     },
 ]
 

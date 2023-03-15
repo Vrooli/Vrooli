@@ -13,6 +13,8 @@ export type BaseViewProps = {
     session: Session | undefined;
 }
 
+export interface AboutViewProps extends BaseViewProps {}
+
 export interface AwardsViewProps extends BaseViewProps {}
 
 export interface CalendarViewProps extends BaseViewProps {}

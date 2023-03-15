@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Button,
     DialogContent,
-    Grid,
-    Stack,
-    Typography,
     useTheme,
 } from '@mui/material';
-import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, ShortcutOption, shortcuts, useDisplayApolloError } from 'utils';
+import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcuts, useDisplayApolloError } from 'utils';
 import { SiteSearchBar } from 'components/inputs';
-import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
-import { AutocompleteOption } from 'types';
+import { LINKS, PopularInput, PopularResult } from '@shared/consts';
+import { AutocompleteOption, ShortcutOption } from 'types';
 import { useCustomLazyQuery } from 'api/hooks';
 import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
@@ -85,11 +81,11 @@ export const CommandPalette = ({
             firstResults.push({
                 __typename: "Shortcut",
                 label: t(`ShortcutBeginnersGuide`),
-                id: APP_LINKS.Welcome,
+                id: LINKS.Welcome,
             }, {
                 __typename: "Shortcut",
                 label: t(`ShortcutFaq`),
-                id: APP_LINKS.FAQ,
+                id: LINKS.FAQ,
             });
         }
         // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array

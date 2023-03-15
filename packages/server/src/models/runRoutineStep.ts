@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { SelectWrap } from "../builders/types";
 import { defaultPermissions } from "../utils";
+import { runRoutineStepValidation } from "@shared/validation";
 
 // const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
 //     return {
@@ -73,7 +74,7 @@ export const RunRoutineStepModel: ModelLogic<{
                 } as any
             }
         },
-        yup: {} as any,
+        yup: runRoutineStepValidation,
     },
     validate: {
         isTransferable: false,

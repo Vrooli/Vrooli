@@ -8,6 +8,7 @@ createdBy {
     handle
 }
 hasAcceptedAnswer
+isPrivate
 score
 bookmarks
 answersCount

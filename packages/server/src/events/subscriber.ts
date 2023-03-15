@@ -1,10 +1,8 @@
 import { getLogic } from "../getters";
-import { SessionUser } from '@shared/consts';
+import { SessionUser, SubscribableObject } from '@shared/consts';
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
-import { subscriberMapper } from "../models";
-
-export type SubscribableObject = 'Organization' | 'Project' | 'Routine' | 'Standard' | 'User'; //'Api' | 'Note' | 'Organization' | 'Project' | 'Routine' | 'SmartContract' | 'Standard' | 'User';
+import { subscribableMapper } from "../models";
 
 /**
  * Handles notifying users of new activity on object they're subscribed to. 
@@ -44,7 +42,7 @@ export const Subscriber = (prisma: PrismaType) => ({
         await prisma.notification_subscription.create({
             data: {
                 subscriber: { connect: { id: userData.id } },
-                [subscriberMapper[object.__typename]]: { connect: { id: object.id } },
+                [subscribableMapper[object.__typename]]: { connect: { id: object.id } },
                 silent,
             }
         });

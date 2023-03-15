@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AlertDialog,
-    BannerAd,
+    BannerChicken,
     BottomNav,
     CommandPalette,
     FindInPage,
@@ -293,13 +293,11 @@ export function App() {
                 }
                 // If not logged in as guest and failed to log in as user, set guest session
                 if (!session) {
-                    console.log('action bad set session');
                     setSession(guestSession)
                 }
             },
         })
     }, [validateSession])
-    console.log('action app session', session)
 
     useEffect(() => {
         checkSession();
@@ -445,7 +443,7 @@ export function App() {
                         />
                     </Box>
                     <BottomNav session={session} />
-                    <BannerAd session={session} />
+                    <BannerChicken session={session} />
                     <Footer />
                 </Box>
             </ThemeProvider>

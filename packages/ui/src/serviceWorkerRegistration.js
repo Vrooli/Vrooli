@@ -25,28 +25,46 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 
-export function subscribeUserToPush() {
-    if (!('PushManager' in window)) return;
-    return navigator.serviceWorker
-      .register('/service-worker.js')
-      .then(function (registration) {
+export async function requestNotificationPermission() {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        console.info("Notification permission granted!");
+    } else {
+        console.error("Notification permission denied");
+    }
+    return permission;
+}
+
+export async function subscribeUserToPush() {
+    if (!('PushManager' in window)) {
+        console.warn('Push notifications are not supported in this browser. This could be because the browser is too old or because it is running in a non-secure context (http instead of https).');
+        return null;
+    }
+    const permission = await requestNotificationPermission();
+    if (permission !== 'granted') {
+        console.warn('Push permissions not granted.')
+        return null;
+    }
+    try {
+        const registration = await navigator.serviceWorker.register('/service-worker.js');
         const subscribeOptions = {
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(
-            import.meta.env.VITE_PUSH_NOTIFICATIONS_PUBLIC_KEY
-          ),
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(
+                import.meta.env.VITE_VAPID_PUBLIC_KEY
+            ),
         };
-  
-        return registration.pushManager.subscribe(subscribeOptions);
-      })
-      .then(function (pushSubscription) {
+        console.log('push notification subscribeOptions: ', subscribeOptions);
+        const pushSubscription = await registration.pushManager.subscribe(subscribeOptions);
         console.log(
-          'Received PushSubscription: ',
-          JSON.stringify(pushSubscription),
+            'Received PushSubscription: ',
+            JSON.stringify(pushSubscription),
         );
         return pushSubscription;
-      });
-  }
+    } catch (error) {
+        console.error('Error subscribing to push notifications:', error);
+        return null;
+    }
+}
 
 const isLocalhost = Boolean(
     window.location.hostname === 'localhost' ||

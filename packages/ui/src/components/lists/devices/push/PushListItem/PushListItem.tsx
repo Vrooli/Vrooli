@@ -1,4 +1,4 @@
-import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
+import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { PushListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
@@ -27,8 +27,6 @@ export function PushListItem({
             disablePadding
             sx={{
                 display: 'flex',
-                background: index % 2 === 0 ? '#c8d6e9' : '#e9e9e9',
-                color: 'black',
                 padding: 1,
             }}
         >

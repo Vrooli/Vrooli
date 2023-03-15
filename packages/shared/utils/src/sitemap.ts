@@ -35,7 +35,6 @@ export const generateSitemap = (siteName: string, entries: {
     main?: SitemapEntryMain[];
     content?: SitemapEntryContent[];
 }): string => {
-    console.log('yeeee', entries)
     // Create xml tag with encoding and version
     let xml = builder.create({ encoding: "UTF-8", version: "1.0" })
     // Open urlset tag

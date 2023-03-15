@@ -8,7 +8,7 @@ import { Button, Container, IconButton, Palette, useTheme } from '@mui/material'
 import { openLink, useLocation } from '@shared/route';
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
 import { useTranslation } from 'react-i18next';
 import { checkIfLoggedIn } from 'utils/authentication';
@@ -79,8 +79,8 @@ export const NavList = ({
             {/* Enter button displayed when not logged in */}
             {!checkIfLoggedIn(session) && (
                 <Button
-                    href={APP_LINKS.Start}
-                    onClick={(e) => { e.preventDefault(); openLink(setLocation, APP_LINKS.Start) }}
+                    href={LINKS.Start}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start) }}
                     startIcon={<LogInIcon />}
                     sx={{
                         background: '#387e30',

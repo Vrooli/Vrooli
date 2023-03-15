@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
+import { PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestToObjectType, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
@@ -17,6 +17,26 @@ import { StandardVersionModel } from "./standardVersion";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { pullRequestValidation } from "@shared/validation";
+import { noNull } from "../builders";
+import { translationShapeHelper } from "../utils";
+
+const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs['create'] } = {
+    ApiVersion: 'fromApiVersion',
+    NoteVersion: 'fromNoteVersion',
+    ProjectVersion: 'fromProjectVersion',
+    RoutineVersion: 'fromRoutineVersion',
+    SmartContractVersion: 'fromSmartContractVersion',
+    StandardVersion: 'fromStandardVersion',
+}
+
+const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUpsertArgs['create'] } = {
+    Api: 'toApi',
+    Note: 'toNote',
+    Project: 'toProject',
+    Routine: 'toRoutine',
+    SmartContract: 'toSmartContract',
+    Standard: 'toStandard',
+}
 
 const __typename = 'PullRequest' as const;
 type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canReport'>;
@@ -129,14 +149,17 @@ export const PullRequestModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                createdBy: { connect: { id: rest.userData.id } },
+                [fromMapper[data.fromObjectType]]: { connect: { id: data.fromConnect } },
+                [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                status: noNull(data.status),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
         },
         yup: pullRequestValidation,
     },

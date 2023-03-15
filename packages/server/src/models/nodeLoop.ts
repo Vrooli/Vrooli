@@ -6,6 +6,7 @@ import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
 import { NodeModel } from "./node";
 import { nodeLoopValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'NodeLoop' as const;
 const suppFields = [] as const;
@@ -45,14 +46,21 @@ export const NodeLoopModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                //TODO
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                id: data.id,
-                //TODO
-            } as any)
+                loops: noNull(data.loops),
+                maxLoops: noNull(data.maxLoops),
+                operation: noNull(data.operation),
+                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'loop', data, ...rest })),
+                ...(await shapeHelper({ relation: 'whiles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLoopWhile', parentRelationshipName: 'loop', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                loops: noNull(data.loops),
+                maxLoops: noNull(data.maxLoops),
+                operation: noNull(data.operation),
+                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'loop', data, ...rest })),
+                ...(await shapeHelper({ relation: 'whiles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLoopWhile', parentRelationshipName: 'loop', data, ...rest })),
+            })
         },
         yup: nodeLoopValidation,
     },
