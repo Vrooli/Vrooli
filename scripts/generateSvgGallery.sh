@@ -53,7 +53,7 @@ header "Generating SVG gallery in $DIRECTORY/$OUT_FILE..."
 # Create the output file with initial HTML structure.
 # Should be saved one level above the SVG files folder
 OUT_FILE="$DIRECTORY/../$OUT_FILE"
-cat >$OUT_FILE << EOL
+cat >$OUT_FILE <<EOL
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -75,6 +75,26 @@ cat >$OUT_FILE << EOL
       icons[i].style.width = size + "px";
     }
   }
+
+  function changeBackgroundColor() {
+    var color = document.getElementById("colorPicker").value;
+    document.body.style.backgroundColor = color;
+  }
+
+  function searchIcons() {
+    var input = document.getElementById("searchInput");
+    var filter = input.value.toUpperCase();
+    var items = document.getElementsByClassName("item");
+
+    for (var i = 0; i < items.length; i++) {
+      var fileName = items[i].getElementsByTagName("p")[0].innerHTML;
+      if (fileName.toUpperCase().indexOf(filter) > -1) {
+        items[i].style.display = "block";
+      } else {
+        items[i].style.display = "none";
+      }
+    }
+  }
 </script>
 </head>
 <body>
@@ -82,6 +102,12 @@ cat >$OUT_FILE << EOL
 <div style="text-align: center;">
   <label for="sizeSlider">Icon size:</label>
   <input type="range" id="sizeSlider" name="sizeSlider" min="50" max="300" value="100" onchange="resizeIcons()" style="width: 50%;">
+  <br>
+  <label for="colorPicker">Background color:</label>
+  <input type="color" id="colorPicker" name="colorPicker" value="#f0f0f0" onchange="changeBackgroundColor()">
+  <br>
+  <label for="searchInput">Search:</label>
+  <input type="text" id="searchInput" name="searchInput" onkeyup="searchIcons()" placeholder="Search for icons...">
 </div>
 <div class="container">
 EOL
