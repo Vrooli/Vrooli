@@ -6,7 +6,7 @@ source "${HERE}/prettify.sh"
 source "${HERE}/keylessSsh.sh"
 
 # Read arguments
-while getopts ":c:h:i:l:v" opt; do
+while getopts "c:hi:l:v:" opt; do
     case $opt in
     c)
         BACKUP_COUNT=$OPTARG

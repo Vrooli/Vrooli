@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="HelpIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="HistoryIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="rect11021"
+       style="color:#000000;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none"
+       d="m 12.003906,2.4882812 c -5.2787741,-2e-7 -9.5761719,4.2818168 -9.5761716,9.5468748 1e-7,5.265059 4.2973977,9.546875 9.5761716,9.546875 5.278775,0 9.578125,-4.281816 9.578125,-9.546875 0,-5.2650578 -4.29935,-9.5468747 -9.578125,-9.5468748 z m 0,1.5117188 c 4.464499,1e-7 8.066407,3.5899136 8.066406,8.035156 0,4.445243 -3.601907,8.035156 -8.066406,8.035156 C 7.5394084,20.070313 3.9394532,16.4804 3.9394531,12.035156 3.9394529,7.5899134 7.5394082,3.9999998 12.003906,4 Z m -0.01172,2.75 c -0.313533,-0.00151 -0.631205,0.1896509 -0.748047,0.5996094 -0.03352,0.1435607 -0.05127,4.8018946 -0.0063,4.9970676 0.04501,0.195174 0.155589,0.363103 0.33966,0.479482 0.184071,0.116378 0.388967,0.09583 0.606047,0.101575 0.880522,0.007 4.58384,0.02601 4.685547,-0.01563 0.720225,-0.21373 0.774995,-1.24483 -0.04492,-1.478515 -0.106367,-0.02484 -2.685102,-0.04056 -4.080078,-0.0332 0.007,-1.4266046 0.01258,-4.0105353 -0.02149,-4.0937504 C 12.615791,6.9465257 12.30572,6.7515096 11.992188,6.75 Z"
+       sodipodi:nodetypes="sssssssssssccccccccs" />
+  </g>
+</svg>

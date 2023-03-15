@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="HelpIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="CreateIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="color:#000000;fill:#000000;stroke-linecap:round;-inkscape-stroke:none"
+       d="M 12,2.421875 C 6.7186452,2.4218751 2.4218751,6.7186452 2.421875,12 c 2e-7,5.281355 4.2967702,9.578125 9.578125,9.578125 5.281355,0 9.578125,-4.29677 9.578125,-9.578125 0,-5.2813548 -4.29677,-9.5781248 -9.578125,-9.578125 z m 0,1.5117188 c 4.464313,10e-8 8.066406,3.6020933 8.066406,8.0664062 0,4.464313 -3.602093,8.066406 -8.066406,8.066406 C 7.5356871,20.066406 3.9335939,16.464313 3.9335938,12 3.9335939,7.5356871 7.5356871,3.9335939 12,3.9335938 Z m 0,3.3417968 A 0.75590497,0.75590497 0 0 0 11.244141,8.03125 v 3.212891 l -3.212891,0.0039 a 0.75590497,0.75590497 0 0 0 -0.7558594,0.757812 0.75590497,0.75590497 0 0 0 0.7578125,0.753907 l 3.2109379,-0.0039 v 3.21289 A 0.75590497,0.75590497 0 0 0 12,16.724609 0.75590497,0.75590497 0 0 0 12.755859,15.96875 v -3.212891 l 3.212891,-0.0039 a 0.75590497,0.75590497 0 0 0 0.755859,-0.757812 0.75590497,0.75590497 0 0 0 -0.757812,-0.753907 l -3.210938,0.0039 V 8.03125 A 0.75590497,0.75590497 0 0 0 12,7.2753906 Z"
+       id="path20541" />
+  </g>
+</svg>

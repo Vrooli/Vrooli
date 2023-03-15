@@ -19,7 +19,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":v:d:h" opt; do
+while getopts "v:d:h" opt; do
   case $opt in
     v)
       VERSION=$OPTARG

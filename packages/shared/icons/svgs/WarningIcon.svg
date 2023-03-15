@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="ErrorIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="InfoIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path3985"
+       style="color:#000000;fill:#000000;stroke-linecap:round;-inkscape-stroke:none"
+       d="m 11.984365,2.0839843 c -0.283474,2.205e-4 -0.561743,0.1152436 -0.724609,0.34375 L 0.70702159,20.638672 c -0.32886877,0.568184 0.0819543,1.277604 0.74023431,1.277344 H 22.554678 c 0.657493,-0.0011 1.066757,-0.709839 0.738281,-1.277344 L 12.740224,2.4277343 C 12.556477,2.1983457 12.267839,2.0837637 11.984365,2.0839843 Z m 0.01563,2.4726562 9.072266,15.6562505 H 2.9277247 Z m -0.01758,2.96875 c -0.519465,0.00301 -1.033101,0.3349612 -1.050781,0.9882813 v 6.2871092 c 0.0228,1.25629 2.160908,1.291752 2.136718,0 V 8.5136718 C 13.027172,7.8483066 12.501877,7.5223793 11.982412,7.5253905 Z m -0.002,9.3144535 c -0.746247,0 -1.371094,0.622895 -1.371094,1.36914 0,0.746246 0.624847,1.371094 1.371094,1.371094 0.746245,0 1.36914,-0.624848 1.36914,-1.371094 0,-0.746245 -0.622895,-1.36914 -1.36914,-1.36914 z" />
+  </g>
+</svg>

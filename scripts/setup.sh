@@ -9,7 +9,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":f:h:r" opt; do
+while getopts ":f:hr:" opt; do
     case $opt in
     f)
         REINSTALL_MODULES=$OPTARG

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="CommentIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="ReportIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     showguides="false" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="rect15626"
+       style="fill-opacity:0.179878;stroke-width:1.88976;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:0.280488"
+       d="M 4.6852179,4.6742328 H 19.314829 c 0.869594,0 1.569663,0.7000698 1.569663,1.5696633 v 7.8470599 c -8.2e-4,1.719073 -0.0021,3.37363 -0.0031,5.21372 3.2e-4,0.344443 -4.19375,-3.644056 -4.566545,-3.644056 H 4.6851709 c -0.8695934,0 -1.5696632,-0.70007 -1.5696632,-1.569664 V 6.2438961 c 0,-0.8695935 0.7000698,-1.5696633 1.5696632,-1.5696633 z"
+       sodipodi:nodetypes="sssccssssss" />
+  </g>
+</svg>

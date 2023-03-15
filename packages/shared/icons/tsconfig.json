@@ -28,4 +28,7 @@
     "include": [
         "src"
     ],
+    "exclude": [
+        "svgs"
+    ]
 }

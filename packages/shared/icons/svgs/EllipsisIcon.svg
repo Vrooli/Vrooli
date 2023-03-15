@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="EllipsisIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="RedoIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g10502">
+      <g
+         id="g8268"
+         style="stroke-width:1.00157;stroke-dasharray:none"
+         transform="translate(0.0456436)">
+        <path
+           id="path7931-0"
+           style="stroke-width:1.00157;stroke-linecap:round;stroke-dasharray:none"
+           d="M 22.283713,12 A 2.7696521,2.7696521 0 0 1 19.514061,14.769652 2.7696521,2.7696521 0 0 1 16.744409,12 2.7696521,2.7696521 0 0 1 19.514061,9.2303479 2.7696521,2.7696521 0 0 1 22.283713,12 Z m -7.559705,0 A 2.7696521,2.7696521 0 0 1 11.954356,14.769652 2.7696521,2.7696521 0 0 1 9.1847041,12 2.7696521,2.7696521 0 0 1 11.954356,9.2303479 2.7696521,2.7696521 0 0 1 14.724008,12 Z M 7.164304,12 A 2.7696521,2.7696521 0 0 1 4.3946519,14.769652 2.7696521,2.7696521 0 0 1 1.6249998,12 2.7696521,2.7696521 0 0 1 4.3946519,9.2303479 2.7696521,2.7696521 0 0 1 7.164304,12 Z" />
+      </g>
+    </g>
+  </g>
+</svg>
