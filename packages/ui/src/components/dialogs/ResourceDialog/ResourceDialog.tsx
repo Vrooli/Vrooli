@@ -7,7 +7,7 @@ import { getObjectUrl, getResourceIcon, getUserLanguages, listToAutocomplete, Pu
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
-import { DUMMY_ID, uuid } from '@shared/uuid';
+import { DUMMY_ID } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, GridSubmitButtons, LargeDialog } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceTranslation, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
@@ -46,11 +46,14 @@ export const ResourceDialog = ({
 
     const formik = useFormik({
         initialValues: {
-            id: DUMMY_ID,
+            __typename: 'Resource' as const,
+            id: partialData?.id ?? DUMMY_ID,
+            index: partialData?.index ?? Math.max(index, 0),
             link: partialData?.link ?? '',
-            listId,
+            listConnect: listId,
             usedFor: partialData?.usedFor ?? ResourceUsedFor.Context,
-            translationsUpdate: partialData?.translations ?? [{
+            translations: partialData?.translations ?? [{
+                __typename: 'ResourceTranslation' as const,
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
                 description: '',
@@ -60,16 +63,12 @@ export const ResourceDialog = ({
         enableReinitialize: true,
         validationSchema: resourceValidation.update({}),
         onSubmit: (values) => {
-            const input: ResourceShape = {
-                id: partialData?.id ?? uuid(),
-                index: Math.max(index, 0),
-                list: { id: listId },
-                link: values.link,
-                usedFor: values.usedFor,
-                translations: values.translationsUpdate.map(t => ({
-                    ...t,
-                    __typename: 'ResourceTranslation',
-                })),
+            const input = {
+                ...values,
+                list: { 
+                    __typename: 'ResourceList' as const,
+                    id: values.listConnect, 
+                } as ResourceList,
             };
             if (mutate) {
                 const onSuccess = (data: Resource) => {
@@ -106,11 +105,8 @@ export const ResourceDialog = ({
             } else {
                 onCreated({
                     ...input,
-                    translations: input.translations as ResourceTranslation[],
                     created_at: partialData?.created_at ?? new Date().toISOString(),
                     updated_at: partialData?.updated_at ?? new Date().toISOString(),
-                    list: { __typename: 'ResourceList', id: listId } as ResourceList,
-                    __typename: 'Resource',
                 });
                 formik.resetForm();
                 onClose();
@@ -132,7 +128,7 @@ export const ResourceDialog = ({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
         formik,
-        formikField: 'translationsUpdate',
+        formikField: 'translations',
         validationSchema: resourceTranslationValidation.update({}),
     });
 
@@ -247,7 +243,7 @@ export const ResourceDialog = ({
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 session={session}
-                                translations={formik.values.translationsUpdate}
+                                translations={formik.values.translations}
                                 zIndex={zIndex + 1}
                             />
                             {/* Enter link or search for object */}

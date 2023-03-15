@@ -5,7 +5,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "uti
 export type ResourceTranslationShape = Pick<ResourceTranslation, 'id' | 'language' | 'description' | 'name'>
 
 export type ResourceShape = Pick<Resource, 'id' | 'index' | 'link' | 'usedFor'> & {
-    list: { id: string };
+    list: { __typename?: 'ResourceList', id: string };
     translations: ResourceTranslationShape[];
 }
 
