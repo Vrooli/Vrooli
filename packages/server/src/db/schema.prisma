@@ -445,6 +445,7 @@ model note {
     hasBeenTransferred      Boolean                     @default(false)
     hasCompleteVersion      Boolean                     @default(false)
     completedAt             DateTime?                   @db.Timestamptz(6)
+    isDeleted               Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
     score                   Int                         @default(0)
     bookmarks               Int                         @default(0)
@@ -498,6 +499,7 @@ model note_version {
     updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
     intendToPullRequest Boolean                     @default(true)
     isComplete          Boolean                     @default(false)
+    isDeleted           Boolean                     @default(false)
     isLatest            Boolean                     @default(false)
     isPrivate           Boolean                     @default(false)
     rootId              String                      @db.Uuid

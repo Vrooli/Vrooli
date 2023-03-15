@@ -2,7 +2,7 @@ import { GqlModelType, SessionUser } from "@shared/consts";
 import { exists } from "@shared/utils";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { TransferModel } from "../models";
+import { transfer } from "../models";
 import { PrismaType } from "../types";
 
 type HasCompleteVersionData = {
@@ -166,7 +166,7 @@ export const preShapeRoot = async ({
         .filter(([id]) => !deleteList.includes(id))
         .map(([id, data]) => [id, data.owner]);
     const ownersMap = Object.fromEntries(ownersEntries);
-    const requireTransfers = await TransferModel.transfer(prisma).checkTransferRequests(Object.values(ownersMap), userData);
+    const requireTransfers = await transfer(prisma).checkTransferRequests(Object.values(ownersMap), userData);
     for (let i = 0; i < requireTransfers.length; i++) {
         const id = Object.keys(ownersMap)[i];
         transferMap[id] = requireTransfers[i];

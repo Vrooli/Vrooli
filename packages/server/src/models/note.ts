@@ -96,31 +96,18 @@ export const NoteModel: ModelLogic<{
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps }
             },
-            create: async ({ data, ...rest }) => {
-                console.log('in note create 1', Object.keys(rest), JSON.stringify(rest.preMap), '\n\n');
-                const test1 = await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', isCreate: true, objectType: __typename, data, ...rest });
-                console.log('in note create 2')
-                const test2 = await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'forks', data, ...rest });
-                console.log('in note create 3')
-                const test3 = await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest });
-                console.log('in note create 4')
-                const test4 = await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'tags', data, ...rest });
-                console.log('in note create 5')
-                const test5 = await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'labels', data, ...rest });
-                console.log('in note create 6')
-                return {
-                    id: data.id,
-                    isPrivate: noNull(data.isPrivate),
-                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                    ...rest.preMap[__typename].versionMap[data.id],
-                    ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', isCreate: true, objectType: __typename, data, ...rest })),
-                    ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'forks', data, ...rest })),
-                    ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
-                    ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'tags', data, ...rest })),
-                    ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'labels', data, ...rest })),
-                }
-            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'notes', isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'forks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NoteVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Note', relation: 'labels', data, ...rest })),
+            }),
             update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
@@ -168,7 +155,7 @@ export const NoteModel: ModelLogic<{
     validate: {
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
-        isDeleted: () => false,
+        isDeleted: (data) => data.isDeleted === false,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
@@ -179,6 +166,7 @@ export const NoteModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
+            isDeleted: true,
             isPrivate: true,
             permissions: true,
             createdBy: 'User',
@@ -187,8 +175,8 @@ export const NoteModel: ModelLogic<{
             versions: ['NoteVersion', ['root']],
         }),
         visibility: {
-            private: { isPrivate: true },
-            public: { isPrivate: false },
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },

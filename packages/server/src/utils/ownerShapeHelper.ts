@@ -1,5 +1,5 @@
 import { GqlModelType, SessionUser } from "@shared/consts";
-import { shapeHelper, ShapeHelperOutput } from "../builders";
+import { lowercaseFirstLetter, shapeHelper, ShapeHelperOutput } from "../builders";
 import { PrismaType } from "../types";
 
 type OwnerShapeHelperProps<
@@ -34,11 +34,12 @@ export const ownerShapeHelper = async <
     (ShapeHelperOutput<true, false, Types[number], `${FieldName}Organization`, 'id'> &
     ShapeHelperOutput<true, false, Types[number], `${FieldName}User`, 'id'>) | {}
 > => {
-    console.log('in ownershape helper', relation)
+    console.log('in ownershape helper', relation, relTypes, objectType, isCreate)
     // Check preMap to see if we're allowed to set the owner
     const requiresTransfer = rest.preMap[objectType].transferMap[data.id];
     // If a transfer is required
     if (requiresTransfer) {
+        console.log('ownershape requires transfer', relation);
         // If create, set owner to current user
         if (isCreate) {
             return { [`${relation}User`]: { connect: { id: rest.userData.id } } };
@@ -47,7 +48,7 @@ export const ownerShapeHelper = async <
         return {};
     }
     return {
-        ...(await shapeHelper({ relation: `${relation}Organization`, relTypes, isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName, data, ...rest })),
-        ...(await shapeHelper({ relation: `${relation}User`, relTypes, isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName, data, ...rest })),
+        ...(await shapeHelper({ relation: lowercaseFirstLetter(`${relation}Organization`), relTypes, isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName, data, ...rest })),
+        ...(await shapeHelper({ relation: lowercaseFirstLetter(`${relation}User`), relTypes, isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName, data, ...rest })),
     }
 }

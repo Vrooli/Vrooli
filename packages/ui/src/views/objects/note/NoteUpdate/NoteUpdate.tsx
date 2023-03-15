@@ -1,4 +1,4 @@
-import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
+import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip, useTheme } from "@mui/material"
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NoteUpdateProps } from "../types";
@@ -19,6 +19,8 @@ export const NoteUpdate = ({
     session,
     zIndex = 200,
 }: NoteUpdateProps) => {
+    const { palette } = useTheme();
+    
     const { onCancel, onUpdated } = useUpdateActions<NoteVersion>();
 
     // Fetch existing data
@@ -133,18 +135,40 @@ export const NoteUpdate = ({
                             zIndex={zIndex}
                         />
                     </Grid>
-                    {/* TODO */}
-                    <GridSubmitButtons
-                        display={display}
-                        errors={translations.errorsWithTranslations}
-                        isCreate={false}
-                        loading={formik.isSubmitting}
-                        onCancel={onCancel}
-                        onSetSubmitting={formik.setSubmitting}
-                        onSubmit={formik.handleSubmit}
-                    />
+                    <Grid item xs={12}>
+                        <MarkdownInput
+                            id="text"
+                            placeholder={t(`PleaseBeNice`)}
+                            value={translations.text}
+                            minRows={3}
+                            onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
+                            error={translations.text.length > 0 && Boolean(translations.errorText)}
+                            helperText={translations.text.length > 0 ? translations.errorText : ''}
+                            sxs={{
+                                bar: {
+                                    borderRadius: 0,
+                                    background: palette.primary.main,
+                                },
+                                textArea: {
+                                    borderRadius: 0,
+                                    resize: 'none',
+                                    minHeight: '100vh',
+                                    background: palette.background.paper,
+                                }
+                            }}
+                        />
+                    </Grid>
                 </Grid>
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={translations.errorsWithTranslations}
+                isCreate={false}
+                loading={formik.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={formik.setSubmitting}
+                onSubmit={formik.handleSubmit}
+            />
         </>
     )
 }

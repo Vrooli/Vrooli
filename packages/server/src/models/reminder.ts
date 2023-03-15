@@ -1,10 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput } from '@shared/consts';
+import { MaxObjects, Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { reminderValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { ReminderListModel } from "./reminderList";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'Reminder' as const;
 const suppFields = [] as const;
@@ -79,5 +81,23 @@ export const ReminderModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => ReminderListModel.validate!.isPublic(data.reminderList as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ReminderListModel.validate!.owner(data.reminderList as any),
+        permissionResolvers: (params) => defaultPermissions(params),
+        permissionsSelect: () => ({
+            id: true,
+            reminderList: 'ReminderList',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                reminderList: ReminderListModel.validate!.visibility.owner(userId),
+            })
+        }
+    },
 })

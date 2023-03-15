@@ -1,4 +1,5 @@
 import pkg, { PeriodType } from '@prisma/client';
+import { CustomError } from '../../events';
 import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
@@ -100,48 +101,53 @@ export const logOrganizationStats = async (
 ) => {
     // Initialize the Prisma client
     const prisma = new PrismaClient();
-    // We may be dealing with a lot of data, so we need to do this in batches
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all organizations
-        const batch = await prisma.organization.findMany({
-            select: {
-                id: true,
-                _count: {
-                    select: {
-                        apis: true,
-                        members: true,
-                        notes: true,
-                        projects: true,
-                        routines: true,
-                        smartContracts: true,
-                        standards: true,
+    try {
+        // We may be dealing with a lot of data, so we need to do this in batches
+        const batchSize = 100;
+        let skip = 0;
+        let currentBatchSize = 0;
+        do {
+            // Find all organizations
+            const batch = await prisma.organization.findMany({
+                select: {
+                    id: true,
+                    _count: {
+                        select: {
+                            apis: true,
+                            members: true,
+                            notes: true,
+                            projects: true,
+                            routines: true,
+                            smartContracts: true,
+                            standards: true,
+                        }
                     }
-                }
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
-        // Batch collect run stats
-        const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
-        // Create stats for each organization
-        await prisma.stats_organization.createMany({
-            data: batch.map(organization => ({
-                organizationId: organization.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                ...organization._count,
-                ...runRoutineStats[organization.id],
-            }))
-        });
-    } while (currentBatchSize === batchSize);
-    // Close the Prisma client
-    await prisma.$disconnect();
+                },
+                skip,
+                take: batchSize,
+            });
+            // Increment skip
+            skip += batchSize;
+            // Update current batch size
+            currentBatchSize = batch.length;
+            // Batch collect run stats
+            const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
+            // Create stats for each organization
+            await prisma.stats_organization.createMany({
+                data: batch.map(organization => ({
+                    organizationId: organization.id,
+                    periodStart,
+                    periodEnd,
+                    periodType,
+                    ...organization._count,
+                    ...runRoutineStats[organization.id],
+                }))
+            });
+        } while (currentBatchSize === batchSize);
+    } catch (error) {
+        throw new CustomError('0419', 'InternalError', ['en'], { error });
+    } finally {
+        // Close the Prisma client
+        await prisma.$disconnect();
+    }
 }

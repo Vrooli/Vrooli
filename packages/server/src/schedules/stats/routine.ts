@@ -1,4 +1,5 @@
 import pkg, { PeriodType } from '@prisma/client';
+import { CustomError } from '../../events';
 import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
@@ -100,48 +101,53 @@ export const logRoutineStats = async (
 ) => {
     // Initialize the Prisma client
     const prisma = new PrismaClient();
-    // We may be dealing with a lot of data, so we need to do this in batches
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all latest (so should only be associated with one routine) routine versions
-        const batch = await prisma.routine_version.findMany({
-            where: {
-                isDeleted: false,
-                isLatest: true,
-                root: { isDeleted: false },
-            },
-            select: {
-                id: true,
-                root: {
-                    select: { id: true }
+    try {
+        // We may be dealing with a lot of data, so we need to do this in batches
+        const batchSize = 100;
+        let skip = 0;
+        let currentBatchSize = 0;
+        do {
+            // Find all latest (so should only be associated with one routine) routine versions
+            const batch = await prisma.routine_version.findMany({
+                where: {
+                    isDeleted: false,
+                    isLatest: true,
+                    root: { isDeleted: false },
                 },
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
-        // Find and count all runs associated with the latest routine versions, which 
-        // have been started or completed within the period
-        const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
-        // Create stats for each routine
-        await prisma.stats_routine.createMany({
-            data: batch.map(routineVersion => ({
-                routineId: routineVersion.root.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                runsStarted: runCountsByVersion[routineVersion.id].runsStarted,
-                runsCompleted: runCountsByVersion[routineVersion.id].runsCompleted,
-                runCompletionTimeAverage: runCountsByVersion[routineVersion.id].runCompletionTimeAverage,
-                runContextSwitchesAverage: runCountsByVersion[routineVersion.id].runContextSwitchesAverage,
-            }))
-        });
-    } while (currentBatchSize === batchSize);
-    // Close the Prisma client
-    await prisma.$disconnect();
+                select: {
+                    id: true,
+                    root: {
+                        select: { id: true }
+                    },
+                },
+                skip,
+                take: batchSize,
+            });
+            // Increment skip
+            skip += batchSize;
+            // Update current batch size
+            currentBatchSize = batch.length;
+            // Find and count all runs associated with the latest routine versions, which 
+            // have been started or completed within the period
+            const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
+            // Create stats for each routine
+            await prisma.stats_routine.createMany({
+                data: batch.map(routineVersion => ({
+                    routineId: routineVersion.root.id,
+                    periodStart,
+                    periodEnd,
+                    periodType,
+                    runsStarted: runCountsByVersion[routineVersion.id].runsStarted,
+                    runsCompleted: runCountsByVersion[routineVersion.id].runsCompleted,
+                    runCompletionTimeAverage: runCountsByVersion[routineVersion.id].runCompletionTimeAverage,
+                    runContextSwitchesAverage: runCountsByVersion[routineVersion.id].runContextSwitchesAverage,
+                }))
+            });
+        } while (currentBatchSize === batchSize);
+    } catch (error) {
+        throw new CustomError('0422', 'InternalError', ['en'], { error });
+    } finally {
+        // Close the Prisma client
+        await prisma.$disconnect();
+    }
 }

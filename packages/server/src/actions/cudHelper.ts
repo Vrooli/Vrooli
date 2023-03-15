@@ -5,6 +5,7 @@ import { CUDHelperInput, CUDResult } from "./types";
 import { modelToGraphQL, selectHelper } from "../builders";
 import { getLogic } from "../getters";
 import { reqArr } from '@shared/validation';
+import { CustomError } from '../events';
 
 /**
  * Performs create, update, and delete operations. 
@@ -101,18 +102,30 @@ export async function cudHelper<
     console.log('cudhelper j');
     if (shapedCreate.length > 0) {
         for (const data of shapedCreate) {
+            // prisma.note_version.create({
+                
+            // })
             // Create
-            const select = await delegate(prisma).create({
-                data,
-                ...selectHelper(partialInfo)
-            });
+            let createResult: any = {};
+            let select: { [key: string]: any } | undefined;
+            try {
+                select = selectHelper(partialInfo)?.select;
+                createResult = await delegate(prisma).create({
+                    data,
+                    select,
+                });
+            } catch (error) {
+                throw new CustomError('0415', 'InternalError', userData.languages, { error, data, select, objectType });
+            }
             // Convert
-            console.log('created', JSON.stringify(select));
-            const converted = modelToGraphQL<GqlModel>(select, partialInfo);
+            console.log('cudhelper j.1', JSON.stringify(createResult));
+            const converted = modelToGraphQL<GqlModel>(createResult, partialInfo);
+            console.log('cudhelper j.2', JSON.stringify(converted));
             created.push(converted as any);
         }
         // Filter authDataById to only include objects which were created
         createAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => created.map(c => c.id).includes(id)));
+        console.log('cudhelper j.3', JSON.stringify(createAuthData));
         // Call onCreated
         mutate.trigger?.onCreated && await mutate.trigger.onCreated({
             authData: createAuthData,
@@ -121,18 +134,26 @@ export async function cudHelper<
             prisma,
             userData
         });
+        console.log('cudhelper j.4');
     }
     console.log('cudhelper k');
     if (shapedUpdate.length > 0) {
         for (const update of shapedUpdate) {
             // Update
-            const select = await delegate(prisma).update({
-                where: update.where,
-                data: update.data,
-                ...selectHelper(partialInfo)
-            });
+            let updateResult: any = {};
+            let select: { [key: string]: any } | undefined;
+            try {
+                select = selectHelper(partialInfo)?.select;
+                updateResult = await delegate(prisma).update({
+                    where: update.where,
+                    data: update.data,
+                    select,
+                });
+            } catch (error) {
+                throw new CustomError('0416', 'InternalError', userData.languages, { error, update, select, objectType });
+            }
             // Convert
-            const converted = modelToGraphQL<GqlModel>(select, partialInfo);
+            const converted = modelToGraphQL<GqlModel>(updateResult, partialInfo);
             updated.push(converted as any);
         }
         // Filter authDataById to only include objects which were updated
@@ -153,9 +174,16 @@ export async function cudHelper<
         if (mutate.trigger?.beforeDeleted) {
             beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds: deleteMany, prisma, userData });
         }
-        deleted = await delegate(prisma).deleteMany({
-            where: { id: { in: deleteMany } }
-        }).then(({ count }) => ({ __typename: 'Count' as const, count }));
+        // Delete
+        let deleted: any = {};
+        let where = { id: { in: deleteMany } };
+        try {
+            deleted = await delegate(prisma).deleteMany({
+                where,
+            }).then(({ count }) => ({ __typename: 'Count' as const, count }));
+        } catch (error) {
+            throw new CustomError('0417', 'InternalError', userData.languages, { error, where, objectType });
+        }
         // Call onDeleted
         mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({
             beforeDeletedData,

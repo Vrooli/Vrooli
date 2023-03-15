@@ -20,6 +20,8 @@ type VersionsCheckProps = {
     userData: SessionUser,
 }
 
+const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
+
 /**
  * Checks if versions of an object type can be created, updated, or deleted.
  * Throws error on failure.
@@ -60,7 +62,8 @@ export const versionsCheck = async ({
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
     console.log('versionsCheck 5');
     // Query the database for existing data (by root)
-    const { delegate } = getLogic(['delegate'], objectType, userData.languages, 'versionsCheck');
+    const rootType = objectType.replace('Version', '') as GqlModelType;
+    const { delegate } = getLogic(['delegate'], rootType, userData.languages, 'versionsCheck');
     let existingRoots: any[];
     let where: { [key: string]: any } = {};
     let select: { [key: string]: any } = {};
@@ -75,8 +78,8 @@ export const versionsCheck = async ({
             id: true,
             hasCompleteVersion: true,
             isDeleted: true,
-            // Also query isInternal for routine and standard versions
-            ...([GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any) && { isInternal: true }),
+            // Also query isInternal if applicable
+            ...(hasInternalField(objectType) && { isInternal: true }),
             isPrivate: true,
             versions: {
                 select: {
@@ -93,7 +96,7 @@ export const versionsCheck = async ({
             select,
         });
     } catch (error) {
-        throw new CustomError('0414', 'InternalError', userData.languages, { error, where, select });
+        throw new CustomError('0414', 'InternalError', userData.languages, { error, where, select, rootType });
     }
     console.log('versionsCheck 6');
     for (const root of existingRoots) {
@@ -126,7 +129,7 @@ export const versionsCheck = async ({
         }
         // Check 3
         // If the root is not private and not internal (if applicable)
-        if (!root.isPrivate && !([GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any) && root.isInternal)) {
+        if (!root.isPrivate && !(hasInternalField(objectType) && root.isInternal)) {
             // Updating versions (which are not private) cannot be marked as complete
             for (const version of root.versions) {
                 if (updateIds.includes(version.id) && !version.isPrivate && version.isComplete) {

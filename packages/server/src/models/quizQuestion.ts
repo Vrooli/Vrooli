@@ -1,12 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { QuizQuestion, QuizQuestionCreateInput, QuizQuestionYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, PrependString } from '@shared/consts';
+import { QuizQuestion, QuizQuestionCreateInput, QuizQuestionYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 import { quizQuestionValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { QuizModel } from "./quiz";
 
 const __typename = 'QuizQuestion' as const;
 type Permissions = Pick<QuizQuestionYou, 'canDelete' | 'canUpdate'>;
@@ -97,5 +98,23 @@ export const QuizQuestionModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => QuizModel.validate!.isPublic(data.quiz as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => QuizModel.validate!.owner(data.quiz as any),
+        permissionResolvers: (params) => defaultPermissions(params),
+        permissionsSelect: () => ({
+            id: true,
+            quiz: 'Quiz',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                quiz: QuizModel.validate!.visibility.owner(userId),
+            })
+        }
+    },
 })

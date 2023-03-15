@@ -1,4 +1,5 @@
 import pkg, { PeriodType } from '@prisma/client';
+import { CustomError } from '../../events';
 import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
@@ -182,58 +183,63 @@ export const logProjectStats = async (
 ) => {
     // Initialize the Prisma client
     const prisma = new PrismaClient();
-    // We may be dealing with a lot of data, so we need to do this in batches
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all latest (so should only be associated with one project) project versions
-        const batch = await prisma.project_version.findMany({
-            where: {
-                isDeleted: false,
-                isLatest: true,
-                root: { isDeleted: false },
-            },
-            select: {
-                id: true,
-                root: {
-                    select: { id: true }
+    try {
+        // We may be dealing with a lot of data, so we need to do this in batches
+        const batchSize = 100;
+        let skip = 0;
+        let currentBatchSize = 0;
+        do {
+            // Find all latest (so should only be associated with one project) project versions
+            const batch = await prisma.project_version.findMany({
+                where: {
+                    isDeleted: false,
+                    isLatest: true,
+                    root: { isDeleted: false },
                 },
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
-        // Find and count all directories associated with the latest project versions
-        const directoryCountsByVersion = await batchDirectoryCounts(prisma, batch.map(version => version.id));
-        // Find and count all runs associated with the latest project versions, which 
-        // have been started or completed within the period
-        const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
-        // Create stats for each project
-        await prisma.stats_project.createMany({
-            data: batch.map(projectVersion => ({
-                projectId: projectVersion.root.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                directories: directoryCountsByVersion[projectVersion.id].directories,
-                apis: directoryCountsByVersion[projectVersion.id].apis,
-                notes: directoryCountsByVersion[projectVersion.id].notes,
-                organizations: directoryCountsByVersion[projectVersion.id].organizations,
-                projects: directoryCountsByVersion[projectVersion.id].projects,
-                routines: directoryCountsByVersion[projectVersion.id].routines,
-                smartContracts: directoryCountsByVersion[projectVersion.id].smartContracts,
-                standards: directoryCountsByVersion[projectVersion.id].standards,
-                runsStarted: runCountsByVersion[projectVersion.id].runsStarted,
-                runsCompleted: runCountsByVersion[projectVersion.id].runsCompleted,
-                runCompletionTimeAverage: runCountsByVersion[projectVersion.id].runCompletionTimeAverage,
-                runContextSwitchesAverage: runCountsByVersion[projectVersion.id].runContextSwitchesAverage,
-            }))
-        });
-    } while (currentBatchSize === batchSize);
-    // Close the Prisma client
-    await prisma.$disconnect();
+                select: {
+                    id: true,
+                    root: {
+                        select: { id: true }
+                    },
+                },
+                skip,
+                take: batchSize,
+            });
+            // Increment skip
+            skip += batchSize;
+            // Update current batch size
+            currentBatchSize = batch.length;
+            // Find and count all directories associated with the latest project versions
+            const directoryCountsByVersion = await batchDirectoryCounts(prisma, batch.map(version => version.id));
+            // Find and count all runs associated with the latest project versions, which 
+            // have been started or completed within the period
+            const runCountsByVersion = await batchRunCounts(prisma, batch.map(version => version.id), periodStart, periodEnd);
+            // Create stats for each project
+            await prisma.stats_project.createMany({
+                data: batch.map(projectVersion => ({
+                    projectId: projectVersion.root.id,
+                    periodStart,
+                    periodEnd,
+                    periodType,
+                    directories: directoryCountsByVersion[projectVersion.id].directories,
+                    apis: directoryCountsByVersion[projectVersion.id].apis,
+                    notes: directoryCountsByVersion[projectVersion.id].notes,
+                    organizations: directoryCountsByVersion[projectVersion.id].organizations,
+                    projects: directoryCountsByVersion[projectVersion.id].projects,
+                    routines: directoryCountsByVersion[projectVersion.id].routines,
+                    smartContracts: directoryCountsByVersion[projectVersion.id].smartContracts,
+                    standards: directoryCountsByVersion[projectVersion.id].standards,
+                    runsStarted: runCountsByVersion[projectVersion.id].runsStarted,
+                    runsCompleted: runCountsByVersion[projectVersion.id].runsCompleted,
+                    runCompletionTimeAverage: runCountsByVersion[projectVersion.id].runCompletionTimeAverage,
+                    runContextSwitchesAverage: runCountsByVersion[projectVersion.id].runContextSwitchesAverage,
+                }))
+            });
+        } while (currentBatchSize === batchSize);
+    } catch (error) {
+        throw new CustomError('0420', 'InternalError', ['en'], { error });
+    } finally {
+        // Close the Prisma client
+        await prisma.$disconnect();
+    }
 }

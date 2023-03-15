@@ -1,7 +1,7 @@
 import { CustomError } from "../events";
-import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, Vote } from '@shared/consts';
+import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { selPad, permissionsSelectHelper, noNull } from "../builders";
@@ -36,7 +36,7 @@ export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
  * 3. Otherwise, a notification is sent to the user/org that is receiving the object,
  *   and they can accept or reject the transfer.
  */
-const transfer = (prisma: PrismaType) => ({
+export const transfer = (prisma: PrismaType) => ({
     /**
      * Checks if objects being created/updated require a transfer request. Used by mutate functions 
      * of other models, so model-specific permissions checking is not required.
@@ -54,6 +54,7 @@ const transfer = (prisma: PrismaType) => ({
         // Check if user is an admin of each organization
         const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
         // Create return list
+        console.log('checking transfer requests', orgIds, userData.id, JSON.stringify(owners), '\n\n');
         const requiresTransferRequest: boolean[] = owners.map((o, i) => {
             // If owner is a user, transfer is required if user is not the same as the session user
             if (o.__typename === 'User') return o.id !== userData.id;

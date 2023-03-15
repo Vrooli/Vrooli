@@ -1,11 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
+import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel, onCommonPlain, tagShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
 import { postValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Post' as const;
 const suppFields = [] as const;
@@ -120,5 +121,32 @@ export const PostModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: (data) => data.isDeleted === true,
+        isPublic: (data) => data.isPrivate === false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => defaultPermissions({ isAdmin, isDeleted, isPublic }),
+        permissionsSelect: () => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            organization: 'Organization',
+            user: 'User',
+        }),
+        visibility: {
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

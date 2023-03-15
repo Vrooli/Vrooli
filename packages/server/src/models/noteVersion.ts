@@ -38,6 +38,7 @@ export const NoteVersionModel: ModelLogic<{
             __typename,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
+            pullRequest: 'PullRequest',
             forks: 'NoteVersion',
             reports: 'Report',
             root: 'Note',
@@ -134,7 +135,7 @@ export const NoteVersionModel: ModelLogic<{
         }),
     },
     validate: {
-        isDeleted: () => false,
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             NoteModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
@@ -142,18 +143,23 @@ export const NoteVersionModel: ModelLogic<{
         owner: (data) => NoteModel.validate!.owner(data.root as any),
         permissionsSelect: () => ({
             id: true,
+            isDeleted: true,
             isPrivate: true,
             root: ['Note', ['versions']],
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
             private: {
+                isDeleted: false,
+                root: { isDeleted: false },
                 OR: [
                     { isPrivate: true },
                     { root: { isPrivate: true } },
                 ]
             },
             public: {
+                isDeleted: false,
+                root: { isDeleted: false },
                 AND: [
                     { isPrivate: false },
                     { root: { isPrivate: false } },

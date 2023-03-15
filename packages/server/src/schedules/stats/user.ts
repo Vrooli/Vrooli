@@ -1,4 +1,5 @@
 import pkg, { PeriodType, QuizAttemptStatus } from '@prisma/client';
+import { CustomError } from '../../events';
 import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
@@ -653,59 +654,64 @@ export const logUserStats = async (
 ) => {
     // Initialize the Prisma client
     const prisma = new PrismaClient();
-    // We may be dealing with a lot of data, so we need to do this in batches
-    const batchSize = 100;
-    let skip = 0;
-    let currentBatchSize = 0;
-    do {
-        // Find all users active in the past 90 days
-        const batch = await prisma.user.findMany({
-            where: {
-                updated_at: {
-                    gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
+    try {
+        // We may be dealing with a lot of data, so we need to do this in batches
+        const batchSize = 100;
+        let skip = 0;
+        let currentBatchSize = 0;
+        do {
+            // Find all users active in the past 90 days
+            const batch = await prisma.user.findMany({
+                where: {
+                    updated_at: {
+                        gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
+                    },
                 },
-            },
-            select: {
-                id: true,
-            },
-            skip,
-            take: batchSize,
-        });
-        // Increment skip
-        skip += batchSize;
-        // Update current batch size
-        currentBatchSize = batch.length;
-        // Get user ids, so we can query various tables for stats
-        const userIds = batch.map(user => user.id);
-        // Batch collect stats
-        const apiStats = await batchApis(prisma, userIds, periodStart, periodEnd);
-        const organizationStats = await batchOrganizations(prisma, userIds, periodStart, periodEnd);
-        const projectStats = await batchProjects(prisma, userIds, periodStart, periodEnd);
-        const quizStats = await batchQuizzes(prisma, userIds, periodStart, periodEnd);
-        const routineStats = await batchRoutines(prisma, userIds, periodStart, periodEnd);
-        const runProjectStats = await batchRunProjects(prisma, userIds, periodStart, periodEnd);
-        const runRoutineStats = await batchRunRoutines(prisma, userIds, periodStart, periodEnd);
-        const smartContractStats = await batchSmartContracts(prisma, userIds, periodStart, periodEnd);
-        const standardStats = await batchStandards(prisma, userIds, periodStart, periodEnd);
-        // Create stats for each user
-        await prisma.stats_user.createMany({
-            data: batch.map(user => ({
-                userId: user.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                ...apiStats[user.id],
-                ...organizationStats[user.id],
-                ...projectStats[user.id],
-                ...quizStats[user.id],
-                ...routineStats[user.id],
-                ...runProjectStats[user.id],
-                ...runRoutineStats[user.id],
-                ...smartContractStats[user.id],
-                ...standardStats[user.id],
-            }))
-        });
-    } while (currentBatchSize === batchSize);
-    // Close the Prisma client
-    await prisma.$disconnect();
+                select: {
+                    id: true,
+                },
+                skip,
+                take: batchSize,
+            });
+            // Increment skip
+            skip += batchSize;
+            // Update current batch size
+            currentBatchSize = batch.length;
+            // Get user ids, so we can query various tables for stats
+            const userIds = batch.map(user => user.id);
+            // Batch collect stats
+            const apiStats = await batchApis(prisma, userIds, periodStart, periodEnd);
+            const organizationStats = await batchOrganizations(prisma, userIds, periodStart, periodEnd);
+            const projectStats = await batchProjects(prisma, userIds, periodStart, periodEnd);
+            const quizStats = await batchQuizzes(prisma, userIds, periodStart, periodEnd);
+            const routineStats = await batchRoutines(prisma, userIds, periodStart, periodEnd);
+            const runProjectStats = await batchRunProjects(prisma, userIds, periodStart, periodEnd);
+            const runRoutineStats = await batchRunRoutines(prisma, userIds, periodStart, periodEnd);
+            const smartContractStats = await batchSmartContracts(prisma, userIds, periodStart, periodEnd);
+            const standardStats = await batchStandards(prisma, userIds, periodStart, periodEnd);
+            // Create stats for each user
+            await prisma.stats_user.createMany({
+                data: batch.map(user => ({
+                    userId: user.id,
+                    periodStart,
+                    periodEnd,
+                    periodType,
+                    ...apiStats[user.id],
+                    ...organizationStats[user.id],
+                    ...projectStats[user.id],
+                    ...quizStats[user.id],
+                    ...routineStats[user.id],
+                    ...runProjectStats[user.id],
+                    ...runRoutineStats[user.id],
+                    ...smartContractStats[user.id],
+                    ...standardStats[user.id],
+                }))
+            });
+        } while (currentBatchSize === batchSize);
+    } catch (error) {
+        throw new CustomError('0426', 'InternalError', ['en'], { error });
+    } finally {
+        // Close the Prisma client
+        await prisma.$disconnect();
+    }
 }

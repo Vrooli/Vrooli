@@ -7,7 +7,7 @@ import { defaultRelationships, getUserLanguages, shapeNoteVersion, TagShape, use
 import { NoteCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TagSelector, TopBar } from "components";
-import { uuid } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
@@ -45,11 +45,18 @@ export const NoteCreate = ({
     const formik = useFormik({
         initialValues: {
             id: uuid(),
-            translationsCreate: [],
+            translations: [{
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                description: '',
+                name: '',
+                text: '',
+            }],
             versionLabel: '1.0.0',
         },
         validationSchema: noteVersionValidation.create({}),
         onSubmit: (values) => {
+            console.log('VALUES', values);
             let temp = shapeNoteVersion.create({
                 ...values,
                 root: {
@@ -59,7 +66,8 @@ export const NoteCreate = ({
                 },
                 isPrivate: relationships.isPrivate,
             })
-            console.log(temp)
+            console.log('TEMP', temp)
+            return;
             mutationWrapper<NoteVersion, NoteVersionCreateInput>({
                 mutation,
                 input: shapeNoteVersion.create({
@@ -147,22 +155,23 @@ export const NoteCreate = ({
                                     borderRadius: 0,
                                     resize: 'none',
                                     minHeight: '100vh',
+                                    background: palette.background.paper,
                                 }
                             }}
                         />
                     </Grid>
-                    <GridSubmitButtons
-                        disabledSubmit={!isLoggedIn}
-                        display={display}
-                        errors={translations.errorsWithTranslations}
-                        isCreate={true}
-                        loading={formik.isSubmitting}
-                        onCancel={onCancel}
-                        onSetSubmitting={formik.setSubmitting}
-                        onSubmit={formik.handleSubmit}
-                    />
                 </Grid>
             </BaseForm>
+            <GridSubmitButtons
+                disabledSubmit={!isLoggedIn}
+                display={display}
+                errors={translations.errorsWithTranslations}
+                isCreate={true}
+                loading={formik.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={formik.setSubmitting}
+                onSubmit={formik.handleSubmit}
+            />
         </>
     )
 }
