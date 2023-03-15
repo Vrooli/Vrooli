@@ -1,6 +1,5 @@
 import pkg from '@prisma/client';
 import { GqlModelType, SessionUser } from '@shared/consts';
-import { TFuncKey } from 'i18next';
 import { Context } from './middleware';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -37,10 +36,6 @@ declare global {
         }
     }
 }
-
-// Translations
-export type ErrorKey = TFuncKey<'error', undefined>
-export type NotifyKey = TFuncKey<'notify', undefined>
 
 /**
  * Prisma type shorthand

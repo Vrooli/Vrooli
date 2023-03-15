@@ -12,12 +12,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
-import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, convertSearchForFormik, parseSearchParams, searchTypeToParams } from 'utils';
-import { DialogTitle } from 'components';
+import { generateDefaultProps, generateYupSchema } from 'forms/generators';
+import { convertFormikForSearch, convertSearchForFormik, searchTypeToParams } from 'utils';
+import { DialogTitle, GeneratedGrid, GridActionButtons, LargeDialog } from 'components';
 import { CancelIcon, SearchIcon } from '@shared/icons';
+import { useTranslation } from 'react-i18next';
+import { parseSearchParams } from '@shared/route';
 
-const titleAria = 'advanced-search-dialog-title';
+const titleId = 'advanced-search-dialog-title';
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -28,9 +30,16 @@ export const AdvancedSearchDialog = ({
     zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
+    const { t } = useTranslation();
+
     // Search schema to use
-    const [schema, setSchema] = useState<FormSchema | null>(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null);
-    useEffect(() => { setSchema(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null) }, [searchType]);
+    const [schema, setSchema] = useState<FormSchema | null>(null);
+    useEffect(() => {
+        async function getSchema() {
+            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType]()).advancedSearchSchema : null)
+        }
+        getSchema();
+    }, [searchType]);
 
     // Parse default values to use in formik
     const initialValues = useMemo(() => {
@@ -70,52 +79,30 @@ export const AdvancedSearchDialog = ({
             handleClose();
         },
     });
-    const grid = useMemo(() => {
-        if (!schema) return null;
-        return generateGrid({
-            childContainers: schema.containers,
-            fields: schema.fields,
-            formik,
-            layout: schema.formLayout,
-            onUpload: () => { },
-            session,
-            theme,
-            zIndex,
-        })
-    }, [schema, formik, session, theme, zIndex])
+    useEffect(() => {
+        console.log('schema changed', schema);
+    }, [schema])
+    useEffect(() => {
+        console.log('formik changed', formik);
+    }, [formik])
+    useEffect(() => {
+        console.log('session changed', session);
+    }, [session])
 
     return (
-        <Dialog
+        <LargeDialog
             id="advanced-search-dialog"
-            open={isOpen}
+            isOpen={isOpen}
             onClose={handleClose}
-            scroll="body"
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': {
-                    minWidth: 'min(400px, 100%)',
-                },
-                '& .MuiPaper-root': {
-                    margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
-                    minHeight: { xs: '100vh', sm: 'auto' },
-                    display: { xs: 'block', sm: 'inline-block' },
-                    background: theme.palette.background.default,
-                    color: theme.palette.background.textPrimary,
-                },
-                // Remove ::after element that is added to the dialog
-                '& .MuiDialog-container::after': {
-                    content: 'none',
-                },
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                title={'Advanced Search'}
+                id={titleId}
+                title={t(`AdvancedSearch`)}
                 onClose={handleClose}
             />
-            <form onSubmit={formik.handleSubmit}>
+            <form onSubmit={formik.handleSubmit} style={{ paddingBottom: '64px' }}>
                 <Box sx={{
                     padding: { xs: 1, sm: 2 },
                     margin: 'auto',
@@ -123,31 +110,35 @@ export const AdvancedSearchDialog = ({
                     justifyContent: 'center',
                     alignItems: 'center',
                 }}>
-                    {grid}
+                    {schema && <GeneratedGrid
+                        childContainers={schema.containers}
+                        fields={schema.fields}
+                        formik={formik}
+                        layout={schema.formLayout}
+                        onUpload={() => { }}
+                        session={session}
+                        theme={theme}
+                        zIndex={zIndex}
+                    />}
                 </Box>
                 {/* Search/Cancel buttons */}
-                <Grid container spacing={1} sx={{
-                    background: theme.palette.primary.dark,
-                    maxWidth: 'min(700px, 100%)',
-                    margin: 0,
-                    paddingBottom: 'env(safe-area-inset-bottom)',
-                }}>
+                <GridActionButtons display="dialog">
                     <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button
                             fullWidth
                             startIcon={<SearchIcon />}
                             type="submit"
-                        >Search</Button>
+                        >{t(`Search`)}</Button>
                     </Grid>
                     <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button
                             fullWidth
                             startIcon={<CancelIcon />}
                             onClick={handleClose}
-                        >Cancel</Button>
+                        >{t(`Cancel`)}</Button>
                     </Grid>
-                </Grid>
+                </GridActionButtons>
             </form>
-        </Dialog>
+        </LargeDialog>
     )
 }

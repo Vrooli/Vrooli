@@ -9,6 +9,7 @@ export const typeDef = gql`
     enum DeleteType {
         Api
         ApiVersion
+        Bookmark
         Comment
         Email
         Issue

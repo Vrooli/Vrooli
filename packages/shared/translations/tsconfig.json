@@ -23,6 +23,7 @@
         "isolatedModules": true,
         "jsx": "react-jsx",
         "removeComments": true,
+        "declaration": true,
     },
     "include": [
         "src"

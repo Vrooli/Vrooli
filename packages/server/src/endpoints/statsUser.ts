@@ -30,10 +30,33 @@ export const typeDef = gql`
 
     type StatsUser {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
+        apisCreated: Int!
+        organizationsCreated: Int!
+        projectsCreated: Int!
+        projectsCompleted: Int!
+        projectCompletionTimeAverage: Float!
+        quizzesPassed: Int!
+        quizzesFailed: Int!
+        routinesCreated: Int!
+        routinesCompleted: Int!
+        routineCompletionTimeAverage: Float!
+        runProjectsStarted: Int!
+        runProjectsCompleted: Int!
+        runProjectCompletionTimeAverage: Float!
+        runProjectContextSwitchesAverage: Float!
+        runRoutinesStarted: Int!
+        runRoutinesCompleted: Int!
+        runRoutineCompletionTimeAverage: Float!
+        runRoutineContextSwitchesAverage: Float!
+        smartContractsCreated: Int!
+        smartContractsCompleted: Int!
+        smartContractCompletionTimeAverage: Float!
+        standardsCreated: Int!
+        standardsCompleted: Int!
+        standardCompletionTimeAverage: Float!
     }
 
     type Query {

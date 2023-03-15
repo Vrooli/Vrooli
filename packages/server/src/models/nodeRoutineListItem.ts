@@ -1,15 +1,15 @@
-import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from '@shared/consts';
+import { MaxObjects, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { bestLabel, translationShapeHelper } from "../utils";
-import { noNull, padSelect, shapeHelper } from "../builders";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { noNull, selPad, shapeHelper } from "../builders";
 import { RoutineModel } from "./routine";
 import { SelectWrap } from "../builders/types";
 import { nodeRoutineListItemValidation } from '@shared/validation';
+import { NodeRoutineListModel } from './nodeRoutineList';
 
 const __typename = 'NodeRoutineListItem' as const;
-
 const suppFields = [] as const;
 export const NodeRoutineListItemModel: ModelLogic<{
     IsTransferable: false,
@@ -17,7 +17,7 @@ export const NodeRoutineListItemModel: ModelLogic<{
     GqlCreate: NodeRoutineListItemCreateInput,
     GqlUpdate: NodeRoutineListItemUpdateInput,
     GqlModel: NodeRoutineListItem,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_routine_list_itemUpsertArgs['create'],
@@ -31,8 +31,8 @@ export const NodeRoutineListItemModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            translations: padSelect({ id: true, name: true }),
-            routineVersion: padSelect(RoutineModel.display.select),
+            translations: selPad({ id: true, name: true }),
+            routineVersion: selPad(RoutineModel.display.select),
         }),
         label: (select, languages) => {
             // Prefer item translations over routineVersion's
@@ -55,21 +55,35 @@ export const NodeRoutineListItemModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 index: data.index,
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeRoutineList', parentRelationshipName: 'list', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeRoutineList', parentRelationshipName: 'list', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
+            update: async ({ data, ...rest }) => ({
                 index: noNull(data.index),
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, prisma, userData })),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
         },
         yup: nodeRoutineListItemValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({ list: 'NodeRoutineList' }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => NodeRoutineListModel.validate!.owner(data.list as any),
+        isDeleted: (data, languages) => NodeRoutineListModel.validate!.isDeleted(data.list as any, languages),
+        isPublic: (data, languages) => NodeRoutineListModel.validate!.isPublic(data.list as any, languages),
+        visibility: {
+            private: { list: NodeRoutineListModel.validate!.visibility.private },
+            public: { list: NodeRoutineListModel.validate!.visibility.public },
+            owner: (userId) => ({ list: NodeRoutineListModel.validate!.visibility.owner(userId) }),
+        }
     },
 })

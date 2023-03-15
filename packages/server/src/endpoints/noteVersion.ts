@@ -22,29 +22,25 @@ export const typeDef = gql`
 
     input NoteVersionCreateInput {
         id: ID!
-        isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
+        directoryListingsConnect: [ID!]
         rootConnect: ID
         rootCreate: NoteCreateInput
         translationsCreate: [NoteVersionTranslationCreateInput!]
-        directoryListingsConnect: [ID!]
     }
     input NoteVersionUpdateInput {
         id: ID!
-        isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int
         versionLabel: String
         versionNotes: String
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
         rootUpdate: NoteUpdateInput
         translationsCreate: [NoteVersionTranslationCreateInput!]
         translationsUpdate: [NoteVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
-        directoryListingsConnect: [ID!]
-        directoryListingsDisconnect: [ID!]
     }
     type NoteVersion {
         id: ID!
@@ -72,36 +68,43 @@ export const typeDef = gql`
     input NoteVersionTranslationCreateInput {
         id: ID!
         language: String!
-        text: String!
         description: String
+        name: String!
+        text: String!
     }
     input NoteVersionTranslationUpdateInput {
         id: ID!
         language: String
-        text: String
         description: String
+        name: String
+        text: String
     }
     type NoteVersionTranslation {
         id: ID!
         language: String!
-        text: String!
         description: String
+        name: String!
+        text: String!
     }
 
     input NoteVersionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        createdById: ID
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        isLatest: Boolean
+        translationLanguages: [String!]
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
+        minViewsRoot: Int
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         searchString: String
         sortBy: NoteVersionSortBy
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType

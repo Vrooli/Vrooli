@@ -3,19 +3,23 @@ import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } fro
 import { TitleContainerProps } from '../types';
 import { clickSize } from 'styles';
 import { HelpButton } from 'components';
+import { useTranslation } from 'react-i18next';
 
 export function TitleContainer({
     id,
-    title = 'Popular Items',
+    helpKey,
+    helpVariables,
+    titleKey,
+    titleVariables,
     onClick,
     loading = false,
     tooltip = '',
-    helpText = '',
     options = [],
     sx,
     children,
 }: TitleContainerProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     return (
         <Tooltip placement="bottom" title={tooltip}>
@@ -45,8 +49,8 @@ export function TitleContainer({
                     >
                         {/* Title */}
                         <Stack direction="row" justifyContent="center" alignItems="center">
-                            <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
-                            {Boolean(helpText) ? <HelpButton markdown={helpText} /> : null}
+                            <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, {...titleVariables, defaultValue: titleKey })}</Typography>
+                            {Boolean(helpKey) ? <HelpButton markdown={t(helpKey!, {...helpVariables, defaultValue: helpKey })} /> : null}
                         </Stack>
                     </Box>
                     {/* Main content */}
@@ -71,13 +75,16 @@ export function TitleContainer({
                                     justifyContent: 'end',
                                 }}
                                 >
-                                    {options.map(([label, onClick], index) => (
+                                    {options.map(([labelData, onClick], index) => (
                                         <Link key={index} onClick={onClick} sx={{
                                             marginTop: 'auto',
                                             marginBottom: 'auto',
                                             marginRight: 2,
                                         }}>
-                                            <Typography sx={{ color: palette.mode === 'light' ? palette.secondary.dark : palette.secondary.light }}>{label}</Typography>
+                                            <Typography sx={{
+                                                color: palette.mode === 'light' ? palette.secondary.dark : palette.secondary.light
+                                            }}
+                                            >{typeof labelData === 'string' ? t(labelData) : t(labelData.key, { ...labelData.variables, defaultValue: labelData.key })}</Typography>
                                         </Link>
                                     ))}
                                 </Stack>

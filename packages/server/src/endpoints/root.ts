@@ -15,16 +15,18 @@ export const typeDef = gql`
         Api
         ApiKey
         ApiVersion
+        Award
+        Bookmark
+        BookmarkList
         Comment
         Copy
-        DevelopResult
         Email
         Fork
         Handle
+        HomeResult,
         HistoryResult
         Issue
         Label
-        LearnResult
         Meeting
         MeetingInvite
         Member
@@ -49,6 +51,7 @@ export const typeDef = gql`
         Premium
         Project
         ProjectVersion
+        ProjectVersionContentsSearchResult
         ProjectVersionDirectory
         ProjectOrRoutineSearchResult
         ProjectOrOrganizationSearchResult
@@ -66,7 +69,6 @@ export const typeDef = gql`
         Report
         ReportResponse
         ReputationHistory
-        ResearchResult
         Resource
         ResourceList
         Role
@@ -88,7 +90,6 @@ export const typeDef = gql`
         SmartContractVersion
         Standard
         StandardVersion
-        Star
         StatsApi
         StatsOrganization
         StatsProject
@@ -152,10 +153,10 @@ export const typeDef = gql`
         canComment: Boolean!
         canCopy: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
         canReport: Boolean!
+        canUpdate: Boolean!
         canUse: Boolean! # In run, project, etc. Not always applicable
-        canView: Boolean!
+        canRead: Boolean!
     }
 
     enum RunStatus {
@@ -167,6 +168,7 @@ export const typeDef = gql`
     }
 
     enum StatPeriodType {
+        Hourly
         Daily
         Weekly
         Monthly

@@ -5,14 +5,14 @@ import { nodeEndValidation, nodeTranslationValidation } from '@shared/validation
 import { useFormik } from 'formik';
 import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 import { linkColors } from 'styles';
 import { useTranslation } from 'react-i18next';
-import { GqlModelType, Node } from '@shared/consts';
+import { Node } from '@shared/consts';
 
-const titleAria = 'end-node-dialog-title';
+const titleId = 'end-node-dialog-title';
 
 export const EndNodeDialog = ({
     handleClose,
@@ -36,7 +36,7 @@ export const EndNodeDialog = ({
             wasSuccessful: node.end?.wasSuccessful ?? true,
         },
         enableReinitialize: true,
-        validationSchema: nodeEndValidation.update(),
+        validationSchema: nodeEndValidation.update({}),
         onSubmit: (values) => {
             handleClose({
                 ...node,
@@ -47,21 +47,24 @@ export const EndNodeDialog = ({
                     __typename: 'NodeEnd',
                     wasSuccessful: values.wasSuccessful,
                 },
-                translations: values.translationsUpdate.map(t => ({
-                    ...t,
-                    id: t.id === DUMMY_ID ? uuid() : t.id,
-                })),
+                translations: values.translationsUpdate,
             })
         },
     });
 
-    const translations = useTranslatedFields({
+    const {
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: language,
         fields: ['description', 'name'],
         formik,
         formikField: 'translationsUpdate',
-        language,
-        validationSchema: nodeTranslationValidation.update(),
+        validationSchema: nodeTranslationValidation.update({}),
     });
+    useEffect(() => {
+        setLanguage(language);
+    }, [language, setLanguage]);
 
     const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
         // Don't close if formik is dirty and clicked outside
@@ -75,20 +78,20 @@ export const EndNodeDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 onClose={handleCancel}
-                title={t(`common:${isEditing ? 'NodeEndEdit' : 'NodeEndInfo'}`, { lng: language })}
+                title={t(isEditing ? 'NodeEndEdit' : 'NodeEndInfo')}
             />
             <form onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, ...linkColors(palette) }}>
                     <Grid item xs={12}>
-                        <Typography variant="h6">Label</Typography>
+                        <Typography variant="h6">{t('Label')}</Typography>
                         {
                             isEditing ? (
                                 <TextField
@@ -131,7 +134,7 @@ export const EndNodeDialog = ({
                         }
                     </Grid>
                     <Grid item xs={12}>
-                        <Tooltip placement={'top'} title='If a routine finishes at this node, should it be considered a success?'>
+                        <Tooltip placement={'top'} title={t('NodeWasSuccessfulHelp')}>
                             <FormControlLabel
                                 disabled={!isEditing}
                                 label='Success?'
@@ -149,6 +152,7 @@ export const EndNodeDialog = ({
                         </Tooltip>
                     </Grid>
                     {isEditing && <GridSubmitButtons
+                        display="dialog"
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}

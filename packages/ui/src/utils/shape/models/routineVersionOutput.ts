@@ -4,7 +4,7 @@ import { createPrims, createRel, hasObjectChanged, shapeStandardVersion, shapeUp
 
 export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTranslation, 'id' | 'language' | 'description' | 'helpText'>
 
-export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, 'id' | 'index' | 'isRequired' | 'name'> & {
+export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, 'id' | 'index' | 'name'> & {
     routineVersion: { id: string };
     standardVersion?: StandardVersionShape | null;
     translations?: RoutineVersionOutputTranslationShape[] | null;
@@ -21,7 +21,7 @@ export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, Ro
         // Otherwise, set as create. The backend will handle the rest
         const shouldConnectToStandard = d.standardVersion && !d.standardVersion.root.isInternal && d.standardVersion.id;
         return {
-            ...createPrims(d, 'id', 'index', 'isRequired', 'name'),
+            ...createPrims(d, 'id', 'index', 'name'),
             ...createRel(d, 'routineVersion', ['Connect'], 'one'),
             standardVersionConnect: shouldConnectToStandard ? d.standardVersion!.id : undefined,
             standardCreate: d.standardVersion && !shouldConnectToStandard ? shapeStandardVersion.create(d.standardVersion) : undefined,
@@ -34,7 +34,7 @@ export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, Ro
         const shouldConnectToStandard = u.standardVersion && !u.standardVersion.root.isInternal && u.standardVersion.id;
         const hasStandardChanged = hasObjectChanged(o.standardVersion, u.standardVersion);
         return {
-            ...updatePrims(o, u, 'id', 'index', 'isRequired', 'name'),
+            ...updatePrims(o, u, 'id', 'index', 'name'),
             standardConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
             standardCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.update(o.standardVersion!, u.standardVersion!) : undefined,
             ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionOutputTranslation),

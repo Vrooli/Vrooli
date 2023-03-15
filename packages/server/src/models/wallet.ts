@@ -1,10 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { walletValidation } from '@shared/validation';
-import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
-import { Wallet, WalletUpdateInput } from '@shared/consts';
+import { MaxObjects, Wallet, WalletUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { oneIsPublic } from "../utils";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
 import { SelectWrap } from "../builders/types";
@@ -17,7 +16,7 @@ export const WalletModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: WalletUpdateInput,
     GqlModel: Wallet,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.walletUpsertArgs['create'],
@@ -49,33 +48,34 @@ export const WalletModel: ModelLogic<{
     },
     mutate: {
         shape: {
+            pre: async ({ deleteList, prisma, userData }) => {
+                // Prevent deleting wallets if it will leave you with less than one verified authentication method
+                if (deleteList.length) {
+                    const allWallets = await prisma.wallet.findMany({
+                        where: { user: { id: userData.id } },
+                        select: { id: true, verified: true }
+                    });
+                    const remainingVerifiedWalletsCount = allWallets.filter(x => !deleteList.includes(x.id) && x.verified).length;
+                    const verifiedEmailsCount = await prisma.email.count({
+                        where: { user: { id: userData.id }, verified: true },
+                    });
+                    if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
+                        throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
+                }
+            },
             update: async ({ data }) => data,
         },
         yup: walletValidation,
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 5,
-                public: 0,
-            },
-            Organization: {
-                private: {
-                    noPremium: 1,
-                    premium: 5,
-                },
-                public: 0,
-            },
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: (...params) => ({
             id: true,
-            ...permissionsSelectHelper([
-                ['organization', 'Organization'],
-                ['user', 'User'],
-            ], ...params)
+            organization: 'Organization',
+            user: 'User',
         }),
-        permissionResolvers: () => ({}),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({
             Organization: data.organization,
             User: data.user,
@@ -85,21 +85,6 @@ export const WalletModel: ModelLogic<{
             ['organization', 'Organization'],
             ['user', 'User'],
         ], languages),
-        validations: {
-            delete: async ({ deleteMany, prisma, userData }) => {
-                // Prevent deleting wallets if it will leave you with less than one verified authentication method
-                const allWallets = await prisma.wallet.findMany({
-                    where: { user: { id: userData.id } },
-                    select: { id: true, verified: true }
-                });
-                const remainingVerifiedWalletsCount = allWallets.filter(x => !deleteMany.includes(x.id) && x.verified).length;
-                const verifiedEmailsCount = await prisma.email.count({
-                    where: { user: { id: userData.id }, verified: true },
-                });
-                if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
-                    throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
-            }
-        },
         visibility: {
             private: {},
             public: {},

@@ -1,17 +1,18 @@
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
-import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString } from '@shared/consts';
+import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
-import { addSupplementalFields, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { oneIsPublic } from "../utils";
+import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
+import { runRoutineValidation } from "@shared/validation";
 
 const __typename = 'RunRoutine' as const;
-type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canEdit' | 'canView'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
+type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
+const suppFields = ['you'] as const;
 export const RunRoutineModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -83,19 +84,31 @@ export const RunRoutineModel: ModelLogic<{
             steps: 'RunRoutineStep',
             user: 'User',
         },
-        countFields: {},
+        countFields: {
+            inputsCount: true,
+            stepsCount: true,
+        },
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
             dbFields: ['name'],
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>;
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
             },
         },
     },
     mutate: {
         shape: {
+            pre: async ({ updateList }) => {
+                if (updateList.length) {
+                    // TODO if status passed in for update, make sure it's not the same 
+                    // as the current status, or an invalid transition (e.g. failed -> in progress)
+                }
+            },
             create: async ({ data, prisma, userData }) => {
                 // TODO - when scheduling added, don't assume that it is being started right away
                 return {
@@ -147,7 +160,7 @@ export const RunRoutineModel: ModelLogic<{
                 }
             },
         },
-        yup: {} as any,
+        yup: runRoutineValidation,
     },
     run: {
         /**
@@ -300,24 +313,15 @@ export const RunRoutineModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 5000,
-            Organization: 50000,
-        },
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            ...permissionsSelectHelper({
-                organization: 'Organization',
-                routineVersion: 'Routine',
-                user: 'User',
-            }, ...params)
+            organization: 'Organization',
+            routineVersion: 'Routine',
+            user: 'User',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: async () => isAdmin && !isDeleted,
-            canEdit: async () => isAdmin && !isDeleted,
-            canView: async () => !isDeleted && (isAdmin || isPublic),
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({
             Organization: data.organization,
             User: data.user,
@@ -327,6 +331,7 @@ export const RunRoutineModel: ModelLogic<{
             ['organization', 'Organization'],
             ['user', 'User'],
         ], languages),
+        profanityFields: ['name'],
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
@@ -337,11 +342,5 @@ export const RunRoutineModel: ModelLogic<{
                 ]
             }),
         },
-        // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
-        //     validateProfanity(data.map((d: any) => d.name));
-        // },
-
-        // TODO if status passed in for update, make sure it's not the same 
-        // as the current status, or an invalid transition (e.g. failed -> in progress)
     },
 })

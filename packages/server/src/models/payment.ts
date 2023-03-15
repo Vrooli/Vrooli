@@ -1,8 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Payment } from '@shared/consts';
+import { MaxObjects, Payment, PaymentSearchInput, PaymentSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { OrganizationModel } from "./organization";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'Payment' as const;
 const suppFields = [] as const;
@@ -12,9 +14,9 @@ export const PaymentModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: undefined,
     GqlModel: Payment,
-    GqlPermission: any,
-    GqlSearch: undefined,
-    GqlSort: undefined,
+    GqlPermission: {},
+    GqlSearch: PaymentSearchInput,
+    GqlSort: PaymentSortBy,
     PrismaCreate: Prisma.paymentUpsertArgs['create'],
     PrismaUpdate: Prisma.paymentUpsertArgs['update'],
     PrismaModel: Prisma.paymentGetPayload<SelectWrap<Prisma.paymentSelect>>,
@@ -41,7 +43,48 @@ export const PaymentModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    search: {
+        defaultSort: PaymentSortBy.DateCreatedDesc,
+        sortBy: PaymentSortBy,
+        searchFields: {
+            cardLast4: true,
+            createdTimeFrame: true,
+            currency: true,
+            maxAmount: true,
+            minAmount: true,
+            status: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            organization: 'Organization',
+            user: 'User',
+        }),
+        visibility: {
+            private: { },
+            public: { },
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

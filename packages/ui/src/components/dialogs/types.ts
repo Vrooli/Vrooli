@@ -1,19 +1,17 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { Comment, DeleteType, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Session, Standard, User } from '@shared/consts';
+import { Comment, DeleteType, Node, NodeRoutineList, NodeRoutineListItem, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Session } from '@shared/consts';
 import { NavigableObject, RoutineStep } from 'types';
-import { ListObjectType, NodeLinkShape, NodeShape, SearchType } from 'utils';
+import { ListObjectType, NodeLinkShape, NodeShape, SearchType, UseObjectActionsReturn } from 'utils';
 import { SvgComponent } from '@shared/icons';
-import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
+import { ObjectAction } from 'utils/actions/objectActions';
 import { CookiePreferences } from 'utils/cookies';
+import { StatsCompactPropsObject } from 'components/text/types';
+import { BaseViewProps } from 'views/types';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
     onClose: (event: React.MouseEvent<HTMLElement>) => void;
-    session: Session;
-}
-
-export interface AlertDialogProps {
     session: Session | undefined;
 }
 
@@ -49,7 +47,7 @@ export interface CookieSettingsDialogProps {
 export interface DeleteAccountDialogProps {
     handleClose: (wasDeleted: boolean) => void;
     isOpen: boolean;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -63,10 +61,10 @@ export interface DeleteDialogProps {
 }
 
 export interface DialogTitleProps {
-    ariaLabel: string;
     helpText?: string;
+    id: string;
     onClose: () => void;
-    title: string;
+    title?: string;
 }
 
 export interface ListMenuItemData<T> {
@@ -122,20 +120,6 @@ export enum ObjectDialogAction {
     Save = 'Save',
 }
 
-export interface OrganizationDialogProps {
-    hasPrevious?: boolean;
-    partialData?: Partial<Organization>;
-    session: Session;
-    zIndex: number;
-};
-
-export interface ProjectDialogProps {
-    hasPrevious?: boolean;
-    partialData?: Partial<Project>;
-    session: Session;
-    zIndex: number;
-};
-
 export interface ReorderInputDialogProps {
     handleClose: (toIndex?: number) => void;
     isInput: boolean;
@@ -149,7 +133,7 @@ export interface ReportDialogProps extends DialogProps {
     onClose: () => any;
     open: boolean;
     reportFor: ReportFor;
-    session: Session;
+    session: Session | undefined;
     title?: string;
     zIndex: number;
 }
@@ -169,15 +153,9 @@ export interface ResourceDialogProps extends DialogProps {
     open: boolean;
     onUpdated: (index: number, resource: Resource) => any;
     partialData?: Partial<Resource>;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
-
-export interface RoutineDialogProps {
-    partialData?: Partial<Routine>;
-    session: Session;
-    zIndex: number;
-};
 
 export interface ShareObjectDialogProps extends DialogProps {
     object: NavigableObject | null | undefined;
@@ -192,32 +170,25 @@ export interface ShareSiteDialogProps extends DialogProps {
     zIndex: number;
 }
 
-export interface StandardDialogProps {
-    partialData?: Partial<Standard>;
-    session: Session;
-    zIndex: number;
-};
+export interface TranscriptDialogProps {
+    handleClose: () => void;
+    isListening: boolean;
+    transcript: string;
+}
 
-export interface UserDialogProps {
-    partialData?: Partial<User>;
-    session: Session;
+export type ObjectActionDialogsProps = UseObjectActionsReturn & {
+    object: ListObjectType | null | undefined;
+    session: Session | undefined;
     zIndex: number;
-};
+}
 
 export interface ObjectActionMenuProps {
+    actionData: UseObjectActionsReturn;
     anchorEl: HTMLElement | null;
     exclude?: ObjectAction[];
     object: ListObjectType | null | undefined;
-    /**
-     * Completed actions, which may require updating state or navigating to a new page
-     */
-    onActionComplete: (action: ObjectActionComplete, data: any) => any;
-    /**
-     * Actions which cannot be performed by the menu
-     */
-    onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
     onClose: () => any;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -242,7 +213,7 @@ export interface SubroutineInfoDialogProps {
     handleViewFull: () => any;
     isEditing: boolean;
     open: boolean;
-    session: Session;
+    session: Session | undefined;
     onClose: () => any;
     zIndex: number;
 }
@@ -287,7 +258,7 @@ export interface SelectLanguageMenuProps {
     /**
      * Contains user's languages. These are displayed at the top of the language selection list
      */
-    session: Session;
+    session: Session | undefined;
     /**
      * Available translations
      */
@@ -296,12 +267,21 @@ export interface SelectLanguageMenuProps {
     zIndex: number;
 }
 
+export interface StatsDialogProps<T extends StatsCompactPropsObject> {
+    handleObjectUpdate: (object: T) => void;
+    isOpen: boolean;
+    object: T | null | undefined;
+    onClose: () => void;
+    session: Session | undefined;
+    zIndex: number;
+}
+
 export interface AdvancedSearchDialogProps {
     handleClose: () => any;
     handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
-    searchType: SearchType;
-    session: Session;
+    searchType: SearchType | `${SearchType}`;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -312,8 +292,17 @@ export interface RunPickerMenuProps {
     onDelete: (run: RunProject | RunRoutine) => any;
     onSelect: (run: RunProject | RunRoutine | null) => any;
     runnableObject?: RoutineVersion | ProjectVersion | null;
-    session: Session;
+    session: Session | undefined;
 }
+
+export interface LargeDialogProps {
+    children: JSX.Element | null | undefined | (JSX.Element | null | undefined)[] ;
+    id: string;
+    isOpen: boolean;
+    onClose: () => any;
+    titleId?: string;
+    zIndex: number;
+};
 
 export interface WalletInstallDialogProps {
     onClose: () => any;
@@ -336,4 +325,10 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'>
         root?: { [x: string]: any };
         content?: { [x: string]: any };
     }
+}
+
+export interface WelcomeDialogProps {
+    isOpen: boolean;
+    onClose: () => any;
+    session: Session | undefined;
 }

@@ -4,16 +4,16 @@ import { ResourceDialog, ResourceListItem, ResourceListItemContextMenu } from 'c
 import { ResourceListVerticalProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { Box, Button } from '@mui/material';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { updateArray } from 'utils';
 import { AddIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',
-    canEdit = true,
+    canUpdate = true,
     handleUpdate,
     mutate,
     list,
@@ -42,7 +42,7 @@ export const ResourceListVertical = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(...deleteOneOrManyEndpoint.deleteMany);
+    const [deleteMutation] = useCustomMutation<Count, DeleteManyInput>(deleteOneOrManyDeleteOne);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
@@ -112,7 +112,7 @@ export const ResourceListVertical = ({
         <>
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
-                canEdit={canEdit}
+                canUpdate={canUpdate}
                 id={contextId}
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
@@ -139,7 +139,7 @@ export const ResourceListVertical = ({
                 {list.resources.map((c: Resource, index) => (
                     <ResourceListItem
                         key={`resource-card-${index}`}
-                        canEdit={canEdit}
+                        canUpdate={canUpdate}
                         data={c}
                         handleContextMenu={openContext}
                         handleEdit={() => openUpdateDialog(index)}
@@ -151,7 +151,7 @@ export const ResourceListVertical = ({
                 ))}
             </Box>}
             {/* Add resource button */}
-            {canEdit && <Box sx={{
+            {canUpdate && <Box sx={{
                 maxWidth: '400px',
                 margin: 'auto',
                 paddingTop: 5,

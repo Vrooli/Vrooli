@@ -25,9 +25,12 @@ model api {
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
     score                 Int                         @default(0)
-    stars                 Int                         @default(0)
+    bookmarks             Int                         @default(0)
     views                 Int                         @default(0)
-    isPrivate               Boolean                     @default(false)
+    hasBeenTransferred    Boolean                     @default(false)
+    hasCompleteVersion    Boolean                     @default(false)
+    isDeleted             Boolean                     @default(false)
+    isPrivate             Boolean                     @default(false)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByUserId         String?                     @db.Uuid
@@ -39,7 +42,7 @@ model api {
     parent                api_version?                @relation("api_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                  api_tags[]
     issues                issue[]
-    starredBy             star[]                      @relation("star_api")
+    bookmarkedBy          bookmark[]                  @relation("bookmark_api")
     votedBy               vote[]                      @relation("vote_api")
     viewedBy              view[]                      @relation("view_api")
     pullRequests          pull_request[]
@@ -67,6 +70,8 @@ model api_version {
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     callLink                String                      @unique @db.VarChar(1024)
     documentationLink       String?                     @db.VarChar(1024)
+    isComplete              Boolean                     @default(false)
+    isDeleted               Boolean                     @default(false)
     isLatest                Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
     rootId                  String                      @db.Uuid
@@ -91,7 +96,7 @@ model api_version {
 
 model api_version_translation {
     id           String      @id @default(uuid()) @db.Uuid
-    name         String?     @db.VarChar(128)
+    name         String      @db.VarChar(128)
     summary      String?     @db.VarChar(1024)
     details      String?     @db.VarChar(8192)
     language     String      @db.VarChar(3)
@@ -110,15 +115,17 @@ model api_tags {
 }
 
 model api_key {
-    id                     String   @id @default(uuid()) @db.Uuid
-    created_at             DateTime @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime @default(now()) @db.Timestamptz(6)
-    key                    String   @unique @db.VarChar(255)
-    creditsUsedBeforeLimit Int      @default(20000)
-    stopAtLimit            Boolean  @default(true)
-    absoluteMax            Int?     @default(1000000)
-    userId                 String   @db.Uuid
-    user                   user     @relation(fields: [userId], references: [id])
+    id                     String        @id @default(uuid()) @db.Uuid
+    created_at             DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at             DateTime      @default(now()) @db.Timestamptz(6)
+    key                    String        @unique @db.VarChar(255)
+    creditsUsedBeforeLimit Int           @default(20000)
+    stopAtLimit            Boolean       @default(true)
+    absoluteMax            Int?          @default(1000000)
+    organizationId         String?       @db.Uuid
+    userId                 String?       @db.Uuid
+    organization           organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user                   user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model comment {
@@ -140,7 +147,7 @@ model comment {
     smartContractVersionId String?                     @db.Uuid
     standardVersionId      String?                     @db.Uuid
     score                  Int                         @default(0)
-    stars                  Int                         @default(0)
+    bookmarks              Int                         @default(0)
     apiVersion             api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     issue                  issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
     ownedByOrganization    organization?               @relation("comment_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
@@ -157,7 +164,7 @@ model comment {
     ownedByUser            user?                       @relation("comment_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     translations           comment_translation[]
     reports                report[]
-    starredBy              star[]                      @relation("star_comment")
+    bookmarkedBy           bookmark[]                  @relation("bookmark_comment")
     votedBy                vote[]                      @relation("vote_comment")
     parents                comment[]                   @relation("comment_parent")
     subscriptions          notification_subscription[]
@@ -165,7 +172,7 @@ model comment {
 
 model comment_translation {
     id        String  @id @default(uuid()) @db.Uuid
-    text      String  @db.VarChar(2048)
+    text      String  @db.VarChar(32768)
     language  String  @db.VarChar(3)
     commentId String  @db.Uuid
     comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
@@ -174,14 +181,18 @@ model comment_translation {
 }
 
 model email {
-    id                                 String    @id @default(uuid()) @db.Uuid
-    emailAddress                       String    @unique @db.Citext
-    verified                           Boolean   @default(false)
-    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
-    verificationCode                   String?   @unique @db.VarChar(256)
-    lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    userId                             String?   @db.Uuid
-    user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                                 String        @id @default(uuid()) @db.Uuid
+    created_at                         DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at                         DateTime      @default(now()) @db.Timestamptz(6)
+    emailAddress                       String        @unique @db.Citext
+    verified                           Boolean       @default(false)
+    lastVerifiedTime                   DateTime?     @db.Timestamptz(6)
+    verificationCode                   String?       @unique @db.VarChar(256)
+    lastVerificationCodeRequestAttempt DateTime?     @db.Timestamptz(6)
+    organizationId                     String?       @db.Uuid
+    userId                             String?       @db.Uuid
+    organization                       organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user                               user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model handle {
@@ -192,41 +203,42 @@ model handle {
 }
 
 model issue {
-    id                  String                      @id @default(uuid()) @db.Uuid
-    status              IssueStatus                 @default(Open)
-    created_at          DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime                    @updatedAt @db.Timestamptz(6)
-    closedAt            DateTime?                   @db.Timestamptz(6)
-    score               Int                         @default(0)
-    stars               Int                         @default(0)
-    views               Int                         @default(0)
-    apiId               String?                     @db.Uuid
-    organizationId      String?                     @db.Uuid
-    noteId              String?                     @db.Uuid
-    projectId           String?                     @db.Uuid
-    routineId           String?                     @db.Uuid
-    smartContractId     String?                     @db.Uuid
-    standardId          String?                     @db.Uuid
-    closedById          String?                     @db.Uuid
-    createdById         String?                     @db.Uuid
-    referencedVersionId String?                     @db.Uuid
-    api                 api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
-    organization        organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    note                note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
-    project             project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine             routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract       smart_contract?             @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard            standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    closedBy            user?                       @relation("issue_closedBy", fields: [closedById], references: [id], onDelete: Cascade)
-    createdBy           user?                       @relation("issue_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
-    comments            comment[]
-    labels              issue_labels[]
-    reports             report[]
-    translations        issue_translation[]
-    votedBy             vote[]                      @relation("vote_issue")
-    starredBy           star[]                      @relation("star_issue")
-    viewedBy            view[]                      @relation("view_issue")
-    subscriptions       notification_subscription[]
+    id                      String                      @id @default(uuid()) @db.Uuid
+    status                  IssueStatus                 @default(Open)
+    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime                    @updatedAt @db.Timestamptz(6)
+    closedAt                DateTime?                   @db.Timestamptz(6)
+    hasBeenClosedOrRejected Boolean                     @default(false)
+    score                   Int                         @default(0)
+    bookmarks               Int                         @default(0)
+    views                   Int                         @default(0)
+    apiId                   String?                     @db.Uuid
+    organizationId          String?                     @db.Uuid
+    noteId                  String?                     @db.Uuid
+    projectId               String?                     @db.Uuid
+    routineId               String?                     @db.Uuid
+    smartContractId         String?                     @db.Uuid
+    standardId              String?                     @db.Uuid
+    closedById              String?                     @db.Uuid
+    createdById             String?                     @db.Uuid
+    referencedVersionId     String?                     @db.Uuid
+    api                     api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    organization            organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    note                    note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
+    project                 project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    routine                 routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract           smart_contract?             @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard                standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    closedBy                user?                       @relation("issue_closedBy", fields: [closedById], references: [id], onDelete: Cascade)
+    createdBy               user?                       @relation("issue_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    comments                comment[]
+    labels                  issue_labels[]
+    reports                 report[]
+    translations            issue_translation[]
+    votedBy                 vote[]                      @relation("vote_issue")
+    bookmarkedBy            bookmark[]                  @relation("bookmark_issue")
+    viewedBy                view[]                      @relation("view_issue")
+    subscriptions           notification_subscription[]
 }
 
 model issue_labels {
@@ -338,6 +350,7 @@ model node_end_next {
 model node_link {
     id               String           @id @default(uuid()) @db.Uuid
     fromId           String           @db.Uuid
+    operation        String?          @db.VarChar(512)
     routineVersionId String           @db.Uuid
     toId             String           @db.Uuid
     from             node             @relation("node_previous", fields: [fromId], references: [id], onDelete: Cascade)
@@ -429,9 +442,13 @@ model note {
     id                      String                      @id @default(uuid()) @db.Uuid
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred      Boolean                     @default(false)
+    hasCompleteVersion      Boolean                     @default(false)
+    completedAt             DateTime?                   @db.Timestamptz(6)
+    isDeleted               Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
     score                   Int                         @default(0)
-    stars                   Int                         @default(0)
+    bookmarks               Int                         @default(0)
     views                   Int                         @default(0)
     permissions             String                      @db.VarChar(4096)
     parentId                String?                     @db.Uuid
@@ -448,7 +465,7 @@ model note {
     labels                  note_labels[]
     issues                  issue[]
     tags                    note_tags[]
-    starredBy               star[]                      @relation("star_note")
+    bookmarkedBy            bookmark[]                  @relation("bookmark_note")
     viewedBy                view[]                      @relation("view_note")
     votedBy                 vote[]                      @relation("vote_note")
     transfers               transfer[]                  @relation("transfer_note")
@@ -481,6 +498,8 @@ model note_version {
     created_at          DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
     intendToPullRequest Boolean                     @default(true)
+    isComplete          Boolean                     @default(false)
+    isDeleted           Boolean                     @default(false)
     isLatest            Boolean                     @default(false)
     isPrivate           Boolean                     @default(false)
     rootId              String                      @db.Uuid
@@ -512,10 +531,12 @@ model note_version_translation {
 model notification {
     id          String   @id @default(uuid()) @db.Uuid
     created_at  DateTime @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime @default(now()) @db.Timestamptz(6)
     category    String   @db.VarChar(64)
     isRead      Boolean  @default(false)
     title       String   @db.VarChar(128)
     description String?  @db.VarChar(2048)
+    count       Int      @default(1)
     link        String?  @db.VarChar(2048)
     imgLink     String?  @db.VarChar(2048)
     userId      String   @db.Uuid
@@ -577,20 +598,23 @@ model organization {
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
     permissions        String                      @db.VarChar(4096)
-    stars              Int                         @default(0)
+    bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     parentId           String?                     @db.Uuid
     premiumId          String?                     @unique @db.Uuid
     resourceListId     String?                     @unique @db.Uuid
     createdById        String?                     @db.Uuid
     createdBy          user?                       @relation("organization_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    emails             email[]
     issues             issue[]
     labels             label[]
     notes              note[]                      @relation("note_ownedByOrganization")
     apis               api[]                       @relation("api_ownedByOrganization")
+    apiKeys            api_key[]
     comments           comment[]                   @relation("comment_ownedByOrganization")
     meetings           meeting[]
     paymentHistory     payment[]
+    phones             phone[]
     posts              post[]
     premium            premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
     smartContracts     smart_contract[]            @relation("smart_contract_ownedByOrganization")
@@ -605,7 +629,7 @@ model organization {
     runRoutines        run_routine[]               @relation("run_routine_organization")
     runProjects        run_project[]               @relation("run_project_organization")
     standards          standard[]                  @relation("standard_ownedByOrganization")
-    starredBy          star[]                      @relation("star_organization")
+    bookmarkedBy       bookmark[]                  @relation("bookmark_organization")
     viewedBy           view[]                      @relation("view_organization")
     wallets            wallet[]
     roles              role[]
@@ -653,13 +677,13 @@ model meeting {
 }
 
 model meeting_attendees {
-    id         String  @id @default(uuid()) @db.Uuid
-    scheduleId String  @db.Uuid
-    schedule   meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-    userId     String  @db.Uuid
-    user       user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        String  @id @default(uuid()) @db.Uuid
+    meetingId String  @db.Uuid
+    meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    userId    String  @db.Uuid
+    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([scheduleId, userId])
+    @@unique([meetingId, userId])
 }
 
 model meeting_invite {
@@ -673,7 +697,7 @@ model meeting_invite {
     userId     String              @db.Uuid
     user       user                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([meetingId, userId])
+    @@unique([meetingId, userId], name: "meeting_invite_meetingid_userid_unique")
 }
 
 model meeting_labels {
@@ -687,25 +711,25 @@ model meeting_labels {
 }
 
 model meeting_roles {
-    id         String  @id @default(uuid()) @db.Uuid
-    scheduleId String  @db.Uuid
-    schedule   meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-    roleId     String  @db.Uuid
-    role       role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    id        String  @id @default(uuid()) @db.Uuid
+    meetingId String  @db.Uuid
+    meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    roleId    String  @db.Uuid
+    role      role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-    @@unique([scheduleId, roleId])
+    @@unique([meetingId, roleId], name: "meeting_roles_meetingid_roleid_unique")
 }
 
 model meeting_translation {
     id          String  @id @default(uuid()) @db.Uuid
-    scheduleId  String  @db.Uuid
-    schedule    meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    meetingId   String  @db.Uuid
+    meeting     meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
     language    String  @db.VarChar(3)
     name        String? @db.VarChar(128)
     description String? @db.VarChar(2048)
     link        String? @db.VarChar(2048)
 
-    @@unique([scheduleId, language], name: "meeting_translation_scheduleid_language_unique")
+    @@unique([meetingId, language], name: "meeting_translation_meetingid_language_unique")
 }
 
 model organization_translation {
@@ -767,10 +791,10 @@ model post {
     repostedFromId String?            @db.Uuid
     resourceListId String?            @unique @db.Uuid
     isPinned       Boolean            @default(false)
-    isPublic       Boolean            @default(false)
+    isPrivate      Boolean            @default(false)
     isDeleted      Boolean            @default(false)
     score          Int                @default(0)
-    stars          Int                @default(0)
+    bookmarks      Int                @default(0)
     views          Int                @default(0)
     organizationId String?            @db.Uuid
     userId         String?            @db.Uuid
@@ -782,7 +806,7 @@ model post {
     comments       comment[]
     viewedBy       view[]             @relation("view_post")
     votedBy        vote[]             @relation("vote_post")
-    starredBy      star[]             @relation("star_post")
+    bookmarkedBy   bookmark[]         @relation("bookmark_post")
     reports        report[]
     tags           post_tags[]
     translations   post_translation[]
@@ -810,14 +834,16 @@ model post_translation {
 }
 
 model phone {
-    id                                 String    @id @default(uuid()) @db.Uuid
-    phoneNumber                        String    @unique @db.VarChar(16)
-    verified                           Boolean   @default(false)
-    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
-    verificationCode                   String?   @unique @db.VarChar(6)
-    lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    userId                             String?   @db.Uuid
-    user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                                 String        @id @default(uuid()) @db.Uuid
+    phoneNumber                        String        @unique @db.VarChar(16)
+    verified                           Boolean       @default(false)
+    lastVerifiedTime                   DateTime?     @db.Timestamptz(6)
+    verificationCode                   String?       @unique @db.VarChar(6)
+    lastVerificationCodeRequestAttempt DateTime?     @db.Timestamptz(6)
+    organizationId                     String?       @db.Uuid
+    userId                             String?       @db.Uuid
+    organization                       organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user                               user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model payment {
@@ -852,12 +878,13 @@ model project {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     isDeleted             Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     score                 Int                         @default(0)
-    stars                 Int                         @default(0)
+    bookmarks             Int                         @default(0)
     views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
@@ -873,7 +900,7 @@ model project {
     labels                project_labels[]
     tags                  project_tags[]
     versions              project_version[]
-    starredBy             star[]                      @relation("star_project")
+    bookmarkedBy          bookmark[]                  @relation("bookmark_project")
     viewedBy              view[]                      @relation("view_project")
     votedBy               vote[]                      @relation("vote_project")
     pullRequests          pull_request[]
@@ -927,9 +954,9 @@ model project_version_directory {
     isRoot                     Boolean                                 @default(false)
     parentDirectoryId          String?                                 @db.Uuid
     childOrder                 String?                                 @db.VarChar(4096)
-    projectVersionId           String?                                 @db.Uuid
+    projectVersionId           String                                  @db.Uuid
     parentDirectory            project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
-    projectVersion             project_version?                        @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: SetNull)
+    projectVersion             project_version                         @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: Cascade)
     children                   project_version_directory[]             @relation("project_version_directory_parent")
     childApiVersions           api_version[]
     childNoteVersions          note_version[]
@@ -999,6 +1026,7 @@ model pull_request {
     created_at               DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at               DateTime                    @default(now()) @db.Timestamptz(6)
     status                   PullRequestStatus           @default(Open)
+    hasBeenClosedOrRejected  Boolean                     @default(false)
     mergedOrRejectedAt       DateTime?                   @db.Timestamptz(6)
     createdById              String?                     @db.Uuid
     toApiId                  String?                     @db.Uuid
@@ -1022,6 +1050,17 @@ model pull_request {
     fromStandardVersion      standard_version?           @relation("pull_request_from_standard_version")
     comments                 comment[]
     subscriptions            notification_subscription[]
+    translations             pull_request_translation[]
+}
+
+model pull_request_translation {
+    id            String       @id @default(uuid()) @db.Uuid
+    text          String       @db.VarChar(32768)
+    language      String       @db.VarChar(3)
+    pullRequestId String       @db.Uuid
+    pullRequest   pull_request @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+
+    @@unique([pullRequestId, language])
 }
 
 model question {
@@ -1030,8 +1069,9 @@ model question {
     updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
     referencing       String?                     @db.VarChar(2048) // Describes what part of object the question is about, in JSON
     hasAcceptedAnswer Boolean                     @default(false)
+    isPrivate         Boolean                     @default(false)
     score             Int                         @default(0)
-    stars             Int                         @default(0)
+    bookmarks         Int                         @default(0)
     views             Int                         @default(0)
     apiId             String?                     @db.Uuid
     noteId            String?                     @db.Uuid
@@ -1051,7 +1091,9 @@ model question {
     createdBy         user?                       @relation("question_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     comments          comment[]
     answers           question_answer[]
-    starredBy         star[]                      @relation("star_question")
+    reports           report[]
+    tags              question_tags[]
+    bookmarkedBy      bookmark[]                  @relation("bookmark_question")
     votedBy           vote[]                      @relation("vote_question")
     viewedBy          view[]                      @relation("view_question")
     translations      question_translation[]
@@ -1069,29 +1111,39 @@ model question_translation {
     @@unique([questionId, language])
 }
 
+model question_tags {
+    id       String   @id @default(uuid()) @db.Uuid
+    taggedId String   @db.Uuid
+    tagTag   String   @db.VarChar(128)
+    tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
+    tagged   question @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagTag], name: "question_tags_taggedid_tagTag_unique")
+}
+
 model question_answer {
     id           String                        @id @default(uuid()) @db.Uuid
     created_at   DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at   DateTime                      @default(now()) @db.Timestamptz(6)
     score        Int                           @default(0)
-    stars        Int                           @default(0)
+    bookmarks    Int                           @default(0)
     isAccepted   Boolean                       @default(false)
     questionId   String                        @db.Uuid
     createdById  String?                       @db.Uuid
     question     question                      @relation(fields: [questionId], references: [id], onDelete: Cascade)
     createdBy    user?                         @relation("question_answer_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     comments     comment[]
-    starredBy    star[]                        @relation("star_question_answer")
+    bookmarkedBy bookmark[]                    @relation("bookmark_question_answer")
     votedBy      vote[]                        @relation("vote_question_answer")
     translations question_answer_translation[]
 }
 
 model question_answer_translation {
-    id          String          @id @default(uuid()) @db.Uuid
-    description String          @db.VarChar(2048)
-    language    String          @db.VarChar(3)
-    answerId    String          @db.Uuid
-    answer      question_answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+    id       String          @id @default(uuid()) @db.Uuid
+    text     String          @db.VarChar(32768)
+    language String          @db.VarChar(3)
+    answerId String          @db.Uuid
+    answer   question_answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
 
     @@unique([answerId, language])
 }
@@ -1100,6 +1152,7 @@ model quiz {
     id                     String                      @id @default(uuid()) @db.Uuid
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    isPrivate              Boolean                     @default(false)
     maxAttempts            Int?
     randomizeQuestionOrder Boolean                     @default(false)
     revealCorrectAnswers   Boolean                     @default(true)
@@ -1107,7 +1160,7 @@ model quiz {
     wasAutoGenerated       Boolean                     @default(false)
     pointsToPass           Int?
     score                  Int                         @default(0)
-    stars                  Int                         @default(0)
+    bookmarks              Int                         @default(0)
     routineId              String?                     @db.Uuid
     projectId              String?                     @db.Uuid
     createdById            String?                     @db.Uuid
@@ -1115,7 +1168,7 @@ model quiz {
     project                project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
     createdBy              user?                       @relation(fields: [createdById], references: [id], onDelete: SetNull)
     quizQuestions          quiz_question[]
-    starredBy              star[]                      @relation("star_quiz")
+    bookmarkedBy           bookmark[]                  @relation("bookmark_quiz")
     votedBy                vote[]                      @relation("vote_quiz")
     translations           quiz_translation[]
     stats                  stats_quiz[]
@@ -1151,26 +1204,16 @@ model quiz_attempt {
 }
 
 model quiz_question_response {
-    id             String                               @id @default(uuid()) @db.Uuid
-    created_at     DateTime                             @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime                             @default(now()) @db.Timestamptz(6)
-    quizAttemptId  String                               @db.Uuid
-    quizQuestionId String                               @db.Uuid
-    quizAttempt    quiz_attempt                         @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
-    quizQuestion   quiz_question                        @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
-    translations   quiz_question_response_translation[]
+    id             String        @id @default(uuid()) @db.Uuid
+    created_at     DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
+    response       String        @db.VarChar(8192)
+    quizAttemptId  String        @db.Uuid
+    quizQuestionId String        @db.Uuid
+    quizAttempt    quiz_attempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+    quizQuestion   quiz_question @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
 
     @@unique([quizAttemptId, quizQuestionId])
-}
-
-model quiz_question_response_translation {
-    id          String                 @id @default(uuid()) @db.Uuid
-    response    String                 @db.VarChar(8192)
-    language    String                 @db.VarChar(3)
-    responseId  String                 @db.Uuid
-    quizAttempt quiz_question_response @relation(fields: [responseId], references: [id], onDelete: Cascade)
-
-    @@unique([responseId, language])
 }
 
 model quiz_question {
@@ -1213,8 +1256,8 @@ model reminder {
     name           String          @db.VarChar(128)
     description    String?         @db.VarChar(2048)
     dueDate        DateTime?       @db.Timestamptz(6)
-    completed      Boolean         @default(false)
     index          Int
+    isComplete     Boolean         @default(false)
     reminderListId String          @db.Uuid
     reminderItems  reminder_item[]
     reminderList   reminder_list   @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
@@ -1228,9 +1271,9 @@ model reminder_item {
     description String?   @db.VarChar(2048)
     dueDate     DateTime? @db.Timestamptz(6)
     index       Int
+    isComplete  Boolean   @default(false)
     reminderId  String    @db.Uuid
     reminder    reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
-    completed   Boolean   @default(false)
 }
 
 model report {
@@ -1247,6 +1290,7 @@ model report {
     organizationId         String?                     @db.Uuid
     postId                 String?                     @db.Uuid
     projectVersionId       String?                     @db.Uuid
+    questionId             String?                     @db.Uuid
     routineVersionId       String?                     @db.Uuid
     smartContractVersionId String?                     @db.Uuid
     standardVersionId      String?                     @db.Uuid
@@ -1260,6 +1304,7 @@ model report {
     organization           organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     post                   post?                       @relation(fields: [postId], references: [id], onDelete: Cascade)
     projectVersion         project_version?            @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
+    question               question?                   @relation(fields: [questionId], references: [id], onDelete: Cascade)
     routineVersion         routine_version?            @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
     smartContractVersion   smart_contract_version?     @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
     standardVersion        standard_version?           @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
@@ -1375,13 +1420,14 @@ model routine {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     isDeleted             Boolean                     @default(false)
     isInternal            Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
     score                 Int                         @default(0)
-    stars                 Int                         @default(0)
+    bookmarks             Int                         @default(0)
     views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
@@ -1396,7 +1442,7 @@ model routine {
     ownedByUser           user?                       @relation("routine_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     labels                routine_labels[]
     tags                  routine_tags[]
-    starredBy             star[]                      @relation("star_routine")
+    bookmarkedBy          bookmark[]                  @relation("bookmark_routine")
     versions              routine_version[]
     viewedBy              view[]                      @relation("view_routine")
     votedBy               vote[]                      @relation("vote_routine")
@@ -1586,6 +1632,8 @@ model run_project_step {
 
 model run_project_schedule {
     id           String                             @id @default(uuid()) @db.Uuid
+    created_at   DateTime                           @default(now()) @db.Timestamptz(6)
+    updated_at   DateTime                           @default(now()) @db.Timestamptz(6)
     timeZone     String?                            @db.VarChar(128)
     windowStart  DateTime?                          @db.Timestamptz(6)
     windowEnd    DateTime?                          @db.Timestamptz(6)
@@ -1676,6 +1724,8 @@ model run_routine_step {
 
 model run_routine_schedule {
     id                   String                             @id @default(uuid()) @db.Uuid
+    created_at           DateTime                           @default(now()) @db.Timestamptz(6)
+    updated_at           DateTime                           @default(now()) @db.Timestamptz(6)
     attemptAutomatic     Boolean                            @default(true)
     maxAutomaticAttempts Int                                @default(2)
     timeZone             String?                            @db.VarChar(128)
@@ -1714,12 +1764,13 @@ model smart_contract {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     isDeleted             Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
     score                 Int                         @default(0)
-    stars                 Int                         @default(0)
+    bookmarks             Int                         @default(0)
     views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
@@ -1733,7 +1784,7 @@ model smart_contract {
     ownedByUser           user?                       @relation("smart_contract_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     labels                smart_contract_labels[]
     tags                  smart_contract_tags[]
-    starredBy             star[]                      @relation("star_smart_contract")
+    bookmarkedBy          bookmark[]                  @relation("bookmark_smart_contract")
     versions              smart_contract_version[]
     viewedBy              view[]                      @relation("view_smart_contract")
     votedBy               vote[]                      @relation("vote_smart_contract")
@@ -1749,8 +1800,8 @@ model smart_contract_version {
     created_at              DateTime                             @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                             @default(now()) @db.Timestamptz(6)
     completedAt             DateTime?                            @db.Timestamptz(6)
-    default                 String?                              @db.VarChar(1024)
-    contractType            String
+    default                 String?                              @db.VarChar(2048)
+    contractType            String                               @db.VarChar(256)
     content                 String                               @db.VarChar(8192)
     isLatest                Boolean                              @default(false)
     resourceListId          String?                              @unique @db.Uuid
@@ -1812,10 +1863,11 @@ model standard {
     id                    String                      @id @default(uuid()) @db.Uuid
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred    Boolean                     @default(false)
     hasCompleteVersion    Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     score                 Int                         @default(0)
-    stars                 Int                         @default(0)
+    bookmarks             Int                         @default(0)
     views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     isDeleted             Boolean                     @default(false)
@@ -1832,7 +1884,7 @@ model standard {
     labels                standard_labels[]
     parent                standard_version?           @relation("standard_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                  standard_tags[]
-    starredBy             star[]                      @relation("star_standard")
+    bookmarkedBy          bookmark[]                  @relation("bookmark_standard")
     versions              standard_version[]
     viewedBy              view[]                      @relation("view_standard")
     votedBy               vote[]                      @relation("vote_standard")
@@ -1848,7 +1900,7 @@ model standard_version {
     created_at            DateTime                       @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
     completedAt           DateTime?                      @db.Timestamptz(6)
-    default               String?                        @db.VarChar(1024)
+    default               String?                        @db.VarChar(2048)
     standardType          String
     props                 String                         @db.VarChar(8192)
     isLatest              Boolean                        @default(false)
@@ -1911,11 +1963,11 @@ model standard_labels {
     @@unique([labelledId, labelId], name: "standard_labels_labelledid_labelid_unique")
 }
 
-model star {
+model bookmark {
     id               String           @id @default(uuid()) @db.Uuid
     created_at       DateTime         @default(now()) @db.Timestamptz(6)
     updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    byId             String           @db.Uuid
+    listId           String?          @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
@@ -1931,123 +1983,152 @@ model star {
     standardId       String?          @db.Uuid
     tagId            String?          @db.Uuid
     userId           String?          @db.Uuid
-    by               user             @relation("star_by", fields: [byId], references: [id], onDelete: Cascade)
-    api              api?             @relation("star_api", fields: [apiId], references: [id], onDelete: Cascade)
-    comment          comment?         @relation("star_comment", fields: [commentId], references: [id], onDelete: Cascade)
-    issue            issue?           @relation("star_issue", fields: [issueId], references: [id], onDelete: Cascade)
-    note             note?            @relation("star_note", fields: [noteId], references: [id], onDelete: Cascade)
-    organization     organization?    @relation("star_organization", fields: [organizationId], references: [id], onDelete: Cascade)
-    post             post?            @relation("star_post", fields: [postId], references: [id], onDelete: Cascade)
-    project          project?         @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
-    question         question?        @relation("star_question", fields: [questionId], references: [id], onDelete: Cascade)
-    questionAnswer   question_answer? @relation("star_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)
-    quiz             quiz?            @relation("star_quiz", fields: [quizId], references: [id], onDelete: Cascade)
-    routine          routine?         @relation("star_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract    smart_contract?  @relation("star_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard         standard?        @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)
-    tag              tag?             @relation("star_tag", fields: [tagId], references: [id], onDelete: Cascade)
-    user             user?            @relation("star_user", fields: [userId], references: [id], onDelete: Cascade)
+    list             bookmark_list?   @relation("bookmark_list", fields: [listId], references: [id], onDelete: Cascade)
+    api              api?             @relation("bookmark_api", fields: [apiId], references: [id], onDelete: Cascade)
+    comment          comment?         @relation("bookmark_comment", fields: [commentId], references: [id], onDelete: Cascade)
+    issue            issue?           @relation("bookmark_issue", fields: [issueId], references: [id], onDelete: Cascade)
+    note             note?            @relation("bookmark_note", fields: [noteId], references: [id], onDelete: Cascade)
+    organization     organization?    @relation("bookmark_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    post             post?            @relation("bookmark_post", fields: [postId], references: [id], onDelete: Cascade)
+    project          project?         @relation("bookmark_project", fields: [projectId], references: [id], onDelete: Cascade)
+    question         question?        @relation("bookmark_question", fields: [questionId], references: [id], onDelete: Cascade)
+    questionAnswer   question_answer? @relation("bookmark_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)
+    quiz             quiz?            @relation("bookmark_quiz", fields: [quizId], references: [id], onDelete: Cascade)
+    routine          routine?         @relation("bookmark_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract    smart_contract?  @relation("bookmark_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard         standard?        @relation("bookmark_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    tag              tag?             @relation("bookmark_tag", fields: [tagId], references: [id], onDelete: Cascade)
+    user             user?            @relation("bookmark_user", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model bookmark_list {
+    id         String     @id @default(uuid()) @db.Uuid
+    created_at DateTime   @default(now()) @db.Timestamptz(6)
+    updated_at DateTime   @default(now()) @db.Timestamptz(6)
+    index      Int
+    label      String     @db.VarChar(128)
+    userId     String     @db.Uuid
+    bookmarks  bookmark[] @relation("bookmark_list")
+    user       user       @relation("bookmark_list_user", fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([label], name: "bookmark_list_label_unique")
 }
 
 model stats_site {
-    id                                          String     @id @default(uuid()) @db.Uuid
-    created_at                                  DateTime   @default(now()) @db.Timestamptz(6)
-    periodStart                                 DateTime   @db.Timestamptz(6)
-    periodEnd                                   DateTime   @db.Timestamptz(6)
-    periodType                                  PeriodType
-    activeUsers                                 Int
-    apiCallsPeriod                              Int
-    apis                                        Int
-    organizations                               Int
-    projects                                    Int
-    projectsCompleted                           Int
-    projectsCompletionTimeAverageInPeriod       Float
-    quizzes                                     Int
-    quizzesCompleted                            Int
-    quizScoreAverageInPeriod                    Float
-    routines                                    Int
-    routinesCompleted                           Int
-    routinesCompletionTimeAverageInPeriod       Float
-    routinesSimplicityAverage                   Float
-    routinesComplexityAverage                   Float
-    runsStarted                                 Int
-    runsCompleted                               Int
-    runsCompletionTimeAverageInPeriod           Float
-    smartContractsCreated                       Int
-    smartContractsCompleted                     Int
-    smartContractsCompletionTimeAverageInPeriod Float
-    smartContractCalls                          Int
-    standardsCreated                            Int
-    standardsCompleted                          Int
-    standardsCompletionTimeAverageInPeriod      Float
-    verifiedEmails                              Int
-    verifiedWallets                             Int
+    id                                 String     @id @default(uuid()) @db.Uuid
+    periodStart                        DateTime   @db.Timestamptz(6)
+    periodEnd                          DateTime   @db.Timestamptz(6)
+    periodType                         PeriodType
+    activeUsers                        Int
+    apiCalls                           Int
+    apisCreated                        Int
+    organizationsCreated               Int
+    projectsCreated                    Int
+    projectsCompleted                  Int
+    projectCompletionTimeAverage       Float
+    quizzesCreated                     Int
+    quizzesCompleted                   Int
+    routinesCreated                    Int
+    routinesCompleted                  Int
+    routineCompletionTimeAverage       Float
+    routineSimplicityAverage           Float
+    routineComplexityAverage           Float
+    runProjectsStarted                 Int
+    runProjectsCompleted               Int
+    runProjectCompletionTimeAverage    Float
+    runProjectContextSwitchesAverage   Float
+    runRoutinesStarted                 Int
+    runRoutinesCompleted               Int
+    runRoutineCompletionTimeAverage    Float
+    runRoutineContextSwitchesAverage   Float
+    smartContractsCreated              Int
+    smartContractsCompleted            Int
+    smartContractCompletionTimeAverage Float
+    smartContractCalls                 Int
+    standardsCreated                   Int
+    standardsCompleted                 Int
+    standardCompletionTimeAverage      Float
+    verifiedEmailsCreated              Int
+    verifiedWalletsCreated             Int
 }
 
 model stats_api {
-    id          String     @id @default(uuid()) @db.Uuid
-    apiId       String     @db.Uuid
-    periodStart DateTime   @db.Timestamptz(6)
-    periodEnd   DateTime   @db.Timestamptz(6)
-    periodType  PeriodType
-    calls       Int
-    api         api        @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    id              String     @id @default(uuid()) @db.Uuid
+    apiId           String     @db.Uuid
+    periodStart     DateTime   @db.Timestamptz(6)
+    periodEnd       DateTime   @db.Timestamptz(6)
+    periodType      PeriodType
+    calls           Int
+    routineVersions Int
+    api             api        @relation(fields: [apiId], references: [id], onDelete: Cascade)
 }
 
 model stats_organization {
-    id             String       @id @default(uuid()) @db.Uuid
-    organizationId String       @db.Uuid
-    periodStarrt   DateTime     @db.Timestamptz(6)
-    periodEnd      DateTime     @db.Timestamptz(6)
-    periodType     PeriodType
-    apis           Int
-    members        Int
-    notes          Int
-    projects       Int
-    routines       Int
-    smartContracts Int
-    standards      Int
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    id                               String       @id @default(uuid()) @db.Uuid
+    organizationId                   String       @db.Uuid
+    periodStart                      DateTime     @db.Timestamptz(6)
+    periodEnd                        DateTime     @db.Timestamptz(6)
+    periodType                       PeriodType
+    apis                             Int
+    members                          Int
+    notes                            Int
+    projects                         Int
+    routines                         Int
+    runRoutinesStarted               Int
+    runRoutinesCompleted             Int
+    runRoutineCompletionTimeAverage  Float
+    runRoutineContextSwitchesAverage Float
+    smartContracts                   Int
+    standards                        Int
+    organization                     organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model stats_project {
-    id             String     @id @default(uuid()) @db.Uuid
-    projectId      String     @db.Uuid
-    periodStart    DateTime   @db.Timestamptz(6)
-    periodEnd      DateTime   @db.Timestamptz(6)
-    periodType     PeriodType
-    directories    Int
-    notes          Int
-    routines       Int
-    smartContracts Int
-    standards      Int
-    subProjects    Int
-    project        project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    id                        String     @id @default(uuid()) @db.Uuid
+    projectId                 String     @db.Uuid
+    periodStart               DateTime   @db.Timestamptz(6)
+    periodEnd                 DateTime   @db.Timestamptz(6)
+    periodType                PeriodType
+    directories               Int
+    apis                      Int
+    notes                     Int
+    organizations             Int
+    projects                  Int
+    routines                  Int
+    smartContracts            Int
+    standards                 Int
+    runsStarted               Int
+    runsCompleted             Int
+    runCompletionTimeAverage  Float
+    runContextSwitchesAverage Float
+    project                   project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model stats_quiz {
-    id           String     @id @default(uuid()) @db.Uuid
-    quizId       String     @db.Uuid
-    periodStart  DateTime   @db.Timestamptz(6)
-    periodEnd    DateTime   @db.Timestamptz(6)
-    periodType   PeriodType
-    timesStarted Int
-    timesPassed  Int
-    timesFailed  Int
-    scoreAverage Float
-    quiz         quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    id                    String     @id @default(uuid()) @db.Uuid
+    quizId                String     @db.Uuid
+    periodStart           DateTime   @db.Timestamptz(6)
+    periodEnd             DateTime   @db.Timestamptz(6)
+    periodType            PeriodType
+    timesStarted          Int
+    timesPassed           Int
+    timesFailed           Int
+    scoreAverage          Float
+    completionTimeAverage Float
+    quiz                  quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }
 
 model stats_routine {
-    id                               String     @id @default(uuid()) @db.Uuid
-    routineId                        String     @db.Uuid
-    periodStart                      DateTime   @db.Timestamptz(6)
-    periodEnd                        DateTime   @db.Timestamptz(6)
-    periodType                       PeriodType
-    runsStarted                      Int
-    runsCompleted                    Int
-    runCompletionTimeAverageInPeriod Float
-    routine                          routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    id                        String     @id @default(uuid()) @db.Uuid
+    routineId                 String     @db.Uuid
+    periodStart               DateTime   @db.Timestamptz(6)
+    periodEnd                 DateTime   @db.Timestamptz(6)
+    periodType                PeriodType
+    runsStarted               Int
+    runsCompleted             Int
+    runCompletionTimeAverage  Float
+    runContextSwitchesAverage Float
+    routine                   routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
 }
 
 model stats_smart_contract {
@@ -2057,47 +2138,52 @@ model stats_smart_contract {
     periodEnd       DateTime       @db.Timestamptz(6)
     periodType      PeriodType
     calls           Int
+    routineVersions Int
     smartContract   smart_contract @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
 }
 
 model stats_standard {
-    id                           String     @id @default(uuid()) @db.Uuid
-    standardId                   String     @db.Uuid
-    periodStart                  DateTime   @db.Timestamptz(6)
-    periodEnd                    DateTime   @db.Timestamptz(6)
-    periodType                   PeriodType
-    linksToInputs                Int
-    linksToOutputs               Int
-    timesUsedInCompletedRoutines Int
-    standard                     standard   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    id             String     @id @default(uuid()) @db.Uuid
+    standardId     String     @db.Uuid
+    periodStart    DateTime   @db.Timestamptz(6)
+    periodEnd      DateTime   @db.Timestamptz(6)
+    periodType     PeriodType
+    linksToInputs  Int
+    linksToOutputs Int
+    standard       standard   @relation(fields: [standardId], references: [id], onDelete: Cascade)
 }
 
 model stats_user {
-    id                                          String     @id @default(uuid()) @db.Uuid
-    userId                                      String     @db.Uuid
-    periodStart                                 DateTime   @db.Timestamptz(6)
-    periodEnd                                   DateTime   @db.Timestamptz(6)
-    periodType                                  PeriodType
-    apis                                        Int
-    organizations                               Int
-    projects                                    Int
-    projectsCompleted                           Int
-    projectsCompletionTimeAverageInPeriod       Float
-    quizzesPassed                               Int
-    quizzesFailed                               Int
-    routines                                    Int
-    routinesCompleted                           Int
-    routinesCompletionTimeAverageInPeriod       Float
-    runsStarted                                 Int
-    runsCompleted                               Int
-    runsCompletionTimeAverageInPeriod           Float
-    smartContractsCreated                       Int
-    smartContractsCompleted                     Int
-    smartContractsCompletionTimeAverageInPeriod Float
-    standardsCreated                            Int
-    standardsCompleted                          Int
-    standardsCompletionTimeAverageInPeriod      Float
-    user                                        user       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                                 String     @id @default(uuid()) @db.Uuid
+    userId                             String     @db.Uuid
+    periodStart                        DateTime   @db.Timestamptz(6)
+    periodEnd                          DateTime   @db.Timestamptz(6)
+    periodType                         PeriodType
+    apisCreated                        Int
+    organizationsCreated               Int
+    projectsCreated                    Int
+    projectsCompleted                  Int
+    projectCompletionTimeAverage       Float
+    quizzesPassed                      Int
+    quizzesFailed                      Int
+    routinesCreated                    Int
+    routinesCompleted                  Int
+    routineCompletionTimeAverage       Float
+    runProjectsStarted                 Int
+    runProjectsCompleted               Int
+    runProjectCompletionTimeAverage    Float
+    runProjectContextSwitchesAverage   Float
+    runRoutinesStarted                 Int
+    runRoutinesCompleted               Int
+    runRoutineCompletionTimeAverage    Float
+    runRoutineContextSwitchesAverage   Float
+    smartContractsCreated              Int
+    smartContractsCompleted            Int
+    smartContractCompletionTimeAverage Float
+    standardsCreated                   Int
+    standardsCompleted                 Int
+    standardCompletionTimeAverage      Float
+    user                               user       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model tag {
@@ -2105,7 +2191,7 @@ model tag {
     created_at      DateTime               @default(now()) @db.Timestamptz(6)
     updated_at      DateTime               @default(now()) @db.Timestamptz(6)
     tag             String                 @unique @db.VarChar(128)
-    stars           Int                    @default(0)
+    bookmarks       Int                    @default(0)
     createdById     String?                @db.Uuid
     createdBy       user?                  @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     apis            api_tags[]
@@ -2113,11 +2199,12 @@ model tag {
     organizations   organization_tags[]
     posts           post_tags[]
     projects        project_tags[]
+    questions       question_tags[]
     reports         report[]
     routines        routine_tags[]
     smartContracts  smart_contract_tags[]
     standards       standard_tags[]
-    starredBy       star[]                 @relation("star_tag")
+    bookmarkedBy    bookmark[]             @relation("bookmark_tag")
     translations    tag_translation[]
     scheduleFilters user_schedule_filter[]
 }
@@ -2169,6 +2256,7 @@ model user {
     confirmationCode               String?                     @unique @db.VarChar(256)
     confirmationCodeDate           DateTime?                   @db.Timestamptz(6)
     invitedByUserId                String?                     @db.Uuid
+    isBot                          Boolean                     @default(false)
     isPrivate                      Boolean                     @default(false)
     isPrivateApis                  Boolean                     @default(false)
     isPrivateApisCreated           Boolean                     @default(false)
@@ -2187,7 +2275,7 @@ model user {
     isPrivateSmartContractsCreated Boolean                     @default(false)
     isPrivateStandards             Boolean                     @default(false)
     isPrivateStandardsCreated      Boolean                     @default(false)
-    isPrivateStars                 Boolean                     @default(false)
+    isPrivateBookmarks             Boolean                     @default(false)
     isPrivateVotes                 Boolean                     @default(false)
     lastExport                     DateTime?                   @db.Timestamptz(6)
     lastLoginAttempt               DateTime                    @default(now()) @db.Timestamptz(6)
@@ -2205,8 +2293,9 @@ model user {
     longestStreak                  Int                         @default(0)
     accountTabsOrder               String?                     @db.VarChar(255)
     notificationSettings           String?                     @db.VarChar(2048)
-    stars                          Int                         @default(0)
+    bookmarks                      Int                         @default(0)
     views                          Int                         @default(0)
+    reputation                     Int                         @default(0)
     premiumId                      String?                     @unique @db.Uuid
     status                         AccountStatus               @default(Unlocked)
     apisCreated                    api[]                       @relation("api_createdBy")
@@ -2253,8 +2342,8 @@ model user {
     smartContracts                 smart_contract[]            @relation("smart_contract_ownedByUser")
     standardsCreated               standard[]                  @relation("standard_createdBy")
     standards                      standard[]                  @relation("standard_ownedByUser")
-    starred                        star[]                      @relation("star_by")
-    starredBy                      star[]                      @relation("star_user")
+    bookmakLists                   bookmark_list[]             @relation("bookmark_list_user")
+    bookmarkedBy                   bookmark[]                  @relation("bookmark_user")
     tags                           tag[]                       @relation("tag_createdBy")
     transfersIncoming              transfer[]                  @relation("transfer_to_user")
     transfersOutgoing              transfer[]                  @relation("transfer_from_user")
@@ -2395,6 +2484,8 @@ model vote {
 
 model wallet {
     id                String        @id @default(uuid()) @db.Uuid
+    created_at        DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime      @default(now()) @db.Timestamptz(6)
     stakingAddress    String        @unique @db.VarChar(128)
     publicAddress     String?       @unique @db.VarChar(128)
     name              String?       @db.VarChar(128)
@@ -2405,8 +2496,6 @@ model wallet {
     wasReported       Boolean       @default(false)
     userId            String?       @db.Uuid
     organizationId    String?       @db.Uuid
-    created_at        DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime      @default(now()) @db.Timestamptz(6)
     organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     user              user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
     handles           handle[]
@@ -2426,7 +2515,7 @@ enum AwardCategory {
     CommentCreate
     IssueCreate
     NoteCreate
-    ObjectStar
+    ObjectBookmark
     ObjectVote
     OrganizationCreate
     OrganizationJoin
@@ -2452,7 +2541,7 @@ enum AwardCategory {
 enum IssueStatus {
     Open
     ClosedResolved
-    CloseUnresolved
+    ClosedUnresolved
     Rejected
 }
 
@@ -2482,6 +2571,7 @@ enum PaymentStatus {
 }
 
 enum PeriodType {
+    Hourly
     Daily
     Weekly
     Monthly
@@ -2504,8 +2594,8 @@ enum QuizAttemptStatus {
 enum ReportStatus {
     ClosedDeleted
     ClosedFalseReport
+    ClosedHidden
     ClosedNonIssue
-    ClosedResolved
     ClosedSuspended
     Open
 }

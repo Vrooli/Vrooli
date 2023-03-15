@@ -1,21 +1,20 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
 import { InputType, Session, StandardVersion } from '@shared/consts';
-import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTranslation, RoutineVersionInputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, RoutineVersionOutputTranslationShape, standardVersionToFieldData, updateArray, getUserLanguages, StandardVersionShape } from 'utils';
 import { useFormik } from 'formik';
-import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardVersionSelectSwitch } from 'components';
+import { BaseStandardInput, GeneratedInputComponent, MarkdownInput, PreviewSwitch, Selector, StandardVersionSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
-import { generateInputComponent } from 'forms/generators';
 import { uuid } from '@shared/uuid';
 import Markdown from 'markdown-to-jsx';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 import { linkColors } from 'styles';
+import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
 
 const defaultStandardVersion = (
     item: InputOutputListItemProps['item'],
-    session: Session,
+    session: Session | undefined,
     generatedSchema?: FieldData | null,
 ): StandardVersionShape => ({
     id: uuid(),
@@ -79,7 +78,7 @@ export const InputOutputListItem = ({
         setStandardVersion(item.standardVersion ?? defaultStandardVersion(item, session));
     }, [item, session])
 
-    const canEditStandardVersion = useMemo(() => isEditing && standardVersion.root.isInternal === true, [isEditing, standardVersion.root.isInternal]);
+    const canUpdateStandardVersion = useMemo(() => isEditing && standardVersion.root.isInternal === true, [isEditing, standardVersion.root.isInternal]);
 
     /**
      * Schema only available when defining custom (internal) standard
@@ -88,9 +87,9 @@ export const InputOutputListItem = ({
 
     // Handle standard schema
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        if (!canEditStandardVersion) return;
+        if (!canUpdateStandardVersion) return;
         setGeneratedSchema(schema);
-    }, [canEditStandardVersion]);
+    }, [canUpdateStandardVersion]);
 
     const handleInputTypeSelect = useCallback((selected: InputTypeOption) => {
         if (selected.value === item.standardVersion?.standardType) return;
@@ -123,7 +122,7 @@ export const InputOutputListItem = ({
             [schemaKey]: jsonToString((generatedSchema?.props as any)?.format),
         },
         enableReinitialize: true,
-        validationSchema: isInput ? inputCreate : outputCreate,
+        validationSchema: isInput ? routineVersionInputValidation.create({}) : routineVersionOutputValidation.create({}),
         onSubmit: (values) => {
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
@@ -137,7 +136,7 @@ export const InputOutputListItem = ({
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
-                standardVersion: !canEditStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
+                standardVersion: !canUpdateStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
             });
         },
     });
@@ -150,7 +149,7 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(!canEditStandardVersion);
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(!canUpdateStandardVersion);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: StandardVersion | null) => {
         if (s && s.root.isInternal === false) {
@@ -306,14 +305,14 @@ export const InputOutputListItem = ({
                         <StandardVersionSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={!canEditStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
+                            selected={!canUpdateStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
                     </Grid>
                     {/* Standard build/preview */}
                     <Grid item xs={12}>
-                        {canEditStandardVersion && <PreviewSwitch
+                        {canUpdateStandardVersion && <PreviewSwitch
                             isPreviewOn={isPreviewOn}
                             onChange={onPreviewChange}
                             sx={{
@@ -321,10 +320,10 @@ export const InputOutputListItem = ({
                             }}
                         />}
                         {
-                            (isPreviewOn || !canEditStandardVersion) ?
-                                ((standardVersion || generatedSchema) && generateInputComponent({
-                                    disabled: true,
-                                    fieldData: standardVersion ?
+                            (isPreviewOn || !canUpdateStandardVersion) ?
+                                ((standardVersion || generatedSchema) && <GeneratedInputComponent
+                                    disabled={true}
+                                    fieldData={standardVersion ?
                                         standardVersionToFieldData({
                                             fieldName: schemaKey,
                                             description: getTranslation(item, [language]).description ?? getTranslation(standardVersion, [language]).description,
@@ -334,12 +333,12 @@ export const InputOutputListItem = ({
                                             standardType: standardVersion?.standardType ?? InputTypeOptions[0].value,
                                             yup: standardVersion.yup ?? null,
                                         }) as FieldData :
-                                        generatedSchema as FieldData,
-                                    formik,
-                                    session,
-                                    onUpload: () => { },
-                                    zIndex,
-                                })) :
+                                        generatedSchema as FieldData}
+                                    formik={formik}
+                                    session={session}
+                                    onUpload={() => { }}
+                                    zIndex={zIndex}
+                                />) :
                                 // Only editable if standard not selected and is editing
                                 <Box>
                                     <Selector

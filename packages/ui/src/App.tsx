@@ -1,39 +1,60 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AlertDialog,
+    BannerChicken,
     BottomNav,
     CommandPalette,
     FindInPage,
     Footer,
-    Navbar,
     PullToRefresh,
-    SnackSeverity,
     SnackStack,
+    WelcomeDialog,
 } from 'components';
-import { PubSub, themes, useReactHash } from 'utils';
-import { Routes } from 'Routes';
-import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
+import { getDeviceInfo, PubSub, themes, useReactHash } from 'utils';
+import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme, createTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useMutation } from 'graphql/hooks';
+import { useCustomMutation } from 'api/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
-import { guestSession } from 'utils/authentication';
-import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
+import { getSiteLanguage, guestSession } from 'utils/authentication';
+import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
-import { hasErrorCode, mutationWrapper } from 'graphql/utils';
-import { authEndpoint } from 'graphql/endpoints';
+import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
+import i18next from 'i18next';
+import { Routes } from 'Routes';
+
+/**
+ * Adds font size to theme
+ */
+const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
+    ...theme,
+    typography: {
+        fontSize,
+    },
+})
+
+/**
+ * Sets "isLeftHanded" property on theme
+ */
+const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
+    ...theme,
+    isLeftHanded,
+})
 
 /**
  * Attempts to find theme without using session, defaulting to light
  */
 const findThemeWithoutSession = (): Theme => {
-    // First, try getting theme from local storage
-    const cookieTheme = getCookieTheme();
-    if (cookieTheme) return themes[cookieTheme];
-    // If not found or invalid, try getting theme from window
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    // Default to light if not found
-    return prefersDark ? themes.dark : themes.light;
+    // Get font size from cookie
+    const fontSize = getCookieFontSize() ?? 14;
+    // Get isLeftHanded from cookie
+    const isLefthanded = getCookieIsLeftHanded() ?? false;
+    // Get theme. First check cookie, then window
+    const windowPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = getCookieTheme() ?? (windowPrefersDark ? 'dark' : 'light');
+    // Return theme object
+    return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 }
 
 const useStyles = makeStyles(() => ({
@@ -71,7 +92,10 @@ const useStyles = makeStyles(() => ({
             src: `local('SakBunderan'), url(${SakBunderan}) format('truetype')`,
             fontDisplay: 'swap',
         },
-
+        // Ensure popovers are displayed above everything else
+        '.MuiPopover-root': {
+            zIndex: 20000,
+        }
     },
 }));
 
@@ -81,10 +105,40 @@ export function App() {
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
-    const [loading, setLoading] = useState(false);
-    const [celebrating, setCelebrating] = useState(false);
+    const [fontSize, setFontSize] = useState(getCookieFontSize() ?? 14);
+    const [language, setLanguage] = useState(getSiteLanguage(undefined));
+    const [isLeftHanded, setIsLeftHanded] = useState(getCookieIsLeftHanded() ?? false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCelebrating, setIsCelebrating] = useState(false);
+    const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(...authEndpoint.validateSession);
+    const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
+
+    // Applies language change
+    useEffect(() => {
+        console.log('language change 1', language)
+        i18next.changeLanguage(language);
+    }, [language]);
+    useEffect(() => {
+        console.log('language session thing', session, getSiteLanguage(session), getSiteLanguage(undefined))
+        if (!session) return;
+        if (getSiteLanguage(session) !== getSiteLanguage(undefined)) {
+            setLanguage(getSiteLanguage(session));
+        }
+    }, [session]);
+    console.log('themeeeeeeeee!!!!!!!!!!!!!', theme)
+
+    // Applies font size change
+    useEffect(() => {
+        console.log('Applying font size change', fontSize, withFontSize(themes[theme.palette.mode], fontSize));
+        setTheme(withFontSize(themes[theme.palette.mode], fontSize));
+    }, [fontSize, theme.palette.mode]);
+
+    // Applies isLeftHanded change
+    useEffect(() => {
+        console.log('Applying isLeftHanded change', isLeftHanded);
+        setTheme(withIsLeftHanded(themes[theme.palette.mode], isLeftHanded));
+    }, [isLeftHanded, theme.palette.mode]);
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
@@ -92,13 +146,20 @@ export function App() {
      */
     const setThemeAndMeta = useCallback((theme: Theme) => {
         // Update state
-        setTheme(theme);
+        setTheme(withIsLeftHanded(withFontSize(theme, fontSize), isLeftHanded));
         // Update meta tags, for theme-color and apple-mobile-web-app-status-bar-style
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.palette.primary.dark);
         document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', theme.palette.primary.dark);
         // Also store in local storage
         setCookieTheme(theme.palette.mode);
-    }, [setTheme]);
+    }, [fontSize, isLeftHanded]);
+
+    /**
+     * Sets up google adsense
+     */
+    useEffect(() => {
+        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+    }, []);
 
     // If anchor tag in url, scroll to element
     const hash = useReactHash();
@@ -121,7 +182,7 @@ export function App() {
 
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        setLoading(false);
+        setIsLoading(false);
         // Add help wanted to console logs
         console.log(`
                @@@                 @@@                  
@@ -158,7 +219,7 @@ export function App() {
         // Determine theme
         let theme: Theme | null | undefined;
         // Try getting theme from session
-        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme];
+        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme as 'light' | 'dark'];
         // If not found, try alternative methods
         if (!theme) theme = findThemeWithoutSession();
         // Update theme state, meta tags, and local storage
@@ -168,15 +229,15 @@ export function App() {
     // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
         window.addEventListener('online', () => {
-            PubSub.get().publishSnack({ id: 'online-status', messageKey: 'NowOnline', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ id: 'online-status', messageKey: 'NowOnline', severity: 'Success' });
         });
         window.addEventListener('offline', () => {
             // ID is the same so there is ever only one online/offline snack displayed at a time
-            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', messageKey: 'NoInternet', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', messageKey: 'NoInternet', severity: 'Error' });
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
-        if (!window.matchMedia('(display-mode: standalone)').matches && !cookiePreferences) {
+        if (!getDeviceInfo().isStandalone && !cookiePreferences) {
             PubSub.get().publishCookies();
         }
     }, []);
@@ -195,7 +256,6 @@ export function App() {
                 PubSub.get().publishFindInPage();
             }
         };
-
         // attach the event listener
         document.addEventListener('keydown', handleKeyDown);
         // remove the event listener
@@ -226,7 +286,7 @@ export function App() {
                 if (!isInvalidSession) {
                     PubSub.get().publishSnack({
                         messageKey: 'CannotConnectToServer',
-                        severity: SnackSeverity.Error,
+                        severity: 'Error',
                         buttonKey: 'Reload',
                         buttonClicked: () => window.location.reload(),
                     });
@@ -245,23 +305,25 @@ export function App() {
         let loadingSub = PubSub.get().subscribeLoading((data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
-                timeoutRef.current = setTimeout(() => setLoading(true), Math.abs(data as number));
+                timeoutRef.current = setTimeout(() => setIsLoading(true), Math.abs(data as number));
             } else {
-                setLoading(Boolean(data));
+                setIsLoading(Boolean(data));
             }
         });
         // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
         // can be passed in as a number
         let celebrationSub = PubSub.get().subscribeCelebration((data) => {
             // Start confetti immediately
-            setCelebrating(true);
+            setIsCelebrating(true);
             // Determine duration
             let duration = 5000;
             if (Number.isInteger(data)) duration = data as number;
             // Stop confetti after duration
-            setTimeout(() => setCelebrating(false), duration);
+            setTimeout(() => setIsCelebrating(false), duration);
         });
+        // Handle session updates
         let sessionSub = PubSub.get().subscribeSession((session) => {
+            console.log('action setting session from sub', session)
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -271,15 +333,40 @@ export function App() {
                 setSession(s => ({ ...s, ...session }));
             }
         });
+        // Handle theme updates
         let themeSub = PubSub.get().subscribeTheme((data) => {
             const newTheme = themes[data] ?? themes.light
             setThemeAndMeta(newTheme);
         });
+        // Handle font size updates
+        let fontSizeSub = PubSub.get().subscribeFontSize((data) => {
+            setFontSize(data);
+            setCookieFontSize(data);
+        });
+        // Handle language updates
+        let languageSub = PubSub.get().subscribeLanguage((data) => {
+            setLanguage(data);
+            setCookieLanguage(data);
+        });
+        // Handle isLeftHanded updates
+        let isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
+            setIsLeftHanded(data);
+            setCookieIsLeftHanded(data);
+        });
+        // Handle welcome message
+        let welcomeSub = PubSub.get().subscribeWelcome(() => {
+            setIsWelcomeDialogOpen(true);
+        });
+        // On unmount, unsubscribe from all PubSub topics
         return (() => {
             PubSub.get().unsubscribe(loadingSub);
             PubSub.get().unsubscribe(celebrationSub);
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
+            PubSub.get().unsubscribe(fontSizeSub);
+            PubSub.get().unsubscribe(languageSub);
+            PubSub.get().unsubscribe(isLeftHandedSub);
+            PubSub.get().unsubscribe(welcomeSub);
         })
     }, [checkSession, setThemeAndMeta]);
 
@@ -309,12 +396,18 @@ export function App() {
                     {/* Pull-to-refresh for PWAs */}
                     <PullToRefresh />
                     {/* Command palette */}
-                    <CommandPalette session={session ?? guestSession} />
+                    <CommandPalette session={session} />
                     {/* Find in page */}
-                    <FindInPage />
+                    <FindInPage session={session} />
+                    {/* WelcomeDialog */}
+                    <WelcomeDialog
+                        isOpen={isWelcomeDialogOpen}
+                        onClose={() => setIsWelcomeDialogOpen(false)}
+                        session={session}
+                    />
                     {/* Celebratory confetti. To be used sparingly */}
                     {
-                        celebrating && <Confetti
+                        isCelebrating && <Confetti
                             initialVelocityY={-10}
                             recycle={false}
                             confettiSource={{
@@ -325,17 +418,16 @@ export function App() {
                             }}
                         />
                     }
-                    <AlertDialog session={session} />
-                    <SnackStack session={session} />
+                    <AlertDialog />
+                    <SnackStack />
                     <Box id="content-wrap" sx={{
                         background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
                     }}>
 
-                        <Navbar session={session ?? guestSession} sessionChecked={session !== undefined} />
                         {/* Progress bar */}
                         {
-                            loading && <Box sx={{
+                            isLoading && <Box sx={{
                                 position: 'absolute',
                                 top: '50%',
                                 left: '50%',
@@ -346,11 +438,12 @@ export function App() {
                             </Box>
                         }
                         <Routes
-                            session={session ?? guestSession}
+                            session={session}
                             sessionChecked={session !== undefined}
                         />
                     </Box>
-                    <BottomNav session={session ?? guestSession} />
+                    <BottomNav session={session} />
+                    <BannerChicken session={session} />
                     <Footer />
                 </Box>
             </ThemeProvider>

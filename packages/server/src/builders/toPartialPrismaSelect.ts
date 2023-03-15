@@ -19,7 +19,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     let result: { [x: string]: any } = {};
     // Loop through each key/value pair in partial
     for (const [key, value] of Object.entries(partial)) {
-        // If value is an object (and not date), recursively call selectToDB
+        // If value is an object (and not date), recurse
         if (isRelationshipObject(value)) {
             result[key] = toPartialPrismaSelect(value as PartialGraphQLInfo | PartialPrismaSelect);
         }
@@ -28,16 +28,17 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
             result[key] = value;
         }
     }
-    // Handle base case
+    // Handle base case}
     const type = partial.__typename;
     const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (type && format) {
+        console.log('going to remove supplemental fields for: ', type);
         result = removeSupplementalFields(type, result);
-        console.log('before deconstruct', JSON.stringify(result), '\n\n');
         result = deconstructUnions(result, format.gqlRelMap);
-        console.log('after deconstruct', JSON.stringify(result), '\n\n');
         result = addJoinTables(result, format.joinMap as any);
+        console.log('COUNT FIELDS', partial.__typename, format.countFields)
         result = addCountFields(result, format.countFields);
+        console.log('result after count fields', JSON.stringify(result), '\n\n');
     }
     return result;
 }

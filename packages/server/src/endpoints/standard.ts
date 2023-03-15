@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { StandardSortBy, ApiVersion, ApiVersionSearchInput, ApiVersionCreateInput, ApiVersionUpdateInput, FindByIdInput } from '@shared/consts';
+import { StandardSortBy, FindByIdInput, Standard, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -20,8 +20,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -35,8 +35,8 @@ export const typeDef = gql`
         isPrivate: Boolean
         permissions: String
         parentConnect: ID
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
         tagsConnect: [ID!]
@@ -48,8 +48,8 @@ export const typeDef = gql`
         isInternal: Boolean
         isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -65,14 +65,14 @@ export const typeDef = gql`
         completedAt: Date
         created_at: Date!
         updated_at: Date!
-        hasCompletedVersion: Boolean!
+        hasCompleteVersion: Boolean!
         isDeleted: Boolean!
         isInternal: Boolean!
         isPrivate: Boolean!
         permissions: String!
         translatedName: String!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         name: String!
         createdBy: User
@@ -82,11 +82,16 @@ export const typeDef = gql`
         issuesCount: Int!
         labels: [Label!]!
         owner: Owner
-        parent: Standard
+        parent: StandardVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
-        starredBy: [User!]!
+        questions: [Question!]!
+        questionsCount: Int!
+        bookmarkedBy: [User!]!
+        stats: [StatsStandard!]!
         tags: [Tag!]!
+        transfers: [Transfer!]!
+        transfersCount: Int!
         versions: [StandardVersion!]!
         versionsCount: Int
         you: StandardYou!
@@ -94,12 +99,12 @@ export const typeDef = gql`
 
     type StandardYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
@@ -111,16 +116,19 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         hasCompleteVersion: Boolean
-        labelsId: ID
+        isInternal: Boolean
+        issuesId: ID
+        labelsIds: [ID!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         maxViews: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
+        pullRequestsId: ID
         searchString: String
         sortBy: StandardSortBy
         tags: [String!]
@@ -129,12 +137,10 @@ export const typeDef = gql`
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }
-
     type StandardSearchResult {
         pageInfo: PageInfo!
         edges: [StandardEdge!]!
     }
-
     type StandardEdge {
         cursor: String!
         node: Standard!
@@ -155,12 +161,12 @@ const objectType = 'Standard';
 export const resolvers: {
     StandardSortBy: typeof StandardSortBy;
     Query: {
-        standard: GQLEndpoint<FindByIdInput, FindOneResult<ApiVersion>>;
-        standards: GQLEndpoint<ApiVersionSearchInput, FindManyResult<ApiVersion>>;
+        standard: GQLEndpoint<FindByIdInput, FindOneResult<Standard>>;
+        standards: GQLEndpoint<StandardVersionSearchInput, FindManyResult<StandardVersion>>;
     },
     Mutation: {
-        standardCreate: GQLEndpoint<ApiVersionCreateInput, CreateOneResult<ApiVersion>>;
-        standardUpdate: GQLEndpoint<ApiVersionUpdateInput, UpdateOneResult<ApiVersion>>;
+        standardCreate: GQLEndpoint<StandardVersionCreateInput, CreateOneResult<StandardVersion>>;
+        standardUpdate: GQLEndpoint<StandardVersionUpdateInput, UpdateOneResult<StandardVersion>>;
     }
 } = {
     StandardSortBy,

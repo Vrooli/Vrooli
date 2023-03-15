@@ -4,22 +4,18 @@ export const typeDef = gql`
     input RoutineVersionOutputCreateInput {
         id: ID!
         index: Int
-        isRequired: Boolean
         name: String
         routineVersionConnect: ID!
         standardVersionConnect: ID
         standardVersionCreate: StandardVersionCreateInput
-        translationsDelete: [ID!]
         translationsCreate: [RoutineVersionOutputTranslationCreateInput!]
-        translationsUpdate: [RoutineVersionOutputTranslationUpdateInput!]
     }
     input RoutineVersionOutputUpdateInput {
         id: ID!
         index: Int
-        isRequired: Boolean
         name: String
         standardVersionConnect: ID
-        standardVersionDisconnect: ID
+        standardVersionDisconnect: Boolean
         standardVersionCreate: StandardVersionCreateInput
         translationsDelete: [ID!]
         translationsCreate: [RoutineVersionOutputTranslationCreateInput!]
@@ -28,7 +24,6 @@ export const typeDef = gql`
     type RoutineVersionOutput {
         id: ID!
         index: Int
-        isRequired: Boolean
         name: String
         routineVersion: RoutineVersion!
         standardVersion: StandardVersion

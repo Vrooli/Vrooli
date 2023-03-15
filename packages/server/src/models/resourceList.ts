@@ -1,5 +1,5 @@
 import { resourceListValidation } from "@shared/validation";
-import { ResourceListSortBy } from "@shared/consts";
+import { MaxObjects, ResourceListSortBy } from "@shared/consts";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -8,13 +8,13 @@ import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { permissionsSelectHelper } from "../builders";
-import { bestLabel, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { ApiModel } from "./api";
 import { PostModel } from "./post";
 import { UserScheduleModel } from "./userSchedule";
 import { SmartContractModel } from "./smartContract";
+import { shapeHelper } from "../builders";
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) => {
     return {
@@ -38,7 +38,7 @@ export const ResourceListModel: ModelLogic<{
     GqlModel: ResourceList,
     GqlSearch: ResourceListSearchInput,
     GqlSort: ResourceListSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.resource_listUpsertArgs['create'],
     PrismaUpdate: Prisma.resource_listUpsertArgs['update'],
     PrismaModel: Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
@@ -80,16 +80,23 @@ export const ResourceListModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
-                return {
-                    ...await shapeBase(prisma, userData, data, true),
-                };
-            },
-            update: async ({ data, prisma, userData }) => {
-                return {
-                    ...await shapeBase(prisma, userData, data, false),
-                };
-            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                ...(await shapeHelper({ relation: 'apiVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'post', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Post', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'projectVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resources', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Resource', parentRelationshipName: 'list', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                ...(await shapeHelper({ relation: 'resources', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Resource', parentRelationshipName: 'list', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
         },
         yup: resourceListValidation,
     },
@@ -118,28 +125,23 @@ export const ResourceListModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: 50000,
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
-            ...permissionsSelectHelper([
-                // ['apiVersion', 'Api'],
-                ['organization', 'Organization'],
-                // ['post', 'Post'],
-                ['projectVersion', 'Project'],
-                ['routineVersion', 'Routine'],
-                // ['smartContractVersion', 'SmartContract'],
-                ['standardVersion', 'Standard'],
-                // ['userSchedule', 'UserSchedule'],
-            ], ...params)
+            apiVersion: 'ApiVersion',
+            organization: 'Organization',
+            post: 'Post',
+            projectVersion: 'ProjectVersion',
+            routineVersion: 'RoutineVersion',
+            smartContractVersion: 'SmartContractVersion',
+            standardVersion: 'StandardVersion',
+            userSchedule: 'UserSchedule',
         }),
-        permissionResolvers: ({ isAdmin }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({
             Organization: data.organization,
             User: (data.userSchedule as any)?.user,
-        }),
+        }), // TODO this is incorrect. Should be owner of apiVersion, organization, post, etc.
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [
             ['apiVersion', 'Api'],

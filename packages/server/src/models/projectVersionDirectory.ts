@@ -1,9 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from '@shared/consts';
+import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
+import { projectVersionDirectoryValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
+import { ProjectVersionModel } from "./projectVersion";
 
 const __typename = 'ProjectVersionDirectory' as const;
 const suppFields = [] as const;
@@ -13,7 +16,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     GqlCreate: ProjectVersionDirectoryCreateInput,
     GqlUpdate: ProjectVersionDirectoryUpdateInput,
     GqlModel: ProjectVersionDirectory,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.project_version_directoryUpsertArgs['create'],
@@ -28,8 +31,75 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
-    format: {} as any,
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            parentDirectory: 'ProjectVersionDirectory',
+            projectVersion: 'ProjectVersion',
+            children: 'ProjectVersionDirectory',
+            childApiVersions: 'ApiVersion',
+            childNoteVersions: 'NoteVersion',
+            childOrganizations: 'Organization',
+            childProjectVersions: 'ProjectVersion',
+            childRoutineVersions: 'RoutineVersion',
+            childSmartContractVersions: 'SmartContractVersion',
+            childStandardVersions: 'StandardVersion',
+            runProjectSteps: 'RunProjectStep',
+        },
+        prismaRelMap: {
+            __typename,
+            parentDirectory: 'ProjectVersionDirectory',
+            projectVersion: 'ProjectVersion',
+            children: 'ProjectVersionDirectory',
+            childApiVersions: 'ApiVersion',
+            childNoteVersions: 'NoteVersion',
+            childOrganizations: 'Organization',
+            childProjectVersions: 'ProjectVersion',
+            childRoutineVersions: 'RoutineVersion',
+            childSmartContractVersions: 'SmartContractVersion',
+            childStandardVersions: 'StandardVersion',
+            runProjectSteps: 'RunProjectStep',
+        },
+        countFields: {},
+    },
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                childOrder: noNull(data.childOrder),
+                isRoot: noNull(data.isRoot),
+                ...(await shapeHelper({ relation: 'parentDirectory', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'children', data, ...rest })),
+                ...(await shapeHelper({ relation: 'projectVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'ProjectVersion', parentRelationshipName: 'directories', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+
+            }),
+            update: async ({ data, ...rest }) => ({
+                childOrder: noNull(data.childOrder),
+                isRoot: noNull(data.isRoot),
+                ...(await shapeHelper({ relation: 'parentDirectory', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'children', data, ...rest })),
+                ...(await shapeHelper({ relation: 'projectVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ProjectVersion', parentRelationshipName: 'directories', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
+        },
+        yup: projectVersionDirectoryValidation,
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => ProjectVersionModel.validate!.isPublic(data.projectVersion as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ProjectVersionModel.validate!.owner(data.projectVersion as any),
+        permissionResolvers: (params) => defaultPermissions(params),
+        permissionsSelect: () => ({
+            id: true,
+            projectVersion: 'ProjectVersion',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                projectVersion: ProjectVersionModel.validate!.visibility.owner(userId),
+            })
+        }
+    },
 })

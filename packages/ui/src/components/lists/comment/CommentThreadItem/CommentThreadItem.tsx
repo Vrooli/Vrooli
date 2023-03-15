@@ -1,19 +1,19 @@
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { TextLoading, UpvoteDownvote } from '../..';
+import { TextLoading } from '../..';
 import { displayDate, getTranslation, getUserLanguages, getYou, ObjectType, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
-import { CommentFor, DeleteOneInput, DeleteType, ReportFor, StarFor, Success, VoteFor } from '@shared/consts';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { CommentFor, DeleteOneInput, DeleteType, ReportFor, BookmarkFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { ReportButton, StarButton } from 'components/buttons';
+import { ReportButton, BookmarkButton, VoteButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 
 export function CommentThreadItem({
     data,
@@ -33,16 +33,16 @@ export function CommentThreadItem({
         objectId: object?.id,
         objectType: object?.__typename as CommentFor,
     }), [object]);
-    const { isStarred, isUpvoted } = useMemo(() => getYou(object as any), [object]);
+    const { isBookmarked, isUpvoted } = useMemo(() => getYou(object as any), [object]);
 
-    const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
-        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.you ?? {};
+    const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText } = useMemo(() => {
+        const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote } = data?.you ?? {};
         const languages = getUserLanguages(session);
         const { text } = getTranslation(data, languages, true);
-        return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
+        return { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
@@ -111,7 +111,7 @@ export function CommentThreadItem({
                                             fontWeight: 'bold',
                                         }
                                     }} />}
-                                {canEdit && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
+                                {canUpdate && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
                                     primary={`(Can Edit)`}
                                     sx={{
                                         display: 'flex',
@@ -144,7 +144,7 @@ export function CommentThreadItem({
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
-                        <UpvoteDownvote
+                        <VoteButton
                             direction="row"
                             disabled={!canVote}
                             session={session}
@@ -154,13 +154,12 @@ export function CommentThreadItem({
                             score={data?.score}
                             onChange={() => { }}
                         />
-                        {canStar && <StarButton
+                        {canBookmark && <BookmarkButton
                             session={session}
                             objectId={data?.id ?? ''}
-                            starFor={StarFor.Comment}
-                            isStar={isStarred ?? false}
-                            showStars={false}
-                            tooltipPlacement="top"
+                            bookmarkFor={BookmarkFor.Comment}
+                            isBookmarked={isBookmarked ?? false}
+                            showBookmarks={false}
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton

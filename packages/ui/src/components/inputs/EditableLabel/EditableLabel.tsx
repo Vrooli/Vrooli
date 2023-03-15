@@ -10,12 +10,13 @@ import { EditIcon } from '@shared/icons';
 import { useFormik } from 'formik';
 import { GridSubmitButtons } from 'components/buttons';
 import * as yup from 'yup';
+import { useTranslation } from 'react-i18next';
 
-const titleAria = 'editable-label-dialog-title';
+const titleId = 'editable-label-dialog-title';
 const descriptionAria = 'editable-label-dialog-description';
 
 export const EditableLabel = ({
-    canEdit,
+    canUpdate,
     handleUpdate,
     placeholder,
     onDialogOpen,
@@ -24,6 +25,8 @@ export const EditableLabel = ({
     text,
     validationSchema,
 }: EditableLabelProps) => {
+    const { t } = useTranslation();
+    
     /**
      * Random string for unique ID
      */
@@ -53,9 +56,9 @@ export const EditableLabel = ({
     }, [active, onDialogOpen]);
 
     const toggleActive = useCallback((event: any) => {
-        if (!canEdit) return;
+        if (!canUpdate) return;
         setActive(!active)
-    }, [active, canEdit]);
+    }, [active, canUpdate]);
 
     const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
         // Don't close if formik is dirty and clicked outside
@@ -72,7 +75,7 @@ export const EditableLabel = ({
                 open={active}
                 disableScrollLock={true}
                 onClose={handleCancel}
-                aria-labelledby={titleAria}
+                aria-labelledby={titleId}
                 aria-describedby={descriptionAria}
                 sx={{
                     '& .MuiPaper-root': {
@@ -82,9 +85,9 @@ export const EditableLabel = ({
                 }}
             >
                 <DialogTitle
-                    ariaLabel={titleAria}
+                    id={titleId}
                     onClose={handleCancel}
-                    title="Edit Label"
+                    title={t('EditLabel')}
                 />
                 <DialogContent>
                     <DialogContentText id={descriptionAria}>
@@ -104,6 +107,7 @@ export const EditableLabel = ({
                 {/* Save and cancel buttons */}
                 <Grid container spacing={1} padding={1}>
                     <GridSubmitButtons
+                        display="dialog"
                         errors={formik.errors}
                         isCreate={false}
                         loading={formik.isSubmitting}
@@ -118,7 +122,7 @@ export const EditableLabel = ({
                 {/* Label */}
                 {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
                 {/* Edit icon */}
-                {canEdit && (
+                {canUpdate && (
                     <IconButton
                         id={`edit-label-icon-button-${id}`}
                         onClick={toggleActive}

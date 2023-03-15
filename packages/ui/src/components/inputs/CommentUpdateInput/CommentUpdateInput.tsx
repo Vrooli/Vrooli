@@ -1,18 +1,19 @@
-import { useMutation } from "graphql/hooks";
+import { useCustomMutation } from "api/hooks";
 import { DUMMY_ID } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
-import { useCallback, useMemo } from "react";
-import { handleTranslationChange, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
+import { useEffect, useMemo } from "react";
+import { getUserLanguages, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
 import { CommentUpdateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
-import { getCurrentUser } from "utils/authentication";
-import { mutationWrapper } from "graphql/utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { mutationWrapper } from "api/utils";
 import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
-import { commentEndpoint } from "graphql/endpoints";
+import { commentUpdate } from "api/generated/endpoints/comment_update";
+import { useTranslation } from "react-i18next";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
@@ -29,10 +30,11 @@ export const CommentUpdateInput = ({
     zIndex,
 }: CommentUpdateInputProps) => {
     const { breakpoints } = useTheme();
+    const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(...commentEndpoint.update);
+    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Comment, CommentUpdateInputType>(commentUpdate);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -45,7 +47,7 @@ export const CommentUpdateInput = ({
                 text: '',
             }],
         },
-        validationSchema: commentValidation.update(),
+        validationSchema: commentValidation.update({}),
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO
@@ -69,16 +71,20 @@ export const CommentUpdateInput = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty && formik.values.translationsUpdate.some(t => t.text.trim().length > 0) });
 
-    const translations = useTranslatedFields({
+    const {
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['text'],
         formik,
         formikField: 'translationsUpdate',
-        language,
-        validationSchema: commentTranslationValidation.update(),
+        validationSchema: commentTranslationValidation.update({}),
     });
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsUpdate', e, language);
-    }, [formik, language]);
+    useEffect(() => {
+        setLanguage(language);
+    }, [language, setLanguage]);
 
     // If mobile, use CommentDialog
     if (isMobile) return (
@@ -99,7 +105,7 @@ export const CommentUpdateInput = ({
     return (
         <form>
             <Box sx={{ margin: 2 }}>
-                <Typography component="h3" variant="h6" textAlign="left">Update comment</Typography>
+                <Typography component="h3" variant="h6" textAlign="left">{t('EditComment')}</Typography>
                 <MarkdownInput
                     id="update-comment"
                     placeholder="Please be nice to each other."
@@ -116,6 +122,7 @@ export const CommentUpdateInput = ({
                 }}>
                     <GridSubmitButtons
                         disabledSubmit={!isLoggedIn}
+                        display="dialog"
                         errors={translations.errorsWithTranslations}
                         isCreate={true}
                         loading={formik.isSubmitting || loadingUpdate}

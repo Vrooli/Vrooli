@@ -3,7 +3,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { NodeModel } from "./node";
-import { noNull, padSelect, shapeHelper } from "../builders";
+import { noNull, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { nodeEndValidation } from "@shared/validation";
 import { nodeEndNextShapeHelper } from "../utils";
@@ -16,7 +16,7 @@ export const NodeEndModel: ModelLogic<{
     GqlCreate: NodeEndCreateInput,
     GqlUpdate: NodeEndUpdateInput,
     GqlModel: NodeEnd,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_endUpsertArgs['create'],
@@ -28,7 +28,7 @@ export const NodeEndModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: {
-        select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
+        select: () => ({ id: true, node: selPad(NodeModel.display.select) }),
         label: (select, languages) => NodeModel.display.label(select.node as any, languages),
     },
     format: {
@@ -46,18 +46,18 @@ export const NodeEndModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
+            create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'end', data, prisma, userData })),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'end', data, ...rest })),
+                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, ...rest })),
                 }
             },
-            update: async ({ data, prisma, userData }) => {
+            update: async ({ data, ...rest }) => {
                 return {
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect', 'Disconnect'], data, prisma, userData })),
+                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect', 'Disconnect'], data, ...rest })),
                 }
             },
         },

@@ -1,11 +1,13 @@
-import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from '@shared/consts';
+import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInputModel } from ".";
+import { defaultPermissions } from '../utils';
+import { runRoutineInputValidation } from '@shared/validation';
 
 const __typename = 'RunRoutineInput' as const;
 const suppFields = [] as const;
@@ -17,7 +19,7 @@ export const RunRoutineInputModel: ModelLogic<{
     GqlModel: RunRoutineInput,
     GqlSearch: RunRoutineInputSearchInput,
     GqlSort: RunRoutineInputSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.run_routine_inputUpsertArgs['create'],
     PrismaUpdate: Prisma.run_routine_inputUpsertArgs['update'],
     PrismaModel: Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
@@ -29,8 +31,8 @@ export const RunRoutineInputModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            input: padSelect(RoutineVersionInputModel.display.select),
-            runRoutine: padSelect(RunRoutineModel.display.select),
+            input: selPad(RoutineVersionInputModel.display.select),
+            runRoutine: selPad(RunRoutineModel.display.select),
         }),
         // Label combines runRoutine's label and input's label
         label: (select, languages) => {
@@ -70,7 +72,7 @@ export const RunRoutineInputModel: ModelLogic<{
                 }
             }
         },
-        yup: {} as any,
+        yup: runRoutineInputValidation,
     },
     search: {
         defaultSort: RunRoutineInputSortBy.DateUpdatedDesc,
@@ -86,16 +88,12 @@ export const RunRoutineInputModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: 100000,
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             runRoutine: 'RunRoutine',
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canDelete: async () => isAdmin,
-            canEdit: async () => isAdmin,
-            canView: async () => isPublic,
-        }),
+        permissionResolvers: defaultPermissions,
         profanityFields: ['data'],
         owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),
         isDeleted: () => false,

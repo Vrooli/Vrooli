@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
+import { PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestToObjectType, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
@@ -16,10 +16,31 @@ import { StandardModel } from "./standard";
 import { StandardVersionModel } from "./standardVersion";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { pullRequestValidation } from "@shared/validation";
+import { noNull } from "../builders";
+import { translationShapeHelper } from "../utils";
+
+const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs['create'] } = {
+    ApiVersion: 'fromApiVersion',
+    NoteVersion: 'fromNoteVersion',
+    ProjectVersion: 'fromProjectVersion',
+    RoutineVersion: 'fromRoutineVersion',
+    SmartContractVersion: 'fromSmartContractVersion',
+    StandardVersion: 'fromStandardVersion',
+}
+
+const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUpsertArgs['create'] } = {
+    Api: 'toApi',
+    Note: 'toNote',
+    Project: 'toProject',
+    Routine: 'toRoutine',
+    SmartContract: 'toSmartContract',
+    Standard: 'toStandard',
+}
 
 const __typename = 'PullRequest' as const;
-type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canEdit' | 'canReport'>;
-const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canReport'] as const;
+type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canReport'>;
+const suppFields = ['you'] as const;
 export const PullRequestModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -111,18 +132,56 @@ export const PullRequestModel: ModelLogic<{
             createdBy: 'User',
             comments: 'Comment',
         },
-        countFields: {},
+        countFields: {
+            commentsCount: true,
+            translationsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },
     },
-    mutate: {} as any,
-    search: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                createdBy: { connect: { id: rest.userData.id } },
+                [fromMapper[data.fromObjectType]]: { connect: { id: data.fromConnect } },
+                [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                status: noNull(data.status),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
+        },
+        yup: pullRequestValidation,
+    },
+    search: {
+        defaultSort: PullRequestSortBy.DateUpdatedDesc,
+        sortBy: PullRequestSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            isMergedOrRejected: true,
+            translationLanguages: true,
+            toId: true,
+            createdById: true,
+            tags: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transTextWrapped',
+            ]
+        }),
+    },
     validate: {} as any,
 })

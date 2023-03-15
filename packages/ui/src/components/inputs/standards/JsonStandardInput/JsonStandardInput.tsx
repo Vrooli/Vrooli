@@ -1,7 +1,3 @@
-/**
- * Input for entering (and viewing format of) JSON data that 
- * must match a certain schema.
- */
 import { JsonStandardInputProps } from '../types';
 import { jsonStandardInputForm as validationSchema } from '@shared/validation';
 import { useEffect, useMemo, useState } from 'react';
@@ -12,6 +8,10 @@ import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status
 import Markdown from 'markdown-to-jsx';
 import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
+/**
+ * Input for entering (and viewing format of) JSON data that 
+ * must match a certain schema.
+ */
 export const JsonStandardInput = ({
     defaultValue,
     format,

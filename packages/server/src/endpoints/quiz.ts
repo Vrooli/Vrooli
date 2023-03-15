@@ -16,33 +16,35 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     input QuizCreateInput {
         id: ID!
+        isPrivate: Boolean
         maxAttempts: Int
-        randomizeQuestionORder: Boolean
+        randomizeQuestionOrder: Boolean
         revealCorrectAnswers: Boolean
         timeLimit: Int
         pointsToPass: Int
-        routineConnect: ID
         projectConnect: ID
+        routineConnect: ID
         translationsCreate: [QuizTranslationCreateInput!]
         quizQuestionsCreate: [QuizQuestionCreateInput!]
     }
     input QuizUpdateInput {
         id: ID!
+        isPrivate: Boolean
         maxAttempts: Int
-        randomizeQuestionORder: Boolean
+        randomizeQuestionOrder: Boolean
         revealCorrectAnswers: Boolean
         timeLimit: Int
         pointsToPass: Int
         routineConnect: ID
-        routineDisconnect: ID
+        routineDisconnect: Boolean
         projectConnect: ID
-        projectDisconnect: ID
+        projectDisconnect: Boolean
         translationsCreate: [QuizTranslationCreateInput!]
         translationsUpdate: [QuizTranslationUpdateInput!]
         translationsDelete: [ID!]
@@ -54,16 +56,19 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        isCompleted: Boolean!
+        isPrivate: Boolean!
+        randomizeQuestionOrder: Boolean!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         attempts: [QuizAttempt!]!
+        attemptsCount: Int!
         createdBy: User
         project: Project
         quizQuestions: [QuizQuestion!]!
+        quizQuestionsCount: Int!
         routine: Routine
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         stats: [StatsQuiz!]!
         translations: [QuizTranslation!]!
         you: QuizYou!
@@ -71,11 +76,12 @@ export const typeDef = gql`
 
     type QuizYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canView: Boolean!
+        canBookmark: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        hasCompleted: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
     }
 
@@ -103,9 +109,11 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
-        languages: [String!]
+        translationLanguages: [String!]
+        maxBookmarks: Int
+        maxScore: Int
+        minBookmarks: Int
         minScore: Int
-        minStars: Int
         routineId: ID
         projectId: ID
         userId: ID

@@ -20,14 +20,14 @@ export const typeDef = gql`
         DateUpdatedDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     enum IssueStatus {
         Open
         ClosedResolved
-        CloseUnresolved
+        ClosedUnresolved
         Rejected
     }
 
@@ -41,7 +41,7 @@ export const typeDef = gql`
         Standard
     } 
 
-    union IssueTo = Api | Organization | Note | Project | Routine | SmartContract | Standard
+    union IssueTo = Api | Note | Organization | Project | Routine | SmartContract | Standard
 
     input IssueCreateInput {
         id: ID!
@@ -49,6 +49,7 @@ export const typeDef = gql`
         forConnect: ID!
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        referencedVersionIdConnect: ID
         translationsCreate: [IssueTranslationCreateInput!]
     }
     input IssueUpdateInput {
@@ -69,7 +70,7 @@ export const typeDef = gql`
         createdBy: User
         status: IssueStatus!
         to: IssueTo!
-        referencedVersionConnect: ID
+        referencedVersionId: String
         comments: [Comment!]!
         commentsCount: Int!
         labels: [Label!]!
@@ -79,21 +80,21 @@ export const typeDef = gql`
         translations: [IssueTranslation!]!
         translationsCount: Int!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
-        starredBy: [Star!]
+        bookmarkedBy: [Bookmark!]
         you: IssueYou!
     }
 
     type IssueYou {
         canComment: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
+        canUpdate: Boolean!
+        canBookmark: Boolean!
         canReport: Boolean!
-        canView: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
     }
 
@@ -122,7 +123,7 @@ export const typeDef = gql`
         ids: [ID!]
         status: IssueStatus
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         apiId: ID
         organizationId: ID
@@ -210,6 +211,7 @@ export const resolvers: {
         },
         issueClose: async (_, { input }, { prisma, req }, info) => {
             throw new CustomError('0000', 'NotImplemented', ['en'])
+            // TODO make sure to set hasBeenClosedOrRejected to true
         },
     }
 }

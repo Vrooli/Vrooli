@@ -4,23 +4,26 @@
 import { WalletListProps } from '../types';
 import { useCallback, useState } from 'react';
 import { Box, Button } from '@mui/material';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { PubSub, updateArray } from 'utils';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
-import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
+import { ListContainer, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
-import { deleteOneOrManyEndpoint, walletEndpoint } from 'graphql/endpoints';
+import { walletUpdate } from 'api/generated/endpoints/wallet_update';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useTranslation } from 'react-i18next';
 
 export const WalletList = ({
     handleUpdate,
     numVerifiedEmails,
     list,
 }: WalletListProps) => {
+    const { t } = useTranslation();
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<Wallet, WalletUpdateInput, 'walletUpdate'>(...walletEndpoint.update);
+    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Wallet, WalletUpdateInput>(walletUpdate);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
         mutationWrapper<Wallet, WalletUpdateInput>({
@@ -35,13 +38,13 @@ export const WalletList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
-            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: 'Error' });
             return;
         }
         // Confirmation dialog
@@ -102,10 +105,10 @@ export const WalletList = ({
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.get().publishSnack({ messageKey: 'WalletAlreadyConnected', severity: SnackSeverity.Warning })
+                PubSub.get().publishSnack({ messageKey: 'WalletAlreadyConnected', severity: 'Warning' })
             }
             else {
-                PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: SnackSeverity.Success });
+                PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: 'Success' });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
@@ -131,7 +134,7 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult) {
-            PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: SnackSeverity.Success })
+            PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: 'Success' })
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],
@@ -170,14 +173,10 @@ export const WalletList = ({
                 onClose={closeWalletInstallDialog}
                 zIndex={connectOpen ? 201 : 200}
             />
-            {list.length > 0 && <Box id='wallet-list' sx={{
-                overflow: 'overlay',
-                border: `1px solid #e0e0e0`,
-                borderRadius: '8px',
-                maxWidth: '1000px',
-                marginLeft: 1,
-                marginRight: 1,
-            }}>
+            <ListContainer
+                emptyText={t(`NoWallets`, { ns: 'error' })}
+                isEmpty={list.length === 0}
+            >
                 {/* Wallet list */}
                 {list.map((w: Wallet, index) => (
                     <WalletListItem
@@ -189,7 +188,7 @@ export const WalletList = ({
                         handleVerify={openWalletVerifyDialog}
                     />
                 ))}
-            </Box>}
+            </ListContainer>
             {/* Add new button */}
             <Box id='add-wallet-button' sx={{
                 alignItems: 'center',

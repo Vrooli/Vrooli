@@ -1,89 +1,129 @@
-import { useCallback } from 'react';
-import Logo from 'assets/img/Logo-128x128.png';
-import { BUSINESS_NAME, APP_LINKS } from '@shared/consts';
-import { AppBar, Toolbar, Typography, Box, useTheme } from '@mui/material';
+import { useCallback, useEffect, useMemo } from 'react';
+import { LINKS, BUSINESS_NAME } from '@shared/consts';
+import { AppBar, Box, useTheme, Stack } from '@mui/material';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from '@shared/route';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
-import { noSelect } from 'styles';
+import { noSelect } from 'styles'
+import { Header } from 'components/text';
+import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
+import { NavbarLogoState } from '../types';
+import { useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
 
+/**
+ * Navbar displayed at the top of the page. Has a few different 
+ * looks depending on data passed to it.
+ * 
+ * If the screen is large, the navbar is always displayed the same. In 
+ * this case, the title and other content are displayed below the navbar.
+ * 
+ * Otherwise, the default look is logo & business name on the left, and 
+ * account menu profile icon on the right.
+ * 
+ * If title data is passed in, the business name is hidden. The 
+ * title is displayed in the middle, with a help icon if specified.
+ * 
+ * Content to display below the title (but still in the navbar) can also 
+ * be passed in. This is useful for displaying a search bar, page tabs, etc. This 
+ * content is inside the navbar on small screens, and below the navbar on large screens.
+ */
 export const Navbar = ({
     session,
-    sessionChecked,
+    shouldHideTitle = false,
+    title,
+    help,
+    below,
 }: NavbarProps) => {
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
+    const { dimensions, ref } = useDimensions();
+
+    const toHome = useCallback(() => setLocation(LINKS.Home), [setLocation]);
     const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
 
+    // Determine display texts and states
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const { logoState } = useMemo(() => {
+        const logoState: NavbarLogoState = (isMobile && title) ? 'icon' : 'full';
+        return { logoState };
+    }, [isMobile, title]);
+
+    const isLeftHanded = useIsLeftHanded();
+
+    // Set tab to title
+    useEffect(() => {
+        if (!title) return;
+        document.title = `${title} | ${BUSINESS_NAME}`;
+    }, [title]);
+
+    const logo = useMemo(() => (
+        <Box
+            onClick={toHome}
+            sx={{
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                marginRight: isMobile && isLeftHanded ? 1 : 'auto',
+                marginLeft: isMobile && isLeftHanded ? 'auto' : 1,
+            }}
+        >
+            <NavbarLogo
+                onClick={toHome}
+                state={logoState}
+            />
+        </Box>
+    ), [isLeftHanded, isMobile, logoState, toHome]);
+
     return (
-        <HideOnScroll>
-            <AppBar
-                onClick={scrollToTop}
-                sx={{
-                    ...noSelect,
-                    background: palette.primary.dark,
-                    height: { xs: '64px', md: '80px' },
-                    zIndex: 100,
-                }}>
-                <Toolbar>
-                    <Box
-                        onClick={toHome}
-                        sx={{
-                            padding: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Box sx={{
-                            display: 'flex',
-                            padding: 0,
-                            cursor: 'pointer',
-                            margin: '5px',
-                            borderRadius: '500px',
-                        }}>
-                            <Box
-                                component="img"
-                                src={Logo}
-                                alt={`${BUSINESS_NAME} Logo`}
-                                sx={{
-                                    verticalAlign: 'middle',
-                                    fill: 'black',
-                                    marginLeft: 'max(-5px, -5vw)',
-                                    width: '48px',
-                                    height: '48px',
-                                    [breakpoints.up('md')]: {
-                                        width: '6vh',
-                                        height: '6vh',
-                                    },
-                                }}
-                            />
-                        </Box>
-                        <Typography
-                            variant="h6"
-                            noWrap
-                            sx={{
-                                position: 'relative',
-                                cursor: 'pointer',
-                                fontSize: '3.5em',
-                                fontFamily: `SakBunderan`,
-                                color: palette.primary.contrastText,
-                                [breakpoints.down(400)]: {
-                                    fontSize: '3em',
-                                },
-                            }}
-                        >{BUSINESS_NAME}</Typography>
-                    </Box>
-                    <Box sx={{
-                        marginLeft: 'auto',
-                        maxHeight: '100%',
+        <Box sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
+            <HideOnScroll>
+                <AppBar
+                    onClick={scrollToTop}
+                    ref={ref}
+                    sx={{
+                        ...noSelect,
+                        background: palette.primary.dark,
+                        minHeight: '64px!important',
+                        position: 'fixed', // Allows items to be displayed below the navbar
+                        zIndex: 100,
                     }}>
-                        <NavList session={session} sessionChecked={sessionChecked} />
-                    </Box>
-                </Toolbar>
-            </AppBar>
-        </HideOnScroll>
+                    {/* <Toolbar> */}
+                    <Stack direction="row" spacing={0} alignItems="center" sx={{
+                        paddingLeft: 1,
+                        paddingRight: 1,
+                    }}>
+                        {/* Logo displayed on left for desktop and right-handed mobile users.
+                        Account menu displayed otherwise */}
+                        {!(isMobile && isLeftHanded) ? logo : <Box sx={{
+                            marginRight: 'auto',
+                            maxHeight: '100%',
+                        }}>
+                            <NavList session={session} />
+                        </Box>}
+                        {/* Account menu displayed on  */}
+                        {/* Title displayed here on mobile */}
+                        {isMobile && title && <Header help={help} title={title} />}
+                        {(isMobile && isLeftHanded) ? logo : <Box sx={{
+                            marginLeft: 'auto',
+                            maxHeight: '100%',
+                        }}>
+                            <NavList session={session} />
+                        </Box>}
+                    </Stack>
+                    {/* "below" displayed inside AppBar on mobile */}
+                    {isMobile && below}
+                    {/* </Toolbar> */}
+                </AppBar>
+            </HideOnScroll>
+            {/* Title displayed here on desktop */}
+            {!isMobile && title && !shouldHideTitle && <Header
+                help={help}
+                title={title}
+            />}
+            {/* "below" and title displayered here on desktop */}
+            {!isMobile && below}
+        </Box>
     );
 }

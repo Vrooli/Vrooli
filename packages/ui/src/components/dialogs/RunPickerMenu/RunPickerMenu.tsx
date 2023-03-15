@@ -2,20 +2,22 @@
  * Handles selecting a run from a list of runs.
  */
 import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useTheme } from "@mui/material";
-import { mutationWrapper } from "graphql/utils";
+import { mutationWrapper } from "api/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
-import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
-import { useMutation } from "graphql/hooks";
+import { base36ToUuid, getRunPercentComplete, PubSub } from "utils";
+import { useCustomMutation } from "api/hooks";
 import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
-import { SnackSeverity } from "components";
-import { deleteOneOrManyEndpoint, runProjectEndpoint, runRoutineEndpoint } from "graphql/endpoints";
+import { runProjectCreate } from "api/generated/endpoints/runProject_create";
+import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { parseSearchParams } from "@shared/route";
 
-const titleAria = 'run-picker-dialog-title';
+const titleId = 'run-picker-dialog-title';
 
 export const RunPickerMenu = ({
     anchorEl,
@@ -42,16 +44,16 @@ export const RunPickerMenu = ({
         }
     }, [runnableObject, onSelect, handleClose]);
 
-    const [runProjectCreate] = useMutation<RunProject, RunProjectCreateInput, 'runProjectCreate'>(...runProjectEndpoint.create);
-    const [runRoutineCreate] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(...runRoutineEndpoint.create);
+    const [createRunProject] = useCustomMutation<RunProject, RunProjectCreateInput>(runProjectCreate);
+    const [createRunRoutine] = useCustomMutation<RunRoutine, RunRoutineCreateInput>(runRoutineCreate);
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: 'Error' });
             return;
         }
         if (runnableObject.__typename === 'ProjectVersion') {
             mutationWrapper<RunProject, RunProjectCreateInput>({
-                mutation: runProjectCreate,
+                mutation: createRunProject,
                 input: {
                     id: uuid(),
                     name: getTranslation(runnableObject as ProjectVersion, getUserLanguages(session)).name ?? 'Unnamed Project',
@@ -69,7 +71,7 @@ export const RunPickerMenu = ({
         }
         else {
             mutationWrapper<RunRoutine, RunRoutineCreateInput>({
-                mutation: runRoutineCreate,
+                mutation: createRunRoutine,
                 input: {
                     id: uuid(),
                     name: getTranslation(runnableObject as RoutineVersion, getUserLanguages(session)).name ?? 'Unnamed Routine',
@@ -85,9 +87,9 @@ export const RunPickerMenu = ({
                 errorMessage: () => ({ key: 'FailedToCreateRun' }),
             })
         }
-    }, [handleClose, onAdd, onSelect, runnableObject, runProjectCreate, runRoutineCreate, session]);
+    }, [handleClose, onAdd, onSelect, runnableObject, createRunProject, createRunRoutine, session]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne)
+    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne)
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
@@ -104,7 +106,7 @@ export const RunPickerMenu = ({
     useEffect(() => {
         if (!open) return;
         // If not logged in, open without creating a new run
-        if (!session.isLoggedIn) {
+        if (session?.isLoggedIn !== true) {
             onSelect(null);
             handleClose();
         }
@@ -112,7 +114,7 @@ export const RunPickerMenu = ({
         else if (runnableObject && (runnableObject.you?.runs as (RunRoutine | RunProject)[])?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
             createNewRun();
         }
-    }, [open, runnableObject, createNewRun, onSelect, session.isLoggedIn, handleClose]);
+    }, [open, runnableObject, createNewRun, onSelect, session?.isLoggedIn, handleClose]);
 
     const runOptions: ListMenuItemData<RunProject | RunRoutine>[] = useMemo(() => {
         if (!runnableObject || !runnableObject.you.runs) return [];
@@ -160,7 +162,7 @@ export const RunPickerMenu = ({
     return (
         <Menu
             id='select-run-dialog'
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             disableScrollLock={true}
             autoFocus={true}
             open={open}
@@ -184,7 +186,7 @@ export const RunPickerMenu = ({
             }}
         >
             <MenuTitle
-                ariaLabel={titleAria}
+                ariaLabel={titleId}
                 onClose={handleClose}
                 title={'Continue Existing Run?'}
             />

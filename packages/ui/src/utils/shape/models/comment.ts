@@ -1,4 +1,4 @@
-import { Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput, GqlModelType } from "@shared/consts";
+import { Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { createPrims, shapeUpdate, createRel, updateRel, updatePrims } from "utils";
 

@@ -1,9 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Role, RoleCreateInput, RoleUpdateInput } from '@shared/consts';
+import { Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
+import { roleValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Role' as const;
 const suppFields = [] as const;
@@ -13,9 +15,9 @@ export const RoleModel: ModelLogic<{
     GqlCreate: RoleCreateInput,
     GqlUpdate: RoleUpdateInput,
     GqlModel: Role,
-    GqlPermission: any,
-    GqlSearch: undefined,
-    GqlSort: undefined,
+    GqlPermission: {},
+    GqlSearch: RoleSearchInput,
+    GqlSort: RoleSortBy,
     PrismaCreate: Prisma.roleUpsertArgs['create'],
     PrismaUpdate: Prisma.roleUpsertArgs['update'],
     PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
@@ -25,10 +27,10 @@ export const RoleModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: {
-        select: () => ({ 
-            id: true, 
+        select: () => ({
+            id: true,
             name: true,
-            translations: { select: { language: true, name: true } } 
+            translations: { select: { language: true, name: true } }
         }),
         label: (select, languages) => {
             // Prefer translated name over default name
@@ -53,4 +55,42 @@ export const RoleModel: ModelLogic<{
             membersCount: true,
         },
     },
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                name: data.name,
+                permissions: data.permissions,
+                ...(await shapeHelper({ relation: 'members', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'roles', data, ...rest })),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'roles', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                name: noNull(data.name),
+                permissions: noNull(data.permissions),
+                ...(await shapeHelper({ relation: 'members', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'roles', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
+        },
+        yup: roleValidation,
+    },
+    search: {
+        defaultSort: RoleSortBy.MembersDesc,
+        sortBy: RoleSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            translationLanguages: true,
+            organizationId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'nameWrapped',
+                'transDescriptionWrapped',
+                'transNameWrapped',
+            ]
+        }),
+    },
+    validate: {} as any,
 })

@@ -1,3 +1,4 @@
+
 export interface BreadcrumbsBaseProps {
     paths: { text: string; link: string; }[];
     separator?: string;

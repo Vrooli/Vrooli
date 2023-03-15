@@ -12,7 +12,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { DialogTitle, GridSubmitButtons, SnackSeverity } from 'components';
+import { DialogTitle, GridSubmitButtons } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { getTranslation, NodeShape, PubSub } from 'utils';
@@ -21,11 +21,9 @@ import { NodeType } from '@shared/consts';
 import { useTranslation } from 'react-i18next';
 
 const helpText =
-    `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
+    `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
 
-In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
-
-const titleAria = "link-dialog-title";
+const titleId = "link-dialog-title";
 
 export const LinkDialog = ({
     handleClose,
@@ -57,17 +55,17 @@ export const LinkDialog = ({
     const errors = useMemo(() => {
         const errors: { [key: string]: string } = {};
         if (!fromNode) {
-            errors.fromNode = t(`error:FromNodeRequired`, { lng: language });
+            errors.fromNode = t(`NodeFromRequired`, { ns: 'error', defaultValue: 'NodeFromRequired' });
         }
         if (!toNode) {
-            errors.toNode = t(`error:ToNodeRequired`, { lng: language });
+            errors.toNode = t(`NodeToRequired`, { ns: 'error', defaultValue: 'NodeToRequired' });
         }
         return errors;
-    }, [fromNode, language, t, toNode]);
+    }, [fromNode, t, toNode]);
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ messageKey: 'SelectFromAndToNodes', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'SelectFromAndToNodes', severity: 'Error' });
             return;
         }
         handleClose({
@@ -114,9 +112,9 @@ export const LinkDialog = ({
     const getNodeTitle = useCallback((node: NodeShape) => {
         const { name } = getTranslation(node, [language]);
         if (name) return name;
-        if (node.nodeType === NodeType.Start) return t(`common:Start`, { lng: language });
-        if (node.nodeType === NodeType.End) return t(`common:End`, { lng: language });
-        return t(`common:Untitled`, { lng: language });
+        if (node.nodeType === NodeType.Start) return t(`Start`);
+        if (node.nodeType === NodeType.End) return t(`End`);
+        return t(`Untitled`);
     }, [language, t]);
 
     /**
@@ -194,7 +192,7 @@ export const LinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
@@ -202,8 +200,8 @@ export const LinkDialog = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                title={t(`common:${isAdd ? 'LinkAdd' : 'LinkEdit'}`, { lng: language })}
+                id={titleId}
+                title={t(isAdd ? 'LinkAdd' : 'LinkEdit')}
                 helpText={helpText}
                 onClose={handleCancel}
             />
@@ -214,6 +212,7 @@ export const LinkDialog = ({
                 {/* Action buttons */}
                 <Grid container spacing={2} mt={2}>
                     <GridSubmitButtons
+                        display="dialog"
                         errors={errors}
                         isCreate={isAdd}
                         onCancel={handleCancel}

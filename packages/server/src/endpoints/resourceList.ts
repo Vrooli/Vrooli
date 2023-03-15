@@ -24,17 +24,17 @@ export const typeDef = gql`
         smartContractVersionConnect: ID
         standardVersionConnect: ID
         userScheduleConnect: ID
-        translationsCreate: [ResourceListTranslationCreateInput!]
         resourcesCreate: [ResourceCreateInput!]
+        translationsCreate: [ResourceListTranslationCreateInput!]
     }
     input ResourceListUpdateInput {
         id: ID!
-        translationsDelete: [ID!]
-        translationsCreate: [ResourceListTranslationCreateInput!]
-        translationsUpdate: [ResourceListTranslationUpdateInput!]
         resourcesDelete: [ID!]
         resourcesCreate: [ResourceCreateInput!]
         resourcesUpdate: [ResourceUpdateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [ResourceListTranslationCreateInput!]
+        translationsUpdate: [ResourceListTranslationUpdateInput!]
     }
     type ResourceList {
         id: ID!

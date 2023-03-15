@@ -1,10 +1,12 @@
-import { RunRoutineStepStatus } from "@shared/consts";
+import { MaxObjects, RunRoutineStepStatus } from "@shared/consts";
 import { RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { SelectWrap } from "../builders/types";
+import { defaultPermissions } from "../utils";
+import { runRoutineStepValidation } from "@shared/validation";
 
 // const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
 //     return {
@@ -22,7 +24,7 @@ export const RunRoutineStepModel: ModelLogic<{
     GqlCreate: RunRoutineStepCreateInput,
     GqlUpdate: RunRoutineStepUpdateInput,
     GqlModel: RunRoutineStep,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
     PrismaCreate: Prisma.run_routine_stepUpsertArgs['create'],
@@ -72,20 +74,16 @@ export const RunRoutineStepModel: ModelLogic<{
                 } as any
             }
         },
-        yup: {} as any,
+        yup: runRoutineStepValidation,
     },
     validate: {
         isTransferable: false,
-        maxObjects: 100000,
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             runRoutine: 'RunRoutine',
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
-            canView: () => isPublic,
-        }),
+        permissionResolvers: defaultPermissions,
         profanityFields: ['name'],
         owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),
         isDeleted: () => false,

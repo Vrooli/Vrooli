@@ -8,7 +8,6 @@ import Markdown from 'markdown-to-jsx';
 import { linkColors, noSelect } from 'styles';
 import { PubSub, useDebounce } from 'utils';
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from '@shared/icons';
-import { SnackSeverity } from 'components';
 
 enum Headers {
     H1 = 'h1',
@@ -176,12 +175,12 @@ export const MarkdownInput = ({
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
     const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
-    const openHeaderSelect = (event) => { setHeaderAnchorEl(event.currentTarget) };
+    const openHeaderSelect = (event: any) => { setHeaderAnchorEl(event.currentTarget) };
     const closeHeader = () => { setHeaderAnchorEl(null) };
     const headerSelectOpen = Boolean(headerAnchorEl);
 
     const [listAnchorEl, setListAnchorEl] = useState<HTMLElement | null>(null);
-    const openListSelect = (event) => { setListAnchorEl(event.currentTarget) };
+    const openListSelect = (event: any) => { setListAnchorEl(event.currentTarget) };
     const closeList = () => { setListAnchorEl(null) };
     const listSelectOpen = Boolean(listAnchorEl);
 
@@ -214,7 +213,7 @@ export const MarkdownInput = ({
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
         // If no selection, return
         if (selectionStart === selectionEnd) {
-            PubSub.get().publishSnack({ messageKey: 'NoTextSelected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'NoTextSelected', severity: 'Error' });
             return;
         }
         // Insert ~~ before the selection, and ~~ after the selection

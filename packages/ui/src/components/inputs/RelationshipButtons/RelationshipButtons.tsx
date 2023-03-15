@@ -187,7 +187,7 @@ export function RelationshipButtons({
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
-            onRelationshipsChange({ owner: userFromSession(session) });
+            onRelationshipsChange({ owner: session ? userFromSession(session) : undefined });
         }
         closeOwnerDialog();
     }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);
@@ -307,14 +307,14 @@ export function RelationshipButtons({
                 zIndex={zIndex + 1}
             />
             {/* Popup for selecting organization, user, etc. */}
-            <SelectOrCreateDialog
+            {selectOrCreateType && <SelectOrCreateDialog
                 isOpen={Boolean(selectOrCreateType)}
                 handleAdd={selectOrCreateHandleAdd}
                 handleClose={selectOrCreateHandleClose}
-                objectType={selectOrCreateType ?? 'User'} // Default can be anything. Only here to satisfy TS
+                objectType={selectOrCreateType}
                 session={session}
                 zIndex={zIndex + 1}
-            />
+            />}
             {/* Row of button labels */}
             <Stack
                 spacing={{ xs: 1, sm: 1.5, md: 2 }}

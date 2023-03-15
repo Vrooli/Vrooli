@@ -7,7 +7,7 @@ const installExtension = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-const titleAria = 'wallet-install-dialog-title';
+const titleId = 'wallet-install-dialog-title';
 
 export const WalletInstallDialog = ({
     onClose,
@@ -18,11 +18,11 @@ export const WalletInstallDialog = ({
         <Dialog
             open={open}
             onClose={onClose}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{ zIndex }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={'Install Wallet Extension'}
                 onClose={onClose}
             />

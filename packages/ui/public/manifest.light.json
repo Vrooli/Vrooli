@@ -38,7 +38,7 @@
         "browser"
     ],
     "orientation": "any",
-    "scope": "https://app.vrooli.com/",
+    "scope": "https://vrooli.com/",
     "start_url": "/",
     "screenshots": [
         {
@@ -86,7 +86,7 @@
         {
             "name": "History",
             "url": "/history",
-            "description": "View your active, completed, and starred routines - and more!"
+            "description": "View your active, completed, and bookmarked routines - and more!"
         },
         {
             "name": "Create Routine",
@@ -112,7 +112,7 @@
     "related_applications": [
         {
             "platform": "webapp",
-            "url": "https://app.vrooli.com/"
+            "url": "https://vrooli.com/"
         }
     ]
 }

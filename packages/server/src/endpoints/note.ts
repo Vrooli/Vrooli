@@ -18,8 +18,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -30,8 +30,8 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         parentConnect: ID
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -41,14 +41,15 @@ export const typeDef = gql`
     }
     input NoteUpdateInput {
         id: ID!
+        isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
-        versionsCreate: [ApiVersionCreateInput!]
-        versionsUpdate: [ApiVersionUpdateInput!]
+        versionsCreate: [NoteVersionCreateInput!]
+        versionsUpdate: [NoteVersionUpdateInput!]
         versionsDelete: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
@@ -58,23 +59,24 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        isPrivate: Boolean!
         permissions: String!
         createdBy: User
         owner: Owner
-        parent: Note
+        parent: NoteVersion
         tags: [Tag!]!
         versions: [NoteVersion!]!
         versionsCount: Int!
         labels: [Label!]!
         labelsCount: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         score: Int!
         issues: [Issue!]!
         issuesCount: Int!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         questions: [Question!]!
         questionsCount: Int!
         transfers: [Transfer!]!
@@ -84,12 +86,12 @@ export const typeDef = gql`
 
     type NoteYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
@@ -99,16 +101,17 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         createdById: ID
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
-        languages: [String!]
+        translationLanguagesLatestVersion: [String!]
         ids: [ID!]
         searchString: String
         sortBy: NoteSortBy
+        take: Int
         tags: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType

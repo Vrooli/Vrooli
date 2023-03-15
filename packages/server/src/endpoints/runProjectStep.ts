@@ -10,13 +10,13 @@ export const typeDef = gql`
 
     input RunProjectStepCreateInput {
         id: ID!
-        nodeConnect: ID
         contextSwitches: Int
-        directoryConnect: ID
+        name: String!
         order: Int!
         step: [Int!]!
         timeElapsed: Int
-        name: String!
+        directoryConnect: ID
+        nodeConnect: ID
     }
     input RunProjectStepUpdateInput {
         id: ID!

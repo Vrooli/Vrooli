@@ -5,13 +5,15 @@
 import { List, Typography } from '@mui/material';
 import { ListTitleContainerProps } from '../types';
 import { TitleContainer } from 'components';
+import { useTranslation } from 'react-i18next';
 
 export function ListTitleContainer({
     children,
-    emptyText = 'No results',
+    emptyText,
     isEmpty,
     ...props
 }: ListTitleContainerProps) {
+    const { t } = useTranslation();
 
     return (
         <TitleContainer {...props}>
@@ -20,7 +22,7 @@ export function ListTitleContainer({
                     <Typography variant="h6" sx={{
                         textAlign: 'center',
                         paddingTop: '8px',
-                    }}>{emptyText}</Typography> :
+                    }}>{emptyText ?? t('NoResults', { ns: 'error' })}</Typography> :
                     <List sx={{ overflow: 'hidden' }}>
                         {children}
                     </List>

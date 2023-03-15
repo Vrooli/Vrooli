@@ -1,6 +1,6 @@
 import { ResourceListItemContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { ListMenu, SnackSeverity } from 'components';
+import { ListMenu } from 'components';
 import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from '@shared/icons';
 import { getTranslation, PubSub } from 'utils';
 
@@ -32,7 +32,7 @@ const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(l
 
 // Custom context menu for nodes
 export const ResourceListItemContextMenu = ({
-    canEdit,
+    canUpdate,
     id,
     anchorEl,
     index,
@@ -57,7 +57,7 @@ export const ResourceListItemContextMenu = ({
                 break;
             case ResourceContextMenuOption.Copy:
                 navigator.clipboard.writeText(resource?.link ?? '');
-                PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
+                PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
                 break;
             case ResourceContextMenuOption.Delete:
                 onDelete(index);
@@ -81,7 +81,7 @@ export const ResourceListItemContextMenu = ({
         onClose();
     }
 
-    const listOptionsFiltered = canEdit ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
+    const listOptionsFiltered = canUpdate ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
 
     return (
         <ListMenu

@@ -11,10 +11,12 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        MemberNameAsc
-        MemberNameDesc
-        StatusAsc
-        StatusDesc
+        MeetingStartAsc
+        MeetingStartDesc
+        MeetingEndAsc
+        MeetingEndDesc
+        UserNameAsc
+        UserNameDesc
     }
 
     enum MeetingInviteStatus {
@@ -46,7 +48,7 @@ export const typeDef = gql`
 
     type MeetingInviteYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input MeetingInviteSearchInput {

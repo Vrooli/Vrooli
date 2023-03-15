@@ -1,24 +1,24 @@
-import { CommentSortBy, CommentYou, PrependString } from "@shared/consts";
+import { CommentSortBy, CommentYou, MaxObjects } from "@shared/consts";
 import { commentValidation } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { Trigger } from "../events";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, noNull, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
+import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
 
 const __typename = 'Comment' as const;
-type Permissions = Pick<CommentYou, 'canDelete' | 'canEdit' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReply', 'you.canReport', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReply' | 'canReport' | 'canVote'>;
+const suppFields = ['you'] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -61,7 +61,7 @@ export const CommentModel: ModelLogic<{
                 standardVersion: 'StandardVersion',
             },
             reports: 'Report',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
         },
         prismaRelMap: {
             __typename: 'Comment',
@@ -80,11 +80,11 @@ export const CommentModel: ModelLogic<{
             smartContractVersion: 'SmartContractVersion',
             standardVersion: 'StandardVersion',
             reports: 'Report',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             votedBy: 'Vote',
             parents: 'Comment',
         },
-        joinMap: { starredBy: 'user' },
+        joinMap: { bookmarkedBy: 'user' },
         countFields: {
             reportsCount: true,
             translationsCount: true,
@@ -92,32 +92,36 @@ export const CommentModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    }
                 }
             },
         },
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
-                userId: userData.id,
+                ownedByUser: { connect: { id: rest.userData.id } },
                 [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
-            update: async ({ data, prisma, userData }) => ({
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            update: async ({ data, ...rest }) => ({
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).createComment(userData.id, c.id as string);
-                }
+            onCommon: async (params) => {
+                await onCommonPlain({
+                    ...params,
+                    objectType: __typename,
+                    ownerOrganizationField: 'ownedByOrganization',
+                    ownerUserField: 'ownedByUser',
+                });
             },
         },
         yup: commentValidation,
@@ -303,7 +307,7 @@ export const CommentModel: ModelLogic<{
             createdTimeFrame: true,
             issueId: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             noteVersionId: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
@@ -323,18 +327,13 @@ export const CommentModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 0,
-                public: 10000,
-            },
-            Organization: 0,
-        },
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             apiVersion: 'Api',
             issue: 'Issue',
             ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
             post: 'Post',
             projectVersion: 'Project',
             pullRequest: 'PullRequest',
@@ -343,16 +342,10 @@ export const CommentModel: ModelLogic<{
             routineVersion: 'Routine',
             smartContractVersion: 'SmartContract',
             standardVersion: 'Standard',
-            ownedByUser: 'User',
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
             canReply: () => isAdmin || isPublic,
-            canReport: () => !isAdmin && isPublic,
-            canStar: () => isAdmin || isPublic,
-            canView: () => isAdmin || isPublic,
-            canVote: () => isAdmin || isPublic,
         }),
         owner: (data) => ({
             Organization: data.ownedByOrganization,
@@ -360,16 +353,16 @@ export const CommentModel: ModelLogic<{
         }),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
-            ['apiVersion', 'Api'],
+            ['apiVersion', 'ApiVersion'],
             ['issue', 'Issue'],
             ['post', 'Post'],
-            ['projectVersion', 'Project'],
+            ['projectVersion', 'ProjectVersion'],
             ['pullRequest', 'PullRequest'],
             ['question', 'Question'],
             ['questionAnswer', 'QuestionAnswer'],
-            ['routineVersion', 'Routine'],
-            ['smartContractVersion', 'SmartContract'],
-            ['standardVersion', 'Standard'],
+            ['routineVersion', 'RoutineVersion'],
+            ['smartContractVersion', 'SmartContractVersion'],
+            ['standardVersion', 'StandardVersion'],
         ], languages),
         visibility: {
             private: {},

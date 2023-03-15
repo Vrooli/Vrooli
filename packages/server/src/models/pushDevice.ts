@@ -1,8 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
+import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
+import { pushDeviceValidation } from "@shared/validation";
+import { noNull } from "../builders";
 
 const __typename = 'PushDevice' as const;
 const suppFields = [] as const;
@@ -12,7 +15,7 @@ export const PushDeviceModel: ModelLogic<{
     GqlCreate: PushDeviceCreateInput,
     GqlUpdate: PushDeviceUpdateInput,
     GqlModel: PushDevice,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.push_deviceUpsertArgs['create'],
@@ -32,8 +35,51 @@ export const PushDeviceModel: ModelLogic<{
             return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`
         }
     },
-    format: {} as any,
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+        },
+        prismaRelMap: {
+            __typename,
+            user: 'User',
+        },
+        countFields: {},
+    },
+    mutate: {
+        shape: {
+            create: async ({ data, userData }) => ({
+                endpoint: data.endpoint,
+                expires: noNull(data.expires),
+                auth: data.keys.auth,
+                p256dh: data.keys.p256dh,
+                name: noNull(data.name),
+                user: { connect: { id: userData.id } },
+            }),
+            update: async ({ data }) => ({
+                name: noNull(data.name),
+            }),
+        },
+        yup: pushDeviceValidation,
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            user: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                user: { id: userId }
+            }),
+        },
+    },
 })

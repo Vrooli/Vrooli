@@ -17,6 +17,7 @@
         "module": "esnext",
         "resolveJsonModule": true,
         "isolatedModules": true,
+        "jsx": "react-jsx",
         "noImplicitAny": false,
         "noImplicitThis": true,
         "strictNullChecks": true,
@@ -26,6 +27,7 @@
         "src"
     ],
     "exclude": [
-        "node_modules"
+        "**/node_modules",
+        "**/.*/",
     ],
 }

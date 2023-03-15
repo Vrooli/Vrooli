@@ -7,15 +7,19 @@ import { context, depthLimit } from './middleware';
 import { graphqlUploadExpress } from 'graphql-upload';
 import { schema } from './endpoints';
 import { setupDatabase } from './utils/setupDatabase';
-import { initStatsCronJobs } from './statsLog';
 import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
 import { i18nConfig } from '@shared/translations';
 import i18next from 'i18next';
+import { initStatsCronJobs } from './schedules/stats';
+import { initEventsCronJobs } from './schedules/events';
+import { initCountsCronJobs } from './schedules/counts';
+import { initSitemapCronJob } from './schedules';
+import { initModerationCronJobs } from './schedules/moderate';
 
 const debug = process.env.NODE_ENV === 'development';
 
-const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
+const SERVER_URL = process.env.VITE_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
     Boolean(process.env.SERVER_URL) ?
         process.env.SERVER_URL :
@@ -25,7 +29,7 @@ const main = async () => {
     logger.info('Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
+    const requiredEnvs = ['VITE_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);
@@ -80,7 +84,7 @@ const main = async () => {
         introspection: debug,
         schema: schema,
         context: (c) => context(c), // Allows request and response to be included in the context
-        validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
+        validationRules: [depthLimit(11)] // Prevents DoS attack from arbitrarily-nested query
     });
     // Start server
     await apollo_options_latest.start();
@@ -110,8 +114,12 @@ const main = async () => {
     // Start Express server
     app.listen(5329);
 
-    // Start cron jobs for calculating site statistics
+    // Start cron jobs
     initStatsCronJobs();
+    initEventsCronJobs();
+    initCountsCronJobs();
+    initSitemapCronJob();
+    initModerationCronJobs();
 
     logger.info( `🚀 Server running at ${SERVER_URL}`);
 }

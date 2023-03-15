@@ -8,6 +8,7 @@ export const isOwnerAdminCheck = (
     },
     userId: string | null | undefined,
 ): boolean => {
+    console.log('isOwnerAdminCheck', JSON.stringify(owner), userId);
     // Can't be an admin if not logged in
     if (userId === null) return false;
     // If the owner is a user, check id

@@ -10,7 +10,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, 'id' | 'language' | 'description' | 'instructions' | 'name'>
 
-export type RoutineVersionShape = Pick<RoutineVersion, 'id' | 'isAutomatable' | 'isComplete' | 'isLatest' | 'isPrivate' | 'versionIndex' | 'versionLabel' | 'versionNotes' | 'smartContractCallData'> & {
+export type RoutineVersionShape = Pick<RoutineVersion, 'id' | 'isAutomatable' | 'isComplete' | 'isPrivate' | 'versionLabel' | 'versionNotes' | 'smartContractCallData'> & {
     apiVersion?: { id: string } | null;
     directoryListings?: { id: string }[] | null;
     inputs?: RoutineVersionInputShape[] | null;
@@ -31,7 +31,7 @@ export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslatio
 
 export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersionCreateInput, RoutineVersionUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'isAutomatable', 'isComplete', 'isLatest', 'isPrivate', 'versionIndex', 'versionLabel', 'versionNotes', 'smartContractCallData'),
+        ...createPrims(d, 'id', 'isAutomatable', 'isComplete', 'isPrivate', 'versionLabel', 'versionNotes', 'smartContractCallData'),
         ...createRel(d, 'apiVersion', ['Connect'], 'one'),
         ...createRel(d, 'directoryListings', ['Connect'], 'many'),
         ...createRel(d, 'inputs', ['Create'], 'many', shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: d.id } })),
@@ -45,7 +45,7 @@ export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersion
         ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'isAutomatable', 'isComplete', 'isLatest', 'isPrivate', 'versionIndex', 'versionLabel', 'versionNotes', 'smartContractCallData'),
+        ...updatePrims(o, u, 'id', 'isAutomatable', 'isComplete', 'isPrivate', 'versionLabel', 'versionNotes', 'smartContractCallData'),
         ...updateRel(o, u, 'apiVersion', ['Connect', 'Disconnect'], 'one'),
         ...updateRel(o, u, 'directoryListings', ['Connect', 'Disconnect'], 'many'),
         ...updateRel(o, u, 'inputs', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: o.id } })),

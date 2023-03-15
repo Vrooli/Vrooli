@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, Project, Routine, PopularInput, PopularResult, LearnResult, ResearchResult, DevelopResult } from '@shared/consts';
+import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, Project, Routine, PopularInput, PopularResult, ApiSortBy, NoteSortBy, SmartContractSortBy, HomeInput, HomeResult, MeetingSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RunProjectScheduleSortBy, RunRoutineScheduleSortBy } from '@shared/consts';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
-import { getUser } from '../auth/request';
+import { assertRequestFrom, getUser } from '../auth/request';
 import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
 import { PartialGraphQLInfo } from '../builders/types';
 import { readManyAsFeedHelper } from '../actions';
@@ -14,357 +14,253 @@ export const typeDef = gql`
     }
  
     type PopularResult {
+        apis: [Api!]!
+        notes: [Note!]!
         organizations: [Organization!]!
         projects: [Project!]!
+        questions: [Question!]!
         routines: [Routine!]!
+        smartContracts: [SmartContract!]!
         standards: [Standard!]!
         users: [User!]!
     }
- 
-    type LearnResult {
-        courses: [Project!]!
-        tutorials: [Routine!]!
+
+    input HomeInput {
+        searchString: String!
+        showOnlyRelevantToSchedule: Boolean
+        take: Int
     }
- 
-    type ResearchResult {
-        processes: [Routine!]!
-        newlyCompleted: [ProjectOrRoutine!]!
-        needVotes: [Project!]!
-        needInvestments: [Project!]!
-        needMembers: [Organization!]!
-    }
- 
-    type DevelopResult {
-        completed: [ProjectOrRoutine!]!
-        inProgress: [ProjectOrRoutine!]!
-        recent: [ProjectOrRoutine!]!
+
+    type HomeResult {
+        meetings: [Meeting!]!
+        notes: [Note!]!
+        reminders: [Reminder!]!
+        resources: [Resource!]!
+        runProjectSchedules: [RunProjectSchedule!]!
+        runRoutineSchedules: [RunRoutineSchedule!]!
     }
 
     type Query {
+        home(input: HomeInput!): HomeResult!
         popular(input: PopularInput!): PopularResult!
-        learn: LearnResult!
-        research: ResearchResult!
-        develop: DevelopResult!
     }
  `
 
 export const resolvers: {
     Query: {
+        home: GQLEndpoint<HomeInput, HomeResult>;
         popular: GQLEndpoint<PopularInput, PopularResult>;
-        learn: GQLEndpoint<{}, LearnResult>;
-        research: GQLEndpoint<{}, ResearchResult>;
-        develop: GQLEndpoint<{}, DevelopResult>;
     }
 } = {
     Query: {
-        popular: async (_, { input }, { prisma, req }, info) => {
+        home: async (_, { input }, { prisma, req }, info) => {
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                __typename: 'PopularResult',
-                organizations: 'Organization',
-                projects: 'Project',
-                routines: 'Routine',
-                standards: 'Standard',
-                users: 'User',
+                __typename: 'HomeResult',
+                meetings: 'Meeting',
+                notes: 'Note',
+                reminders: 'Reminder',
+                resources: 'Resource',
+                runProjectSchedules: 'RunProjectSchedule',
+                runRoutineSchedules: 'RunRoutineSchedule',
             }, req.languages, true);
-            const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
             const commonReadParams = { prisma, req }
-            // Query organizations
-            const { nodes: organizations } = await readManyAsFeedHelper({
+            const activeScheduleIds = [];//TODO
+            // Query meetings
+            const { nodes: meetings } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.organizations as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
-                objectType: 'Organization',
+                // TODO Find meetings that have not ended yet, and you are invited to (or you are the owner)
+                additionalQueries: {},
+                info: partial.meetings as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: MeetingSortBy.EventEndAsc },
+                objectType: 'Meeting',
             });
-            // Query projects
-            const { nodes: projects } = await readManyAsFeedHelper({
+            // Query notes
+            const { nodes: notes } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.projects as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true },
-                objectType: 'Project',
+                // TODO Find your own notes only
+                additionalQueries: {},
+                info: partial.notes as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: NoteSortBy.DateUpdatedDesc },
+                objectType: 'Note',
             });
-            // Query routines
-            const { nodes: routines } = await readManyAsFeedHelper({
+            // Query reminders
+            const { nodes: reminders } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.routines as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
-                objectType: 'Routine',
+                // TODO Find all of your reminders if "showOnlyRelevantToSchedule" is false, otherwise find reminders associated with your active schedule(s)
+                additionalQueries: {},
+                info: partial.reminders as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false },
+                objectType: 'Reminder',
             });
-            // Query standards
-            const { nodes: standards } = await readManyAsFeedHelper({
+            // Query resources
+            const { nodes: resources } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.standards as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
-                objectType: 'Standard',
+                additionalQueries: {
+                    list: {
+                        userSchedule: input.showOnlyRelevantToSchedule ? {
+                            id: { in: activeScheduleIds }
+                        } : {
+                            user: {
+                                id: userData.id
+                            }
+                        }
+                    }
+                },
+                info: partial.resources as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: ResourceSortBy.IndexAsc },
+                objectType: 'Resource',
             });
-            // Query users
-            const { nodes: users } = await readManyAsFeedHelper({
+            // Query runProjectSchedules
+            const { nodes: runProjectSchedules } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery },
-                info: partial.users as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: UserSortBy.StarsDesc },
-                objectType: 'User',
+                // TODO Find all of your runProjectSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
+                additionalQueries: {},
+                info: partial.runProjectSchedules as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: RunProjectScheduleSortBy.WindowStartAsc },
+                objectType: 'RunProjectSchedule',
+            });
+            // Query runRoutineSchedules
+            const { nodes: runRoutineSchedules } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                // TODO Find all of your runRoutineSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
+                additionalQueries: {},
+                info: partial.runRoutineSchedules as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: RunRoutineScheduleSortBy.WindowStartAsc },
+                objectType: 'RunRoutineSchedule',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [organizations, projects, routines, standards, users],
-                [partial.organizations, partial.projects, partial.routines, partial.standards, partial.users] as PartialGraphQLInfo[],
-                ['o', 'p', 'r', 's', 'u'],
+                [meetings, notes, reminders, resources, runProjectSchedules, runRoutineSchedules],
+                [partial.meetings, partial.notes, partial.reminders, partial.resources, partial.runProjectSchedules, partial.runRoutineSchedules] as PartialGraphQLInfo[],
+                ['m', 'n', 'rem', 'res', 'rps', 'rrs'],
                 getUser(req),
                 prisma,
             )
             // Return results
             return {
-                __typename: 'PopularResult' as const,
-                organizations: withSupplemental['o'],
-                projects: withSupplemental['p'],
-                routines: withSupplemental['r'],
-                standards: withSupplemental['s'],
-                users: withSupplemental['u'],
+                __typename: 'HomeResult' as const,
+                meetings: withSupplemental['m'],
+                notes: withSupplemental['n'],
+                reminders: withSupplemental['rem'],
+                resources: withSupplemental['res'],
+                runProjectSchedules: withSupplemental['rps'],
+                runRoutineSchedules: withSupplemental['rrs'],
             }
         },
-        learn: async (_p, _d, { prisma, req }, info) => {
+        popular: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                __typename: 'LearnResult',
-                courses: 'Project',
-                tutorials: 'Routine',
+                __typename: 'PopularResult',
+                apis: 'Api',
+                notes: 'Note',
+                organizations: 'Organization',
+                projects: 'Project',
+                questions: 'Question',
+                routines: 'Routine',
+                smartContracts: 'SmartContract',
+                standards: 'Standard',
+                users: 'User',
             }, req.languages, true);
-            const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
+            const bookmarksQuery = { bookmarks: { gte: 0 } };  // Minimum bookmarks required to show up in results. Should increase in the future.
             const take = 5;
             const commonReadParams = { prisma, req }
-            // Query courses
-            const { nodes: courses } = await readManyAsFeedHelper({
+            // Query apis
+            const { nodes: apis } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.courses as PartialGraphQLInfo,
-                input: { take, sortBy: ProjectSortBy.ScoreDesc, tags: ['Learn'], isComplete: true, },
-                objectType: 'Project',
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                info: partial.apis as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: ApiSortBy.ScoreDesc },
+                objectType: 'Api',
             });
-            // Query tutorials
-            const { nodes: tutorials } = await readManyAsFeedHelper({
+            // Query notes
+            const { nodes: notes } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.tutorials as PartialGraphQLInfo,
-                input: { take, sortBy: ProjectSortBy.ScoreDesc, tags: ['Learn'], isComplete: true, },
-                objectType: 'Routine',
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                info: partial.notes as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: NoteSortBy.ScoreDesc },
+                objectType: 'Note',
             });
-            // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [courses, tutorials],
-                [partial.courses, partial.tutorials] as PartialGraphQLInfo[],
-                ['c', 't'],
-                getUser(req),
-                prisma,
-            )
-            // Return data
-            return {
-                __typename: 'LearnResult' as const,
-                courses: withSupplemental['c'],
-                tutorials: withSupplemental['t'],
-            }
-        },
-        research: async (_p, _d, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 5000, req });
-            const partial = toPartialGraphQLInfo(info, {
-                __typename: 'ResearchResult',
-                processes: 'Routine',
-                newlyCompleted: {
-                    Routine: 'Routine',
-                    Project: 'Project',
-                },
-                needVotes: 'Project',
-                needInvestments: 'Project',
-                needMembers: 'Organization',
-            }, req.languages, true);
-            const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
-            const take = 5;
-            const commonReadParams = { prisma, req }
-            // Query processes
-            const { nodes: processes } = await readManyAsFeedHelper({
+            // Query organizations
+            const { nodes: organizations } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.processes as PartialGraphQLInfo,
-                input: { take, sortBy: RoutineSortBy.ScoreDesc, tags: ['Research'], isComplete: true, isInternal: false },
-                objectType: 'Routine',
-            });
-            // Query newlyCompleted
-            const { nodes: newlyCompletedProjects } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: (partial.newlyCompleted as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
-                input: { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
-                objectType: 'Project',
-            });
-            const { nodes: newlyCompletedRoutines } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: (partial.newlyCompleted as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
-                input: { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
-                objectType: 'Routine',
-            });
-            // Query needVotes
-            const { nodes: needVotes } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.needVotes as PartialGraphQLInfo,
-                input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Proposal] },
-                objectType: 'Project',
-            });
-            // Query needInvestments
-            const { nodes: needInvestments } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                additionalQueries: { ...starsQuery, isPrivate: false },
-                info: partial.needInvestments as PartialGraphQLInfo,
-                input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Donation] },
-                objectType: 'Project',
-            });
-            // Query needMembers
-            const { nodes: needMembers } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                info: partial.needMembers as PartialGraphQLInfo,
-                input: { take, isOpenToNewMembers: true, sortBy: OrganizationSortBy.StarsDesc },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                info: partial.organizations as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: OrganizationSortBy.BookmarksDesc },
                 objectType: 'Organization',
             });
-            // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestments, needMembers],
-                [partial.processes, (partial.newlyCompleted as PartialGraphQLInfo)?.Project, (partial.newlyCompleted as PartialGraphQLInfo)?.Routine, partial.needVotes, partial.needInvestments, partial.needMembers] as PartialGraphQLInfo[],
-                ['p', 'ncp', 'ncr', 'nv', 'ni', 'nm'],
-                getUser(req),
-                prisma,
-            )
-            // Return data
-            return {
-                __typename: 'ResearchResult' as const,
-                processes: withSupplemental['p'],
-                // newlyCompleted combines projects and routines, and sorts by date completed
-                newlyCompleted: [...withSupplemental['ncp'], ...withSupplemental['ncr']].sort((a, b) => {
-                    if (a.completedAt < b.completedAt) return -1;
-                    if (a.completedAt > b.completedAt) return 1;
-                    return 0;
-                }),
-                needVotes: withSupplemental['nv'],
-                // needInvestments combines projects and organizations, and sorts by stars
-                needInvestments: withSupplemental['ni'].sort((a, b) => {
-                    if (a.stars < b.stars) return 1;
-                    if (a.stars > b.stars) return -1;
-                    return 0;
-                }),
-                needMembers: withSupplemental['nm'],
-            }
-        },
-        develop: async (_p, _d, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 5000, req });
-            const partial = toPartialGraphQLInfo(info, {
-                __typename: 'DevelopResult',
-                completed: {
-                    Routine: 'Routine',
-                    Project: 'Project',
-                },
-                inProgress: {
-                    Routine: 'Routine',
-                    Project: 'Project',
-                },
-                recent: {
-                    Routine: 'Routine',
-                    Project: 'Project',
-                },
-            }, req.languages, true);
-            // If not signed in, return empty data
-            const userId = getUser(req)?.id ?? null;
-            if (!userId) return {
-                __typename: 'DevelopResult' as const,
-                completed: [],
-                inProgress: [],
-                recent: [],
-            }
-            const take = 5;
-            const commonReadParams = { prisma, req }
-            // Query for routines you've completed
-            const { nodes: completedRoutines } = await readManyAsFeedHelper({
+            // Query projects
+            const { nodes: projects } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: (partial.completed as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
-                input: { take, hasCompleteVersion: true, isInternal: false, userId, sortBy: RoutineSortBy.DateCompletedAsc },
-                objectType: 'Routine',
-            });
-            // Query for projects you've completed
-            const { nodes: completedProjects } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                info: (partial.completed as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
-                input: { take, hasCompleteVersion: true, userId, sortBy: ProjectSortBy.DateCompletedAsc },
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                info: partial.projects as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: ProjectSortBy.ScoreDesc, isComplete: true },
                 objectType: 'Project',
             });
-            // Query for routines you're currently working on
-            const { nodes: inProgressRoutines } = await readManyAsFeedHelper({
+            // Query questions
+            const { nodes: questions } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: (partial.inProgress as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
-                input: { take, hasCompleteVersion: false, isInternal: false, userId, sortBy: RoutineSortBy.DateCreatedAsc },
+                // Make sure question is not attached to any objects (i.e. standalone)
+                additionalQueries: { ...bookmarksQuery, api: null, note: null, organization: null, project: null, routine: null, smartContract: null, standard: null },
+                info: partial.questions as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: QuestionSortBy.ScoreDesc, isComplete: true },
+                objectType: 'Question',
+            });
+            // Query routines
+            const { nodes: routines } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                info: partial.routines as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: RoutineSortBy.ScoreDesc, isComplete: true, isInternal: false },
                 objectType: 'Routine',
             });
-            // Query for projects you're currently working on
-            const { nodes: inProgressProjects } = await readManyAsFeedHelper({
+            // Query smart contracts
+            const { nodes: smartContracts } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: (partial.inProgress as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
-                input: { take, hasCompleteVersion: false, userId, sortBy: ProjectSortBy.DateCreatedAsc },
-                objectType: 'Project',
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                info: partial.smartContracts as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: SmartContractSortBy.ScoreDesc, isComplete: true },
+                objectType: 'SmartContract',
             });
-            // Query recently created/updated routines
-            const { nodes: recentRoutines } = await readManyAsFeedHelper({
+            // Query standards
+            const { nodes: standards } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: (partial.recent as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
-                input: { take, userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
-                objectType: 'Routine',
+                additionalQueries: { ...bookmarksQuery, isPrivate: false },
+                info: partial.standards as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: StandardSortBy.ScoreDesc, type: 'JSON' },
+                objectType: 'Standard',
             });
-            // Query recently created/updated projects
-            const { nodes: recentProjects } = await readManyAsFeedHelper({
+            // Query users
+            const { nodes: users } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: (partial.recent as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
-                input: { take, userId, sortBy: ProjectSortBy.DateUpdatedAsc },
-                objectType: 'Project',
+                additionalQueries: { ...bookmarksQuery },
+                info: partial.users as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: UserSortBy.BookmarksDesc },
+                objectType: 'User',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [completedRoutines, completedProjects, inProgressRoutines, inProgressProjects, recentRoutines, recentProjects],
-                [(partial.completed as PartialGraphQLInfo)?.Routine, (partial.completed as PartialGraphQLInfo)?.Project, (partial.inProgress as PartialGraphQLInfo)?.Routine, (partial.inProgress as PartialGraphQLInfo)?.Project, (partial.recent as PartialGraphQLInfo)?.Routine, (partial.recent as PartialGraphQLInfo)?.Project] as PartialGraphQLInfo[],
-                ['cr', 'cp', 'ipr', 'ipp', 'rr', 'rp'],
+                [apis, notes, organizations, projects, questions, routines, smartContracts, standards, users],
+                [partial.apis, partial.notes, partial.organizations, partial.projects, partial.questions, partial.routines, partial.smartContracts, partial.standards, partial.users] as PartialGraphQLInfo[],
+                ['a', 'n', 'o', 'p', 'q', 'r', 'sc', 'st', 'u'],
                 getUser(req),
                 prisma,
             )
-            // Combine arrays
-            const completed: Array<Project | Routine> = [...withSupplemental['cr'], ...withSupplemental['cp']];
-            const inProgress: Array<Project | Routine> = [...withSupplemental['ipr'], ...withSupplemental['ipp']];
-            const recent: Array<Project | Routine> = [...withSupplemental['rr'], ...withSupplemental['rp']];
-            // Sort arrays
-            completed.sort((a, b) => {
-                if (a.updated_at < b.updated_at) return -1;
-                if (a.updated_at > b.updated_at) return 1;
-                return 0;
-            });
-            inProgress.sort((a, b) => {
-                if (a.updated_at < b.updated_at) return -1;
-                if (a.updated_at > b.updated_at) return 1;
-                return 0;
-            });
-            recent.sort((a, b) => {
-                if (a.updated_at < b.updated_at) return -1;
-                if (a.updated_at > b.updated_at) return 1;
-                return 0;
-            });
-            // Return data
+            console.log('feeed made it heere 2', JSON.stringify(withSupplemental), '\n\n')
+            // Return results
             return {
-                __typename: 'DevelopResult' as const,
-                completed,
-                inProgress,
-                recent,
+                __typename: 'PopularResult' as const,
+                apis: withSupplemental['a'],
+                notes: withSupplemental['n'],
+                organizations: withSupplemental['o'],
+                projects: withSupplemental['p'],
+                questions: withSupplemental['q'],
+                routines: withSupplemental['r'],
+                smartContracts: withSupplemental['sc'],
+                standards: withSupplemental['st'],
+                users: withSupplemental['u'],
             }
         },
     },

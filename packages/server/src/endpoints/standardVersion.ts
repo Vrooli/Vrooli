@@ -24,34 +24,30 @@ export const typeDef = gql`
 
     input StandardVersionCreateInput {
         id: ID!
+        default: String
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         isFile: Boolean
-        default: String
-        standardType: String!
         props: String!
-        yup: String
-        versionIndex: Int!
+        standardType: String!
         versionLabel: String!
         versionNotes: String
+        yup: String
         directoryListingsConnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
         rootConnect: ID!
         rootCreate: StandardCreateInput
-        resourceListCreate: ResourceListCreateInput
         translationsCreate: [StandardVersionTranslationCreateInput!]
     }
     input StandardVersionUpdateInput {
         id: ID!
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         isFile: Boolean
         default: String
         standardType: String
         props: String
         yup: String
-        versionIndex: Int!
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -119,15 +115,25 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         ids: [ID!]
-        isComplete: Boolean
-        languages: [String!]
+        isCompleteWithRoot: Boolean
+        isLatest: Boolean
+        translationLanguages: [String!]
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
+        minViewsRoot: Int
         reportId: ID
         rootId: ID
         searchString: String
         sortBy: StandardVersionSortBy
         standardType: String
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID

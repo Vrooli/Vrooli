@@ -6,15 +6,17 @@ export const typeDef = gql`
         loops: Int
         maxLoops: Int
         operation: String
-        whilesCreate: [NodeLoopWhileCreateInput!]!
+        nodeConnect: ID!
+        whilesCreate: [NodeLoopWhileCreateInput!]
     }
     input NodeLoopUpdateInput {
         id: ID!
         loops: Int
         maxLoops: Int
         operation: String
-        whilesCreate: [NodeLoopWhileCreateInput!]!
-        whilesUpdate: [NodeLoopWhileUpdateInput!]!
+        nodeConnect: ID
+        whilesCreate: [NodeLoopWhileCreateInput!]
+        whilesUpdate: [NodeLoopWhileUpdateInput!]
         whilesDelete: [ID!]
     }
     type NodeLoop {

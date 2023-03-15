@@ -18,8 +18,8 @@ export const typeDef = gql`
         RepostsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         ViewsAsc
         ViewsDesc
     }
@@ -27,36 +27,39 @@ export const typeDef = gql`
     input PostCreateInput {
         id: ID!
         isPinned: Boolean
-        isPublic: Boolean
+        isPrivate: Boolean
         organizationConnect: ID
         repostedFromConnect: ID
         resourceListCreate: ResourceListCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
+        userConnect: ID
     }
     input PostUpdateInput {
         id: ID!
         isPinned: Boolean
-        isPublic: Boolean
+        isPrivate: Boolean
         resourceListUpdate: ResourceListUpdateInput
         tagsConnect: [String!]
-        tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
+        tagsDisconnect: [String!]
     }
     type Post {
         id: ID!
         created_at: Date!
         updated_at: Date!
         comments: [Comment!]!
+        commentsCount: Int!
         owner: Owner!
         reports: [Report!]!
         repostedFrom: Post
         reposts: [Post!]!
+        repostsCount: Int!
         resourceList: ResourceList!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         tags: [Tag!]!
         translations: [PostTranslation!]!
     }
@@ -86,9 +89,11 @@ export const typeDef = gql`
         excludeIds: [ID!]
         isPinned: Boolean
         ids: [ID!]
-        languages: [String!]
+        translationLanguages: [String!]
+        maxScore: Int
+        maxBookmarks: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         organizationId: ID
         userId: ID
         repostedFromIds: [ID!]

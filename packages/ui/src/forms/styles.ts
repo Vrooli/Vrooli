@@ -14,4 +14,5 @@ export const formNavLink: SxProps<Theme> = {
     color: (t) => t.palette.mode === 'light' ? t.palette.secondary.dark : t.palette.background.textPrimary,
     display: 'flex',
     alignItems: 'center',
+    cursor: 'pointer',
 };

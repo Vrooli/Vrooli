@@ -12,11 +12,11 @@ import {
 } from '@mui/material';
 import { GridSubmitButtons } from 'components/buttons';
 import { DialogTitle } from 'components/dialogs';
-import { QuantityBox } from 'components/inputs';
+import { IntegerInput } from 'components/inputs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ReorderInputDialogProps } from '../types';
 
-const titleAria = 'reorder-input-output-dialog-title';
+const titleId = 'reorder-input-output-dialog-title';
 
 export const ReorderInputDialog = ({
     handleClose,
@@ -53,7 +53,7 @@ export const ReorderInputDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
@@ -61,7 +61,7 @@ export const ReorderInputDialog = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 onClose={handleCancel}
                 title={`Reorder ${isInput ? 'Input' : 'Output'}`}
             />
@@ -85,7 +85,7 @@ export const ReorderInputDialog = ({
                         </Typography>
                     </Box>
                     {/* To */}
-                    <QuantityBox
+                    <IntegerInput
                         id="move-input-output-to-position"
                         label="To"
                         min={1}
@@ -97,6 +97,7 @@ export const ReorderInputDialog = ({
                 {/* Action buttons */}
                 <Grid container spacing={2} sx={{ padding: 0, paddingTop: '24px' }}>
                     <GridSubmitButtons
+                        display="dialog"
                         isCreate={false}
                         onCancel={handleCancel}
                         onSubmit={onSubmit}

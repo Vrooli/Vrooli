@@ -7,15 +7,15 @@ import { useCallback, useMemo, useState } from 'react';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { AddIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
-    canEdit = true,
+    canUpdate = true,
     handleUpdate,
     mutate = true,
     list,
@@ -45,7 +45,7 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(...deleteOneOrManyEndpoint.deleteMany);
+    const [deleteMutation] = useCustomMutation<Count, DeleteManyInput>(deleteOneOrManyDeleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
@@ -117,7 +117,7 @@ export const ResourceListHorizontal = ({
             {dialog}
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
-                canEdit={canEdit}
+                canUpdate={canUpdate}
                 id={contextId}
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
@@ -155,7 +155,7 @@ export const ResourceListHorizontal = ({
                     {/* Resources */}
                     {list?.resources?.map((c: Resource, index) => (
                         <ResourceCard
-                            canEdit={canEdit}
+                            canUpdate={canUpdate}
                             key={`resource-card-${index}`}
                             index={index}
                             session={session}
@@ -178,7 +178,7 @@ export const ResourceListHorizontal = ({
                         )
                     }
                     {/* Add resource button */}
-                    {canEdit ? <Tooltip placement="top" title="Add resource">
+                    {canUpdate ? <Tooltip placement="top" title="Add resource">
                         <Box
                             onClick={openDialog}
                             aria-label="Add resource"

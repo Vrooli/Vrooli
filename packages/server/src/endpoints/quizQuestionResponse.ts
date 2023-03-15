@@ -10,20 +10,19 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        QuestionOrderAsc
+        QuestionOrderDesc
     }
 
     input QuizQuestionResponseCreateInput {
         id: ID!
-        response: String
+        response: String!
         quizAttemptConnect: ID!
         quizQuestionConnect: ID!
-        translationsCreate: [QuizQuestionResponseTranslationCreateInput!]
     }
     input QuizQuestionResponseUpdateInput {
         id: ID!
-        translationsCreate: [QuizQuestionResponseTranslationCreateInput!]
-        translationsUpdate: [QuizQuestionResponseTranslationUpdateInput!]
-        translationsDelete: [ID!]
+        response: String
     }
     type QuizQuestionResponse {
         id: ID!
@@ -37,23 +36,7 @@ export const typeDef = gql`
 
     type QuizQuestionResponseYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-    }
-
-    input QuizQuestionResponseTranslationCreateInput {
-        id: ID!
-        language: String!
-        response: String!
-    }
-    input QuizQuestionResponseTranslationUpdateInput {
-        id: ID!
-        language: String
-        response: String
-    }
-    type QuizQuestionResponseTranslation {
-        id: ID!
-        language: String!
-        response: String!
+        canUpdate: Boolean!
     }
 
     input QuizQuestionResponseSearchInput {

@@ -1,4 +1,4 @@
-import { useMutation } from 'graphql/hooks';
+import { useCustomMutation } from 'api/hooks';
 import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
@@ -9,21 +9,23 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { APP_LINKS, EmailRequestPasswordChangeInput, Success } from '@shared/consts';
+import { LINKS, EmailRequestPasswordChangeInput, Success } from '@shared/consts';
 import { Forms } from 'utils';
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { useLocation } from '@shared/route';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { CSSProperties } from '@mui/styles';
-import { authEndpoint } from 'graphql/endpoints';
+import { authEmailRequestPasswordChange } from 'api/generated/endpoints/auth_emailRequestPasswordChange';
+import { useTranslation } from 'react-i18next';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }
 }: FormProps) => {
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useMutation<Success, EmailRequestPasswordChangeInput, 'emailRequestPasswordChange'>(...authEndpoint.emailRequestPasswordChange);
+    const [emailRequestPasswordChange, { loading }] = useCustomMutation<Success, EmailRequestPasswordChangeInput>(authEmailRequestPasswordChange);
 
     const formik = useFormik({
         initialValues: {
@@ -35,7 +37,7 @@ export const ForgotPasswordForm = ({
                 mutation: emailRequestPasswordChange,
                 input: { ...values },
                 successCondition: (data) => data.success === true,
-                onSuccess: () => setLocation(APP_LINKS.Home),
+                onSuccess: () => setLocation(LINKS.Home),
                 onError: () => { formik.setSubmitting(false) },
                 successMessage: () => ({ key: 'RequestSentCheckEmail' }),
             })
@@ -72,7 +74,7 @@ export const ForgotPasswordForm = ({
                     color="secondary"
                     sx={{ ...formSubmit }}
                 >
-                    Submit
+                    {t('Submit')}
                 </Button>
                 <Grid container spacing={2}>
                     <Grid item xs={6}>
@@ -83,7 +85,7 @@ export const ForgotPasswordForm = ({
                                     ...formNavLink,
                                 } as CSSProperties}
                             >
-                                Remember? Back to Log In
+                                {t('RememberLogBackIn')}
                             </Typography>
                         </Link>
                     </Grid>
@@ -96,7 +98,7 @@ export const ForgotPasswordForm = ({
                                     flexDirection: 'row-reverse',
                                 } as CSSProperties}
                             >
-                                Don't have an account? Sign up
+                                {t('DontHaveAccountSignUp')}
                             </Typography>
                         </Link>
                     </Grid>

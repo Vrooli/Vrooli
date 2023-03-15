@@ -4,7 +4,7 @@ import { ShapeModel } from "types";
 
 export type ProfileTranslationShape = Pick<UserTranslation, 'id' | 'language' | 'bio'>
 
-export type ProfileShape = Partial<Pick<User, 'handle' | 'isPrivate' | 'isPrivateApis' | 'isPrivateApisCreated' | 'isPrivateMemberships' | 'isPrivateOrganizationsCreated' | 'isPrivateProjects' | 'isPrivateProjectsCreated' | 'isPrivatePullRequests' | 'isPrivateQuestionsAnswered' | 'isPrivateQuestionsAsked' | 'isPrivateQuizzesCreated' | 'isPrivateRoles' | 'isPrivateRoutines' | 'isPrivateRoutinesCreated' | 'isPrivateStandards' | 'isPrivateStandardsCreated' | 'isPrivateStars' | 'isPrivateVotes' | 'name' | 'theme'>> & {
+export type ProfileShape = Partial<Pick<User, 'handle' | 'isPrivate' | 'isPrivateApis' | 'isPrivateApisCreated' | 'isPrivateMemberships' | 'isPrivateOrganizationsCreated' | 'isPrivateProjects' | 'isPrivateProjectsCreated' | 'isPrivatePullRequests' | 'isPrivateQuestionsAnswered' | 'isPrivateQuestionsAsked' | 'isPrivateQuizzesCreated' | 'isPrivateRoles' | 'isPrivateRoutines' | 'isPrivateRoutinesCreated' | 'isPrivateStandards' | 'isPrivateStandardsCreated' | 'isPrivateBookmarks' | 'isPrivateVotes' | 'name' | 'theme'>> & {
     id: string;
     translations?: ProfileTranslationShape[] | null;
     schedules?: UserScheduleShape[] | null;
@@ -34,7 +34,7 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
             'isPrivateRoutinesCreated',
             'isPrivateStandards',
             'isPrivateStandardsCreated',
-            'isPrivateStars',
+            'isPrivateBookmarks',
             'isPrivateVotes',
             'name',
             'theme',

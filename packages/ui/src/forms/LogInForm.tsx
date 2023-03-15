@@ -1,6 +1,6 @@
-import { useLocation } from '@shared/route';
-import { useMutation } from 'graphql/hooks';
-import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
+import { parseSearchParams, useLocation } from '@shared/route';
+import { useCustomMutation } from 'api/hooks';
+import { LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -10,27 +10,33 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { Forms, PubSub, useReactSearch } from 'utils';
+import { Forms, PubSub } from 'utils';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
-import { PasswordTextField, SnackSeverity } from 'components';
+import { PasswordTextField } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
-import { errorToCode, hasErrorCode, mutationWrapper } from 'graphql/utils';
-import { authEndpoint } from 'graphql/endpoints';
+import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
+import { emailLogInFormValidation } from '@shared/validation';
+import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
+import { useTranslation } from 'react-i18next';
 
 export const LogInForm = ({
     onFormChange = () => { }
 }: LogInFormProps) => {
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const search = useReactSearch();
-    const { redirect, verificationCode } = useMemo(() => ({
-        redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
-        verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
-    }), [search]);
+    
+    const { redirect, verificationCode } = useMemo(() => {
+        const params = parseSearchParams();
+        return {
+            redirect: typeof params.redirect === 'string' ? params.redirect : undefined,
+            verificationCode: typeof params.code === 'string' ? params.code : undefined,
+        }
+    }, []);
 
-    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(...authEndpoint.emailLogIn);  
+    const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);
@@ -40,15 +46,16 @@ export const LogInForm = ({
             email: '',
             password: ''
         },
-        validationSchema: emailLogInForm,
+        validationSchema: emailLogInFormValidation,
         onSubmit: (values) => {
             mutationWrapper<Session, EmailLogInInput>({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
                 successCondition: (data) => data !== null,
-                onSuccess: (data) => { 
-                    if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: SnackSeverity.Success });
-                    PubSub.get().publishSession(data); setLocation(redirect ?? APP_LINKS.Home) 
+                onSuccess: (data) => {
+                    if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: 'Success' });
+                    PubSub.get().publishSession(data);
+                    setLocation(redirect ?? LINKS.Home);
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {
@@ -57,20 +64,20 @@ export const LogInForm = ({
                         PubSub.get().publishAlertDialog({
                             messageKey: 'ChangePasswordBeforeLogin',
                             buttons: [
-                                { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
+                                { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? LINKS.Home) } },
                             ]
                         });
                     }
                     // Custom snack for invalid email, that has sign up link
                     else if (hasErrorCode(response, 'EmailNotFound')) {
-                        PubSub.get().publishSnack({ 
-                            messageKey: 'EmailNotFound', 
-                            severity: SnackSeverity.Error, 
+                        PubSub.get().publishSnack({
+                            messageKey: 'EmailNotFound',
+                            severity: 'Error',
                             buttonKey: 'SignUp',
                             buttonClicked: () => { toSignUp() }
                         });
                     } else {
-                        PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: SnackSeverity.Error, data: response });
+                        PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: 'Error', data: response });
                     }
                     formik.setSubmitting(false);
                 }
@@ -118,7 +125,7 @@ export const LogInForm = ({
                     color="secondary"
                     sx={{ ...formSubmit }}
                 >
-                    Log In
+                    {t('LogIn')}
                 </Button>
                 <Grid container spacing={2}>
                     <Grid item xs={6}>
@@ -129,7 +136,7 @@ export const LogInForm = ({
                                     ...formNavLink,
                                 } as CSSProperties}
                             >
-                                Forgot Password?
+                                {t('ForgotPassword')}
                             </Typography>
                         </Link>
                     </Grid>
@@ -142,7 +149,7 @@ export const LogInForm = ({
                                     flexDirection: 'row-reverse',
                                 } as CSSProperties}
                             >
-                                Don't have an account? Sign up
+                                {t('DontHaveAccountSignUp')}
                             </Typography>
                         </Link>
                     </Grid>

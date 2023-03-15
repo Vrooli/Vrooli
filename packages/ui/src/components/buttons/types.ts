@@ -1,9 +1,20 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, StarFor } from '@shared/consts';
+import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor, VoteFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
+import { FormSchema } from 'forms/types';
 import React from 'react';
 import { NavigableObject} from 'types';
-import { Status } from 'utils';
+import { SearchType, Status } from 'utils';
+import { ViewDisplayType } from 'views/types';
+
+export interface AdvancedSearchButtonProps {
+    advancedSearchParams: object | null;
+    advancedSearchSchema: FormSchema | null | undefined;
+    searchType: SearchType | `${SearchType}`;
+    setAdvancedSearchParams: (params: object | null) => void;
+    session: Session | undefined;
+    zIndex: number;
+}
 
 export interface BuildEditButtonsProps {
     canSubmitMutate: boolean;
@@ -14,6 +25,12 @@ export interface BuildEditButtonsProps {
     isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
+}
+
+export type CameraButtonProps = {
+    disabled?: boolean;
+    onTranscriptChange: (result: string) => void;
+    session: Session | undefined;
 }
 
 export interface ColorIconButtonProps extends IconButtonProps {
@@ -31,9 +48,15 @@ export interface CommentsButtonProps {
     object: NavigableObject | null | undefined;
 }
 
+export interface GridActionButtonsProps {
+    children: JSX.Element | JSX.Element[];
+    display: ViewDisplayType;
+}
+
 export interface GridSubmitButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
+    display: ViewDisplayType;
     errors?: { [key: string]: string | string[] | null | undefined };
     isCreate: boolean;
     loading?: boolean;
@@ -62,6 +85,11 @@ export interface HelpButtonProps extends ButtonProps {
     sx?: SvgProps;
 }
 
+export type MicrophoneButtonProps = {
+    disabled?: boolean;
+    onTranscriptChange: (result: string) => void;
+}
+
 export interface PopupMenuProps extends ButtonProps {
     text?: string;
     children: any
@@ -70,7 +98,7 @@ export interface PopupMenuProps extends ButtonProps {
 export interface ReportButtonProps {
     forId: string;
     reportFor: ReportFor;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -84,13 +112,27 @@ export interface ReportsLinkProps {
 }
 
 export interface RunButtonProps {
-    canEdit: boolean;
+    canUpdate: boolean;
     handleRunAdd: (run: RunProject | RunRoutine) => void;
     handleRunDelete: (run: RunProject | RunRoutine) => void;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
     runnableObject: ProjectVersion | RoutineVersion | null;
-    session: Session;
+    session: Session | undefined;
+    zIndex: number;
+}
+
+export interface SearchButtonsProps {
+    advancedSearchParams: object | null;
+    advancedSearchSchema: FormSchema | null | undefined;
+    searchType: SearchType | `${SearchType}`;
+    session: Session | undefined;
+    setAdvancedSearchParams: (params: object | null) => void;
+    setSortBy: (sortBy: string) => void;
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    sortBy: string;
+    sortByOptions: any; // No way to specify generic enum
+    timeFrame: TimeFrame | undefined;
     zIndex: number;
 }
 
@@ -99,17 +141,30 @@ export interface ShareButtonProps {
     zIndex: number;
 }
 
-export interface StarButtonProps {
+export interface SideActionButtonsProps {
+    children: JSX.Element | null | boolean | undefined | (JSX.Element | null | boolean | undefined)[];
+    display: ViewDisplayType;
+    isLeftHanded?: boolean;
+    sx?: { [key: string]: any };
+    zIndex: number;
+}
+
+export interface SortButtonProps {
+    options: any; // No way to specify generic enum
+    setSortBy: (sortBy: string) => void;
+    sortBy: string;
+}
+
+export interface BookmarkButtonProps {
     disabled?: boolean;
-    isStar?: boolean | null; // Defaults to false
+    isBookmarked?: boolean | null; // Defaults to false
     objectId: string;
-    onChange?: (isStar: boolean, event?: any) => void;
-    session: Session;
-    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
-    starFor: StarFor;
-    stars?: number | null; // Defaults to 0
+    onChange?: (isBookmarked: boolean, event?: any) => void;
+    session: Session | undefined;
+    showBookmarks?: boolean; // Defaults to true. If false, the number of bookmarks is not shown
+    bookmarkFor: BookmarkFor;
+    bookmarks?: number | null; // Defaults to 0
     sxs?: { root?: { [key: string]: any } };
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export interface StatusMessageArray {
@@ -120,4 +175,25 @@ export interface StatusMessageArray {
 export interface StatusButtonProps extends ButtonProps {
     status: Status;
     messages: string[];
+}
+
+export type TimeFrame = {
+    after?: Date;
+    before?: Date;
+}
+
+export interface TimeButtonProps {
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    timeFrame: TimeFrame | undefined;
+}
+
+export interface VoteButtonProps {
+    direction?: 'row' | 'column';
+    disabled?: boolean;
+    session: Session | undefined;
+    score?: number; // Net score - can be negative
+    isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
+    objectId: string;
+    voteFor: VoteFor;
+    onChange: (isUpvote: boolean | null, newScore: number) => void;
 }

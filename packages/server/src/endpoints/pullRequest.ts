@@ -1,6 +1,7 @@
+
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, PullRequestSortBy, PullRequestToObjectType, PullRequestStatus, PullRequest, PullRequestSearchInput, PullRequestCreateInput, PullRequestUpdateInput } from '@shared/consts';
+import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, PullRequestSortBy, PullRequestToObjectType, PullRequestStatus, PullRequest, PullRequestSearchInput, PullRequestCreateInput, PullRequestUpdateInput, PullRequestFromObjectType } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { resolveUnion } from './resolvers';
@@ -24,6 +25,15 @@ export const typeDef = gql`
         Standard
     }
 
+    enum PullRequestFromObjectType {
+        ApiVersion
+        NoteVersion
+        ProjectVersion
+        RoutineVersion
+        SmartContractVersion
+        StandardVersion
+    }
+
     enum PullRequestStatus {
         Open
         Merged
@@ -38,11 +48,16 @@ export const typeDef = gql`
         id: ID!
         toObjectType: PullRequestToObjectType!
         toConnect: ID!
+        fromObjectType: PullRequestFromObjectType!
         fromConnect: ID!
+        translationsCreate: [PullRequestTranslationCreateInput!]
     }
     input PullRequestUpdateInput {
         id: ID!
         status: PullRequestStatus
+        translationsDelete: [ID!]
+        translationsCreate: [PullRequestTranslationCreateInput!]
+        translationsUpdate: [PullRequestTranslationUpdateInput!]
     }
     type PullRequest {
         id: ID!
@@ -54,14 +69,33 @@ export const typeDef = gql`
         to: PullRequestTo!
         createdBy: User
         comments: [Comment!]!
+        commentsCount: Int!
+        translations: [CommentTranslation!]!
+        translationsCount: Int!
         you: PullRequestYou!
+    }
+
+    input PullRequestTranslationCreateInput {
+        id: ID!
+        language: String!
+        text: String!
+    }
+    input PullRequestTranslationUpdateInput {
+        id: ID!
+        language: String
+        text: String
+    }
+    type PullRequestTranslation {
+        id: ID!
+        language: String!
+        text: String!
     }
 
     type PullRequestYou {
         canComment: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
         canReport: Boolean!
+        canUpdate: Boolean!
     }
 
     input PullRequestSearchInput {
@@ -69,7 +103,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isMergedOrRejected: Boolean
-        languages: [String!]
+        translationLanguages: [String!]
         toId: ID
         createdById: ID
         searchString: String
@@ -108,6 +142,7 @@ const objectType = 'PullRequest';
 export const resolvers: {
     PullRequestSortBy: typeof PullRequestSortBy;
     PullRequestToObjectType: typeof PullRequestToObjectType;
+    PullRequestFromObjectType: typeof PullRequestFromObjectType;
     PullRequestStatus: typeof PullRequestStatus;
     PullRequestTo: UnionResolver;
     PullRequestFrom: UnionResolver;
@@ -118,12 +153,11 @@ export const resolvers: {
     Mutation: {
         pullRequestCreate: GQLEndpoint<PullRequestCreateInput, CreateOneResult<PullRequest>>;
         pullRequestUpdate: GQLEndpoint<PullRequestUpdateInput, UpdateOneResult<PullRequest>>;
-        pullRequestAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<PullRequest>>;
-        pullRequestReject: GQLEndpoint<FindByIdInput, UpdateOneResult<PullRequest>>;
     }
 } = {
     PullRequestSortBy,
     PullRequestToObjectType,
+    PullRequestFromObjectType,
     PullRequestStatus,
     PullRequestTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
     PullRequestFrom: { __resolveType(obj: any) { return resolveUnion(obj) } },
@@ -145,14 +179,7 @@ export const resolvers: {
         pullRequestUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req })
+            // TODO make sure to set hasBeenClosedOrRejected to true if status is closed or rejected
         },
-        pullRequestAccept: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
-        },
-        pullRequestReject: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
-        }
     }
 }

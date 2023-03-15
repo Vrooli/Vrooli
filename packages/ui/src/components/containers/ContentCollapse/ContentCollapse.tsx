@@ -4,8 +4,10 @@ import { ContentCollapseProps } from '../types';
 import { HelpButton } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
+import { useTranslation } from 'react-i18next';
 
 export function ContentCollapse({
+    children,
     helpText,
     id,
     isOpen = true,
@@ -13,9 +15,11 @@ export function ContentCollapse({
     sxs,
     title,
     titleComponent,
-    children,
+    titleKey,
+    titleVariables,
 }: ContentCollapseProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [internalIsOpen, setInternalIsOpen] = useState(isOpen);
     useEffect(() => {
@@ -39,11 +43,11 @@ export function ContentCollapse({
         }}>
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
-                <Typography component={titleComponent ?? 'h6'} variant="h6">{title}</Typography>
+                <Typography component={titleComponent ?? 'h6'} variant="h6">{t(titleKey!, {...titleVariables, defaultValue: title ?? '' })}</Typography>
                 {helpText && <HelpButton markdown={helpText} />}
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}
-                    aria-label={internalIsOpen ? 'Collapse' : 'Expand'}
+                    aria-label={t(internalIsOpen ? 'Collapse' : 'Expand')}
                     onClick={toggleOpen}
                 >
                     {internalIsOpen ?

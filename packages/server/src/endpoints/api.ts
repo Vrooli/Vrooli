@@ -18,8 +18,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -57,21 +57,25 @@ export const typeDef = gql`
     }
     type Api {
         id: ID!
+        completedAt: Date
         created_at: Date!
         updated_at: Date!
+        hasCompleteVersion: Boolean!
+        isDeleted: Boolean!
         isPrivate: Boolean!
         permissions: String!
         createdBy: User
         owner: Owner
-        parent: Api
+        parent: ApiVersion
         tags: [Tag!]!
         versions: [ApiVersion!]!
         versionsCount: Int!
         labels: [Label!]!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         score: Int!
         issues: [Issue!]!
+        issuesCount: Int!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         stats: [StatsApi!]!
@@ -79,38 +83,46 @@ export const typeDef = gql`
         questionsCount: Int!
         transfers: [Transfer!]!
         transfersCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         you: ApiYou!
     }
 
     type ApiYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
+        canUpdate: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
-        canView: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
 
     input ApiSearchInput {
         after: String
-        createdTimeFrame: TimeFrame
         createdById: ID
+        createdTimeFrame: TimeFrame
+        excludeIds: [ID!]
+        ids: [ID!]
+        hasCompleteVersion: Boolean
+        issuesId: ID
+        labelsIds: [ID!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
+        maxViews: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
+        minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
-        languages: [String!]
-        ids: [ID!]
+        pullRequestsId: ID
         searchString: String
         sortBy: ApiSortBy
         tags: [String!]
+        take: Int
+        translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

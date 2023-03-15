@@ -8,15 +8,14 @@ if [ "${NODE_ENV}" = "development" ]; then
     source "${HERE}/shared.sh"
 fi 
 
-# Before backend can start, it must first wait for the database and redis to finish initializing
 # info 'Waiting for database and redis to start...'
-# ${PROJECT_DIR}/scripts/wait-for.sh ${DB_CONN} -t 120 -- echo 'Database is up'
+${PROJECT_DIR}/scripts/wait-for.sh 5432 -t 120 -- echo 'Database is up'
 # ${PROJECT_DIR}/scripts/wait-for.sh ${REDIS_CONN} -t 60 -- echo 'Redis is up'
 
 PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 
 # TODO shouldn't need these 2 lines, but for some reason we do. Otherwise, prisma not found
-yarn global add prisma@4.7.1
+yarn global add prisma@4.10.1
 yarn global bin
 
 cd ${PROJECT_DIR}/packages/server

@@ -30,10 +30,13 @@ export const typeDef = gql`
 
     type StatsRoutine {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
+        runsStarted: Int!
+        runsCompleted: Int!
+        runCompletionTimeAverage: Float!
+        runContextSwitchesAverage: Float!
     }
 
     type Query {

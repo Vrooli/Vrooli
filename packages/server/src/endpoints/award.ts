@@ -1,7 +1,17 @@
 import { gql } from 'apollo-server-express';
-import { AwardCategory } from '@shared/consts';
+import { Award, AwardCategory, AwardSearchInput, AwardSortBy } from '@shared/consts';
+import { FindManyResult, GQLEndpoint } from '../types';
+import { readManyHelper } from '../actions';
+import { rateLimit } from '../middleware';
 
 export const typeDef = gql`
+    enum AwardSortBy {
+        DateUpdatedAsc
+        DateUpdatedDesc
+        ProgressAsc
+        ProgressDesc
+    }
+
     enum AwardCategory {
         AccountAnniversary
         AccountNew
@@ -9,7 +19,7 @@ export const typeDef = gql`
         CommentCreate
         IssueCreate
         NoteCreate
-        ObjectStar
+        ObjectBookmark
         ObjectVote
         OrganizationCreate
         OrganizationJoin
@@ -39,11 +49,47 @@ export const typeDef = gql`
         timeCurrentTierCompleted: Date
         category: AwardCategory!
         progress: Int!
+        title: String # Only a title if you've reached a tier.
+        description: String # Only a description if you've reached a tier.
+    }
+
+    input AwardSearchInput {
+        after: String
+        ids: [ID!]
+        sortBy: AwardSortBy
+        take: Int
+        updatedTimeFrame: TimeFrame
+    }
+
+    type AwardSearchResult {
+        pageInfo: PageInfo!
+        edges: [AwardEdge!]!
+    }
+
+    type AwardEdge {
+        cursor: String!
+        node: Award!
+    }
+
+    extend type Query {
+        awards(input: AwardSearchInput!): AwardSearchResult!
     }
 `
 
+const objectType = 'Award';
 export const resolvers: {
     AwardCategory: typeof AwardCategory;
+    AwardSortBy: typeof AwardSortBy;
+    Query: {
+        awards: GQLEndpoint<AwardSearchInput, FindManyResult<Award>>;
+    },
 } = {
-    AwardCategory: AwardCategory
+    AwardCategory,
+    AwardSortBy,
+    Query: {
+        awards: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, objectType, prisma, req });
+        },
+    },
 }

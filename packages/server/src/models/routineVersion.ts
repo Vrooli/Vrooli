@@ -1,19 +1,24 @@
 import { routineVersionValidation } from "@shared/validation";
 import { Trigger } from "../events";
-import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou } from '@shared/consts';
+import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
+import { bestLabel, calculateWeightData, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { RoutineModel } from "./routine";
 
 /**
  * Validates node positions
  */
-const validateNodePositions = (input: RoutineVersionCreateInput | RoutineVersionUpdateInput): void => {
+const validateNodePositions = async (
+    prisma: PrismaType,
+    input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
+    languages: string[],
+): Promise<void> => {
     // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
     // let combinedNodes = [];
     // if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
@@ -27,8 +32,8 @@ const validateNodePositions = (input: RoutineVersionCreateInput | RoutineVersion
 }
 
 const __typename = 'RoutineVersion' as const;
-type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canCopy' | 'canDelete' | 'canEdit' | 'canStar' | 'canReport' | 'canRun' | 'canView' | 'canVote'>;
-const suppFields = ['you.canComment', 'you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReport', 'you.canRun', 'you.canView', 'you.canVote', 'you.runs'] as const;
+type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canCopy' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReport' | 'canRun' | 'canRead' | 'canVote'>;
+const suppFields = ['you'] as const;
 export const RoutineVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -53,6 +58,7 @@ export const RoutineVersionModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
+            apiVersion: 'ApiVersion',
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'Routine',
@@ -63,7 +69,7 @@ export const RoutineVersionModel: ModelLogic<{
             resourceList: 'ResourceList',
             reports: 'Report',
             root: 'Routine',
-            smartContract: 'SmartContract',
+            smartContractVersion: 'SmartContractVersion',
             suggestedNextByRoutineVersion: 'RoutineVersion',
             // you.runs: 'RunRoutine', //TODO
         },
@@ -104,9 +110,8 @@ export const RoutineVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 const runs = async () => {
-                    if (!userData) return new Array(objects.length).fill([]);
+                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add routineVersionId, so we 
                     // can associate runs with their routine
                     const runPartial: PartialGraphQLInfo = {
@@ -114,6 +119,7 @@ export const RoutineVersionModel: ModelLogic<{
                         routineVersionId: true
                     }
                     // Query runs made by user
+                    console.log('in routineVersion tographql before runs', selectHelper(partial));
                     let runs: any[] = await prisma.run_routine.findMany({
                         where: {
                             AND: [
@@ -132,59 +138,95 @@ export const RoutineVersionModel: ModelLogic<{
                     return routineRuns;
                 };
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.runs': await runs(),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        runs: await runs(),
+                    }
                 }
             },
         },
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
-                return {} as any;
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages))
+                await Promise.all(combined.map(async (input) => { await validateNodePositions(prisma, input, userData.languages) }));
+                // Calculate simplicity and complexity of all versions. Since these calculations 
+                // can depend on other versions, we need to do them all at once. 
+                // We exclude deleting versions to ensure that they don't affect the calculations. 
+                // If a deleting version appears in the calculations, an error will be thrown.
+                const { dataWeights } = await calculateWeightData(
+                    prisma,
+                    userData.languages,
+                    [...createList, ...updateList.map(u => u.data)],
+                    deleteList
+                );
+                // Convert dataWeights to a map for easy lookup
+                const dataWeightMap = dataWeights.reduce((acc, curr) => {
+                    acc[curr.id] = curr;
+                    return acc;
+                });
+                return dataWeightMap;
             },
-            update: async ({ data, prisma, userData, where }) => {
-                return {} as any;
-            },
-        },
-        trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
+            create: async ({ data, ...rest }) => {
+                return {
+                    id: data.id,
+                    simplicity: rest.preMap[__typename][data.id].simplicity,
+                    complexity: rest.preMap[__typename][data.id].complexity,
+                    apiCallData: noNull(data.apiCallData),
+                    isAutomatable: noNull(data.isAutomatable),
+                    isPrivate: noNull(data.isPrivate),
+                    isComplete: noNull(data.isComplete),
+                    smartContractCallData: noNull(data.smartContractCallData),
+                    versionLabel: data.versionLabel,
+                    versionNotes: noNull(data.versionNotes),
+                    ...(await shapeHelper({ relation: 'apiVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'calledByRoutineVersions', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childRoutineVersions', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'inputs', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionInput', parentRelationshipName: 'routineVersion', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'nodes', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Node', parentRelationshipName: 'routineVersion', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'nodeLinks', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLink', parentRelationshipName: 'routineVersion', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'outputs', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionOutput', parentRelationshipName: 'routineVersion', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'routineVersion', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Routine', parentRelationshipName: 'versions', data, ...rest })),
+                    ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'calledByRoutineVersions', data, ...rest })),
+                    // ...(await shapeHelper({ relation: 'suggestedNextByRoutineVersion', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
+                    ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
                 }
             },
-            onUpdated: ({ authData, prisma, updated, updateInput, userData }) => {
-                // // Initialize transfers, if any
-                // asdfasdfasfd
-                // // Handle new version triggers, if any versions have been created
-                // // Loop through updated items
-                // for (let i = 0; i < updated.length; i++) {
-                //     const u = updated[i];
-                //     const input = updateInput[i];
-                //     const permissionsData = authData[u.id];
-                //     const { Organization, User } = validator().owner(permissionsData as any);
-                //     const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
-                //         { __typename: 'Organization', id: Organization.id } :
-                //         User ? { __typename: 'User', id: User.id } : null;
-                //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
-                //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
-                //     const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);
-                //     const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
-                //     const hasCompletedVersion = asdfasdfasdf
-                //     // Check if new version was created
-                //     if (input.versionLabel) {
-                //         Trigger(prisma, userData.languages).objectNewVersion(
-                //             userData.id,
-                //             'Routine',
-                //             u.id,
-                //             owner,
-                //             hasOriginalOwner,
-                //             hadCompletedVersion && wasPublic,
-                //             hasCompletedVersion && isPublic
-                //         );
-                //     }
-                // }
-            },
+            update: async ({ data, ...rest }) => ({
+                simplicity: rest.preMap[__typename][data.id].simplicity,
+                complexity: rest.preMap[__typename][data.id].complexity,
+                apiCallData: noNull(data.apiCallData),
+                isAutomatable: noNull(data.isAutomatable),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                smartContractCallData: noNull(data.smartContractCallData),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'apiVersion', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'calledByRoutineVersions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childRoutineVersions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'inputs', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionInput', parentRelationshipName: 'routineVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'nodes', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Node', parentRelationshipName: 'routineVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'nodeLinks', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLink', parentRelationshipName: 'routineVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'outputs', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionOutput', parentRelationshipName: 'routineVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'routineVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Routine', parentRelationshipName: 'versions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'calledByRoutineVersions', data, ...rest })),
+                // ...(await shapeHelper({ relation: 'suggestedNextByRoutineVersion', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
+            }
         },
         yup: routineVersionValidation,
     },
@@ -192,7 +234,7 @@ export const RoutineVersionModel: ModelLogic<{
         defaultSort: RoutineVersionSortBy.DateCompletedDesc,
         sortBy: RoutineVersionSortBy,
         searchFields: {
-            createdById: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
             directoryListingsId: true,
             excludeIds: true,
@@ -206,16 +248,19 @@ export const RoutineVersionModel: ModelLogic<{
             maxSimplicity: true,
             maxTimesCompleted: true,
             minComplexity: true,
-            minScoreRoot: true,
             minSimplicity: true,
-            minStarsRoot: true,
             minTimesCompleted: true,
+            maxBookmarksRoot: true,
+            maxScoreRoot: true,
+            maxViewsRoot: true,
+            minBookmarksRoot: true,
+            minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationId: true,
-            ownedByUserId: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
-            tags: true,
+            tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,
@@ -230,74 +275,41 @@ export const RoutineVersionModel: ModelLogic<{
         }),
     },
     validate: {
-        isTransferable: false,
-        maxObjects: 1000000,
-        permissionsSelect: (...params) => ({
-            id: true,
-            hasCompleteVersion: true,
-            isDeleted: true,
-            isPrivate: true,
-            permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                root: 'Routine',
-            }, ...params),
-        }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => !isDeleted && (isAdmin || isPublic),
-            canCopy: () => !isDeleted && (isAdmin || isPublic),
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-            canRun: () => !isDeleted && (isAdmin || isPublic),
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
-        }),
-        owner: (data) => ({
-            // Organization: data.ownedByOrganization,
-            // User: data.ownedByUser,
-        } as any),
-        isDeleted: (data) => data.isDeleted,// || latest(data.versions)?.isDeleted,
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
-            // data.isInternal === false &&
-            //latest(data.versions)?.isPrivate === false &&
-            //latest(data.versions)?.isDeleted === false &&
-            oneIsPublic<Prisma.routineSelect>(data, [
-                ['ownedByOrganization', 'Organization'],
-                ['ownedByUser', 'User'],
-            ], languages),
+            RoutineModel.validate!.isPublic(data.root as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => RoutineModel.validate!.owner(data.root as any),
+        permissionsSelect: () => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            root: ['Routine', ['versions']],
+        }),
+        permissionResolvers: defaultPermissions,
         visibility: {
             private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
+                isDeleted: false,
+                root: { isDeleted: false },
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
             },
             public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
+                isDeleted: false,
+                root: { isDeleted: false },
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
             },
             owner: (userId) => ({
-                root: RoutineVersionModel.validate!.visibility.owner(userId),
+                root: RoutineModel.validate!.visibility.owner(userId),
             }),
         },
-        // if (createMany) {
-        //     createMany.forEach(input => this.validateNodePositions(input));
-        // }
-        // if (updateMany) {
-        //     // Query version numbers and isCompletes of existing routines. 
-        //     // Can only update if version number is greater, or if version number is the same and isComplete is false
-        //     //TODO
-        //     updateMany.forEach(input => this.validateNodePositions(input.data));
-        // }
-
-        // Also check profanity on input/output's name
     },
     validateNodePositions,
 })

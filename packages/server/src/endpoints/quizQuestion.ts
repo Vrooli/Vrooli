@@ -20,7 +20,7 @@ export const typeDef = gql`
         points: Int
         standardVersionConnect: ID
         standardVersionCreate: StandardVersionCreateInput
-        quizConnect: ID
+        quizConnect: ID!
         translationsCreate: [QuizQuestionTranslationCreateInput!]
     }
     input QuizQuestionUpdateInput {
@@ -50,7 +50,7 @@ export const typeDef = gql`
 
     type QuizQuestionYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input QuizQuestionTranslationCreateInput {
@@ -76,7 +76,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        languages: [String!]
+        translationLanguages: [String!]
         quizId: ID
         standardId: ID
         userId: ID

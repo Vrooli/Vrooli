@@ -46,15 +46,22 @@ done
 
 # Ask for version number, if not supplied in arguments
 if [ -z "$VERSION" ]; then
-    echo "What version number do you want to deploy? (e.g. 1.0.0)"
+    prompt "What version number do you want to deploy? (e.g. 1.0.0). Leave blank if keeping the same version number."
+    warning "WARNING: Keeping the same version number will overwrite the previous build AND database backup."
     read -r VERSION
+    # If no version number was entered, use the version number found in the package.json files
+    if [ -z "$VERSION" ]; then
+        info "No version number entered. Using version number found in package.json files."
+        VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+        info "Version number found in package.json files: ${VERSION}"
+    fi
 fi
 
 # Check if nginx-proxy and nginx-proxy-le are running
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"
     if [ -z "$NGINX_LOCATION" ]; then
-        echo "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
+        prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
         read -r NGINX_LOCATION
         if [ -z "$NGINX_LOCATION" ]; then
             NGINX_LOCATION="/root/NginxSSLReverseProxy"
@@ -75,7 +82,7 @@ cd ${HERE}/..
 DB_TMP="/var/tmp/${VERSION}/postgres"
 DB_CURR="${HERE}/../data/postgres"
 BUILD_TMP="/var/tmp/${VERSION}/old-build"
-BUILD_CURR="${HERE}/../packages/ui/build"
+BUILD_CURR="${HERE}/../packages/ui/dist"
 # Don't copy database if it already exists in /var/tmp, or it doesn't exist in DB_CURR
 if [ -d "${DB_TMP}" ]; then
     info "Old database already exists at ${DB_TMP}, so not copying it"
@@ -125,7 +132,7 @@ fi
 
 # Move and decompress build created by build.sh to the correct location.
 info "Moving and decompressing new build to correct location..."
-rm -rf ${HERE}/../packages/ui/build
+rm -rf ${HERE}/../packages/ui/dist
 tar -xzf /var/tmp/${VERSION}/build.tar.gz -C ${HERE}/../packages/ui
 if [ $? -ne 0 ]; then
     error "Could not move and decompress build to correct location"
@@ -137,3 +144,7 @@ info "Restarting docker containers..."
 docker-compose -f ${HERE}/../docker-compose-prod.yml up --build -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
+info: "Now that you've deployed, here are some next steps:"
+info: "Manually check that the site is working correctly"
+info: "Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
+info: "Let everyone on social media know that you've deployed a new version of Vrooli!"

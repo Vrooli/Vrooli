@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { createHelper, updateHelper } from '../actions';
-import { CreateOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
+import { CreateOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 import { Node, NodeCreateInput, NodeUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import pkg from '@prisma/client';
-import { resolveUnion } from './resolvers';
 const { NodeType } = pkg;
 
 export const typeDef = gql`
@@ -47,7 +46,6 @@ export const typeDef = gql`
         updated_at: Date!
         columnIndex: Int
         nodeType: NodeType!
-        routineVersionId: ID!
         rowIndex: Int
         end: NodeEnd
         loop: NodeLoop

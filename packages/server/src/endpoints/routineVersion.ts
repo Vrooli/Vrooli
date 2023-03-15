@@ -31,22 +31,20 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
-        rootConnect: ID
-        rootCreate: RoutineCreateInput
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         smartContractCallData: String
         apiVersionConnect: ID
         directoryListingsConnect: [ID!]
-        resourceListCreate: ResourceListCreateInput
-        smartContractVersionConnect: ID
+        inputsCreate: [RoutineVersionInputCreateInput!]
         nodesCreate: [NodeCreateInput!]
         nodeLinksCreate: [NodeLinkCreateInput!]
-        inputsCreate: [RoutineVersionInputCreateInput!]
         outputsCreate: [RoutineVersionOutputCreateInput!]
+        resourceListCreate: ResourceListCreateInput
+        rootConnect: ID
+        rootCreate: RoutineCreateInput
+        smartContractVersionConnect: ID
         suggestedNextByRoutineVersionConnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]
     }
@@ -55,9 +53,7 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int!
         versionLabel: String
         versionNotes: String
         smartContractCallData: String
@@ -65,23 +61,23 @@ export const typeDef = gql`
         apiVersionDisconnect: Boolean
         directoryListingsConnect: [ID!]
         directoryListingsDisconnect: [ID!]
-        resourceListCreate: ResourceListCreateInput
-        resourceListUpdate: ResourceListUpdateInput
-        rootUpdate: RoutineUpdateInput
-        smartContractVersionConnect: ID
-        smartContractVersionDisconnect: Boolean
+        inputsCreate: [RoutineVersionInputCreateInput!]
+        inputsUpdate: [RoutineVersionInputUpdateInput!]
+        inputsDelete: [ID!]
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]
         nodesDelete: [ID!]
         nodeLinksCreate: [NodeLinkCreateInput!]
         nodeLinksUpdate: [NodeLinkUpdateInput!]
         nodeLinksDelete: [ID!]
-        inputsCreate: [RoutineVersionInputCreateInput!]
-        inputsUpdate: [RoutineVersionInputUpdateInput!]
-        inputsDelete: [ID!]
         outputsCreate: [RoutineVersionOutputCreateInput!]
         outputsUpdate: [RoutineVersionOutputUpdateInput!]
         outputsDelete: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
+        rootUpdate: RoutineUpdateInput
+        smartContractVersionConnect: ID
+        smartContractVersionDisconnect: Boolean
         suggestedNextByRoutineVersionConnect: [ID!]
         suggestedNextByRoutineVersionDisconnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]
@@ -107,7 +103,7 @@ export const typeDef = gql`
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
-        api: Api
+        apiVersion: ApiVersion
         comments: [Comment!]!
         commentsCount: Int!
         directoryListings: [ProjectVersionDirectory!]!
@@ -127,7 +123,7 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         root: Routine!
-        smartContract: SmartContract
+        smartContractVersion: SmartContractVersion
         suggestedNextByRoutineVersion: [RoutineVersion!]!
         suggestedNextByRoutineVersionCount: Int!
         translations: [RoutineVersionTranslation!]!
@@ -139,11 +135,11 @@ export const typeDef = gql`
         canComment: Boolean!
         canCopy: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canReport: Boolean!
+        canUpdate: Boolean!
         canRun: Boolean!
-        canView: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
         runs: [RunRoutine!]!
     }
@@ -172,7 +168,7 @@ export const typeDef = gql`
 
     input RoutineVersionSearchInput {
         after: String
-        createdById: ID
+        createdByIdRoot: ID
         createdTimeFrame: TimeFrame
         directoryListingsId: ID
         excludeIds: [ID!]
@@ -183,22 +179,26 @@ export const typeDef = gql`
         isInternalWithRoot: Boolean
         isInternalWithRootExcludeOwnedByOrganizationId: ID
         isInternalWithRootExcludeOwnedByUserId: ID
+        isLatest: Boolean
         minComplexity: Int
         maxComplexity: Int
         minSimplicity: Int
         maxSimplicity: Int
         maxTimesCompleted: Int
-        minScoreRoot: Int
-        minStarsRoot: Int
         minTimesCompleted: Int
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
         minViewsRoot: Int
-        ownedByOrganizationId: ID
-        ownedByUserId: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         reportId: ID
         rootId: ID
         searchString: String
         sortBy: RoutineVersionSortBy
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         translationLanguages: [String!]
         updatedTimeFrame: TimeFrame

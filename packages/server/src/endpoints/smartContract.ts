@@ -20,8 +20,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -33,8 +33,8 @@ export const typeDef = gql`
         isPrivate: Boolean
         permissions: String
         parentConnect: ID
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
         tagsConnect: [ID!]
@@ -45,8 +45,8 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -62,23 +62,26 @@ export const typeDef = gql`
         completedAt: Date
         created_at: Date!
         updated_at: Date!
-        hasCompletedVersion: Boolean!
+        hasCompleteVersion: Boolean!
         isDeleted: Boolean!
         isPrivate: Boolean!
         permissions: String!
         translatedName: String!
         score: Int!
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         createdBy: User
         issues: [Issue!]!
         issuesCount: Int!
         labels: [Label!]!
         owner: Owner
-        parent: SmartContract
+        parent: SmartContractVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
-        starredBy: [User!]!
+        questions: [Question!]!
+        questionsCount: Int!
+        bookmarkedBy: [User!]!
+        stats: [StatsSmartContract!]!
         tags: [Tag!]!
         transfers: [Transfer!]!
         transfersCount: Int!
@@ -89,12 +92,12 @@ export const typeDef = gql`
 
     type SmartContractYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
@@ -106,16 +109,18 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         hasCompleteVersion: Boolean
-        labelsId: ID
+        issuesId: ID
+        labelsIds: [ID!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         maxViews: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
+        pullRequestsId: ID
         searchString: String
         sortBy: SmartContractSortBy
         tags: [String!]

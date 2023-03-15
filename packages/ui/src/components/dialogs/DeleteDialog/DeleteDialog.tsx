@@ -1,6 +1,5 @@
 import {
     Button,
-    Dialog,
     DialogContent,
     Stack,
     TextField,
@@ -9,13 +8,14 @@ import {
 } from '@mui/material';
 import { DeleteDialogProps } from '../types';
 import { useCallback, useState } from 'react';
-import { mutationWrapper } from 'graphql/utils';
-import { useMutation } from 'graphql/hooks';
-import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
+import { mutationWrapper } from 'api/utils';
+import { useCustomMutation } from 'api/hooks';
+import { LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DialogTitle } from 'components';
+import { DialogTitle, LargeDialog } from 'components';
 import { DeleteIcon } from '@shared/icons';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useTranslation } from 'react-i18next';
 
 export const DeleteDialog = ({
     handleClose,
@@ -27,6 +27,7 @@ export const DeleteDialog = ({
 }: DeleteDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
 
     // Stores user-inputted name of object to be deleted
     const [nameInput, setNameInput] = useState<string>('');
@@ -36,7 +37,7 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
+    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const handleDelete = useCallback(() => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
@@ -44,7 +45,7 @@ export const DeleteDialog = ({
             successCondition: (data) => data.success,
             successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName } }),
             onSuccess: () => {
-                setLocation(APP_LINKS.Home);
+                setLocation(LINKS.Home);
                 close(true);
             },
             errorMessage: () => ({ key: 'FailedToDelete' }),
@@ -55,15 +56,14 @@ export const DeleteDialog = ({
     }, [close, deleteOne, objectId, objectName, objectType, setLocation]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="delete-dialog"
+            isOpen={isOpen}
             onClose={() => { close(); }}
-            sx={{
-                zIndex
-            }}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel=''
+                id=''
                 title=''
                 onClose={() => { close() }}
             />
@@ -81,9 +81,14 @@ export const DeleteDialog = ({
                         helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
                         sx={{ paddingBottom: 2 }}
                     />
-                    <Button startIcon={<DeleteIcon />} color="secondary" onClick={handleDelete}>Delete</Button>
+                    <Button 
+                    startIcon={<DeleteIcon />} 
+                    color="secondary" 
+                    onClick={handleDelete}
+                    disabled={nameInput.trim() !== objectName.trim()}
+                    >{t('Delete')}</Button>
                 </Stack>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

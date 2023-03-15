@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MoveNodeMenuProps } from '../types';
 
-const titleAria = 'move-node-dialog-title';
+const titleId = 'move-node-dialog-title';
 
 export const MoveNodeMenu = ({
     handleClose,
@@ -179,7 +179,7 @@ export const MoveNodeMenu = ({
         <Dialog
             open={isOpen}
             onClose={() => { handleClose() }}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
@@ -187,16 +187,17 @@ export const MoveNodeMenu = ({
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                helpText={t('common:NodeMoveDialogHelp', { lng: language })}
+                id={titleId}
+                helpText={t('NodeMoveDialogHelp')}
                 onClose={onClose}
-                title={t('common:NodeMove', { lng: language })}
+                title={t('NodeMove')}
             />
             <DialogContent>
                 {formContent}
                 {/* Action buttons */}
                 <Grid container spacing={1} sx={{ padding: 0, paddingTop: '24px' }}>
                     <GridSubmitButtons
+                        display="dialog"
                         isCreate={false}
                         onCancel={closeDialog}
                         onSubmit={moveNode}

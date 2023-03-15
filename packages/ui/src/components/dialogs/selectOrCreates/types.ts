@@ -22,7 +22,7 @@ export interface SelectOrCreateDialogProps<T extends SelectOrCreateObject> {
     help?: string;
     isOpen: boolean;
     objectType: SelectOrCreateObjectType;
-    session: Session;
+    session: Session | undefined;
     where?: { [key: string]: any };
     zIndex: number;
 }
@@ -34,6 +34,6 @@ export interface SubroutineSelectOrCreateDialogProps {
     owner: { __typename: 'Organization' | 'User', id: string } | null;
     nodeId: string;
     routineVersionId: string | null | undefined;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }

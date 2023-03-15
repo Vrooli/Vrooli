@@ -1,10 +1,9 @@
 import { Stack } from "@mui/material"
 import { VoteFor } from "@shared/consts";
-import { ReportsLink } from "components/buttons";
-import { UpvoteDownvote } from "components/lists";
+import { ReportsLink, VoteButton } from "components/buttons";
 import { useMemo } from "react";
 import { getCounts, getYou } from "utils";
-import { StatsCompactProps, StatsCompactPropsObject } from "../types"
+import { StatsCompactProps, StatsCompactPropsObject } from "../types";
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
 
 /**
@@ -39,7 +38,7 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             }}
         >
             {/* Votes */}
-            {object && object.__typename in VoteFor && <UpvoteDownvote
+            {object && object.__typename in VoteFor && <VoteButton
                 direction="row"
                 disabled={!you.canVote}
                 session={session}

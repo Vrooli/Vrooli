@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput } from '@shared/consts';
+import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, SubscribableObject } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
@@ -17,11 +17,15 @@ import { RoutineModel } from "./routine";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
+import { notificationSubscriptionValidation } from "@shared/validation";
+import { noNull } from "../builders";
 
-export const subscriberMapper: { [x: string]: string } = {
+export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs['create'] } = {
     Api: 'api',
     Comment: 'comment',
     Issue: 'issue',
+    Meeting: 'meeting',
     Note: 'note',
     Organization: 'organization',
     Project: 'project',
@@ -44,7 +48,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
     GqlModel: NotificationSubscription,
     GqlSearch: NotificationSubscriptionSearchInput,
     GqlSort: NotificationSubscriptionSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.notification_subscriptionUpsertArgs['create'],
     PrismaUpdate: Prisma.notification_subscriptionUpsertArgs['update'],
     PrismaModel: Prisma.notification_subscriptionGetPayload<SelectWrap<Prisma.notification_subscriptionSelect>>,
@@ -130,7 +134,75 @@ export const NotificationSubscriptionModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                silent: noNull(data.silent),
+                subscriber: { connect: { id: rest.userData.id } },
+                [subscribableMapper[data.objectType]]: { connect: { id: data.objectConnect } },
+            }),
+            update: async ({ data }) => ({
+                silent: noNull(data.silent),
+            }),
+        },
+        yup: notificationSubscriptionValidation,
+    },
+    search: {
+        defaultSort: NotificationSubscriptionSortBy.DateCreatedDesc,
+        sortBy: NotificationSubscriptionSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            silent: true,
+            objectType: true,
+            objectId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'titleWrapped',
+                { api: ApiModel.search!.searchStringQuery() },
+                { comment: CommentModel.search!.searchStringQuery() },
+                { issue: IssueModel.search!.searchStringQuery() },
+                { meeting: MeetingModel.search!.searchStringQuery()},
+                { note: NoteModel.search!.searchStringQuery() },
+                { organization: OrganizationModel.search!.searchStringQuery() },
+                { project: ProjectModel.search!.searchStringQuery() },
+                { pullRequest: PullRequestModel.search!.searchStringQuery()},
+                { question: QuestionModel.search!.searchStringQuery() },
+                { quiz: QuizModel.search!.searchStringQuery() },
+                { report: ReportModel.search!.searchStringQuery()},
+                { routine: RoutineModel.search!.searchStringQuery() },
+                { smartContract: SmartContractModel.search!.searchStringQuery() },
+                { standard: StandardModel.search!.searchStringQuery() },
+            ]
+        }),
+        /**
+         * Extra protection to ensure only you can see your own subscriptions
+         */
+        customQueryData: (_, user) => ({ subscriber: { id: user!.id } }),
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data.subscriber,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            subscriber: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                subscriber: { id: userId }
+            }),
+        },
+    },
 })

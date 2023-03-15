@@ -32,14 +32,14 @@ export async function copyHelper({
     // // Query for all authentication data
     // const authDataById = await getAuthenticatedData({ [model.__typename]: [input.id] }, prisma, userData.id);
     // // Check permissions
-    // permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
+    // await permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
     // // Additional check for paywall
     // //TODO
     // // Check max objects
     // await maxObjectsCheck(authDataById, { ['Create']: [input.id] }, prisma, userData);
     // const { object } = await model.mutate(prisma).duplicate!({ userId: userData.id, objectId: input.id, isFork: false, createCount: 0 });
     // // Handle trigger
-    // await Trigger(prisma, req.languages).objectFork(input.objectType, input.id, userData.id);
+    // await Trigger(prisma, req.languages).objectCopy(input.objectType, input.id, userData.id);
     // // Query for object
     // const fullObject = await readOneHelper({
     //     info,

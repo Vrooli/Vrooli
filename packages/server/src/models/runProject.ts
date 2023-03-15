@@ -1,16 +1,19 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
+import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { OrganizationModel } from "./organization";
+import { defaultPermissions, oneIsPublic } from "../utils";
+import { runProjectValidation } from "@shared/validation";
 
 const __typename = 'RunProject' as const;
-type Permissions = Pick<RunProjectYou, 'canDelete' | 'canEdit' | 'canView'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
+type Permissions = Pick<RunProjectYou, 'canDelete' | 'canUpdate' | 'canRead'>;
+const suppFields = ['you'] as const;
 export const RunProjectModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
+    IsTransferable: false,
+    IsVersioned: false,
     GqlCreate: RunProjectCreateInput,
     GqlUpdate: RunProjectUpdateInput,
     GqlModel: RunProject,
@@ -46,18 +49,89 @@ export const RunProjectModel: ModelLogic<{
             user: 'User',
             organization: 'Organization',
         },
-        countFields: {},
+        countFields: {
+            stepsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },
     },
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    mutate: {
+        shape: {
+            pre: async ({ updateList }) => {
+                if (updateList.length) {
+                    // TODO if status passed in for update, make sure it's not the same 
+                    // as the current status, or an invalid transition (e.g. failed -> in progress)
+                }
+            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                //TODO
+            } as any),
+            update: async ({ data, ...rest }) => ({
+                id: data.id,
+                //TODO
+            } as any)
+        },
+        yup: runProjectValidation,
+    },
+    search: {
+        defaultSort: RunProjectSortBy.DateUpdatedDesc,
+        sortBy: RunProjectSortBy,
+        searchFields: {
+            completedTimeFrame: true,
+            createdTimeFrame: true,
+            excludeIds: true,
+            projectVersionId: true,
+            startedTimeFrame: true,
+            status: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'nameWrapped',
+                { projectVersion: RunProjectModel.search!.searchStringQuery() },
+            ]
+        })
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
+            id: true,
+            isPrivate: true,
+            organization: 'Organization',
+            projectVersion: 'Routine',
+            user: 'User',
+        }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        isDeleted: () => false,
+        isPublic: (data, languages,) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
+            ['organization', 'Organization'],
+            ['user', 'User'],
+        ], languages),
+        profanityFields: ['name'],
+        visibility: {
+            private: { isPrivate: true },
+            public: { isPrivate: false },
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

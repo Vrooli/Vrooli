@@ -1,12 +1,12 @@
 import { reportValidation } from "@shared/validation";
-import { PrependString, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
+import { MaxObjects, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { CommentModel } from "./comment";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -36,8 +36,8 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
 }
 
 const __typename = 'Report' as const;
-type Permissions = Pick<ReportYou, 'canDelete' | 'canEdit' | 'canRespond'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canRespond'] as const;
+type Permissions = Pick<ReportYou, 'canDelete' | 'canUpdate' | 'canRespond'>;
+const suppFields = ['you'] as const;
 export const ReportModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -58,18 +58,18 @@ export const ReportModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            apiVersion: padSelect(ApiVersionModel.display.select),
-            comment: padSelect(CommentModel.display.select),
-            issue: padSelect(IssueModel.display.select),
-            noteVersion: padSelect(NoteVersionModel.display.select),
-            organization: padSelect(OrganizationModel.display.select),
-            post: padSelect(PostModel.display.select),
-            projectVersion: padSelect(ProjectVersionModel.display.select),
-            routineVersion: padSelect(RoutineVersionModel.display.select),
-            smartContractVersion: padSelect(SmartContractVersionModel.display.select),
-            standardVersion: padSelect(StandardVersionModel.display.select),
-            tag: padSelect(TagModel.display.select),
-            user: padSelect(UserModel.display.select),
+            apiVersion: selPad(ApiVersionModel.display.select),
+            comment: selPad(CommentModel.display.select),
+            issue: selPad(IssueModel.display.select),
+            noteVersion: selPad(NoteVersionModel.display.select),
+            organization: selPad(OrganizationModel.display.select),
+            post: selPad(PostModel.display.select),
+            projectVersion: selPad(ProjectVersionModel.display.select),
+            routineVersion: selPad(RoutineVersionModel.display.select),
+            smartContractVersion: selPad(SmartContractVersionModel.display.select),
+            standardVersion: selPad(StandardVersionModel.display.select),
+            tag: selPad(TagModel.display.select),
+            user: selPad(UserModel.display.select),
         }),
         label: (select, languages) => {
             if (select.apiVersion) return ApiVersionModel.display.label(select.apiVersion as any, languages);
@@ -88,21 +88,48 @@ export const ReportModel: ModelLogic<{
         }
     },
     format: {
-        gqlRelMap: { __typename },
-        prismaRelMap: { __typename },
-        hiddenFields: ['userId'], // Always hide report creator
+        gqlRelMap: {
+            __typename,
+            responses: 'ReportResponse',
+        },
+        prismaRelMap: {
+            __typename,
+            responses: 'ReportResponse',
+        },
+        hiddenFields: ['createdById'], // Always hide report creator
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['userId'],
+            dbFields: ['createdById'],
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
             },
         },
-        countFields: {},
+        countFields: {
+            responsesCount: true,
+        },
     },
     mutate: {
         shape: {
+            pre: async ({ createList, prisma, userData }) => {
+                // Make sure user does not have any open reports on these objects
+                if (createList.length) {
+                    const existing = await prisma.report.findMany({
+                        where: {
+                            status: 'Open',
+                            user: { id: userData.id },
+                            OR: createList.map((x) => ({
+                                [`${forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
+                            })),
+                        },
+                    });
+                    if (existing.length > 0)
+                        throw new CustomError('0337', 'MaxReportsReached', userData.languages);
+                }
+            },
             create: async ({ data, userData }) => {
                 return {
                     id: data.id,
@@ -124,7 +151,7 @@ export const ReportModel: ModelLogic<{
         trigger: {
             onCreated: ({ created, prisma, userData }) => {
                 for (const c of created) {
-                    Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
+                    // Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
                 }
             },
         },
@@ -160,21 +187,18 @@ export const ReportModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: {
-                private: 0,
-                public: 10000,
-            },
-            Organization: 0,
-        },
-        permissionsSelect: (...params) => ({
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
             id: true,
             createdBy: 'User',
         }),
         permissionResolvers: ({ data, isAdmin }) => ({
+            canConnect: () => data.status !== 'Open',
+            canDisconnect: () => false,
             canDelete: () => isAdmin && data.status !== 'Open',
-            canEdit: () => isAdmin && data.status !== 'Open',
+            canRead: () => true,
             canRespond: () => data.status === 'Open',
+            canUpdate: () => isAdmin && data.status !== 'Open',
         }),
         owner: (data) => ({
             User: data.createdBy,
@@ -182,22 +206,6 @@ export const ReportModel: ModelLogic<{
         isDeleted: () => false,
         isPublic: () => true,
         profanityFields: ['reason', 'details'],
-        validations: {
-            create: async ({ createMany, prisma, userData }) => {
-                // Make sure user does not have any open reports on these objects
-                const existing = await prisma.report.findMany({
-                    where: {
-                        status: 'Open',
-                        user: { id: userData.id },
-                        OR: createMany.map((x) => ({
-                            [`${forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
-                        })),
-                    },
-                });
-                if (existing.length > 0)
-                    throw new CustomError('0337', 'MaxReportsReached', userData.languages);
-            }
-        },
         visibility: {
             private: {},
             public: {},

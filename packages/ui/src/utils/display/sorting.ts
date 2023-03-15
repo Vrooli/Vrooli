@@ -1,28 +1,5 @@
-/* eslint-disable @typescript-eslint/no-redeclare */
-import { ValueOf } from '@shared/consts';
-
-/**
- * Converts GraphQL sort values to User-Friendly labels
- */
- export const SortValueToLabelMap = {
-    'CommentsAsc': 'Comments ↑',
-    'CommentsDesc': 'Comments ↓',
-    'LastViewedAsc': 'Viewed ↑',
-    'LastViewedDesc': 'Viewed ↓',
-    'ScoreAsc': 'Score ↑',
-    'ScoreDesc': 'Score ↓',
-    'StarsAsc': 'Stars ↑',
-    'StarsDesc': 'Stars ↓',
-    'ForksAsc': 'Forks ↑',
-    'ForksDesc': 'Forks ↓',
-    'DateCreatedAsc': 'Old',
-    'DateCreatedDesc': 'New',
-    'DateStartedAsc': 'Started ↑',
-    'DateStartedDesc': 'Started ↓',
-    'DateUpdatedAsc': 'Recent ↑',
-    'DateUpdatedDesc': 'Recent ↓',
-}
-export type SortValueToLabelMap = ValueOf<typeof SortValueToLabelMap>;
+import { CommonKey } from '@shared/translations';
+import i18next from 'i18next';
 
 export type LabelledSortOption<SortBy> = { label: string, value: SortBy };
 
@@ -31,9 +8,10 @@ export type LabelledSortOption<SortBy> = { label: string, value: SortBy };
  * @param sortValues The sort values to convert
  * @returns Array of { label, value }
  */
-export function labelledSortOptions<SortBy>(sortValues: any): LabelledSortOption<SortBy>[] {
+export function labelledSortOptions<SortBy>(sortValues: { [x in keyof CommonKey]?: any }): LabelledSortOption<SortBy>[] {
+    if (!sortValues) return [];
     return Object.keys(sortValues).map((key) => ({
-        label: SortValueToLabelMap[key],
+        label: (i18next.t(key as CommonKey, key)) as unknown as string,
         value: key as unknown as SortBy,
     }))
 }

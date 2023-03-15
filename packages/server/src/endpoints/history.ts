@@ -13,11 +13,13 @@ export const typeDef = gql`
         take: Int
     }
 
+    union AnyRun = RunProject | RunRoutine
+
     type HistoryResult {
-        activeRuns: [RunRoutine!]!
-        completedRuns: [RunRoutine!]!
+        activeRuns: [AnyRun!]!
+        completedRuns: [AnyRun!]!
         recentlyViewed: [View!]!
-        recentlyStarred: [Star!]!
+        recentlyBookmarked: [Bookmark!]!
     }
 
     type Query {
@@ -45,7 +47,7 @@ export const resolvers: {
                     RunRoutine: 'RunRoutine',
                 },
                 recentlyViewed: 'View',
-                recentlyStarred: 'Star',
+                recentlyBookmarked: 'Bookmark',
             }, req.languages, true);
             const userId = userData.id;
             const take = 5;
@@ -88,24 +90,25 @@ export const resolvers: {
                 input: { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
                 objectType: 'View',
             });
-            // Query recently starred objects (of any type). Make sure to ignore tags
-            const { nodes: recentlyStarred } = await readManyAsFeedHelper({
+            // Query recently bookmarked objects (of any type). Make sure to ignore tags
+            const { nodes: recentlyBookmarked } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { userId },
-                info: partial.recentlyStarred as PartialGraphQLInfo,
+                info: partial.recentlyBookmarked as PartialGraphQLInfo,
                 input: { take, ...input, sortBy: UserSortBy.DateCreatedDesc, excludeTags: true },
-                objectType: 'Star',
+                objectType: 'Bookmark',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [activeRunProjects, activeRunRoutines, completedRunProjects, completedRunRoutines, recentlyViewed, recentlyStarred],
-                [(partial.activeRuns as PartialGraphQLInfo)?.RunProject, (partial.activeRuns as PartialGraphQLInfo)?.RunRoutine, (partial.completedRuns as PartialGraphQLInfo)?.RunProject, (partial.completedRuns as PartialGraphQLInfo)?.RunRoutine, partial.recentlyViewed, partial.recentlyStarred] as PartialGraphQLInfo[],
+                [activeRunProjects, activeRunRoutines, completedRunProjects, completedRunRoutines, recentlyViewed, recentlyBookmarked],
+                [(partial.activeRuns as PartialGraphQLInfo)?.RunProject, (partial.activeRuns as PartialGraphQLInfo)?.RunRoutine, (partial.completedRuns as PartialGraphQLInfo)?.RunProject, (partial.completedRuns as PartialGraphQLInfo)?.RunRoutine, partial.recentlyViewed, partial.recentlyBookmarked] as PartialGraphQLInfo[],
                 ['arp', 'arr', 'crp', 'crr', 'rv', 'rs'],
                 getUser(req),
                 prisma,
             )
             // Return results
             return {
+                __typename: 'HistoryResult',
                 // activeRuns combines projects and routines, and sorts by date started
                 activeRuns: [...withSupplemental['arp'], ...withSupplemental['arr']].sort((a, b) => {
                     if (a.startedAt < b.startedAt) return -1;
@@ -119,8 +122,8 @@ export const resolvers: {
                     return 0;
                 }),
                 recentlyViewed: withSupplemental['rv'],
-                recentlyStarred: withSupplemental['rs'],
-            } as any
+                recentlyBookmarked: withSupplemental['rs'],
+            }
         },
     },
 }

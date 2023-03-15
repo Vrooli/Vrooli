@@ -30,7 +30,6 @@ export const typeDef = gql`
 
     type StatsOrganization {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
@@ -39,6 +38,10 @@ export const typeDef = gql`
         notes: Int!
         projects: Int!
         routines: Int!
+        runRoutinesStarted: Int!
+        runRoutinesCompleted: Int!
+        runRoutineCompletionTimeAverage: Float!
+        runRoutineContextSwitchesAverage: Float!
         smartContracts: Int!
         standards: Int!
     }

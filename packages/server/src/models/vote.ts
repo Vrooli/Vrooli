@@ -4,7 +4,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { ApiModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { SelectWrap } from "../builders/types";
-import { onlyValidIds, padSelect } from "../builders";
+import { onlyValidIds, selPad } from "../builders";
 import { Prisma } from "@prisma/client";
 import { exists } from "@shared/utils";
 
@@ -33,7 +33,7 @@ export const VoteModel: ModelLogic<{
     GqlModel: Vote,
     GqlSearch: VoteSearchInput,
     GqlSort: VoteSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.voteUpsertArgs['create'],
     PrismaUpdate: Prisma.voteUpsertArgs['update'],
     PrismaModel: Prisma.voteGetPayload<SelectWrap<Prisma.voteSelect>>,
@@ -45,18 +45,18 @@ export const VoteModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            api: padSelect(ApiModel.display.select),
-            comment: padSelect(CommentModel.display.select),
-            issue: padSelect(IssueModel.display.select),
-            note: padSelect(NoteModel.display.select),
-            post: padSelect(PostModel.display.select),
-            project: padSelect(ProjectModel.display.select),
-            question: padSelect(QuestionModel.display.select),
-            questionAnswer: padSelect(QuestionAnswerModel.display.select),
-            quiz: padSelect(QuizModel.display.select),
-            routine: padSelect(RoutineModel.display.select),
-            smartContract: padSelect(SmartContractModel.display.select),
-            standard: padSelect(StandardModel.display.select),
+            api: selPad(ApiModel.display.select),
+            comment: selPad(CommentModel.display.select),
+            issue: selPad(IssueModel.display.select),
+            note: selPad(NoteModel.display.select),
+            post: selPad(PostModel.display.select),
+            project: selPad(ProjectModel.display.select),
+            question: selPad(QuestionModel.display.select),
+            questionAnswer: selPad(QuestionAnswerModel.display.select),
+            quiz: selPad(QuizModel.display.select),
+            routine: selPad(RoutineModel.display.select),
+            smartContract: selPad(SmartContractModel.display.select),
+            standard: selPad(StandardModel.display.select),
         }),
         label: (select, languages) => {
             if (select.api) return ApiModel.display.label(select.api as any, languages);
@@ -176,9 +176,9 @@ export const VoteModel: ModelLogic<{
                 // Handle trigger
                 await Trigger(prisma, userData.languages).objectVote(input.isUpvote ?? null, input.voteFor, input.forConnect, userData.id);
             }
-            // Update the score
-            const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1;
-            const newVoteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
+            // Update the score.
+            const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1; // +1 if upvote, -1 if downvote, 0 if null
+            const newVoteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1; // +1 if upvote, -1 if downvote, 0 if null
             const deltaVoteCount = newVoteCount - oldVoteCount;
             await prismaFor.update({
                 where: { id: input.forConnect },
@@ -189,7 +189,7 @@ export const VoteModel: ModelLogic<{
         // If vote did not already exist
         else {
             // If setting to null, skip
-            if (input.isUpvote === null || input.isUpvote === undefined) return true;
+            if (!exists(input.isUpvote)) return true;
             // Create the vote
             await prisma.vote.create({
                 data: {
@@ -200,11 +200,10 @@ export const VoteModel: ModelLogic<{
             })
             // Handle trigger
             await Trigger(prisma, userData.languages).objectVote(input.isUpvote, input.voteFor, input.forConnect, userData.id);
-            // Update the score
-            const voteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
+            // Update the score. +1 if upvote, -1 if downvote
             await prismaFor.update({
                 where: { id: input.forConnect },
-                data: { score: votingFor.score + voteCount }
+                data: { score: votingFor.score + (input.isUpvote ? 1 : -1) }
             })
             return true;
         }

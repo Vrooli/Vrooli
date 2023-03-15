@@ -14,9 +14,9 @@ import {
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { addEmptyTranslation, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
-import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
-import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
+import { defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
+import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
+import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, IntegerInput, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
@@ -44,19 +44,9 @@ export const SubroutineInfoDialog = ({
         return data.node.routineList.items.find(r => r.id === data.routineItemId);
     }, [data]);
 
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(isEditing, session));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);
@@ -71,14 +61,8 @@ export const SubroutineInfoDialog = ({
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({
-        type: 'ResourceList',
-        id: uuid(),
-        resources: [],
-    } as any);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        setResourceList(updatedList);
-    }, [setResourceList]);
+    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -98,10 +82,6 @@ export const SubroutineInfoDialog = ({
         setResourceList(subroutine?.routineVersion?.resourceList ?? { id: uuid() } as any);
         setTags(subroutine?.routineVersion?.root?.tags ?? []);
     }, [subroutine?.routineVersion]);
-
-    // Handle languages
-    const [language, setLanguage] = useState<string>('');
-    const [languages, setLanguages] = useState<string[]>([]);
 
     // Handle update
     const formik = useFormik({
@@ -123,7 +103,7 @@ export const SubroutineInfoDialog = ({
             }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: validationSchema({ minVersion: getMinimumVersion(subroutine?.routineVersion?.root?.versions ?? []) }),
+        validationSchema: routineVersionValidation.update({ minVersion: getMinimumVersion(subroutine?.routineVersion?.root?.versions ?? []) }),
         onSubmit: (values) => {
             if (!subroutine) return;
             handleUpdate({
@@ -141,10 +121,7 @@ export const SubroutineInfoDialog = ({
                     outputs: outputsList,
                     resourceList: resourceList,
                     tags,
-                    translations: values.translationsUpdate.map(t => ({
-                        ...t,
-                        id: t.id === DUMMY_ID ? uuid() : t.id,
-                    })),
+                    translations: values.translationsUpdate,
                     ...values.versionInfo
                 }
             } as any);
@@ -152,45 +129,29 @@ export const SubroutineInfoDialog = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Current description, instructions, and name info, as well as errors
-    const translations = useTranslatedFields({
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        onTranslationBlur,
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage,
         fields: ['description', 'instructions', 'name'],
         formik,
         formikField: 'translationsUpdate',
-        language,
-        validationSchema: routineVersionTranslationValidation.update(),
+        validationSchema: routineVersionTranslationValidation.update({}),
     });
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsUpdate', e, language)
-    }, [formik, language]);
-
-    // Handle languages
     useEffect(() => {
         if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
             setLanguage(formik.values.translationsUpdate[0].language);
-            setLanguages(formik.values.translationsUpdate.map(t => t.language));
         }
-    }, [formik, languages, setLanguage, setLanguages])
-    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik, handleLanguageSelect, languages]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        setLanguages(newLanguages);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
+    }, [formik, languages, setLanguage])
 
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canEdit === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canEdit, userId]);
+    const canUpdate = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canUpdate === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canUpdate, userId]);
 
     /**
      * Navigate to the subroutine's build page
@@ -203,12 +164,12 @@ export const SubroutineInfoDialog = ({
      * Before closing, update subroutine if changes were made
      */
     const handleClose = useCallback(() => {
-        if (canEdit && formik.dirty) {
+        if (canUpdate && formik.dirty) {
             formik.submitForm();
         } else {
             onClose();
         }
-    }, [formik, canEdit, onClose]);
+    }, [formik, canUpdate, onClose]);
 
     /**
      * Close without saving
@@ -290,10 +251,10 @@ export const SubroutineInfoDialog = ({
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            {canEdit ? <LanguageInput
+                            {canUpdate ? <LanguageInput
                                 currentLanguage={language}
                                 handleAdd={handleAddLanguage}
-                                handleDelete={handleLanguageDelete}
+                                handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 session={session}
                                 translations={formik.values.translationsUpdate}
@@ -309,13 +270,13 @@ export const SubroutineInfoDialog = ({
                         {/* Position */}
                         <Grid item xs={12}>
                             {
-                                canEdit && <Box sx={{
+                                canUpdate && <Box sx={{
                                     marginBottom: 2,
                                 }}>
                                     <Typography variant="h6">Order</Typography>
-                                    <QuantityBox
+                                    <IntegerInput
                                         id="subroutine-position"
-                                        disabled={!canEdit}
+                                        disabled={!canUpdate}
                                         label="Order"
                                         min={1}
                                         max={data?.node?.routineList?.items?.length ?? 1}
@@ -331,7 +292,7 @@ export const SubroutineInfoDialog = ({
                         </Grid>
                         {/* Name */}
                         {
-                            canEdit && <Grid item xs={12}>
+                            canUpdate && <Grid item xs={12}>
                                 <TextField
                                     fullWidth
                                     id="name"
@@ -348,7 +309,7 @@ export const SubroutineInfoDialog = ({
                         {/* Description */}
                         <Grid item xs={12} sm={6}>
                             <EditableTextCollapse
-                                isEditing={canEdit}
+                                isEditing={canUpdate}
                                 propsTextField={{
                                     fullWidth: true,
                                     id: "description",
@@ -384,7 +345,7 @@ export const SubroutineInfoDialog = ({
                             />
                         </Grid>
                         {
-                            canEdit && <Grid item xs={12}>
+                            canUpdate && <Grid item xs={12}>
                                 <VersionInput
                                     fullWidth
                                     id="version"
@@ -405,9 +366,9 @@ export const SubroutineInfoDialog = ({
                             </Grid>
                         }
                         {/* Inputs */}
-                        {(canEdit || (inputsList?.length > 0)) && <Grid item xs={12} sm={6}>
+                        {(canUpdate || (inputsList?.length > 0)) && <Grid item xs={12} sm={6}>
                             <InputOutputContainer
-                                isEditing={canEdit}
+                                isEditing={canUpdate}
                                 handleUpdate={handleInputsUpdate}
                                 isInput={true}
                                 language={language}
@@ -417,9 +378,9 @@ export const SubroutineInfoDialog = ({
                             />
                         </Grid>}
                         {/* Outputs */}
-                        {(canEdit || (outputsList?.length > 0)) && <Grid item xs={12} sm={6}>
+                        {(canUpdate || (outputsList?.length > 0)) && <Grid item xs={12} sm={6}>
                             <InputOutputContainer
-                                isEditing={canEdit}
+                                isEditing={canUpdate}
                                 handleUpdate={handleOutputsUpdate}
                                 isInput={false}
                                 language={language}
@@ -429,11 +390,11 @@ export const SubroutineInfoDialog = ({
                             />
                         </Grid>}
                         {
-                            (canEdit || (resourceList?.resources?.length > 0)) && <Grid item xs={12} mb={2}>
+                            (canUpdate || (resourceList?.resources?.length > 0)) && <Grid item xs={12} mb={2}>
                                 <ResourceListHorizontal
                                     title={'Resources'}
                                     list={resourceList}
-                                    canEdit={canEdit}
+                                    canUpdate={canUpdate}
                                     handleUpdate={handleResourcesUpdate}
                                     session={session}
                                     mutate={false}
@@ -443,7 +404,7 @@ export const SubroutineInfoDialog = ({
                         }
                         <Grid item xs={12} marginBottom={4}>
                             {
-                                canEdit ? <TagSelector
+                                canUpdate ? <TagSelector
                                     handleTagsUpdate={handleTagsUpdate}
                                     session={session}
                                     tags={tags}
@@ -454,8 +415,9 @@ export const SubroutineInfoDialog = ({
                     </Grid>
                     {/* Save/Cancel buttons */}
                     {
-                        canEdit && <Grid container spacing={1}>
+                        canUpdate && <Grid container spacing={1}>
                             <GridSubmitButtons
+                                display="dialog"
                                 errors={translations.errorsWithTranslations}
                                 isCreate={false}
                                 loading={formik.isSubmitting}

@@ -5,10 +5,9 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
-import { useLocation } from '@shared/route';
-import { firstString, getDisplay, getResourceUrl, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
-import { getResourceIcon } from '..';
-import { SnackSeverity, TextLoading } from 'components';
+import { openLink, useLocation } from '@shared/route';
+import { firstString, getDisplay, getResourceIcon, getResourceUrl, getUserLanguages, PubSub, ResourceType, usePress } from 'utils';
+import { TextLoading } from 'components';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 
 /**
@@ -24,7 +23,7 @@ const getResourceType = (link: string): ResourceType | null => {
 }
 
 export function ResourceListItem({
-    canEdit,
+    canUpdate,
     data,
     handleContextMenu,
     handleDelete,
@@ -46,7 +45,7 @@ export function ResourceListItem({
         // If no resource type or link, show error
         const resourceType = getResourceType(data.link);
         if (!resourceType || !href) {
-            PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: 'Error' });
             return;
         }
         // Open link
@@ -104,12 +103,12 @@ export function ResourceListItem({
                     />}
                 </Stack>
                 {
-                    canEdit && <IconButton id='delete-icon-button' onClick={onDelete}>
+                    canUpdate && <IconButton id='delete-icon-button' onClick={onDelete}>
                         <DeleteIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 }
                 {
-                    canEdit && <IconButton id='edit-icon-button' onClick={onEdit}>
+                    canUpdate && <IconButton id='edit-icon-button' onClick={onEdit}>
                         <EditIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 }

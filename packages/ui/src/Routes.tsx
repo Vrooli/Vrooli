@@ -1,288 +1,358 @@
-import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from '@shared/route';
-import { APP_LINKS as LINKS, BUSINESS_NAME } from '@shared/consts';
-// import { Sitemap } from 'Sitemap';
+import { Route, RouteProps, Switch } from '@shared/route';
+import { LINKS } from '@shared/consts';
 import {
     ForgotPasswordForm,
     ResetPasswordForm
 } from 'forms';
-import { ScrollToTop } from 'components';
+import { FullPageSpinner, ScrollToTop } from 'components';
 import { CommonProps } from 'types';
-import { Page } from 'pages/wrapper/Page';
-import { Box, CircularProgress } from '@mui/material';
+import { Page } from './components/Page/Page';
+import { Box } from '@mui/material';
+import { PageProps } from 'views/wrapper/types';
+import { NavbarProps } from 'components/navigation/types';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
-    HomePage,
-    HistoryPage,
-    CreatePage,
-    NotificationsPage,
-    SettingsPage,
-} = lazily(() => import('./pages/main'));
-const { TutorialPage, WelcomePage } = lazily(() => import('./pages/tutorial'));
-const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
-const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
-const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
-const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
-const { DevelopSearchPage } = lazily(() => import('./pages/DevelopSearchPage/DevelopSearchPage'));
-const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
-const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
-const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
-const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
+    HomeView,
+    HistoryView,
+    CreateView,
+    NotificationsView,
+} = lazily(() => import('./views/main'));
+const {
+    SettingsView,
+    SettingsAuthenticationView,
+    SettingsDisplayView,
+    SettingsNotificationsView,
+    SettingsProfileView,
+    SettingsPrivacyView,
+    SettingsSchedulesView,
+} = lazily(() => import('./views/settings'));
+const {
+    PrivacyPolicyView,
+    TermsView
+} = lazily(() => import('./views/legal'));
+const { TutorialView } = lazily(() => import('./views/tutorial'));
+const { WelcomeView } = lazily(() => import('./views/WelcomeView/WelcomeView'));
+const { AboutView } = lazily(() => import('./views/AboutView/AboutView'));
+const { AwardsView } = lazily(() => import('./views/AwardsView/AwardsView'));
+const { CalendarView } = lazily(() => import('./views/CalendarView/CalendarView'));
+const { FormView } = lazily(() => import('./views/wrapper/FormView'));
+const { HistorySearchView } = lazily(() => import('./views/HistorySearchView/HistorySearchView'));
+const { NotFoundView } = lazily(() => import('./views/NotFoundView/NotFoundView'));
+const { PremiumView } = lazily(() => import('./views/PremiumView/PremiumView'));
+const { SearchView } = lazily(() => import('./views/SearchView/SearchView'));
+const { StartView } = lazily(() => import('./views/StartView/StartView'));
+const { StatsView } = lazily(() => import('./views/StatsView/StatsView'));
+const { ApiCreate, ApiUpdate, ApiView } = lazily(() => import('./views/objects/api'));
+const { NoteCreate, NoteUpdate, NoteView } = lazily(() => import('./views/objects/note'));
+const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('./views/objects/organization'));
+const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('./views/objects/project'));
+const { QuestionCreate, QuestionUpdate, QuestionView } = lazily(() => import('./views/objects/question'));
+const { ReminderCreate, ReminderUpdate, ReminderView } = lazily(() => import('./views/objects/reminder'));
+const { RoutineCreate, RoutineUpdate, RoutineView } = lazily(() => import('./views/objects/routine'));
+const { SmartContractCreate, SmartContractUpdate, SmartContractView } = lazily(() => import('./views/objects/smartContract'));
+const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('./views/objects/standard'));
+const { UserView } = lazily(() => import('./views/objects/user'));
 
-const Fallback = <Box sx={{
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    zIndex: 100000,
-}}>
-    <CircularProgress size={100} />
+/**
+ * Fallback displayed while route is being loaded.
+ */
+const Fallback = <Box>
+    {/* A blank Navbar to display before the actual one (which is dynamic depending on the page) is rendered. */}
+    <Box sx={{
+        background: (t) => t.palette.primary.dark,
+        height: '64px!important',
+        zIndex: 100,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+    }} />
+    {/* Loading spinner */}
+    <FullPageSpinner />
 </Box>
 
-export const Routes = (props: CommonProps) => {
+/**
+ * Wrapper to define Navbar within each route. This allows us to 
+ * customize the Navbar for each route, without it flashing on
+ * the screen before the route is loaded.
+ */
+const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
+    return (
+        <Route {...props}>
+            <Page {...props}>
+                {props.children}
+            </Page>
+        </Route>
+    )
+}
 
-    const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
+/**
+ * Style for pages that don't use left/right padding
+ */
+const noSidePadding = {
+    paddingLeft: 0,
+    paddingRight: 0,
+}
 
+export const Routes = (props: CommonProps & { sessionChecked: boolean }) => {
     return (
         <>
             <ScrollToTop />
-            <Switch>
-                {/* ========= #region Main Routes ========= */}
-                {/* Pages for each of the bottom navigation items */}
-                <Route
-                    path={LINKS.Home}
+            <Switch fallback={Fallback}>
+                <NavRoute
+                    path={LINKS.About}
                     sitemapIndex
-                    priority={1.0}
-                    changeFreq="weekly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Home')} {...props}>
-                            <HomePage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.Search}/:params*`}
-                    sitemapIndex
-                    priority={0.4}
+                    priority={0.5}
                     changeFreq="monthly"
+                    {...props}
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <SearchPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
+                    <AboutView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
+                    <ApiCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Api}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <ApiUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Api}/:id`} {...props}>
+                    <ApiView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.Awards} {...props}>
+                    <AwardsView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.Calendar} {...props}>
+                    <CalendarView {...props} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Create}
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
+                    mustBeLoggedIn={true}
+                    {...props}
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <CreatePage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Notifications}
-                    sitemapIndex
-                    priority={0.4}
-                    changeFreq="monthly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <NotificationsPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                {/* ========= #endregion Dashboard Routes ========= */}
-                <Route
-                    path={LINKS.History}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('History')} mustBeLoggedIn={true} {...props}>
-                            <HistoryPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.HistorySearch}/:params*`}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <HistorySearchPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.DevelopSearch}/:params*`}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <DevelopSearchPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-
-                {/* ========= #region Views Routes ========= */}
-                {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}
-                <Route
-                    path={`${LINKS.Organization}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.Project}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each project
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.Routine}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each routine
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.Standard}/:params*`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each standard
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ObjectPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                {/* Profile editing is done on settings page, so no need for extra route */}
-                <Route
-                    path={`${LINKS.Profile}/:id?`}
-                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each user
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <UserViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                {/* =========  #endregion ========= */}
-
-                {/* ========= #region Authentication Routes ========= */}
-                <Route
-                    path={LINKS.Start}
-                    sitemapIndex
-                    priority={0.2}
-                    changeFreq="yearly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Start')} {...props}>
-                            <StartPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
+                    <CreateView {...props} />
+                </NavRoute>
+                <NavRoute
                     path={`${LINKS.ForgotPassword}/:code?`}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    {...props}
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Forgot Password')} {...props}>
-                            <FormPage title="Forgot Password" maxWidth="700px">
-                                <ForgotPasswordForm />
-                            </FormPage>
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={`${LINKS.ResetPassword}/:userId?/:code?`}
+                    <FormView title="Forgot Password" maxWidth="700px" {...props}>
+                        <ForgotPasswordForm />
+                    </FormView>
+                </NavRoute>
+                <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
+                    <HistoryView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.HistorySearch}/:params*`} mustBeLoggedIn={true} {...props}>
+                    <HistorySearchView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.Home}
+                    sitemapIndex
+                    priority={1.0}
+                    changeFreq="weekly"
+                    {...props}
+                >
+                    <HomeView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
+                    <NoteCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Note}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <NoteUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Note}/:id`} {...props}>
+                    <NoteView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.Notifications}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                    mustBeLoggedIn={true}
+                    {...props}
+                >
+                    <NotificationsView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
+                    <OrganizationCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Organization}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
+                    <OrganizationUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Organization}/:id`} sx={noSidePadding} {...props}>
+                    <OrganizationView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.Premium}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="weekly"
+                    {...props}
+                >
+                    <PremiumView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.PrivacyPolicy}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    {...props}
                 >
-                    {(params: any) => (
-                        <Suspense fallback={Fallback}>
-                            <Page title={title('Reset Password')} {...props}>
-                                <FormPage title="Reset Password" maxWidth="700px">
-                                    <ResetPasswordForm userId={params.userId} code={params.code} />
-                                </FormPage>
-                            </Page>
-                        </Suspense>
-                    )}
-                </Route>
-                {/* ========= #endregion ========= */}
-                <Route
-                    path={LINKS.Settings}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Settings')} {...props} mustBeLoggedIn={true} >
-                            <SettingsPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Tutorial}
+                    <PrivacyPolicyView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
+                    <UserView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
+                    <ProjectCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Project}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <ProjectUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Project}/:id`} {...props}>
+                    <ProjectView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
+                    <QuestionCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Question}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <QuestionUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Question}/:id`} {...props}>
+                    <QuestionView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
+                    <ReminderCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <ReminderUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
+                    <ReminderView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={`${LINKS.ResetPassword}/:params*`}
                     sitemapIndex
-                    priority={0.5}
-                    changeFreq="monthly"
+                    priority={0.2}
+                    changeFreq="yearly"
+                    {...props}
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Tutorial')} {...props}>
-                            <TutorialPage />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Welcome}
+                    <FormView title="Reset Password" maxWidth="700px" {...props}>
+                        <ResetPasswordForm />
+                    </FormView>
+                </NavRoute>
+                <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
+                    <RoutineCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Routine}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <RoutineUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Routine}/:id`} {...props}>
+                    <RoutineView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={`${LINKS.Search}/:params*`}
                     sitemapIndex
-                    priority={0.5}
+                    priority={0.4}
                     changeFreq="monthly"
+                    {...props}
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Welcome')} {...props}>
-                            <WelcomePage {...props} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
+                    <SearchView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
+                    <SettingsView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsAuthentication} mustBeLoggedIn={true} {...props}>
+                    <SettingsAuthenticationView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsDisplay} mustBeLoggedIn={true} {...props}>
+                    <SettingsDisplayView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsNotifications} mustBeLoggedIn={true} {...props}>
+                    <SettingsNotificationsView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsProfile} mustBeLoggedIn={true} {...props}>
+                    <SettingsProfileView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsPrivacy} mustBeLoggedIn={true} {...props}>
+                    <SettingsPrivacyView {...props} />
+                </NavRoute>
+                <NavRoute path={LINKS.SettingsSchedules} mustBeLoggedIn={true} {...props}>
+                    <SettingsSchedulesView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
+                    <SmartContractCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <SmartContractUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/:id`} {...props}>
+                    <SmartContractView {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
+                    <StandardCreate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Standard}/edit/:id`} mustBeLoggedIn={true} {...props}>
+                    <StandardUpdate {...props} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Standard}/:id`} {...props}>
+                    <StandardView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.Start}
+                    sitemapIndex
+                    priority={0.2}
+                    changeFreq="yearly"
+                    {...props}
+                >
+                    <StartView {...props} />
+                </NavRoute>
+                <NavRoute
                     path={LINKS.Stats}
                     sitemapIndex
                     priority={0.5}
                     changeFreq="weekly"
+                    {...props}
                 >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Stats📊')} {...props}>
-                            <StatsPage />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('404')} {...props}>
-                            <NotFoundPage />
-                        </Page>
-                    </Suspense>
-                </Route>
+                    <StatsView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.Terms}
+                    sitemapIndex
+                    priority={0.2}
+                    changeFreq="yearly"
+                    {...props}
+                >
+                    <TermsView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.Tutorial}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="monthly"
+                    {...props}
+                >
+                    <TutorialView {...props} />
+                </NavRoute>
+                <NavRoute
+                    path={LINKS.Welcome}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="monthly"
+                    {...props}
+                >
+                    <WelcomeView {...props} />
+                </NavRoute>
+                <NavRoute {...props}>
+                    <NotFoundView {...props} />
+                </NavRoute>
             </Switch>
         </>
     );

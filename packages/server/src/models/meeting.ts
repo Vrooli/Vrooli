@@ -1,12 +1,17 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from '@shared/consts';
+import { MaxObjects, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
+import { OrganizationModel } from "./organization";
+import { getSingleTypePermissions } from "../validators";
+import { meetingValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'Meeting' as const;
-const suppFields = [] as const;
+type Permissions = Pick<MeetingYou, 'canDelete' | 'canInvite' | 'canUpdate'>;
+const suppFields = ['you'] as const;
 export const MeetingModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -15,7 +20,7 @@ export const MeetingModel: ModelLogic<{
     GqlModel: Meeting,
     GqlSearch: MeetingSearchInput,
     GqlSort: MeetingSortBy,
-    GqlPermission: any,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.meetingUpsertArgs['create'],
     PrismaUpdate: Prisma.meetingUpsertArgs['update'],
     PrismaModel: Prisma.meetingGetPayload<SelectWrap<Prisma.meetingSelect>>,
@@ -57,14 +62,88 @@ export const MeetingModel: ModelLogic<{
             labelsCount: true,
             translationsCount: true,
         },
+        supplemental: {
+            dbFields: ['organizationId'],
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, objects, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    },
+                }
+            },
+        },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
+                timeZone: noNull(data.timeZone),
+                eventStart: noNull(data.eventStart),
+                eventEnd: noNull(data.eventEnd),
+                recurring: noNull(data.recurring),
+                recurrStart: noNull(data.recurrStart),
+                recurrEnd: noNull(data.recurrEnd),
+                ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'meetings', data, ...rest })),
+                ...(await shapeHelper({ relation: 'restrictedToRoles', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: '', joinData: {
+                    fieldName: 'role',
+                    uniqueFieldName: 'meeting_roles_meetingid_roleid_unique',
+                    childIdFieldName: 'roleId',
+                    parentIdFieldName: 'meetingId',
+                    parentId: data.id ?? null,
+                }, data, ...rest })),
+                ...(await shapeHelper({ relation: 'invites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
+                timeZone: noNull(data.timeZone),
+                eventStart: noNull(data.eventStart),
+                eventEnd: noNull(data.eventEnd),
+                recurring: noNull(data.recurring),
+                recurrStart: noNull(data.recurrStart),
+                recurrEnd: noNull(data.recurrEnd),
+                ...(await shapeHelper({ relation: 'restrictedToRoles', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: '', joinData: {
+                    fieldName: 'role',
+                    uniqueFieldName: 'meeting_roles_meetingid_roleid_unique',
+                    childIdFieldName: 'roleId',
+                    parentIdFieldName: 'meetingId',
+                    parentId: data.id ?? null,
+                }, data, ...rest })),
+                ...(await shapeHelper({ relation: 'invites', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonPlain({
+                    ...params,
+                    objectType: __typename,
+                    ownerOrganizationField: 'organization',
+                });
+            },
+        },
+        yup: meetingValidation,
+    },
     search: {
         defaultSort: MeetingSortBy.EventStartAsc,
         sortBy: MeetingSortBy,
         searchFields: {
             createdTimeFrame: true,
-            labelsId: true,
+            labelsIds: true,
+            maxEventEnd: true,
+            maxEventStart: true,
+            maxRecurrEnd: true,
+            maxRecurrStart: true,
+            minEventEnd: true,
+            minEventStart: true,
+            minRecurrEnd: true,
+            minRecurrStart: true,
             openToAnyoneWithInvite: true,
             organizationId: true,
             showOnOrganizationProfile: true,
@@ -80,5 +159,39 @@ export const MeetingModel: ModelLogic<{
             ]
         })
     },
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
+            id: true,
+            showOnOrganizationProfile: true,
+            organization: 'Organization',
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
+            canInvite: () => isAdmin,
+        }),
+        owner: (data) => ({
+            Organization: data.organization,
+        }),
+        isDeleted: () => false,
+        isPublic: (data) => data.showOnOrganizationProfile === true,
+        visibility: {
+            private: {
+                OR: [
+                    { showOnOrganizationProfile: false },
+                    { organization: { isPrivate: true } },
+                ]
+            },
+            public: {
+                AND: [
+                    { showOnOrganizationProfile: true },
+                    { organization: { isPrivate: false } },
+                ]
+            },
+            owner: (userId) => ({
+                organization: OrganizationModel.query.hasRoleQuery(userId),
+            }),
+        }
+    },
 })

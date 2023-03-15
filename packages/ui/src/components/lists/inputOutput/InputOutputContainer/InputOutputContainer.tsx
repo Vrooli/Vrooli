@@ -90,7 +90,7 @@ export const InputOutputContainer = ({
         let newItemFormatted: RoutineVersionInputShape | RoutineVersionOutputShape = {
             ...newItem,
             id: uuid(),
-            name: newItem.name || t(`common:${isInput ? 'Input' : 'Output'}NameDefault`, { lng: language, number: sortedList.length + 1 }),
+            name: newItem.name || t(`${isInput ? 'Input' : 'Output'}NameDefault`, { number: sortedList.length + 1 }),
             standardVersion: newItem.standardVersion || null,
             translations: newItem.translations ? newItem.translations : [{
                 id: uuid(),
@@ -150,7 +150,7 @@ export const InputOutputContainer = ({
             {/* Main content */}
             <ContentCollapse
                 id={`${type}-container`}
-                helpText={t(`common:${isInput ? 'Input' : 'Output'}ContainerHelp`)}
+                helpText={t(`${isInput ? 'Input' : 'Output'}ContainerHelp`)}
                 title={isInput ? 'Inputs' : 'Outputs'}
                 sxs={{
                     titleContainer: {

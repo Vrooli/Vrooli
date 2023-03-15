@@ -1,138 +1,8 @@
-import { exists } from "@shared/utils";
+import { LINKS } from "@shared/consts";
+import { getLastUrlPart } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { adaHandleRegex } from "@shared/validation";
-import { SnackSeverity } from "components";
-import { SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
-
-type Primitive = string | number | boolean;
-type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
-
-/**
- * Converts url search params to object
- * See https://stackoverflow.com/a/8649003/10240279
- * @returns Object with key/value pairs, or empty object if no params
- */
-export const parseSearchParams = (): ParseSearchParamsResult => {
-    const searchParams = window.location.search;
-    if (searchParams.length <= 1 || !searchParams.startsWith('?')) return {};
-    let search = searchParams.substring(1);
-    try {
-        // First, loop through and wrap all strings in quotes (if not already). 
-        // This is required to parse as a valid JSON object.
-        // Find every substring that's between a "=" and a "&" (or the end of the string).
-        // If it's not already wrapped in quotes, and it doesn't contain any URL encoded characters, and it is not a boolean, wrap it in quotes.
-        search = search.replace(/([^&=]+)=([^&]*)/g, (match, key, value) => {
-            if (value.startsWith('"') || value.includes('%') || value === 'true' || value === 'false') return match;
-            return `${key}="${value}"`;
-        });
-        // Decode and parse the search params
-        const parsed = JSON.parse('{"'
-            + decodeURI(search)
-                .replace(/&/g, ',"')
-                .replace(/=/g, '":')
-                .replace(/%2F/g, '/')
-                .replace(/%5B/g, '[')
-                .replace(/%5D/g, ']')
-                .replace(/%5C/g, '\\')
-                .replace(/%2C/g, ',')
-                .replace(/%3A/g, ':')
-            + '}');
-        // For any value that might be JSON, try to parse
-        Object.keys(parsed).forEach((key) => {
-            const value = parsed[key];
-            if (typeof value === 'string' && value.startsWith('{') && value.endsWith('}')) {
-                try {
-                    parsed[key] = JSON.parse(value);
-                } catch (e) {
-                    // Do nothing
-                }
-            }
-        });
-        return parsed;
-    } catch (error) {
-        console.error('Could not parse search params', error);
-        return {};
-    }
-}
-
-/**
- * Converts object to url search params. 
- * Ignores keys with undefined or null values.
- * @param params Object with key/value pairs, representing search params
- * @returns string of search params, matching the format of window.location.search
- */
-export const stringifySearchParams = (params: { [key: string]: any }): string => {
-    const keys = Object.keys(params);
-    if (keys.length === 0) return '';
-    // Filter out any keys which are associated with undefined or null values
-    const filteredKeys = keys.filter(key => exists(params[key]));
-    const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + '=' + encodeURIComponent(JSON.stringify(params[key]))).join('&');
-    return '?' + encodedParams;
-}
-
-/**
- * Adds values to the current search params, without removing any existing values. 
- * If a key already exists, it will be overwritten.
- * @param setLocation Function to set the location
- * @param params Object with key/value pairs, representing search params
- */
-export const addSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
-    const currentParams = parseSearchParams();
-    const newParams = { ...currentParams, ...params };
-    setLocation(`${window.location.pathname}${stringifySearchParams(newParams)}`, { replace: true });
-};
-
-/**
- * Sets the search params, removing any existing values
- * @param setLocation Function to set the location
- * @param params Object with key/value pairs, representing search params
- */
-export const setSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
-    setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
-};
-
-/**
- * Keeps only the search params specified in the keys array, removing any others
- * @param setLocation Function to set the location
- * @param keep Array of keys to keep
- */
-export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
-    const keepResult: { [key: string]: any } = {};
-    const searchParams = parseSearchParams();
-    keep.forEach(key => {
-        if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
-    });
-    setLocation(`${window.location.pathname}${stringifySearchParams(keepResult)}`, { replace: true });
-};
-
-/**
- * Removes the search params specified in the keys array, keeping any others
- * @param setLocation Function to set the location
- * @param remove Array of keys to remove
- */
-export const removeSearchParams = (setLocation: SetLocation, remove: string[]) => {
-    const removeResult: { [key: string]: any } = {};
-    const searchParams = parseSearchParams();
-    Object.keys(searchParams).forEach(key => {
-        if (!remove.includes(key)) removeResult[key] = searchParams[key];
-    });
-    setLocation(`${window.location.pathname}${stringifySearchParams(removeResult)}`, { replace: true });
-};
-
-/**
- * @returns last part of the url path
- * @param offset Number of parts to offset from the end of the path (default: 0)
- * @returns part of the url path that is <offset> parts from the end, or empty string if no path
- */
-export const getLastUrlPart = (offset: number = 0): string => {
-    let parts = window.location.pathname.split('/');
-    // Remove any empty strings
-    parts = parts.filter(part => part !== '');
-    // Check to make sure there is a part at the offset
-    if (parts.length < offset + 1) return '';
-    return parts[parts.length - offset - 1];
-}
 
 /**
  * Converts a string to a BigInt
@@ -156,7 +26,7 @@ export const uuidToBase36 = (uuid: string): string => {
         const base36 = toBigInt(uuid.replace(/-/g, ''), 16).toString(36);
         return base36 === '0' ? '' : base36;
     } catch (error) {
-        PubSub.get().publishSnack({ messageKey: 'CouldNotConvertId', severity: SnackSeverity.Error, data: { uuid } });
+        PubSub.get().publishSnack({ messageKey: 'CouldNotConvertId', severity: 'Error', data: { uuid } });
         return '';
     }
 }
@@ -174,26 +44,17 @@ export const base36ToUuid = (base36: string, showError = true): string => {
         const uuid = toBigInt(base36, 36).toString(16).padStart(32, '0').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
         return uuid === '0' ? '' : uuid;
     } catch (error) {
-        if (showError) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error, data: { base36 } });
+        if (showError) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error', data: { base36 } });
         return '';
     }
 }
 
-/**
- * Opens link using routing or a new tab, depending on the link
- * @param setLocation Function to set location in the router
- * @param link Link to open
- */
- export const openLink = (setLocation: SetLocation, link: string) => {
-    // If link is external, open new tab
-    if ((link.includes('http:') || link.includes('https:')) && !link.startsWith(window.location.origin)) {
-        window.open(link, '_blank', 'noopener,noreferrer');
-    } 
-    // Otherwise, push to history
-    else {
-        setLocation(link);
-    }
-};
+export type SingleItemUrl = {
+    handleRoot?: string,
+    handle?: string,
+    idRoot?: string,
+    id?: string,
+}
 
 /**
  * Finds information in the URL to query for a specific item. 
@@ -203,25 +64,46 @@ export const base36ToUuid = (base36: string, showError = true): string => {
  * This is specified as site.com/item/id or site.com/item/handle.
  * 
  * For versioned items, they can be queried by ID, ID of the root item, or handle of the root item.
- * This is specified as site.com/item/id, site.com/item?id=id, site.com/item?root=id, or site.com/item?handle=handle.
+ * This is specified as site.com/item/rootId, site.com/item/rootId/id, site.com/handle, or site.com/handle/id.
+ * 
+ * NOTE: This function may sometimes be used for deeper navigation within a single item, 
+ * such as site.com/reports/id or site.com/comments/id. In this case, the logic is still the same.
  */
-export const parseSingleItemUrl = (): { 
-    handleRoot?: string,
-    handle?: string,
-    idRoot?: string,
-    id?: string,
-} => {
-    // Get the last part of the URL
+export const parseSingleItemUrl = (): SingleItemUrl => {
+    // Initialize the return object
+    const returnObject: SingleItemUrl = {};
+    // Get the last 2 parts of the URL
     const lastPart = getLastUrlPart();
-    // If this matches the handle or ID regex, return it
-    if (adaHandleRegex.test(lastPart)) return { handle: lastPart };
-    if (uuidValidate(base36ToUuid(lastPart, false))) return { id: base36ToUuid(lastPart) };
-    // Otherwise, parse the search params
-    const searchParams = parseSearchParams();
-    // If there is a handle, return it
-    if (typeof searchParams.handle === 'string' && adaHandleRegex.test(searchParams.handle)) return { handleRoot: searchParams.handle };
-    // If there is an ID, return it
-    if (searchParams.id && uuidValidate(base36ToUuid(searchParams.id as any, false))) return { idRoot: base36ToUuid(searchParams.id as any, false) };
-    // Otherwise, return nothing
-    return {};
+    const secondLastPart = getLastUrlPart(1);
+    // First check the second last part. If it matches the handle or ID regex, then 
+    // we know this is a versioned item
+    if (adaHandleRegex.test(secondLastPart)) {
+        returnObject.handleRoot = secondLastPart;
+    } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
+        returnObject.idRoot = base36ToUuid(secondLastPart);
+    }
+    // Otherwise, this still might be a versioned item. Just with only the 
+    // root ID or handle defined. To check, we must see if any part of the url 
+    // contains the name of a versioned object
+    const objectsWithVersions = [
+        LINKS.Api, 
+        LINKS.Note, 
+        LINKS.Project, 
+        LINKS.Routine, 
+        LINKS.SmartContract, 
+        LINKS.Standard
+    ].map(link => link.split('/').pop());
+    const allUrlParts = window.location.pathname.split('/');
+    const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));
+    // Now check the last part
+    if (adaHandleRegex.test(lastPart)) {
+        if (isVersioned) returnObject.handleRoot = lastPart;
+        else returnObject.handle = lastPart;
+    } else if (uuidValidate(base36ToUuid(lastPart, false))) {
+        if (isVersioned) returnObject.idRoot = base36ToUuid(lastPart, false);
+        else returnObject.id = base36ToUuid(lastPart, false);
+    }
+    console.log('parseSingleItemUrl RESULT', returnObject);
+    // Return the object
+    return returnObject;
 }

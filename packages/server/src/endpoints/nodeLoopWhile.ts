@@ -3,23 +3,21 @@ import { gql } from 'apollo-server-express';
 export const typeDef = gql`
     input NodeLoopWhileCreateInput {
         id: ID!
-        translationsCreate: [NodeLoopWhileTranslationCreateInput!]
         condition: String!
-        toConnect: ID
+        loopConnect: ID!
+        translationsCreate: [NodeLoopWhileTranslationCreateInput!]
     }
     input NodeLoopWhileUpdateInput {
         id: ID!
-        toConnect: ID
+        condition: String
         translationsDelete: [ID!]
         translationsCreate: [NodeLoopWhileTranslationCreateInput!]
         translationsUpdate: [NodeLoopWhileTranslationUpdateInput!]
-        condition: String
     }
     type NodeLoopWhile {
         id: ID!
-        toId: ID
-        translations: [NodeLoopWhileTranslation!]!
         condition: String!
+        translations: [NodeLoopWhileTranslation!]!
     } 
 
     input NodeLoopWhileTranslationCreateInput {

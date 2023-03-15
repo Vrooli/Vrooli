@@ -1,6 +1,7 @@
 import { AppBar, Box, Button, Dialog, Stack, Typography, useTheme } from "@mui/material";
 import { MarkdownInput } from "components/inputs";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getDisplay, useKeyboardOpen } from "utils";
 import { PopoverWithArrow } from "../PopoverWithArrow/PopoverWithArrow";
 import { UpTransition } from "../transitions";
@@ -25,6 +26,7 @@ export const CommentDialog = ({
     zIndex,
 }: CommentDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     console.log('comment dialog', errorText);
 
     // Add padding when keyboard open to make sure input is visible
@@ -82,15 +84,15 @@ export const CommentDialog = ({
                 {errorText}
             </PopoverWithArrow>
             {/* App bar with Cancel, title, and Submit */}
-            <AppBar sx={{ position: 'relative', background: palette.primary.dark }}>
+            <AppBar sx={{ position: 'relative', background: palette.primary.dark, height: '64px!important' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
                     {/* Cancel button */}
                     <Button variant="text" onClick={handleClose}>
-                        Cancel
+                        {t(`Cancel`)}
                     </Button>
                     {/* Title */}
                     <Typography variant="h6" component="div" sx={{ flexGrow: 1, textAlign: 'center' }}>
-                        {isAdding ? 'Add comment' : 'Edit comment'}
+                        {isAdding ? t(`AddComment`) : t(`EditComment`)}
                     </Typography>
                     {/* Submit button */}
                     <Box onClick={onSubmit}>
@@ -98,7 +100,7 @@ export const CommentDialog = ({
                             disabled={errorText.length > 0}
                             variant="text"
                         >
-                            Submit
+                            {t(`Submit`)}
                         </Button>
                     </Box>
                 </Box>
@@ -108,7 +110,7 @@ export const CommentDialog = ({
                 {/* Input for comment */}
                 <MarkdownInput
                     id="add-comment"
-                    placeholder="Please be nice to each other."
+                    placeholder={t(`PleaseBeNice`)}
                     value={text}
                     minRows={6}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}

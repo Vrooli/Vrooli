@@ -1,8 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Notification, NotificationSearchInput, NotificationSortBy } from '@shared/consts';
+import { MaxObjects, Notification, NotificationSearchInput, NotificationSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'Notification' as const;
 const suppFields = [] as const;
@@ -14,7 +15,7 @@ export const NotificationModel: ModelLogic<{
     GqlModel: Notification,
     GqlSearch: NotificationSearchInput,
     GqlSort: NotificationSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.notificationUpsertArgs['create'],
     PrismaUpdate: Prisma.notificationUpsertArgs['update'],
     PrismaModel: Prisma.notificationGetPayload<SelectWrap<Prisma.notificationSelect>>,
@@ -36,7 +37,40 @@ export const NotificationModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    search: {
+        defaultSort: NotificationSortBy.DateCreatedDesc,
+        sortBy: NotificationSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'linkWrapped',
+                'titleWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => true,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            user: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                user: { id: userId },
+            }),
+        },
+    },
 })

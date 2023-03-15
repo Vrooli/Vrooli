@@ -85,7 +85,7 @@ export const InputTypeOptions: InputTypeOption[] = [
     },
     {
         label: 'Integer',
-        value: InputType.QuantityBox
+        value: InputType.IntegerInput
     },
     {
         label: 'Radio (Select One)',

@@ -1,14 +1,16 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou } from '@shared/consts';
+import { QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { QuizModel } from "./quiz";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { quizAttemptValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'QuizAttempt' as const;
-type Permissions = Pick<QuizAttemptYou, 'canDelete' | 'canEdit'>;
-const suppFields = ['you.canDelete', 'you.canEdit'] as const;
+type Permissions = Pick<QuizAttemptYou, 'canDelete' | 'canUpdate'>;
+const suppFields = ['you'] as const;
 export const QuizAttemptModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -27,7 +29,7 @@ export const QuizAttemptModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_attempt,
     display: {
-        select: () => ({ 
+        select: () => ({
             id: true,
             created_at: true,
             quiz: { select: QuizModel.display.select() },
@@ -58,14 +60,48 @@ export const QuizAttemptModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },
     },
-    mutate: {} as any,
-    search: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                contextSwitches: noNull(data.contextSwitches),
+                timeTaken: noNull(data.timeTaken),
+                language: data.language,
+                user: { connect: { id: rest.userData.id } },
+                ...(await shapeHelper({ relation: 'quiz', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Quiz', parentRelationshipName: 'attempts', data, ...rest })),
+                ...(await shapeHelper({ relation: 'responses', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestionResponse', parentRelationshipName: 'quizAttempt', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                contextSwitches: noNull(data.contextSwitches),
+                timeTaken: noNull(data.timeTaken),
+                ...(await shapeHelper({ relation: 'responses', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'QuizQuestionResponse', parentRelationshipName: 'quizAttempt', data, ...rest })),
+            })
+        },
+        yup: quizAttemptValidation,
+    },
+    search: {
+        defaultSort: QuizAttemptSortBy.TimeTakenDesc,
+        sortBy: QuizAttemptSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            status: true,
+            languageIn: true,
+            maxPointsEarned: true,
+            minPointsEarned: true,
+            userId: true,
+            quizId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({}), // No strings to search
+    },
     validate: {} as any,
 })

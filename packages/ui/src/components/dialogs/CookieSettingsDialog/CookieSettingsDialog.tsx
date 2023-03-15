@@ -12,27 +12,21 @@ import {
 } from '@mui/material';
 import { CookieSettingsDialogProps } from '../types';
 import { useFormik } from 'formik';
-import { DialogTitle, HelpButton } from 'components';
+import { DialogTitle, HelpButton, LargeDialog } from 'components';
 import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
+import { useTranslation } from 'react-i18next';
 
-const titleAria = 'cookie-settings-dialog-title';
+const titleId = 'cookie-settings-dialog-title';
+const strictlyNecessaryUses = ['Authentication'] as const;
+const functionalUses = ['Theme', 'Font Size'] as const;
 
-const strictlyNecessaryText = `These cookies are necessary for our application to function properly and cannot be turned off. These cookies do not store any personally identifiable information.`;
-const strictlyNecessaryUses = ['Authentication'];
-
-const performanceText = `These cookies allow us to count visits and traffic sources so we can measure and improve the performance of our site. They help us to know which pages are the most and least popular and see how visitors move around the site, which helps us optimize your experience. All information these cookies collect is aggregated and therefore anonymous. If you do not allow these cookies we will not be able to use your data in this way.`;
-
-const functionalText = `These cookies are used to enhance the functionality of our site. They allow us to remember your preferences (e.g. your choice of language or region) and provide enhanced, more personal features. If you do not allow these cookies then some or all of these features may not function properly.`;
-const functionalUses = ['Theme', 'Font Size'];
-
-const targetingText = `These cookies may be set through our site by our advertising partners. They may be used by those companies to build a profile of your interests and show you relevant ads on other sites. They do not store directly personal information, but are based on uniquely identifying your browser and internet device. If you do not allow these cookies, you will experience less targeted advertising.`;
-
-
+//TODO not fully translated
 export const CookieSettingsDialog = ({
     handleClose,
     isOpen,
 }: CookieSettingsDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const setPreferences = (preferences: CookiePreferences) => {
         console.log('in setcookiepreferences', preferences);
@@ -67,46 +61,29 @@ export const CookieSettingsDialog = ({
     }
 
     return (
-        <Dialog
-            id="advanced-search-dialog"
-            open={isOpen}
+        <LargeDialog
+            id="cookie-settings-dialog"
+            isOpen={isOpen}
             onClose={onCancel}
-            scroll="body"
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex: 1234,
-                '& .MuiDialogContent-root': {
-                    minWidth: 'min(400px, 100%)',
-                },
-                '& .MuiPaper-root': {
-                    margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%', sm: '500px' },
-                    display: { xs: 'block', sm: 'inline-block' },
-                    background: palette.background.default,
-                    color: palette.background.textPrimary,
-                },
-                // Remove ::after element that is added to the dialog
-                '& .MuiDialog-container::after': {
-                    content: 'none',
-                },
-            }}
+            titleId={titleId}
+            zIndex={1234}
         >
             {/* Title */}
             <DialogTitle
-                ariaLabel={titleAria}
-                title={'Cookie Settings'}
+                id={titleId}
+                title={t(`CookieSettings`)}
                 onClose={onCancel}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: '16px' }}>
                 {/* Description of cookies and why we use them */}
                 <Typography variant="body1" mb={4}>
-                    We use cookies to improve your experience on our website. By using our website, you agree to our use of cookies.
+                    {t(`CookieSettings`)}
                 </Typography>
                 {/* Strictly necessary */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Strictly Necessary</Typography>
-                        <HelpButton markdown={strictlyNecessaryText} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t(`CookieStrictlyNecessary`)}</Typography>
+                        <HelpButton markdown={t(`CookieStrictlyNecessaryDescription`)} />
                         <Switch
                             checked={formik.values.strictlyNecessary}
                             onChange={formik.handleChange}
@@ -126,8 +103,8 @@ export const CookieSettingsDialog = ({
                 {/* Performance */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Performance</Typography>
-                        <HelpButton markdown={performanceText} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t('Performance')}</Typography>
+                        <HelpButton markdown={t(`CookiePerformanceDescription`)} />
                         <Switch
                             checked={formik.values.performance}
                             onChange={formik.handleChange}
@@ -145,8 +122,8 @@ export const CookieSettingsDialog = ({
                 {/* Functional */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Functional</Typography>
-                        <HelpButton markdown={functionalText} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t('Functional')}</Typography>
+                        <HelpButton markdown={t(`CookieFunctionalDescription`)} />
                         <Switch
                             checked={formik.values.functional}
                             onChange={formik.handleChange}
@@ -164,8 +141,8 @@ export const CookieSettingsDialog = ({
                 {/* Targeting */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 4 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">Targeting</Typography>
-                        <HelpButton markdown={targetingText} />
+                        <Typography component="h2" variant="h5" textAlign="center">{t('Targeting')}</Typography>
+                        <HelpButton markdown={t(`CookieTargetingDescription`)} />
                         <Switch
                             checked={formik.values.targeting}
                             onChange={formik.handleChange}
@@ -188,23 +165,23 @@ export const CookieSettingsDialog = ({
                         <Button
                             fullWidth
                             type="submit"
-                        >Confirm</Button>
+                        >{t(`Confirm`)}</Button>
                     </Grid>
                     <Grid item xs={4}>
                         <Button
                             fullWidth
                             onClick={handleAcceptAllCookies}
-                        >Accept all</Button>
+                        >{t(`AcceptAll`)}</Button>
                     </Grid>
                     <Grid item xs={4}>
                         <Button
                             fullWidth
                             variant="text"
                             onClick={onCancel}
-                        >Cancel</Button>
+                        >{t(`Cancel`)}</Button>
                     </Grid>
                 </Grid>
             </form>
-        </Dialog>
+        </LargeDialog>
     )
 }

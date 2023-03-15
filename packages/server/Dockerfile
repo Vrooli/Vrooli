@@ -26,6 +26,9 @@ COPY --chown=node:node packages/shared/uuid/src packages/shared/uuid/
 COPY --chown=node:node packages/shared/validation/src packages/shared/validation/
 COPY --chown=node:node packages/shared/translations/src packages/shared/translations/
 
+# Copy packages/ui/public, which is needed to store sitemap files that we create for user-generated pages
+COPY --chown=node:node packages/ui/public packages/ui/public
+
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
 
@@ -46,7 +49,7 @@ COPY --from=stage0 ${PROJECT_DIR} ./
 RUN yarn install
 
 # Install global packages
-RUN yarn global add typescript ts-node nodemon prisma@4.7.1
+RUN yarn global add typescript ts-node nodemon prisma@4.10.1
 
 # Stage 2. Copy files from stage 1, and install required unix tools
 FROM node:16-alpine3.16 as stage2

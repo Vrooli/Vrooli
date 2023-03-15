@@ -6,10 +6,10 @@ import {
     DialogContent,
     DialogContentText,
 } from '@mui/material';
-import { firstString, getUserLanguages, PubSub, translateCommonKey, translateSnackMessage } from 'utils';
+import { firstString, PubSub, translateSnackMessage } from 'utils';
 import { DialogTitle } from 'components';
-import { AlertDialogProps } from '../types';
-import { Session } from '@shared/consts';
+import i18next from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 interface StateButton {
     label: string;
@@ -22,48 +22,48 @@ export interface AlertDialogState {
     buttons: StateButton[];
 }
 
-const defaultState = (session: Session | undefined): AlertDialogState => ({
-    buttons: [{ label: translateCommonKey('Ok', undefined, getUserLanguages(session)) }],
+const defaultState = (): AlertDialogState => ({
+    buttons: [{ label: i18next.t('Ok') }],
 });
 
-const titleAria = 'alert-dialog-title';
+const titleId = 'alert-dialog-title';
 const descriptionAria = 'alert-dialog-description';
 
-const AlertDialog = ({
-    session
-}: AlertDialogProps) => {
-    const [state, setState] = useState<AlertDialogState>(defaultState(session))
+const AlertDialog = () => {
+    const { t } = useTranslation();
+
+    const [state, setState] = useState<AlertDialogState>(defaultState())
     let open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
         let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
-            title: o.titleKey ? translateCommonKey(o.titleKey, o.titleVariables, getUserLanguages(session)) : undefined,
-            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables, getUserLanguages(session)).details : undefined,
+            title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
+            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details : undefined,
             buttons: o.buttons.map((b) => ({
-                label: translateCommonKey(b.labelKey, b.labelVariables, getUserLanguages(session)),
+                label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
                 onClick: b.onClick,
             })),
         }));
         return () => { PubSub.get().unsubscribe(dialogSub) };
-    }, [session])
+    }, [t])
 
     const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
         if (action) action(event);
-        setState(defaultState(session));
-    }, [session]);
+        setState(defaultState());
+    }, []);
 
-    const resetState = useCallback(() => setState(defaultState(session)), [session]);
+    const resetState = useCallback(() => setState(defaultState()), []);
 
     return (
         <Dialog
             open={open}
             disableScrollLock={true}
             onClose={resetState}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             aria-describedby={descriptionAria}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={firstString(state.title)}
                 onClose={resetState}
             />

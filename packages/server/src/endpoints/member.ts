@@ -24,6 +24,7 @@ export const typeDef = gql`
         isAdmin: Boolean!
         permissions: String!
         organization: Organization!
+        roles: [Role!]!
         user: User!
     }
 

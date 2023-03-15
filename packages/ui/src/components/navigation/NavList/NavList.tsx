@@ -3,13 +3,15 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink, useWindowSize } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
-import { useLocation } from '@shared/route';
+import { openLink, useLocation } from '@shared/route';
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
+import { useTranslation } from 'react-i18next';
+import { checkIfLoggedIn } from 'utils/authentication';
 
 const navItemStyle = (palette: Palette) => ({
     background: 'transparent',
@@ -23,13 +25,14 @@ const navItemStyle = (palette: Palette) => ({
 
 export const NavList = ({
     session,
-    sessionChecked,
 }: NavListProps) => {
+    const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
+    console.log('action navlist', session);
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     // Handle account menu
@@ -43,6 +46,7 @@ export const NavList = ({
         setAccountMenuAnchor(null)
     }, []);
 
+    console.log('action navlist', session)
     return (
         <Container sx={{
             display: 'flex',
@@ -53,12 +57,12 @@ export const NavList = ({
         }}>
             {/* Contact menu */}
             {!isMobile && <PopupMenu
-                text="Contact"
+                text={t(`Contact`)}
                 variant="text"
                 size="large"
                 sx={navItemStyle(palette)}
             >
-                <ContactInfo />
+                <ContactInfo session={session} />
             </PopupMenu>}
             {/* Account menu */}
             <AccountMenu
@@ -73,10 +77,10 @@ export const NavList = ({
                 sx: navItemStyle(palette),
             })}
             {/* Enter button displayed when not logged in */}
-            {sessionChecked && session?.isLoggedIn !== true && (
+            {!checkIfLoggedIn(session) && (
                 <Button
-                    href={APP_LINKS.Start}
-                    onClick={(e) => { e.preventDefault(); openLink(setLocation, APP_LINKS.Start) }}
+                    href={LINKS.Start}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start) }}
                     startIcon={<LogInIcon />}
                     sx={{
                         background: '#387e30',
@@ -90,11 +94,11 @@ export const NavList = ({
                         },
                     }}
                 >
-                    Log In
+                    {t('LogIn')}
                 </Button>
             )}
             {/* Profile icon */}
-            {session?.isLoggedIn === true && (
+            {checkIfLoggedIn(session) && (
                 <IconButton
                     color="inherit"
                     onClick={openAccountMenu}

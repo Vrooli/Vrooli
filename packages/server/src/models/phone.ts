@@ -1,8 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Phone, PhoneCreateInput } from '@shared/consts';
+import { MaxObjects, Phone, PhoneCreateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { OrganizationModel } from "./organization";
+import { defaultPermissions } from "../utils";
+import { phoneValidation } from "@shared/validation";
+import { Trigger } from "../events";
 
 const __typename = 'Phone' as const;
 const suppFields = [] as const;
@@ -12,7 +16,7 @@ export const PhoneModel: ModelLogic<{
     GqlCreate: PhoneCreateInput,
     GqlUpdate: undefined,
     GqlModel: Phone,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.phoneUpsertArgs['create'],
@@ -42,7 +46,53 @@ export const PhoneModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, userData }) => ({
+                phoneNumber: data.phoneNumber,
+                user: { connect: { id: userData.id } },
+            }),
+        },
+        trigger: {
+            onCreated: async ({ created, prisma, userData }) => {
+                for (const { id: objectId } of created) {
+                    await Trigger(prisma, userData.languages).objectCreated({
+                        createdById: userData.id,
+                        hasCompleteAndPublic: true, // N/A
+                        hasParent: true, // N/A
+                        owner: { id: userData.id, __typename: 'User' },
+                        objectId,
+                        objectType: __typename,
+                    })
+                }
+            },
+        },
+        yup: phoneValidation,
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            organization: 'Organization',
+            user: 'User',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

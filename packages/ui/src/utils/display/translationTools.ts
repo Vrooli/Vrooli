@@ -1,10 +1,11 @@
 import { FormikErrors, FormikProps } from "formik";
 import { ObjectSchema, ValidationError } from 'yup';
-import { CommonKey, ErrorKey } from "types";
 import { uuid } from '@shared/uuid';
 import { getCurrentUser } from "utils/authentication";
 import i18next from 'i18next';
 import { Session } from "@shared/consts";
+import { CommonKey, ErrorKey } from "@shared/translations";
+import { OptionalTranslation } from "types";
 
 export type TranslationObject = {
     id: string,
@@ -460,9 +461,10 @@ export const getLanguageSubtag = (language: string): string => {
  * 3. English
  * Strips languages so only the subtag is returned (e.g. en-US becomes en)
  * @param session Session data
+ * @param useDefault If true, will return English if no languages are found
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session: Session | null | undefined): string[] => {
+export const getUserLanguages = (session: Session | null | undefined, useDefault = true): string[] => {
     // First check session data for preferred languages
     const { languages } = getCurrentUser(session);
     if (languages && languages.length > 0) {
@@ -472,8 +474,8 @@ export const getUserLanguages = (session: Session | null | undefined): string[] 
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }
-    // Default to English
-    return ["en"];
+    // Default to English if specified
+    return useDefault ? ["en"] : [];
 }
 
 /**
@@ -654,57 +656,42 @@ export const removeTranslation = <
 }
 
 /**
- * Converts a common key to a translated string. 
- * @param key The key to convert
- * @param variables The variables to use for translation
- * @param languages User's preferred languages
- * @returns The translated string
- */
- export const translateCommonKey = (
-    key: CommonKey,
-    variables: { [x: string]: number | string } | undefined,
-    languages: string[]
-): string  => {
-    const lng = languages.length > 0 ? languages[0] : 'en';
-    return i18next.t(`common:${key}`, { lng, ...(variables ?? {}) });
-};
-
-/**
- * Converts an error key to a translated string. 
- * @param key The key to convert
- * @param variables The variables to use for translation
- * @param languages User's preferred languages
- * @returns The translated string
- */
- export const translateErrorKey = (
-    key: ErrorKey,
-    variables: { [x: string]: number | string } | undefined,
-    languages: string[]
-): string => {
-    const lng = languages.length > 0 ? languages[0] : 'en';
-    const translated = i18next.t(`error:${key}`, { lng, ...(variables ?? {}) })
-    return translated !== key ? translated : '';
-};
-
-/**
  * Converts a snack message code into a snack message and details. 
  * For now, details are only used for some errors
  * @param key The key to convert
  * @param variables The variables to use for translation
- * @param languages User's preferred languages
  * @returns Object with message and details
  */
- export const translateSnackMessage = (
+export const translateSnackMessage = (
     key: ErrorKey | CommonKey,
     variables: { [x: string]: number | string } | undefined,
-    languages: string[]
 ): { message: string, details: string | undefined } => {
-    const lng = languages.length > 0 ? languages[0] : 'en';
-    const messageAsError = translateErrorKey(key as ErrorKey, variables, languages);
-    const messageAsCommon = translateCommonKey(key as CommonKey, variables, languages);
-    if (messageAsError.length > 0) {
-        const details = i18next.t(`error:${key}Details` as any, { lng });
+    const messageAsError = i18next.t(key as ErrorKey, { ...variables, defaultValue: key, ns: 'error' });
+    const messageAsCommon = i18next.t(key as CommonKey, { ...variables, defaultValue: key, ns: 'common' });
+    console.log('in translatesnackmessage', key, variables, messageAsError, messageAsCommon);
+    if (messageAsError.length > 0 && messageAsError !== key) {
+        const details = i18next.t(`${key}Details` as ErrorKey, { ns: 'error' });
         return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
     }
     return { message: messageAsCommon, details: undefined };
 };
+
+/**
+ * Finds the translated title and help text for a component
+ * @param data Data required to find the title and help text
+ * @returns Object with title and help text, each of which can be undefined
+ */
+export const getTranslatedTitleAndHelp = (data: OptionalTranslation | null | undefined): { title?: string, help?: string } => {
+    if (!data) return {};
+    let title: string | undefined = data.title;
+    let help: string | undefined = data.help;
+    if (!title && data.titleKey) {
+        title = i18next.t(data.titleKey, { ...data.titleVariables, ns: 'common', defaultValue: '' });
+        if (title === '') title = undefined;
+    }
+    if (!help && data.helpKey) {
+        help = i18next.t(data.helpKey, { ...data.helpVariables, ns: 'common', defaultValue: '' });
+        if (help === '') help = undefined;
+    }
+    return { title, help };
+}

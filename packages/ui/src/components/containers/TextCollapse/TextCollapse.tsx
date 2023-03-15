@@ -10,6 +10,7 @@ export function TextCollapse({
     loading,
     loadingLines,
     onOpenChange,
+    session,
     title,
     text,
 }: TextCollapseProps) {

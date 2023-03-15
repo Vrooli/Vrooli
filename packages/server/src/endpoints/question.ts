@@ -17,8 +17,8 @@ export const typeDef = gql`
         DateUpdatedDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     enum QuestionForType {
@@ -35,14 +35,21 @@ export const typeDef = gql`
 
     input QuestionCreateInput {
         id: ID!
+        isPrivate: Boolean
         referencing: String
         forType: QuestionForType!
         forConnect: ID!
+        tagsConnect: [String!]
+        tagsCreate: [TagCreateInput!]
         translationsCreate: [QuestionTranslationCreateInput!]
     }
     input QuestionUpdateInput {
         id: ID!
+        isPrivate: Boolean
         acceptedAnswerConnect: ID
+        tagsConnect: [String!]
+        tagsDisconnect: [String!]
+        tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
         translationsCreate: [QuestionTranslationCreateInput!]
         translationsUpdate: [QuestionTranslationUpdateInput!]
@@ -53,14 +60,31 @@ export const typeDef = gql`
         updated_at: Date!
         createdBy: User
         hasAcceptedAnswer: Boolean!
+        isPrivate: Boolean!
+        bookmarks: Int!
         score: Int!
-        stars: Int!
-        isUpvoted: Boolean
         forObject: QuestionFor!
+        reports: [Report!]!
+        reportsCount: Int!
         translations: [QuestionTranslation!]!
+        translationsCount: Int!
         answers: [QuestionAnswer!]!
+        answersCount: Int!
         comments: [Comment!]!
-        starredBy: [User!]!
+        commentsCount: Int!
+        bookmarkedBy: [User!]!
+        tags: [Tag!]!
+        you: QuestionYou!
+    }
+
+    type QuestionYou {
+        canDelete: Boolean!
+        canBookmark: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
+        canVote: Boolean!
+        isBookmarked: Boolean!
+        isUpvoted: Boolean
     }
 
     input QuestionTranslationCreateInput {
@@ -96,11 +120,11 @@ export const typeDef = gql`
         smartContractId: ID
         standardId: ID
         ids: [ID!]
-        languages: [String!]
+        translationLanguages: [String!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
         searchString: String
         sortBy: QuestionSortBy
         take: Int

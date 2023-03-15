@@ -68,7 +68,9 @@ export const typeDef = gql`
         runProject: RunProject
         runRoutineSchedule: RunRoutineSchedule
         steps: [RunRoutineStep!]!
+        stepsCount: Int!
         inputs: [RunRoutineInput!]!
+        inputsCount: Int!
         user: User
         organization: Organization
         you: RunRoutineYou!
@@ -76,8 +78,8 @@ export const typeDef = gql`
 
     type RunRoutineYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
     }
 
     input RunRoutineSearchInput {

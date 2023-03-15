@@ -1,38 +1,24 @@
-import { PrependString, StandardSortBy, StandardYou } from "@shared/consts";
-import { StarModel } from "./star";
+import { MaxObjects, StandardSortBy, StandardYou } from "@shared/consts";
+import { BookmarkModel } from "./bookmark";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
-import { randomString } from "../auth/wallet";
-import { Trigger } from "../events";
 import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
-import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { noNull, padSelect, permissionsSelectHelper } from "../builders";
-import { oneIsPublic } from "../utils";
+import { noNull, shapeHelper } from "../builders";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
-
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: StandardCreateInput | StandardUpdateInput, isAdd: boolean) => {
-    return {
-        // root: {
-        //     isPrivate: data.isPrivate ?? undefined,
-        //     tags: await tagRelationshipBuilder(prisma, userData, data, 'Standard', isAdd),
-        // },
-        // version: {
-        //     isPrivate: data.isPrivate ?? undefined,
-        //     resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        // },
-    } as any
-}
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { standardValidation } from "@shared/validation";
 
 const __typename = 'Standard' as const;
-type Permissions = Pick<StandardYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
+type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
+const suppFields = ['you', 'translatedName'] as const;
 export const StandardModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -50,29 +36,24 @@ export const StandardModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                where: { isPrivate: false },
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: StandardVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            StandardVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(StandardVersionModel),
     format: {
-        gqlRelMap: { //TODO finish
+        gqlRelMap: {
             __typename,
             createdBy: 'User',
+            issues: 'Issue',
+            labels: 'Label',
             owner: {
                 ownedByUser: 'User',
                 ownedByOrganization: 'Organization',
             },
-            starredBy: 'User',
+            parent: 'Project',
+            pullRequests: 'PullRequest',
+            questions: 'Question',
+            bookmarkedBy: 'User',
             tags: 'Tag',
+            transfers: 'Transfer',
+            versions: 'StandardVersion',
         },
         prismaRelMap: {
             __typename,
@@ -83,29 +64,32 @@ export const StandardModel: ModelLogic<{
             labels: 'Label',
             parent: 'StandardVersion',
             tags: 'Tag',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             versions: 'StandardVersion',
             pullRequests: 'PullRequest',
             stats: 'StatsStandard',
             questions: 'Question',
             transfers: 'Transfer',
         },
-        joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
+        joinMap: { labels: 'label', tags: 'tag', bookmarkedBy: 'user' },
         countFields: {
             forksCount: true,
             issuesCount: true,
             pullRequestsCount: true,
+            questionsCount: true,
+            transfersCount: true,
             versionsCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    },
                     'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
                 }
             },
@@ -113,110 +97,40 @@ export const StandardModel: ModelLogic<{
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => {
-                // const base = await shapeBase(prisma, userData, data, true);
-                // // If jsonVariables defined, sort them
-                // let translations = await translationRelationshipBuilder(prisma, userData, data, true)
-                // if (translations?.create?.length) {
-                //     translations.create = translations.create.map(t => {
-                //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
-                //         return t;
-                //     })
-                // }
-                // return {
-                //     ...base.root,
-                //     isInternal: data.isInternal ?? undefined,
-                //     name: data.name ?? await querier().generateName(prisma, userData.id, data),
-                //     permissions: JSON.stringify({}), //TODO
-                //     createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                //     organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                //     createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                //     user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                //     versions: {
-                //         create: {
-                //             ...base.version,
-                //             default: data.default ?? undefined,
-                //             props: sortify(data.props, userData.languages),
-                //             yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                //             standardType: data.standardType,
-                //             translations,
-                //         }
-                //     }
-                // }
-                return {} as any
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
+                return { ...maps }
             },
-            update: async ({ data, prisma, userData }) => {
-                // const base = await shapeBase(prisma, userData, data, false);
-                // // If jsonVariables defined, sort them
-                // let translations = await translationRelationshipBuilder(prisma, userData, data, false)
-                // if (translations?.update?.length) {
-                //     translations.update = translations.update.map(t => {
-                //         t.data = {
-                //             ...t.data,
-                //             jsonVariables: sortify(t.data.jsonVariables, userData.languages),
-                //         }
-                //         return t;
-                //     })
-                // }
-                // if (translations?.create?.length) {
-                //     translations.create = translations.create.map(t => {
-                //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
-                //         return t;
-                //     })
-                // }
-                // return {
-                //     ...base.root,
-                //     organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                //     user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-                //     // If versionId is provided, update that version. 
-                //     // Otherwise, versionLabel is provided, so create new version with that label
-                //     versions: {
-                //         ...(data.versionId ? {
-                //             update: {
-                //                 where: { id: data.versionId },
-                //                 data: {
-                //                     ...base.version,
-                //                     default: data.default ?? undefined,
-                //                     props: data.props ? sortify(data.props, userData.languages) : undefined,
-                //                     yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                //                     standardType: data.standardType as string,
-                //                     translations,
-                //                 }
-                //             }
-                //         } : {
-                //             create: {
-                //                 ...base.version,
-                //                 versionLabel: data.versionLabel as string,
-                //                 default: data.default as string,
-                //                 props: sortify(data.props as string, userData.languages),
-                //                 yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                //                 standardType: data.standardType as string,
-                //                 translations,
-                //             }
-                //         })
-                //     },
-                // }
-                return {} as any
-            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                isInternal: noNull(data.isInternal),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'standards', isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'forks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Standard', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Standard', relation: 'labels', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                isInternal: noNull(data.isInternal),
+                isPrivate: noNull(data.isPrivate),
+                permissions: noNull(data.permissions),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'standards', isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Standard', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Standard', relation: 'labels', data, ...rest })),
+            }),
         },
         trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).createStandard(userData.id, c.id as string);
-                }
-            },
-            onUpdated: ({ prisma, updated, updateInput, userData }) => {
-                // for (let i = 0; i < updated.length; i++) {
-                //     const u = updated[i];
-                //     const input = updateInput[i];
-                //     // Check if version changed
-                //     if (input.versionLabel && u.isComplete) {
-                //         Trigger(prisma, userData.languages).objectNewVersion('Standard', u.id as string, userData.id);
-                //     }
-                // }
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
             },
         },
-        yup: {} as any,
+        yup: standardValidation,
         /**
          * Add, update, or remove a one-to-one standard relationship. 
          * Due to some unknown Prisma bug, it won't let us create/update a standard directly
@@ -317,18 +231,19 @@ export const StandardModel: ModelLogic<{
             createdTimeFrame: true,
             excludeIds: true,
             hasCompleteVersion: true,
-            // issuesId: true,
-            labelsId: true,
+            isInternal: true,
+            issuesId: true,
+            labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
             maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
             parentId: true,
-            // pullRequestsId: true,
+            pullRequestsId: true,
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
@@ -349,108 +264,44 @@ export const StandardModel: ModelLogic<{
         customQueryData: () => ({ isInternal: true }),
     },
     validate: {
-        isTransferable: true,
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
-        maxObjects: {
-            User: {
-                private: {
-                    noPremium: 5,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 1000,
-                },
-            },
-            Organization: {
-                private: {
-                    noPremium: 5,
-                    premium: 100,
-                },
-                public: {
-                    noPremium: 100,
-                    premium: 1000,
-                },
-            },
-        },
-        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
-        permissionsSelect: (...params) => ({
+        isDeleted: (data) => data.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            oneIsPublic<Prisma.smart_contractSelect>(data, [
+                ['ownedByOrganization', 'Organization'],
+                ['ownedByUser', 'User'],
+            ], languages),
+        isTransferable: true,
+        maxObjects: MaxObjects[__typename],
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
             id: true,
             isInternal: true,
             isPrivate: true,
             isDeleted: true,
             permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
-                versions: 'StandardVersion',
-            }, ...params),
-        }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canTransfer: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: ['StandardVersion', ['root']],
         }),
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,
         }),
-        isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
-            data.isDeleted === false &&
-            data.isInternal === false &&
-            //latest(data.versions)?.isPrivate === false &&
-            //latest(data.versions)?.isDeleted === false &&
-            oneIsPublic<Prisma.routineSelect>(data, [
-                ['ownedByOrganization', 'Organization'],
-                ['ownedByUser', 'User'],
-            ], languages),
-        profanityFields: ['name'],
         visibility: {
-            private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
-            },
-            public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
-            },
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
                     { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
                 ]
-                // root: {
-                //     OR: [
-                //         { ownedByUser: { id: userId } },
-                //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                //     ]
-                // }
             }),
         },
         // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
-        //TODO when updating, not allowed to update existing, completed version
         // TODO when deleting, anonymize standards which are being used by inputs/outputs
-        // const standard = await prisma.standard_version.findUnique({
-        //     where: { id },
-        //     select: {
-        //                 _count: {
-        //                     select: {
-        //                         routineInputs: true,
-        //                         routineOutputs: true,
-        //                     }
-        //                 }
-        //     }
-        // })
     },
 })

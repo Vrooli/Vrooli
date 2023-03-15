@@ -4,9 +4,9 @@ import { ApiShape, shapeApi } from "./api";
 import { shapeResourceList } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, 'id' | 'language' | 'details' | 'summary'>
+export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, 'id' | 'language' | 'details' | 'name' | 'summary'>
 
-export type ApiVersionShape = Pick<ApiVersion, 'id' | 'callLink' | 'documentationLink' | 'isLatest' | 'isPrivate' | 'versionIndex' | 'versionLabel' | 'versionNotes'> & {
+export type ApiVersionShape = Pick<ApiVersion, 'id' | 'callLink' | 'documentationLink' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
     directoryListings?: { id: string }[] | null;
     resourceList?: { id: string } | null;
     root?: { id: string } | ApiShape | null;
@@ -14,20 +14,20 @@ export type ApiVersionShape = Pick<ApiVersion, 'id' | 'callLink' | 'documentatio
 }
 
 export const shapeApiVersionTranslation: ShapeModel<ApiVersionTranslationShape, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput> = {
-    create: (d) => createPrims(d, 'id', 'language', 'details', 'summary'),
+    create: (d) => createPrims(d, 'id', 'language', 'details', 'name', 'summary'),
     update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'details', 'summary'), a)
 }
 
 export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput, ApiVersionUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'callLink', 'documentationLink', 'isLatest', 'isPrivate', 'versionIndex', 'versionLabel', 'versionNotes'),
+        ...createPrims(d, 'id', 'callLink', 'documentationLink', 'isPrivate', 'versionLabel', 'versionNotes'),
         ...createRel(d, 'directoryListings', ['Connect'], 'many'),
         ...createRel(d, 'resourceList', ['Create'], 'one', shapeResourceList),
         ...createRel(d, 'root', ['Connect', 'Create'], 'one', shapeApi),
         ...createRel(d, 'translations', ['Create'], 'many', shapeApiVersionTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'callLink', 'documentationLink', 'isLatest', 'isPrivate', 'versionIndex', 'versionLabel', 'versionNotes'),
+        ...updatePrims(o, u, 'id', 'callLink', 'documentationLink', 'isPrivate', 'versionLabel', 'versionNotes'),
         ...updateRel(o, u, 'directoryListings', ['Connect', 'Disconnect'], 'many'),
         ...updateRel(o, u, 'resourceList', ['Create', 'Update'], 'one', shapeResourceList),
         ...updateRel(o, u, 'root', ['Update'], 'one', shapeApi),

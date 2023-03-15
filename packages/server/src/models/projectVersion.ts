@@ -1,31 +1,19 @@
 import { projectVersionValidation } from "@shared/validation";
-import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString } from '@shared/consts';
+import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString, MaxObjects, ProjectVersionContentsSearchInput, ProjectVersionContentsSearchResult } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
-import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic } from "../utils";
+import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
+import { bestLabel, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
-import { getSingleTypePermissions } from "../validators";
-
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
-    return {
-        id: data.id,
-        // isComplete: data.isComplete ?? undefined,
-        // isPrivate: data.isPrivate ?? undefined,
-        // completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
-        permissions: JSON.stringify({}),
-        // resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        // tags: await tagRelationshipBuilder(prisma, userData, data, 'Project', isAdd),
-        // translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-    }
-}
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { ProjectModel } from "./project";
 
 const __typename = 'ProjectVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
-const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView', 'you.runs'] as const;
+type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
+const suppFields = ['you'] as const;
 export const ProjectVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -81,22 +69,25 @@ export const ProjectVersionModel: ModelLogic<{
             directoryListingsCount: true,
             forksCount: true,
             reportsCount: true,
-            runsCount: true,
+            runProjectsCount: true,
             translationsCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                console.log('in projectversion tographql a');
                 const runs = async () => {
-                    if (!userData) return new Array(objects.length).fill([]);
+                    console.log('in projectversion tographql b', userData);
+                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add projectVersionId, so we 
                     // can associate runs with their project
                     const runPartial: PartialGraphQLInfo = {
                         ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
                         projectVersionId: true
                     }
+                    console.log('in projectversion tographql c');
                     // Query runs made by user
+                    console.log('in projectversion tographql before runs', selectHelper(partial));
                     let runs: any[] = await prisma.run_project.findMany({
                         where: {
                             AND: [
@@ -106,6 +97,7 @@ export const ProjectVersionModel: ModelLogic<{
                         },
                         ...selectHelper(runPartial)
                     });
+                    console.log('in projectversion tographql d');
                     // Format runs to GraphQL
                     runs = runs.map(r => modelToGraphQL(r, runPartial));
                     // Add supplemental fields
@@ -114,46 +106,171 @@ export const ProjectVersionModel: ModelLogic<{
                     const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
                     return projectRuns;
                 };
+                console.log('in projectversion tographql e');
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.runs': await runs(),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        runs: await runs(),
+                    }
                 }
             },
         }
     },
     mutate: {
         shape: {
-            create: async ({ data, prisma, userData }) => ({
-                // parentId: data.parentId ?? undefined,
-                // organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                // createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                // createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                // user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-            } as any),
-            update: async ({ data, prisma, userData }) => ({
-                // organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                // user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-            } as any)
-        },
-        trigger: {
-            onCreated: ({ created, prisma, userData }) => {
-                for (const c of created) {
-                    Trigger(prisma, userData.languages).createProject(userData.id, c.id);
-                }
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', userData.languages));
             },
-            onUpdated: ({ updated, prisma, userData }) => {
-                // for (const u of updated) {
-                //     Trigger(prisma, userData.languages).updateProject(userData.id, u.id as string);
-                // }
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: data.versionLabel,
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Project', parentRelationshipName: 'versions', data, ...rest })),
+                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                isPrivate: noNull(data.isPrivate),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'projectVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Project', parentRelationshipName: 'versions', data, ...rest })),
+                // ...(await shapeHelper({ relation: 'suggestedNextByProject', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
             }
         },
         yup: projectVersionValidation,
     },
+    // query: {
+    //     /**
+    //      * Custom search query for querying items in a project version
+    //      */
+    //     async searchContents(
+    //         prisma: PrismaType,
+    //         req: Request,
+    //         input: ProjectVersionContentsSearchInput,
+    //         info: GraphQLInfo | PartialGraphQLInfo,
+    //         nestLimit: number = 2,
+    //     ): Promise<ProjectVersionContentsSearchResult> {
+    //         // Partially convert info type
+    //         const partial = toPartialGraphQLInfo(info, {
+    //             __typename: 'ProjectVersionContentsSearchResult',
+    //             meetings: 'Meeting',
+    //             notes: 'Note',
+    //             reminders: 'Reminder',
+    //             resources: 'Resource',
+    //             runProjectSchedules: 'RunProjectSchedule',
+    //             runRoutineSchedules: 'RunRoutineSchedule',
+    //         }, req.languages, true);
+    //         // Determine text search query
+    //         const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
+    //         // Loop through search fields and add each to the search query, 
+    //         // if the field is specified in the input
+    //         const customQueries: { [x: string]: any }[] = [];
+    //         for (const field of Object.keys(CommentModel.search!.searchFields)) {
+    //             if (input[field as string] !== undefined) {
+    //                 customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
+    //             }
+    //         }
+    //         // Combine queries
+    //         const where = combineQueries([searchQuery, ...customQueries]);
+    //         // Determine sort order
+    //         // Make sure sort field is valid
+    //         const orderByField = input.sortBy ?? CommentModel.search!.defaultSort;
+    //         const orderByIsValid = CommentModel.search!.sortBy[orderByField] === undefined
+    //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? CommentModel.search!.defaultSort] : undefined;
+    //         // Find requested search array
+    //         const searchResults = await prisma.comment.findMany({
+    //             where,
+    //             orderBy,
+    //             take: input.take ?? 10,
+    //             skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
+    //             cursor: input.after ? {
+    //                 id: input.after
+    //             } : undefined,
+    //             ...selectHelper(partialInfo)
+    //         });
+    //         // If there are no results
+    //         if (searchResults.length === 0) return {
+    //             __typename: 'CommentSearchResult' as const,
+    //             totalThreads: 0,
+    //             threads: [],
+    //         }
+    //         // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
+    //         const totalInThread = input.after ? undefined : await prisma.comment.count({
+    //             where: { ...where }
+    //         });
+    //         // Calculate end cursor
+    //         const endCursor = searchResults[searchResults.length - 1].id;
+    //         // If not as nestLimit, recurse with all result IDs
+    //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req), {
+    //             ids: searchResults.map(r => r.id),
+    //             take: input.take ?? 10,
+    //             sortBy: input.sortBy ?? CommentModel.search!.defaultSort,
+    //         }, info, nestLimit) : [];
+    //         // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
+    //         const flattenThreads = (threads: CommentThread[]) => {
+    //             const result: Comment[] = [];
+    //             for (const thread of threads) {
+    //                 result.push(thread.comment);
+    //                 result.push(...flattenThreads(thread.childThreads));
+    //             }
+    //             return result;
+    //         }
+    //         let comments: any = flattenThreads(childThreads);
+    //         // Shape comments and add supplemental fields
+    //         comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
+    //         comments = await addSupplementalFields(prisma, getUser(req), comments, partialInfo);
+    //         // Put comments back into "threads" object, using another helper function. 
+    //         // Comments can be matched by their ID
+    //         const shapeThreads = (threads: CommentThread[]) => {
+    //             const result: CommentThread[] = [];
+    //             for (const thread of threads) {
+    //                 // Find current-level comment
+    //                 const comment = comments.find((c: any) => c.id === thread.comment.id);
+    //                 // Recurse
+    //                 const children = shapeThreads(thread.childThreads);
+    //                 // Add thread to result
+    //                 result.push({
+    //                     __typename: 'CommentThread' as const,
+    //                     comment,
+    //                     childThreads: children,
+    //                     endCursor: thread.endCursor,
+    //                     totalInThread: thread.totalInThread,
+    //                 });
+    //             }
+    //             return result;
+    //         }
+    //         const threads = shapeThreads(childThreads);
+    //         // Return result
+    //         return {
+    //             __typename: 'CommentSearchResult' as const,
+    //             totalThreads: totalInThread,
+    //             threads,
+    //             endCursor,
+    //         }
+    //     }
+    // },
     search: {
         defaultSort: ProjectVersionSortBy.DateCompletedDesc,
         sortBy: ProjectVersionSortBy,
         searchFields: {
-            createdById: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
             directoryListingsId: true,
             isCompleteWithRoot: true,
@@ -163,15 +280,18 @@ export const ProjectVersionModel: ModelLogic<{
             maxSimplicity: true,
             maxTimesCompleted: true,
             minComplexity: true,
-            minScoreRoot: true,
             minSimplicity: true,
-            minStarsRoot: true,
             minTimesCompleted: true,
+            maxBookmarksRoot: true,
+            maxScoreRoot: true,
+            maxViewsRoot: true,
+            minBookmarksRoot: true,
+            minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationId: true,
-            ownedByUserId: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
             rootId: true,
-            tags: true,
+            tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,
@@ -186,68 +306,40 @@ export const ProjectVersionModel: ModelLogic<{
         }),
     },
     validate: {
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            ProjectModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ProjectModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,
-            hasCompleteVersion: true,
             isDeleted: true,
             isPrivate: true,
-            permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
-            }, ...params),
-            versions: {
-                select: {
-                    isComplete: true,
-                    isDeleted: true,
-                    isPrivate: true,
-                }
-            },
+            root: ['Project', ['versions']],
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => !isDeleted && (isAdmin || isPublic),
-            canCopy: () => !isDeleted && (isAdmin || isPublic),
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-            canRun: () => !isDeleted && (isAdmin || isPublic),
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canUse: () => !isDeleted && (isAdmin || isPublic),
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
-        }),
-        owner: (data) => ({
-            // Organization: data.ownedByOrganization,
-            // User: data.ownedByUser,
-        } as any),
-        isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
-            ['ownedByOrganization', 'Organization'],
-            ['ownedByUser', 'User'],
-        ], languages),
+        permissionResolvers: defaultPermissions,
         visibility: {
             private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
+                isDeleted: false,
+                root: { isDeleted: false },
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
             },
             public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
+                isDeleted: false,
+                root: { isDeleted: false },
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
             },
             owner: (userId) => ({
-                root: ProjectVersionModel.validate!.visibility.owner(userId),
+                root: ProjectModel.validate!.visibility.owner(userId),
             }),
-        }
-        // createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksDescription'));
-        // for (const input of updateMany) {
+        },
     },
 })

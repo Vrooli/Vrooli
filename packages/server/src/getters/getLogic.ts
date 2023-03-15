@@ -31,6 +31,8 @@ export function getLogic<
     // Make sure object exists in map
     const object = ObjectMap[objectType];
     if (!object) throw new CustomError('0280', 'InvalidArgs', languages, { errorTrace, objectType });
+    // If no props are requested, return the entire object
+    if (!props.length) return object as GetLogicReturn<Logic[number]>;
     // Loop through requested types to validate that all requested types exist
     for (const field of props) {
         // Get logic function

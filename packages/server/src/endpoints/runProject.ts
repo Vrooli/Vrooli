@@ -60,10 +60,10 @@ export const typeDef = gql`
         completedAt: Date
         name: String!
         status: RunStatus!
-        wasRunAutomaticaly: Boolean!
         projectVersion: ProjectVersion
         runProjectSchedule: RunProjectSchedule
         steps: [RunProjectStep!]!
+        stepsCount: Int!
         user: User
         organization: Organization
         you: RunProjectYou!
@@ -71,8 +71,8 @@ export const typeDef = gql`
 
     type RunProjectYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
     }
 
     input RunProjectSearchInput {

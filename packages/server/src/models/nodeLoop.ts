@@ -1,8 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from '@shared/consts';
+import { MaxObjects, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions } from "../utils";
+import { NodeModel } from "./node";
+import { nodeLoopValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'NodeLoop' as const;
 const suppFields = [] as const;
@@ -12,7 +16,7 @@ export const NodeLoopModel: ModelLogic<{
     GqlCreate: NodeLoopCreateInput,
     GqlUpdate: NodeLoopUpdateInput,
     GqlModel: NodeLoop,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_loopUpsertArgs['create'],
@@ -40,6 +44,38 @@ export const NodeLoopModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
-    validate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                loops: noNull(data.loops),
+                maxLoops: noNull(data.maxLoops),
+                operation: noNull(data.operation),
+                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'loop', data, ...rest })),
+                ...(await shapeHelper({ relation: 'whiles', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLoopWhile', parentRelationshipName: 'loop', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                loops: noNull(data.loops),
+                maxLoops: noNull(data.maxLoops),
+                operation: noNull(data.operation),
+                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'loop', data, ...rest })),
+                ...(await shapeHelper({ relation: 'whiles', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLoopWhile', parentRelationshipName: 'loop', data, ...rest })),
+            })
+        },
+        yup: nodeLoopValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({ node: 'Node' }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => NodeModel.validate!.owner(data.node as any),
+        isDeleted: (data, languages) => NodeModel.validate!.isDeleted(data.node as any, languages),
+        isPublic: (data, languages) => NodeModel.validate!.isPublic(data.node as any, languages),
+        visibility: {
+            private: { node: NodeModel.validate!.visibility.private },
+            public: { node: NodeModel.validate!.visibility.public },
+            owner: (userId) => ({ node: NodeModel.validate!.visibility.owner(userId) }),
+        }
+    },
 })

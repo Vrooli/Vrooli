@@ -22,6 +22,7 @@ export const toPartialGraphQLInfo = <
     languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
 ): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) => {
+    console.log('toPartialGraphQLInfo START', JSON.stringify(gqlRelMap), '\n\n');
     // Return undefined if info not set
     if (!info) {
         if (throwIfNotPartial)
@@ -44,6 +45,7 @@ export const toPartialGraphQLInfo = <
     else if (select.hasOwnProperty('endCursor') && select.hasOwnProperty('totalThreads') && select.hasOwnProperty('threads')) {
         select = select.threads.comment
     }
+    console.log('toPartialGraphQLInfo here', gqlRelMap.__typename, JSON.stringify(select), '\n\n');
     // Inject type fields
     select = injectTypenames(select, gqlRelMap);
     if (!select)

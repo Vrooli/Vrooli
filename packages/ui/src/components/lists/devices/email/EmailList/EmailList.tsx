@@ -3,18 +3,21 @@
  */
 import { EmailListProps } from '../types';
 import { useCallback } from 'react';
-import { Box, Stack, TextField, useTheme } from '@mui/material';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { Stack, TextField, useTheme } from '@mui/material';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
 import { AddIcon } from '@shared/icons';
-import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success } from '@shared/consts';
-import { deleteOneOrManyEndpoint, emailEndpoint } from 'graphql/endpoints';
 import { emailValidation } from '@shared/validation';
+import { emailCreate } from 'api/generated/endpoints/email_create';
+import { emailVerify } from 'api/generated/endpoints/email_verify';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { ListContainer } from 'components/containers';
+import { useTranslation } from 'react-i18next';
 
 export const EmailList = ({
     handleUpdate,
@@ -22,15 +25,16 @@ export const EmailList = ({
     list,
 }: EmailListProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation<Email, EmailCreateInput, 'emailCreate'>(...emailEndpoint.create);
+    const [addMutation, { loading: loadingAdd }] = useCustomMutation<Email, EmailCreateInput>(emailCreate);
     const formik = useFormik({
         initialValues: {
             emailAddress: '',
         },
         enableReinitialize: true,
-        validationSchema: emailValidation.create(),
+        validationSchema: emailValidation.create({}),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             mutationWrapper<Email, EmailCreateInput>({
@@ -39,7 +43,7 @@ export const EmailList = ({
                     emailAddress: values.emailAddress,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });
+                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: 'Info' });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },
@@ -48,13 +52,13 @@ export const EmailList = ({
         },
     });
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: 'Error' });
             return;
         }
         // Confirmation dialog
@@ -63,7 +67,7 @@ export const EmailList = ({
             messageVariables: { emailAddress: email.emailAddress },
             buttons: [
                 {
-                    labelKey: 'Yes', 
+                    labelKey: 'Yes',
                     onClick: () => {
                         mutationWrapper<Success, DeleteOneInput>({
                             mutation: deleteMutation,
@@ -79,28 +83,24 @@ export const EmailList = ({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
-    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<Success, SendVerificationEmailInput, 'sendVerificationEmail'>(...emailEndpoint.verify);
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useCustomMutation<Success, SendVerificationEmailInput>(emailVerify);
     const sendVerificationEmail = useCallback((email: Email) => {
         if (loadingVerifyEmail) return;
         mutationWrapper<Success, SendVerificationEmailInput>({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
             onSuccess: () => {
-                PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });
+                PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: 'Info' });
             },
         })
     }, [loadingVerifyEmail, verifyMutation]);
 
     return (
         <form onSubmit={formik.handleSubmit}>
-            {list.length > 0 && <Box id='email-list' sx={{
-                overflow: 'overlay',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                maxWidth: '1000px',
-                marginLeft: 1,
-                marginRight: 1,
-            }}>
+            <ListContainer
+                emptyText={t(`NoEmails`, { ns: 'error' })}
+                isEmpty={list.length === 0}
+            >
                 {/* Email list */}
                 {list.map((email: Email, index) => (
                     <EmailListItem
@@ -111,7 +111,7 @@ export const EmailList = ({
                         handleVerify={sendVerificationEmail}
                     />
                 ))}
-            </Box>}
+            </ListContainer>
             {/* Add new email */}
             <Stack direction="row" sx={{
                 display: 'flex',

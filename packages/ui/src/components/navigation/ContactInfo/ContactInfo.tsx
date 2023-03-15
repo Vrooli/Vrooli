@@ -1,4 +1,4 @@
-import { APP_LINKS, LANDING_LINKS, LANDING_URL, SOCIALS } from '@shared/consts';
+import { LINKS, SOCIALS } from '@shared/consts';
 import {
     BottomNavigation,
     BottomNavigationAction,
@@ -12,27 +12,35 @@ import { ContactInfoProps } from '../types';
 import { ColorIconButton } from 'components/buttons';
 import { CopyrightBreadcrumbs } from 'components/breadcrumbs';
 import { noSelect } from 'styles';
-import { openLink } from 'utils';
-import { useLocation } from '@shared/route';
+import { openLink, useLocation } from '@shared/route';
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
-const contactInfo: [string, string, string, SvgComponent][] = [
-    ['Find us on Twitter', 'Twitter', SOCIALS.Twitter, TwitterIcon],
-    ['Join our Discord', 'Discord', SOCIALS.Discord, DiscordIcon],
-    ['Source code', 'Code', SOCIALS.GitHub, GitHubIcon],
-]
-
-const additionalInfo: [string, string, string, SvgComponent][] = [
-    ['About Us', 'About', `${LANDING_URL}${LANDING_LINKS.AboutUs}`, InfoIcon],
-    ['Documentation', 'Docs', 'https://docs.vrooli.com', ArticleIcon],
-    ['Site Stats', 'Stats', APP_LINKS.Stats, StatsIcon],
-]
+type NavActionListData = [string, string, string, SvgComponent]
 
 export const ContactInfo = ({
+    session,
     sx,
     ...props
 }: ContactInfoProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
+
+    const { additionalInfo, contactInfo } = useMemo(() => {
+        return {
+            additionalInfo: [
+                [t(`AboutUs`), 'About', LINKS.About, InfoIcon],
+                [t(`DocumentationShort`), 'Docs', 'https://docs.vrooli.com', ArticleIcon],
+                [t(`StatisticsShort`), 'Stats', LINKS.Stats, StatsIcon],
+            ] as NavActionListData[],
+            contactInfo: [
+                [t(`ContactHelpTwitter`), 'Twitter', SOCIALS.Twitter, TwitterIcon],
+                [t(`ContactHelpDiscord`), 'Discord', SOCIALS.Discord, DiscordIcon],
+                [t(`ContactHelpCode`), 'Code', SOCIALS.GitHub, GitHubIcon],
+            ] as NavActionListData[],
+        }
+    }, [t]);
 
     const handleLink = (e: React.MouseEvent<any>, link: string) => {
         e.preventDefault();
@@ -47,7 +55,7 @@ export const ContactInfo = ({
             padding: 1,
             ...(sx ?? {})
         }} {...props}>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>Find us on...</Typography>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t('FindUsOn')}</Typography>
             <BottomNavigation
                 showLabels
                 sx={{
@@ -77,7 +85,7 @@ export const ContactInfo = ({
                     </Tooltip>
                 ))}
             </BottomNavigation>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>Additional resources</Typography>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t(`AdditionalResources`)}</Typography>
             <BottomNavigation
                 showLabels
                 sx={{

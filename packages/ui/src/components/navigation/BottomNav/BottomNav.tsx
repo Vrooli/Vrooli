@@ -10,6 +10,7 @@ export const BottomNav = ({
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
 
+    console.log('actionsssss', session)
     let actions = actionsToBottomNav({
         actions: getUserActions({ session }),
         setLocation,
@@ -28,6 +29,7 @@ export const BottomNav = ({
                 position: 'fixed',
                 zIndex: 5,
                 bottom: 0,
+                // env variables are used to account for iOS nav bar, notches, etc.
                 paddingBottom: 'env(safe-area-inset-bottom)',
                 paddingLeft: 'calc(4px + env(safe-area-inset-left))',
                 paddingRight: 'calc(4px + env(safe-area-inset-right))',

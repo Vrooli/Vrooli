@@ -4,7 +4,8 @@ import { UserDeleteInput, Success, ProfileUpdateInput, FindByIdOrHandleInput, Us
 import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 import { rateLimit } from '../middleware';
 import { assertRequestFrom } from '../auth/request';
-import { readManyHelper, readOneHelper } from '../actions';
+import { readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { parseICalFile } from '../utils';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -12,8 +13,8 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
     }
 
     type User {
@@ -38,12 +39,12 @@ export const typeDef = gql`
         isPrivateSmartContracts: Boolean!
         isPrivateStandards: Boolean!
         isPrivateStandardsCreated: Boolean!
-        isPrivateStars: Boolean!
+        isPrivateBookmarks: Boolean!
         isPrivateVotes: Boolean!
         name: String!
         theme: String
         status: AccountStatus
-        stars: Int!
+        bookmarks: Int!
         views: Int!
         apiKeys: [ApiKey!]
         apis: [Api!]!
@@ -57,7 +58,7 @@ export const typeDef = gql`
         issuesCreated: [Issue!]
         issuesClosed: [Issue!]
         labels: [Label!]
-        languages: [String!]
+        translationLanguages: [String!]
         meetingsAttending: [Meeting!]
         meetingsInvited: [MeetingInvite!]
         memberships: [Member!]
@@ -80,7 +81,7 @@ export const typeDef = gql`
         sentReports: [Report!]
         reportsCreated: [Report!]
         reportsReceived: [Report!]!
-        reportsCount: Int!
+        reportsReceivedCount: Int!
         reportResponses: [ReportResponse!]
         reputationHistory: [ReputationHistory!]
         roles: [Role!]
@@ -93,8 +94,8 @@ export const typeDef = gql`
         smartContracts: [SmartContract!]
         standardsCreated: [Standard!]
         standards: [Standard!]
-        starredBy: [User!]!
-        starred: [Star!]
+        bookmarkedBy: [User!]!
+        bookmarked: [Bookmark!]
         stats: StatsUser
         tags: [Tag!]
         transfersIncoming: [Transfer!]
@@ -109,9 +110,9 @@ export const typeDef = gql`
 
     type UserYou {
         canDelete: Boolean!
-        canEdit: Boolean!
         canReport: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
+        canUpdate: Boolean!
         isViewed: Boolean!
     }
 
@@ -152,7 +153,7 @@ export const typeDef = gql`
         isPrivateSmartContracts: Boolean
         isPrivateStandards: Boolean
         isPrivateStandardsCreated: Boolean
-        isPrivateStars: Boolean
+        isPrivateBookmarks: Boolean
         isPrivateVotes: Boolean
         notificationSettings: String
         languages: [String!]
@@ -176,8 +177,14 @@ export const typeDef = gql`
         deletePublicData: Boolean!
     }
 
+    input ImportCalendarInput {
+        file: Upload!
+    }
+
     input UserSearchInput {
-        minStars: Int
+        maxBookmarks: Int
+        maxViews: Int
+        minBookmarks: Int
         minViews: Int
         ids: [ID!]
         sortBy: UserSortBy
@@ -209,6 +216,9 @@ export const typeDef = gql`
         profileUpdate(input: ProfileUpdateInput!): User!
         profileEmailUpdate(input: ProfileEmailUpdateInput!): User!
         userDeleteOne(input: UserDeleteInput!): Success!
+        importCalendar(input: ImportCalendarInput!): Success!
+        # importUserData(input: ImportUserDataInput!): Success!
+        exportCalendar: String!
         exportData: String!
     }
 `
@@ -225,6 +235,9 @@ export const resolvers: {
         profileUpdate: GQLEndpoint<ProfileUpdateInput, UpdateOneResult<User>>;
         profileEmailUpdate: GQLEndpoint<ProfileEmailUpdateInput, UpdateOneResult<User>>;
         userDeleteOne: GQLEndpoint<UserDeleteInput, Success>;
+        importCalendar: GQLEndpoint<any, Success>;
+        // importUserData: GQLEndpoint<ImportUserDataInput, Success>;
+        exportCalendar: GQLEndpoint<{}, string>;
         exportData: GQLEndpoint<{}, string>;
     }
 } = {
@@ -245,17 +258,8 @@ export const resolvers: {
     },
     Mutation: {
         profileUpdate: async (_, { input }, { prisma, req, res }, info) => {
-            throw new CustomError('0999', 'NotImplemented', ['en']);
-            // const userData = assertRequestFrom(req, { isUser: true });
-            // await rateLimit({ info, maxUser: 250, req });
-            // // Update object
-            // const updated = await ProfileModel.mutate(prisma).updateProfile(userData, input, info);
-            // if (!updated)
-            //     throw new CustomError('0160', 'ErrorUnknown', req.languages);
-            // // Update session
-            // const session = await toSession({ id: userData.id }, prisma, req);
-            // await generateSessionJwt(res, session);
-            // return updated;
+            await rateLimit({ info, maxUser: 250, req });
+            return updateHelper({ info, input, objectType, prisma, req })
         },
         profileEmailUpdate: async (_, { input }, { prisma, req, res }, info) => {
             throw new CustomError('0999', 'NotImplemented', ['en']);
@@ -274,9 +278,16 @@ export const resolvers: {
             // // TODO anonymize public data
             // return await ProfileModel.mutate(prisma).deleteProfile(userData.id, input);
         },
+        importCalendar: async (_, { input }, { prisma, req, res }, info) => {
+            await rateLimit({ info, maxUser: 25, req });
+            await parseICalFile(input.file);
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+        },
+        exportCalendar: async (_p, _d, { prisma, req, res }, info) => {
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+        },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
-         * In the future, an import function will be added.
          * @returns JSON of all user data
          */
         exportData: async (_p, _d, { prisma, req, res }, info) => {

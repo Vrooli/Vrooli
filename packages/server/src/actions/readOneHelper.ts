@@ -30,6 +30,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
         throw new CustomError('0019', 'IdOrHandleRequired', userData?.languages ?? req.languages);
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
+    console.log('readonehelper partialinfo', JSON.stringify(partialInfo), '\n\n');
     // If using idRoot or handleRoot, this means we are requesting a versioned object using data from the root object.
     // To query the version, we must find the latest completed version associated with the root object.
     let id: string | null | undefined;
@@ -39,7 +40,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // If using handle, find the id of the object with that handle
     else if (input.handle) {
         id = await getIdFromHandle({ handle: input.handle, objectType, prisma });
-    } 
+    }
     // Otherwise, use the id provided
     else {
         id = input.id;
@@ -47,16 +48,20 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, prisma, userData ?? null);
     // Check permissions
-    permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
+    await permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
     // Get the Prisma object
-const object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
+    const object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
+    console.log('readonehelper object', JSON.stringify(object), '\n\n');
     if (!object)
         throw new CustomError('0022', 'NotFound', userData?.languages ?? req.languages, { objectType });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
+    console.log('readonehelper formatted', JSON.stringify(formatted), '\n\n');
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
         ViewModel.view(prisma, userData, { forId: object.id, viewFor: objectType as any });
     }
-    return (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+    const result =  (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+    console.log('readonehelper result', JSON.stringify(result), '\n\n');
+    return result;
 }

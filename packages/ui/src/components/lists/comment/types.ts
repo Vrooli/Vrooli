@@ -11,7 +11,7 @@ export interface CommentThreadProps {
     canOpen: boolean;
     data: CommentThread | null;
     language: string;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -27,6 +27,6 @@ export interface CommentThreadItemProps {
      * Object which has a comment, not the comment itself or the comment thread
      */
     object: NavigableObject | null | undefined;
-    session: Session;
+    session: Session | undefined;
     zIndex;
 }

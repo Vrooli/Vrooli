@@ -30,10 +30,11 @@ export const typeDef = gql`
 
     type StatsSmartContract {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
+        calls: Int!
+        routineVersions: Int!
     }
 
     type Query {

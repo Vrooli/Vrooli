@@ -1,30 +1,15 @@
 import { tagValidation } from "@shared/validation";
-import { TagSortBy } from "@shared/consts";
-import { StarModel } from "./star";
+import { MaxObjects, TagSortBy } from "@shared/consts";
+import { BookmarkModel } from "./bookmark";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-
-// const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
-//     return {
-//         tag: data.tag,
-//         createdByUserId: userData.id,
-//         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-//     }
-// }
-
-// const mutater = (): Mutater<Model> => ({
-//     shape: {
-//         create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
-//         update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
-//     },
-//     yup: tagValidation,
-// })
+import { defaultPermissions, translationShapeHelper } from "../utils";
 
 const __typename = 'Tag' as const;
-const suppFields = ['you.isOwn', 'you.isStarred'] as const;
+const suppFields = ['you'] as const;
 export const TagModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -33,7 +18,7 @@ export const TagModel: ModelLogic<{
     GqlModel: Tag,
     GqlSearch: TagSearchInput,
     GqlSort: TagSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.tagUpsertArgs['create'],
     PrismaUpdate: Prisma.tagUpsertArgs['update'],
     PrismaModel: Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
@@ -58,7 +43,7 @@ export const TagModel: ModelLogic<{
             routines: 'Routine',
             smartContracts: 'SmartContract',
             standards: 'Standard',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
         },
         prismaRelMap: {
             __typename,
@@ -72,8 +57,8 @@ export const TagModel: ModelLogic<{
             routines: 'Routine',
             smartContracts: 'SmartContract',
             standards: 'Standard',
-            starredBy: 'User',
-            // scheduleFilters: 'ScheduleFilter',
+            bookmarkedBy: 'User',
+            scheduleFilters: 'UserScheduleFilter',
         },
         joinMap: {
             apis: 'tagged',
@@ -85,28 +70,43 @@ export const TagModel: ModelLogic<{
             routines: 'tagged',
             smartContracts: 'tagged',
             standards: 'tagged',
-            starredBy: 'user'
+            bookmarkedBy: 'user'
         },
         countFields: {},
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['createdByUserId', 'id'],
+            dbFields: ['createdById', 'id'],
             toGraphQL: async ({ ids, objects, prisma, userData }) => ({
-                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                'you.isOwn': objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+                you: {
+                    isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                    isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+                },
             }),
         },
     },
-    mutate: {} as any,//mutater(),
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                tag: data.tag,
+                createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                ...(data.anonymous ? { createdBy: { disconnect: true } } : {}),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
+        },
+        yup: tagValidation,
+    },
     search: {
-        defaultSort: TagSortBy.StarsDesc,
+        defaultSort: TagSortBy.BookmarksDesc,
         sortBy: TagSortBy,
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
             excludeIds: true,
-            maxStars: true,
-            minStars: true,
+            maxBookmarks: true,
+            minBookmarks: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
@@ -119,12 +119,9 @@ export const TagModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: {
-            User: 10000,
-            Organization: 0,
-        },
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true }),
-        permissionResolvers: () => ({}),
+        permissionResolvers: defaultPermissions,
         owner: () => ({}),
         isDeleted: () => false,
         isPublic: () => true,

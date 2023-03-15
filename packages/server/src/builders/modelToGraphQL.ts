@@ -5,7 +5,6 @@ import { isRelationshipObject } from "./isRelationshipObject";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
 import { removeJoinTables } from "./removeJoinTables";
-import { subsetsMatch } from "./subsetsMatch";
 import { PartialGraphQLInfo } from "./types";
 
 /**
@@ -20,26 +19,6 @@ export function modelToGraphQL<
     data: { [x: string]: any },
     partialInfo: PartialGraphQLInfo
 ): GraphQLModel {
-    console.log('modeltographql start');
-    // Remove top-level union from partialInfo, if necessary
-    // If every key starts with a capital letter, it's a union. 
-    // There's a catch-22 here which we must account for. Since "data" has not 
-    // been shaped yet, it won't match the shape of "partialInfo". But we can't do 
-    // this after shaping "data" because we need to know the type of the union. 
-    // To account for this, we call modelToGraphQL on each union, to check which one matches "data"
-    if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
-        // Find the union type which matches the shape of value. 
-        let matchingType: string | undefined;
-        for (const unionType of Object.keys(partialInfo)) {
-            const unionPartial = partialInfo[unionType];
-            if (!isObject(unionPartial)) continue;
-            const convertedData = modelToGraphQL(data, unionPartial as any);
-            if (subsetsMatch(convertedData, unionPartial)) matchingType = unionType;
-        }
-        if (matchingType) {
-            partialInfo = partialInfo[matchingType] as PartialGraphQLInfo;
-        }
-    }
     // Convert data to usable shape
     const type = partialInfo?.__typename;
     const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;

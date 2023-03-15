@@ -34,6 +34,7 @@ export const typeDef = gql`
         restrictedToRolesConnect: [ID!]
         invitesCreate: [MeetingInviteCreateInput!]
         labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
         translationsCreate: [MeetingTranslationCreateInput!]
     }
     input MeetingUpdateInput {
@@ -53,6 +54,7 @@ export const typeDef = gql`
         invitesDelete: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
         translationsCreate: [MeetingTranslationCreateInput!]
         translationsUpdate: [MeetingTranslationUpdateInput!]
         translationsDelete: [ID!]
@@ -82,16 +84,16 @@ export const typeDef = gql`
 
     type MeetingYou {
         canDelete: Boolean!
-        canEdit: Boolean!
         canInvite: Boolean!
+        canUpdate: Boolean!
     }
 
     input MeetingTranslationCreateInput {
         id: ID!
         language: String!
-        name: String
         description: String
         link: String
+        name: String
     }
     input MeetingTranslationUpdateInput {
         id: ID!
@@ -122,7 +124,7 @@ export const typeDef = gql`
         minEventEnd: Date
         minRecurrStart: Date
         minRecurrEnd: Date
-        labelsId: [ID!]
+        labelsIds: [ID!]
         organizationId: ID
         searchString: String
         sortBy: MeetingSortBy

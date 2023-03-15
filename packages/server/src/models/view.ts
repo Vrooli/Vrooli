@@ -11,7 +11,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { lowercaseFirstLetter, onlyValidIds, padSelect } from "../builders";
+import { lowercaseFirstLetter, onlyValidIds, selPad } from "../builders";
 import { getLabels } from "../getters";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 
@@ -63,7 +63,7 @@ export const ViewModel: ModelLogic<{
     GqlModel: View,
     GqlSearch: ViewSearchInput,
     GqlSort: ViewSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.viewUpsertArgs['create'],
     PrismaUpdate: Prisma.viewUpsertArgs['update'],
     PrismaModel: Prisma.viewGetPayload<SelectWrap<Prisma.viewSelect>>,
@@ -75,16 +75,16 @@ export const ViewModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            api: padSelect(ApiModel.display.select),
-            organization: padSelect(OrganizationModel.display.select),
-            question: padSelect(QuestionModel.display.select),
-            note: padSelect(NoteModel.display.select),
-            post: padSelect(PostModel.display.select),
-            project: padSelect(ProjectModel.display.select),
-            routine: padSelect(RoutineModel.display.select),
-            smartContract: padSelect(SmartContractModel.display.select),
-            standard: padSelect(StandardModel.display.select),
-            user: padSelect(UserModel.display.select),
+            api: selPad(ApiModel.display.select),
+            organization: selPad(OrganizationModel.display.select),
+            question: selPad(QuestionModel.display.select),
+            note: selPad(NoteModel.display.select),
+            post: selPad(PostModel.display.select),
+            project: selPad(ProjectModel.display.select),
+            routine: selPad(RoutineModel.display.select),
+            smartContract: selPad(SmartContractModel.display.select),
+            standard: selPad(StandardModel.display.select),
+            user: selPad(UserModel.display.select),
         }),
         label: (select, languages) => {
             if (select.api) return ApiModel.display.label(select.api as any, languages);

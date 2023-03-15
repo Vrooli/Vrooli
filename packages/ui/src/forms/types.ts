@@ -1,14 +1,22 @@
 import { CommonProps } from "types";
 import { Forms, TagShape } from "utils";
-import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
+import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { InputType, Session } from "@shared/consts";
+import { FormEvent } from "react";
 
 //==============================================================
 /* #region Specific Form Props */
 //==============================================================
 export interface BaseFormProps {
+    children: JSX.Element | JSX.Element[];
+    isLoading?: boolean;
+    onSubmit: (e?: FormEvent<HTMLFormElement> | undefined) => void;
+    style?: { [key: string]: any };
+}
+
+export interface BaseGeneratedFormProps {
     schema: FormSchema;
-    session: Session;
+    session: Session | undefined;
     onSubmit: (values: any) => any;
     zIndex: number;
 }
@@ -20,10 +28,6 @@ export interface FormProps extends Partial<CommonProps> {
 export interface LogInFormProps extends FormProps {
 }
 
-export interface ResetPasswordFormProps extends FormProps {
-    userId?: string;
-    code?: string;
-}
 //==============================================================
 /* #endregion Specific Form Props */
 //==============================================================
@@ -150,9 +154,9 @@ export interface TextFieldProps {
 }
 
 /**
- * Props for rendering a QuantityBox input component
+ * Props for rendering a IntegerInput input component
  */
-export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
+export interface IntegerInputProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
     defaultValue?: any; // Ignored
 }
 
@@ -338,17 +342,17 @@ export interface FieldDataTextField extends FieldDataBase {
 }
 
 /**
- * Field data type and props for QuantityBox input components
+ * Field data type and props for IntegerInput input components
  */
-export interface FieldDataQuantityBox extends FieldDataBase {
+export interface FieldDataIntegerInput extends FieldDataBase {
     /**
      * The type of the field
      */
-    type: InputType.QuantityBox;
+    type: InputType.IntegerInput;
     /**
      * Extra props for the input component, depending on the type
      */
-    props: QuantityBoxProps;
+    props: IntegerInputProps;
 }
 
 /**
@@ -359,14 +363,14 @@ export type FieldData =
     FieldDataDropzone |
     FieldDataJSON |
     FieldDataLanguageInput |
+    FieldDataIntegerInput |
     FieldDataMarkdown |
     FieldDataRadio |
     FieldDataSelector |
     FieldDataSlider |
     FieldDataSwitch |
     FieldDataTagSelector |
-    FieldDataTextField |
-    FieldDataQuantityBox;
+    FieldDataTextField;
 
 //==============================================================
 /* #endregion Input Component Data */

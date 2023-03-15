@@ -1,6 +1,6 @@
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { ViewModel } from "./view";
-import { PrependString, UserSortBy, UserYou } from "@shared/consts";
+import { MaxObjects, UserSortBy, UserYou } from "@shared/consts";
 import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
@@ -8,10 +8,12 @@ import { Prisma } from "@prisma/client";
 import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
+import { defaultPermissions, translationShapeHelper } from "../utils";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'User' as const;
-type Permissions = Pick<UserYou, 'canDelete' | 'canEdit' | 'canReport'>
-const suppFields = ['you.isStarred', 'you.isViewed'] as const;
+type Permissions = Pick<UserYou, 'canDelete' | 'canUpdate' | 'canReport'>
+const suppFields = ['you'] as const;
 export const UserModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -38,13 +40,15 @@ export const UserModel: ModelLogic<{
             __typename,
             comments: 'Comment',
             emails: 'Email',
+            labels: 'Label',
             // phones: 'Phone',
             projects: 'Project',
             pushDevices: 'PushDevice',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             reportsCreated: 'Report',
             reportsReceived: 'Report',
             routines: 'Routine',
+            schedules: 'UserSchedule',
         },
         prismaRelMap: {
             __typename,
@@ -84,7 +88,7 @@ export const UserModel: ModelLogic<{
             smartContracts: 'SmartContract',
             standardsCreated: 'Standard',
             standards: 'Standard',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
             transfersIncoming: 'Transfer',
             transfersOutgoing: 'Transfer',
@@ -95,47 +99,65 @@ export const UserModel: ModelLogic<{
         },
         joinMap: {
             meetingsAttending: 'user',
-            starredBy: 'user',
+            bookmarkedBy: 'user',
         },
         countFields: {
-            reportsCount: true,
+            reportsReceivedCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    }
                 }
             },
         },
     },
     mutate: {
         shape: {
-            update: async ({ data, prisma, userData }) => {
-                return {
-                    // handle: data.handle,
-                    // name: data.name ?? undefined,
-                    // theme: data.theme ?? undefined,
-                    // // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
-                    // // starred: {
-                    // //     create: starredCreate,
-                    // //     delete: starredDelete,
-                    // // }, TODO
-                    // translations: await translationRelationshipBuilder(prisma, userData, data, false),
-                } as any
-            }
+            update: async ({ data, ...rest }) => ({
+                handle: data.handle ?? null,
+                name: noNull(data.name),
+                theme: noNull(data.theme),
+                isPrivate: noNull(data.isPrivate),
+                isPrivateApis: noNull(data.isPrivateApis),
+                isPrivateApisCreated: noNull(data.isPrivateApisCreated),
+                isPrivateMemberships: noNull(data.isPrivateMemberships),
+                isPrivateOrganizationsCreated: noNull(data.isPrivateOrganizationsCreated),
+                isPrivateProjects: noNull(data.isPrivateProjects),
+                isPrivateProjectsCreated: noNull(data.isPrivateProjectsCreated),
+                isPrivatePullRequests: noNull(data.isPrivatePullRequests),
+                isPrivateQuestionsAnswered: noNull(data.isPrivateQuestionsAnswered),
+                isPrivateQuestionsAsked: noNull(data.isPrivateQuestionsAsked),
+                isPrivateQuizzesCreated: noNull(data.isPrivateQuizzesCreated),
+                isPrivateRoles: noNull(data.isPrivateRoles),
+                isPrivateRoutines: noNull(data.isPrivateRoutines),
+                isPrivateRoutinesCreated: noNull(data.isPrivateRoutinesCreated),
+                isPrivateSmartContracts: noNull(data.isPrivateSmartContracts),
+                isPrivateStandards: noNull(data.isPrivateStandards),
+                isPrivateStandardsCreated: noNull(data.isPrivateStandardsCreated),
+                isPrivateBookmarks: noNull(data.isPrivateBookmarks),
+                isPrivateVotes: noNull(data.isPrivateVotes),
+                notificationSettings: data.notificationSettings ?? null,
+                // languages: TODO!!!
+                ...(await shapeHelper({ relation: 'schedules', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'user', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
         },
         yup: userValidation,
     },
     search: {
-        defaultSort: UserSortBy.StarsDesc,
+        defaultSort: UserSortBy.BookmarksDesc,
         sortBy: UserSortBy,
         searchFields: {
             createdTimeFrame: true,
-            minStars: true,
+            maxBookmarks: true,
+            maxViews: true,
+            minBookmarks: true,
             minViews: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -150,17 +172,13 @@ export const UserModel: ModelLogic<{
     },
     validate: {
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
             languages: { select: { language: true } },
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-        }),
+        permissionResolvers: defaultPermissions,
         owner: (data) => ({ User: data }),
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,

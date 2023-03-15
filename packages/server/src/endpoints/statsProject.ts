@@ -29,16 +29,22 @@ export const typeDef = gql`
     }
 
     type StatsProject {
-        created_at: Date!
+        id: ID!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
-        id: ID!
         directories: Int!
+        apis: Int!
         notes: Int!
+        organizations: Int!
+        projects: Int!
         routines: Int!
         smartContracts: Int!
         standards: Int!
+        runsStarted: Int!
+        runsCompleted: Int!
+        runCompletionTimeAverage: Float!
+        runContextSwitchesAverage: Float!
     }
 
     type Query {

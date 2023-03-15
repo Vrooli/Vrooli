@@ -1,19 +1,19 @@
-import { useMutation } from "graphql/hooks";
+import { useCustomMutation } from "api/hooks";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
-import { useCallback, useMemo } from "react";
-import { handleTranslationChange, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
+import { useEffect, useMemo } from "react";
+import { getUserLanguages, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
 import { CommentCreateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
-import { getCurrentUser } from "utils/authentication";
-import { mutationWrapper } from "graphql/utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { mutationWrapper } from "api/utils";
 import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
-import { commentEndpoint } from "graphql/endpoints";
 import { Comment, CommentCreateInput as CommentCreateInputType } from "@shared/consts";
-
+import { commentCreate } from "api/generated/endpoints/comment_create";
+import { useTranslation } from "react-i18next";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
@@ -29,10 +29,11 @@ export const CommentCreateInput = ({
     zIndex,
 }: CommentCreateInputProps) => {
     const { breakpoints } = useTheme();
+    const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
-    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
 
-    const [addMutation, { loading: loadingAdd }] = useMutation<Comment, CommentCreateInputType, 'commentCreate'>(...commentEndpoint.create);
+    const [addMutation, { loading: loadingAdd }] = useCustomMutation<Comment, CommentCreateInputType>(commentCreate);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -45,7 +46,7 @@ export const CommentCreateInput = ({
                 text: '',
             }],
         },
-        validationSchema: commentValidation.create(),
+        validationSchema: commentValidation.create({}),
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO
@@ -69,16 +70,20 @@ export const CommentCreateInput = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty && formik.values.translationsCreate.some(t => t.text.trim().length > 0) });
 
-    const translations = useTranslatedFields({
+    const {
+        onTranslationChange,
+        setLanguage,
+        translations,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
         fields: ['text'],
         formik,
         formikField: 'translationsCreate',
-        language,
-        validationSchema: commentTranslationValidation.create(),
+        validationSchema: commentTranslationValidation.create({}),
     });
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language);
-    }, [formik, language]);
+    useEffect(() => {
+        setLanguage(language);
+    }, [language, setLanguage]);
 
     // If mobile, use CommentDialog
     if (isMobile) return (
@@ -99,10 +104,10 @@ export const CommentCreateInput = ({
     return (
         <form>
             <Box sx={{ margin: 2 }}>
-                <Typography component="h3" variant="h6" textAlign="left">Add comment</Typography>
+                <Typography component="h3" variant="h6" textAlign="left">{t('AddComment')}</Typography>
                 <MarkdownInput
                     id={`add-comment-${parent?.id ?? 'root'}`}
-                    placeholder="Please be nice to each other."
+                    placeholder={t(`PleaseBeNice`)}
                     value={translations.text}
                     minRows={3}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
@@ -115,6 +120,7 @@ export const CommentCreateInput = ({
                     marginTop: 1,
                 }}>
                     <GridSubmitButtons
+                        display="dialog"
                         disabledSubmit={!isLoggedIn}
                         errors={translations.errorsWithTranslations}
                         isCreate={true}

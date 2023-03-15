@@ -1,12 +1,12 @@
 import { Box, Dialog, Tooltip, useTheme } from "@mui/material";
 import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine } from "@shared/consts";
 import { PlayIcon } from "@shared/icons";
-import { useLocation } from "@shared/route";
+import { parseSearchParams, setSearchParams, useLocation } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { PopoverWithArrow, RunPickerMenu, UpTransition } from "components/dialogs";
-import { RunView } from "components/views";
 import { useCallback, useMemo, useState } from "react";
-import { getProjectVersionStatus, getRoutineVersionStatus, parseSearchParams, PubSub, setSearchParams, Status, uuidToBase36 } from "utils";
+import { getProjectVersionStatus, getRoutineVersionStatus, PubSub, Status, uuidToBase36 } from "utils";
+import { RunView } from "views";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
 
@@ -16,7 +16,7 @@ import { RunButtonProps } from "../types";
  * If the routine is incomplete, the button is available but the user must confirm an alert before running.
  */
 export const RunButton = ({
-    canEdit,
+    canUpdate,
     handleRunAdd,
     handleRunDelete,
     isBuildGraphOpen,

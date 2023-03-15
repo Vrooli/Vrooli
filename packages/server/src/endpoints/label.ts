@@ -27,22 +27,22 @@ export const typeDef = gql`
         apisDisconnect: [ID!]
         issuesConnect: [ID!]
         issuesDisconnect: [ID!]
+        meetingsConnect: [ID!]
+        meetingsDisconnect: [ID!]
         notesConnect: [ID!]
         notesDisconnect: [ID!]
         projectsConnect: [ID!]
         projectsDisconnect: [ID!]
         routinesConnect: [ID!]
         routinesDisconnect: [ID!]
-        smartContractsConnect: [ID!]
-        smartContractsDisconnect: [ID!]
-        standardsConnect: [ID!]
-        standardsDisconnect: [ID!]
-        meetingsConnect: [ID!]
-        meetingsDisconnect: [ID!]
         runProjectSchedulesConnect: [ID!]
         runProjectSchedulesDisconnect: [ID!]
         runRoutineSchedulesConnect: [ID!]
         runRoutineSchedulesDisconnect: [ID!]
+        smartContractsConnect: [ID!]
+        smartContractsDisconnect: [ID!]
+        standardsConnect: [ID!]
+        standardsDisconnect: [ID!]
         userSchedulesConnect: [ID!]
         userSchedulesDisconnect: [ID!]
         translationsDelete: [ID!]
@@ -59,22 +59,23 @@ export const typeDef = gql`
         apisCount: Int!
         issues: [Issue!]
         issuesCount: Int!
+        meetings: [Meeting!]
+        meetingsCount: Int!
         notes: [Note!]
         notesCount: Int!
+        owner: Owner!
         projects: [Project!]
         projectsCount: Int!
         routines: [Routine!]
         routinesCount: Int!
-        smartContracts: [SmartContract!]
-        smartContractsCount: Int!
-        standards: [Standard!]
-        standardsCount: Int!
-        meetings: [Meeting!]
-        meetingsCount: Int!
         runProjectSchedules: [RunProjectSchedule!]
         runProjectSchedulesCount: Int!
         runRoutineSchedules: [RunRoutineSchedule!]
         runRoutineSchedulesCount: Int!
+        smartContracts: [SmartContract!]
+        smartContractsCount: Int!
+        standards: [Standard!]
+        standardsCount: Int!
         userSchedules: [UserSchedule!]
         userSchedulesCount: Int!
         translations: [LabelTranslation!]!
@@ -84,7 +85,7 @@ export const typeDef = gql`
 
     type LabelYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input LabelTranslationCreateInput {
@@ -107,7 +108,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        label: String
         ownedByOrganizationId: ID
         ownedByUserId: ID
         searchString: String

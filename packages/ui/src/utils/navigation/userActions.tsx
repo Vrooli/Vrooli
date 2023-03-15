@@ -1,15 +1,14 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { APP_LINKS as LINKS } from '@shared/consts';
+import { LINKS, Session } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
     Button,
     IconButton,
 } from '@mui/material';
-import { openLink } from 'utils';
-import { Session, SetLocation } from 'types';
 import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
-import { getCurrentUser, guestSession } from 'utils/authentication';
+import { checkIfLoggedIn } from 'utils/authentication';
+import { openLink, SetLocation } from '@shared/route';
 
 export enum ACTION_TAGS {
     Home = 'Home',
@@ -34,15 +33,22 @@ interface GetUserActionsProps {
     session?: Session | null | undefined;
     exclude?: ACTION_TAGS[] | null | undefined;
 }
-export function getUserActions({ session = guestSession, exclude = [] }: GetUserActionsProps): Action[] {
-    const { id: userId } = getCurrentUser(session);
-    // Home action always available
-    let actions: ActionArray[] = [
-        ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+export function getUserActions({ session, exclude = [] }: GetUserActionsProps): Action[] {
+    // Check if user is logged in using session
+    let isLoggedIn = checkIfLoggedIn(session);
+    let actions: ActionArray[] = [];
+    // Home only available to logged in users
+    if (isLoggedIn) {
+        actions.push(
+            ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+        )
+    }
+    // Search always available
+    actions.push(
         ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
-    ];
+    );
     // Actions for logged in users
-    if (userId) {
+    if (isLoggedIn) {
         actions.push(
             ['Create', ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
             ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],

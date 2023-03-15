@@ -26,9 +26,8 @@ export const typeDef = gql`
         id: ID!
         callLink: String!
         documentationLink: String
-        isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int!
+        isComplete: Boolean
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -41,9 +40,8 @@ export const typeDef = gql`
         id: ID!
         callLink: String
         documentationLink: String
-        isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int
+        isComplete: Boolean
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -63,6 +61,7 @@ export const typeDef = gql`
         documentationLink: String
         isLatest: Boolean!
         isPrivate: Boolean!
+        isComplete: Boolean!
         resourceList: ResourceList
         versionIndex: Int!
         versionLabel: String!
@@ -84,35 +83,43 @@ export const typeDef = gql`
     input ApiVersionTranslationCreateInput {
         id: ID!
         language: String!
+        details: String
+        name: String!
         summary: String
-        details: String!
     }
     input ApiVersionTranslationUpdateInput {
         id: ID!
         language: String
-        summary: String
         details: String
+        name: String
+        summary: String
     }
     type ApiVersionTranslation {
         id: ID!
         language: String!
+        details: String
+        name: String!
         summary: String
-        details: String!
     }
 
     input ApiVersionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        createdById: ID
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        isCompleteWithRoot: Boolean
+        isLatest: Boolean
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
+        minViewsRoot: Int
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         searchString: String
         sortBy: ApiVersionSortBy
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         translationLanguages: [String!]
         updatedTimeFrame: TimeFrame

@@ -1,20 +1,22 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiYou, PrependString } from '@shared/consts';
+import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiYou, MaxObjects } from '@shared/consts';
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";
-import { StarModel } from "./star";
+import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
-import { labelShapeHelper, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { noNull, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
+import { OrganizationModel } from "./organization";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 
 const __typename = 'Api' as const;
-type Permissions = Pick<ApiYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed'] as const;
+type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
+const suppFields = ['you'] as const;
 export const ApiModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -32,18 +34,7 @@ export const ApiModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api,
-    display: {
-        select: () => ({
-            id: true,
-            versions: {
-                orderBy: { versionIndex: 'desc' },
-                take: 1,
-                select: ApiVersionModel.display.select(),
-            }
-        }),
-        label: (select, languages) => select.versions.length > 0 ?
-            ApiVersionModel.display.label(select.versions[0] as any, languages) : '',
-    },
+    display: rootObjectDisplay(ApiVersionModel),
     format: {
         gqlRelMap: {
             __typename,
@@ -59,7 +50,7 @@ export const ApiModel: ModelLogic<{
             issues: 'Issue',
             pullRequests: 'PullRequest',
             questions: 'Question',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             stats: 'StatsApi',
             transfers: 'Transfer',
         },
@@ -71,7 +62,7 @@ export const ApiModel: ModelLogic<{
             parent: 'ApiVersion',
             tags: 'Tag',
             issues: 'Issue',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             votedBy: 'Vote',
             viewedBy: 'View',
             pullRequests: 'PullRequest',
@@ -81,8 +72,9 @@ export const ApiModel: ModelLogic<{
             questions: 'Question',
             transfers: 'Transfer',
         },
-        joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
+        joinMap: { labels: 'label', bookmarkedBy: 'user', tags: 'tag' },
         countFields: {
+            issuesCount: true,
             pullRequestsCount: true,
             questionsCount: true,
             transfersCount: true,
@@ -91,41 +83,49 @@ export const ApiModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                        isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    }
                 }
             },
         },
     },
     mutate: {
         shape: {
-            create: async ({ prisma, userData, data }) => ({
+            pre: async (params) => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
+                return { ...maps }
+            },
+            create: async ({ data, ...rest }) => ({
                 id: data.id,
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'apisCreated', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'apis', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'forks', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Api', relation: 'tags', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Api', relation: 'labels', data, prisma, userData })),
-
+                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'apis', isCreate: true, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'parent', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'forks', data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Api', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Api', relation: 'labels', data, ...rest })),
             }),
-            update: async ({ prisma, userData, data }) => ({
+            update: async ({ data, ...rest }) => ({
                 isPrivate: noNull(data.isPrivate),
                 permissions: noNull(data.permissions),
-                createdBy: userData?.id ? { connect: { id: userData.id } } : undefined,
-                ...(await shapeHelper({ relation: 'ownedByUser', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'User', parentRelationshipName: 'apisCreated', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'ownedByOrganization', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Organization', parentRelationshipName: 'apis', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, prisma, userData })),
-                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'tags', data, prisma, userData })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'labels', data, prisma, userData })),
+                ...rest.preMap[__typename].versionMap[data.id],
+                ...(await ownerShapeHelper({ relation: 'ownedBy', relTypes: ['Connect'], parentRelationshipName: 'apis', isCreate: false, objectType: __typename, data, ...rest })),
+                ...(await shapeHelper({ relation: 'versions', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'ApiVersion', parentRelationshipName: 'root', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'tags', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Api', relation: 'labels', data, ...rest })),
             }),
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonRoot({ ...params, objectType: __typename });
+            },
         },
         yup: apiValidation,
     },
@@ -135,14 +135,22 @@ export const ApiModel: ModelLogic<{
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
+            excludeIds: true,
+            hasCompleteVersion: true,
+            issuesId: true,
+            labelsIds: true,
             maxScore: true,
-            maxStars: true,
+            maxBookmarks: true,
+            maxViews: true,
             minScore: true,
-            minStars: true,
+            minBookmarks: true,
+            minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
             parentId: true,
+            pullRequestsId: true,
             tags: true,
+            translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
             visibility: true,
         },
@@ -155,5 +163,38 @@ export const ApiModel: ModelLogic<{
             ]
         })
     },
-    validate: {} as any,
+    validate: {
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
+        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
+        isDeleted: (data) => data.isDeleted === false,
+        isPublic: (data) => data.isPrivate === false,
+        isTransferable: true,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            hasCompleteVersion: true,
+            isDeleted: true,
+            isPrivate: true,
+            permissions: true,
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: ['ApiVersion', ['root']],
+        }),
+        visibility: {
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
+            owner: (userId) => ({
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

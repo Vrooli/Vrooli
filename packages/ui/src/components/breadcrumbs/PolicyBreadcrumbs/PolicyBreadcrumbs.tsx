@@ -1,14 +1,18 @@
-import { LANDING_LINKS, LANDING_URL } from '@shared/consts';
+import { LINKS } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
 import { BreadcrumbsBase } from '../BreadcrumbsBase/BreadcrumbsBase';
 import { PolicyBreadcrumbsProps } from '../types';
 
-const paths = [
-    ['Privacy', `${LANDING_URL}${LANDING_LINKS.PrivacyPolicy}`],
-    ['Terms', `${LANDING_URL}${LANDING_LINKS.Terms}`]
-].map(row => ({ text: row[0], link: row[1] }))
-
-export const PolicyBreadcrumbs = ({...props}: PolicyBreadcrumbsProps) => BreadcrumbsBase({
-    paths: paths,
-    ariaLabel: 'Policies breadcrumb',
+export const PolicyBreadcrumbs = ({ 
     ...props
-})
+}: PolicyBreadcrumbsProps) => {
+    const { t } = useTranslation();
+    return BreadcrumbsBase({
+        paths: [
+            [t(`Privacy`), LINKS.PrivacyPolicy],
+            [t(`Terms`), LINKS.Terms]
+        ].map(row => ({ text: row[0], link: row[1] })),
+        ariaLabel: 'Policies breadcrumb',
+        ...props
+    })
+}

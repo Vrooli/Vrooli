@@ -2,6 +2,9 @@ import { GqlModelType } from '@shared/consts';
 import { ApiModel } from './api';
 import { ApiKeyModel } from './apiKey';
 import { ApiVersionModel } from './apiVersion';
+import { AwardModel } from './award';
+import { BookmarkModel } from './bookmark';
+import { BookmarkListModel } from './bookmarkList';
 import { CommentModel } from './comment';
 import { EmailModel } from './email';
 import { IssueModel } from './issue';
@@ -19,6 +22,7 @@ import { NodeLoopWhileModel } from './nodeLoopWhile';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { NodeRoutineListItemModel } from './nodeRoutineListItem';
 import { NoteModel } from './note';
+import { NoteVersionModel } from './noteVersion';
 import { NotificationModel } from './notification';
 import { NotificationSubscriptionModel } from './notificationSubscription';
 import { OrganizationModel } from './organization';
@@ -41,6 +45,7 @@ import { ReminderModel } from './reminder';
 import { ReminderItemModel } from './reminderItem';
 import { ReminderListModel } from './reminderList';
 import { ReportModel } from './report';
+import { ReportResponseModel } from './reportResponse';
 import { ResourceModel } from './resource';
 import { ResourceListModel } from './resourceList';
 import { RoleModel } from './role';
@@ -59,7 +64,6 @@ import { SmartContractModel } from './smartContract';
 import { SmartContractVersionModel } from './smartContractVersion';
 import { StandardModel } from './standard';
 import { StandardVersionModel } from './standardVersion';
-import { StarModel } from './star';
 import { StatsApiModel } from './statsApi';
 import { StatsOrganizationModel } from './statsOrganization';
 import { StatsProjectModel } from './statsProject';
@@ -86,6 +90,9 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     Api: ApiModel,
     ApiKey: ApiKeyModel,
     ApiVersion: ApiVersionModel,
+    Award: AwardModel,
+    Bookmark: BookmarkModel,
+    BookmarkList: BookmarkListModel,
     Comment: CommentModel,
     Email: EmailModel,
     Issue: IssueModel,
@@ -103,6 +110,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     NodeRoutineList: NodeRoutineListModel,
     NodeRoutineListItem: NodeRoutineListItemModel,
     Note: NoteModel,
+    NoteVersion: NoteVersionModel,
     Notification: NotificationModel,
     NotificationSubscription: NotificationSubscriptionModel,
     Organization: OrganizationModel,
@@ -125,6 +133,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     ReminderItem: ReminderItemModel,
     ReminderList: ReminderListModel,
     Report: ReportModel,
+    ReportResponse: ReportResponseModel,
     Resource: ResourceModel,
     ResourceList: ResourceListModel,
     Role: RoleModel,
@@ -143,7 +152,6 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     SmartContractVersion: SmartContractVersionModel,
     Standard: StandardModel,
     StandardVersion: StandardVersionModel,
-    Star: StarModel,
     StatsApi: StatsApiModel,
     StatsOrganization: StatsOrganizationModel,
     StatsProject: StatsProjectModel,
@@ -166,6 +174,9 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
 export * from './api';
 export * from './apiKey';
 export * from './apiVersion';
+export * from './award';
+export * from './bookmark';
+export * from './bookmarkList';
 export * from './comment';
 export * from './email';
 export * from './routineVersionInput';
@@ -184,6 +195,7 @@ export * from './nodeLoopWhile';
 export * from './nodeRoutineList';
 export * from './nodeRoutineListItem';
 export * from './note';
+export * from './noteVersion';
 export * from './notification';
 export * from './notificationSubscription';
 export * from './organization';
@@ -207,6 +219,7 @@ export * from './reminder';
 export * from './reminderItem';
 export * from './reminderList';
 export * from './report';
+export * from './reportResponse';
 export * from './resource';
 export * from './resourceList';
 export * from './role';
@@ -225,7 +238,6 @@ export * from './smartContract';
 export * from './smartContractVersion';
 export * from './standard';
 export * from './standardVersion';
-export * from './star';
 export * from './statsApi';
 export * from './statsOrganization';
 export * from './statsProject';

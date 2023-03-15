@@ -1,20 +1,15 @@
-import { ApiVersion, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
-import { NavigableObject } from 'types';
-import { ListObjectType, ObjectAction, ObjectActionComplete, SearchType } from 'utils';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, Role, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, TimeFrame, User } from '@shared/consts';
+import { CommonKey } from '@shared/translations';
+import { FormSchema } from 'forms/types';
+import { AwardDisplay, NavigableObject } from 'types';
+import { ListObjectType, ObjectAction, SearchType, UseObjectActionsReturn } from 'utils';
 
 export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
+    actionData: UseObjectActionsReturn;
     exclude?: ObjectAction[];
-    /**
-     * Completed actions, which may require updating state or navigating to a new page
-     */
-    onActionComplete: (action: ObjectActionComplete, data: any) => any;
-    /**
-     * Actions which cannot be performed by the menu
-     */
-    onActionStart: (action: ObjectAction.Comment | ObjectAction.Edit | ObjectAction.Stats) => any;
     object: T | null | undefined;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -22,16 +17,12 @@ export interface ObjectListItemProps<T extends ListObjectType> {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
-     * 
-     * NOTE: Passes back full data so we can display 
-     * known properties of the object, while waiting for the full data to be fetched.
      */
     beforeNavigation?: (item: NavigableObject) => boolean | void,
-    data: T | null;
     /**
-     * True if role (admin, owner, etc.) should be hidden
+     * True if update button should be hidden
      */
-    hideRole?: boolean;
+    hideUpdateButton?: boolean;
     /**
      * Index in list
      */
@@ -40,7 +31,9 @@ export interface ObjectListItemProps<T extends ListObjectType> {
      * True if data is still being fetched
      */
     loading: boolean;
-    session: Session;
+    data: T | null;
+    objectType: GqlModelType | `${GqlModelType}`;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -59,16 +52,28 @@ export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: () => void;
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
+    minDate?: Date;
+    maxDate?: Date;
+    range?: { after: Date | undefined, before: Date | undefined };
+    /**
+     * If set, the date range will ensure that the difference between the two dates exact
+     * matches.
+     */
+    strictIntervalRange?: number;
+}
+
+export interface RoleListProps {
+    maxCharacters?: number;
+    roles: Role[];
+    sx?: { [x: string]: any };
 }
 
 /**
  * Return type for a SearchList generator function
  */
 export interface SearchListGenerator {
-    itemKeyPrefix: string;
-    searchType: SearchType;
-    placeholder: string;
-    noResultsText: string;
+    searchType: SearchType | `${SearchType}`;
+    placeholder: CommonKey;
     where: any;
 }
 
@@ -77,22 +82,20 @@ export interface SearchListProps {
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.
      */
-    beforeNavigation?: (item: any) => boolean | void,
+    beforeNavigation?: (item: any) => boolean,
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
-     * True if roles (admin, owner, etc.) should be hidden in list items
+     * True if update button should be hidden
      */
-    hideRoles?: boolean;
+    hideUpdateButton?: boolean;
     id: string;
-    itemKeyPrefix: string;
-    searchPlaceholder?: string;
+    searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
-    searchType: SearchType;
+    searchType: SearchType | `${SearchType}`;
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
-    noResultsText?: string; // Text to display when no results are found
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
@@ -104,8 +107,12 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
-export interface StatsListProps {
-    data: Array<any>;
+export interface SettingsToggleListItemProps {
+    description?: string;
+    disabled?: boolean;
+    checked: boolean;
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    title: string;
 }
 
 export interface TagListProps {
@@ -113,19 +120,12 @@ export interface TagListProps {
      * Maximum characters to display before tags are truncated
      */
     maxCharacters?: number;
-    session: Session;
+    session: Session | undefined;
     parentId: string;
     sx?: { [x: string]: any };
     tags: Partial<Tag>[];
 }
 
-export interface UpvoteDownvoteProps {
-    direction?: 'row' | 'column';
-    disabled?: boolean;
-    session: Session;
-    score?: number; // Net score - can be negative
-    isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
-    objectId: string;
-    voteFor: VoteFor;
-    onChange: (isUpvote: boolean | null, newScore: number) => void;
+export interface AwardListProps {
+    awards: AwardDisplay[];
 }

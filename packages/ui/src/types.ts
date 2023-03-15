@@ -1,15 +1,27 @@
 // Defines common props
 import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
-import { Path } from '@shared/route/src/useLocation';
-import { TFuncKey } from 'i18next';
-import { GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { CommonKey } from '@shared/translations';
 
-// Top-level props that can be passed into any routed component
-export type SessionChecked = boolean;
+/**
+ * Top-level props that can be passed into any routed component
+ */
 export interface CommonProps {
-    session: Session;
-    sessionChecked: SessionChecked;
+    session: Session | undefined;
+}
+
+/**
+ * Data to display title information for a component, which may not
+ * always be translated.
+ */
+export type OptionalTranslation = {
+    help?: string;
+    helpKey?: CommonKey;
+    helpVariables?: { [x: string]: string | number };
+    title?: string;
+    titleKey?: CommonKey;
+    titleVariables?: { [x: string]: string | number };
 }
 
 /**
@@ -27,12 +39,17 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    __typename: `${GqlModelType}`,
+    __typename: `${GqlModelType}` | 'Shortcut' | 'Action',
     handle?: string | null,
     id: string,
     projectVersion?: {
         __typename: 'ProjectVersion',
         id: string
+    } | null,
+    root?: {
+        __typename: `${GqlModelType}`,
+        handle?: string | null,
+        id: string,
     } | null,
     routineVersion?: {
         __typename: 'RoutineVersion',
@@ -43,6 +60,26 @@ export type NavigableObject = {
         handle?: string | null,
         id: string,
     }
+}
+
+/**
+ * All information required to display an award, its progress, and information about the next tier.
+ */
+export type AwardDisplay = {
+    category: AwardCategory;
+    categoryTitle: string;
+    categoryDescription: string;
+    earnedTier?: {
+        title: string;
+        description: string;
+        level: number;
+    },
+    nextTier?: {
+        title: string;
+        description: string;
+        level: number;
+    },
+    progress: number;
 }
 
 // Common query input groups
@@ -64,7 +101,7 @@ export type ShapeModel<
     TCreate extends {} | null,
     TUpdate extends {} | null
 > = (TCreate extends null ? {} : { create: (item: T) => TCreate }) &
-    (TUpdate extends null ? {} : { 
+    (TUpdate extends null ? {} : {
         update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
     }) & { idField?: keyof T & string }
@@ -102,12 +139,16 @@ export interface ObjectOption {
     __typename: `${GqlModelType}`;
     handle?: string | null;
     id: string;
-    root?: { id: string } | null;
+    root?: {
+        __typename: `${GqlModelType}`,
+        handle?: string | null,
+        id: string
+    } | null;
     versions?: { id: string }[] | null;
     isFromHistory?: boolean;
-    isStarred?: boolean;
+    isBookmarked?: boolean;
     label: string;
-    stars?: number;
+    bookmarks?: number;
     [key: string]: any;
     runnableObject?: {
         __typename: `${GqlModelType}`
@@ -152,21 +193,31 @@ declare global {
 // Enable Nami integration
 window.cardano = window.cardano || {};
 
-// Apollo GraphQL
-export type ApolloResponse = FetchResult<any, Record<string, any>, Record<string, any>>;
-export type ApolloError = {
-    message?: string;
-    graphQLErrors?: {
-        message: string;
-        extensions?: {
-            code: string;
-        };
-    }[];
+// Add isLeftHanded to MUI theme
+declare module '@mui/material/styles' {
+    interface Theme {
+        isLeftHanded: boolean;
+    }
+    // allow configuration using `createTheme`
+    interface ThemeOptions {
+        isLeftHanded?: boolean;
+    }
 }
 
-// Translations
-export type ErrorKey = TFuncKey<'error', undefined>
-export type CommonKey = TFuncKey<'common', undefined>
+// Apollo GraphQL
+export type ApolloResponse = FetchResult<any, Record<string, any>, Record<string, any>>;
 
-// Miscellaneous types
-export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;
+/**
+ * Makes a value nullable. Mimics the Maybe type in GraphQL.
+ */
+export type Maybe<T> = T | null;
+
+/**
+ * Recursively removes the Maybe type from all fields in a type, and makes them required.
+ */
+export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
+
+/**
+ * Makes a value lazy or not
+ */
+export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);

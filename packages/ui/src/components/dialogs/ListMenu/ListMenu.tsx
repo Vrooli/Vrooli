@@ -11,7 +11,7 @@ import { HelpButton, MenuTitle } from 'components';
 import { useMemo } from 'react';
 import { ListMenuProps } from '../types';
 
-const titleAria = 'list-menu-title';
+const titleId = 'list-menu-title';
 
 export function ListMenu<T>({
     id,
@@ -80,7 +80,7 @@ export function ListMenu<T>({
             }}
         >
             {title && <MenuTitle
-                ariaLabel={titleAria}
+                ariaLabel={titleId}
                 title={title}
                 onClose={() => { onClose() }}
             />}

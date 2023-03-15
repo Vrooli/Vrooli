@@ -5,7 +5,7 @@ import { TagShape, createPrims, updatePrims, shapeUpdate, updateRel, createRel, 
 
 export type RoutineShape = Pick<Routine, 'id' | 'isInternal' | 'isPrivate' | 'permissions'> & {
     labels?: ({ id: string } | LabelShape)[];
-    owner?: { __typename: 'User' | 'Organization', id: string } | null;
+    owner: { __typename: 'User' | 'Organization', id: string } | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 
@@ -16,7 +16,7 @@ export type RoutineShape = Pick<Routine, 'id' | 'isInternal' | 'isPrivate' | 'pe
 export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, 'id', 'isInternal', 'isPrivate', 'permissions'),
-        ...createOwner(d),
+        ...createOwner(d, 'ownedBy'),
         ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
         ...createRel(d, 'parent', ['Connect'], 'one'),
         ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
@@ -24,7 +24,7 @@ export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineU
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'isInternal', 'isPrivate', 'permissions'),
-        ...updateOwner(o, u),
+        ...updateOwner(o, u, 'ownedBy'),
         ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
         ...updateVersion(o, u, shapeRoutineVersion, (v, i) => ({ ...v, root: { id: i.id } })),

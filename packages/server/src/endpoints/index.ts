@@ -5,6 +5,8 @@ import * as ApiKey from './apiKey';
 import * as ApiVersion from './apiVersion';
 import * as Auth from './auth';
 import * as Award from './award';
+import * as Bookmark from './bookmark';
+import * as BookmarkList from './bookmarkList';
 import * as Comment from './comment';
 import * as DeleteOneOrMany from './deleteOneOrMany';
 import * as Duplicate from './copy';
@@ -69,7 +71,6 @@ import * as SmartContract from './smartContract';
 import * as SmartContractVersion from './smartContractVersion';
 import * as Standard from './standard';
 import * as StandardVersion from './standardVersion';
-import * as Star from './star';
 import * as StatsApi from './statsApi';
 import * as StatsOrganization from './statsOrganization';
 import * as StatsProject from './statsProject';
@@ -105,6 +106,8 @@ const schemas: SchemaType[] = [
     ApiVersion,
     Auth,
     Award,
+    Bookmark,
+    BookmarkList,
     Comment,
     DeleteOneOrMany,
     Duplicate,
@@ -169,7 +172,6 @@ const schemas: SchemaType[] = [
     SmartContractVersion,
     Standard,
     StandardVersion,
-    Star,
     StatsApi,
     StatsOrganization,
     StatsProject,

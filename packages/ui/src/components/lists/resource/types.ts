@@ -2,39 +2,39 @@ import { Resource, ResourceList, Session } from "@shared/consts";
 
 export interface ResourceListHorizontalProps {
     title?: string;
-    canEdit?: boolean;
+    canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
     loading?: boolean;
-    session: Session;
+    session: Session | undefined;
     mutate?: boolean;
     zIndex: number;
 }
 
 export interface ResourceListVerticalProps {
     title?: string;
-    canEdit?: boolean;
+    canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null | undefined;
     loading: boolean;
-    session: Session
+    session: Session | undefined;
     mutate: boolean;
     zIndex: number;
 }
 
 export interface ResourceListItemProps {
-    canEdit: boolean;
+    canUpdate: boolean;
     data: Resource;
     handleContextMenu: (target: EventTarget, index: number) => void;
     handleEdit: (index: number) => void;
     handleDelete: (index: number) => void;
     index: number;
     loading: boolean;
-    session: Session;
+    session: Session | undefined;
 }
 
 export interface ResourceListItemContextMenuProps {
-    canEdit: boolean;
+    canUpdate: boolean;
     id: string;
     anchorEl: HTMLElement | null;
     index: number | null;

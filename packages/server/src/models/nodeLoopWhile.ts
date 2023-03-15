@@ -1,11 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from '@shared/consts';
+import { MaxObjects, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { defaultPermissions, translationShapeHelper } from "../utils";
+import { NodeLoopModel } from "./nodeLoop";
+import { nodeLoopWhileValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'NodeLoopWhile' as const;
-
 const suppFields = [] as const;
 export const NodeLoopWhileModel: ModelLogic<{
     IsTransferable: false,
@@ -13,7 +16,7 @@ export const NodeLoopWhileModel: ModelLogic<{
     GqlCreate: NodeLoopWhileCreateInput,
     GqlUpdate: NodeLoopWhileUpdateInput,
     GqlModel: NodeLoopWhile,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_loop_whileUpsertArgs['create'],
@@ -39,6 +42,34 @@ export const NodeLoopWhileModel: ModelLogic<{
         },
         countFields: {},
     },
-    mutate: {} as any,
-    validate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                condition: data.condition,
+                ...(await shapeHelper({ relation: 'loop', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeLoop', parentRelationshipName: 'whiles', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+
+            }),
+            update: async ({ data, ...rest }) => ({
+                condition: noNull(data.condition),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            })
+        },
+        yup: nodeLoopWhileValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({ loop: 'NodeLoop' }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => NodeLoopModel.validate!.owner(data.loop as any),
+        isDeleted: (data, languages) => NodeLoopModel.validate!.isDeleted(data.loop as any, languages),
+        isPublic: (data, languages) => NodeLoopModel.validate!.isPublic(data.loop as any, languages),
+        visibility: {
+            private: { loop: NodeLoopModel.validate!.visibility.private },
+            public: { loop: NodeLoopModel.validate!.visibility.public },
+            owner: (userId) => ({ loop: NodeLoopModel.validate!.visibility.owner(userId) }),
+        }
+    },
 })

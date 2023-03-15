@@ -3,7 +3,7 @@ import { TagListProps } from '../types';
 import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 
 export const TagList = ({
-    maxCharacters,
+    maxCharacters = 50,
     session,
     parentId,
     sx,
@@ -12,7 +12,7 @@ export const TagList = ({
     const { palette } = useTheme();
 
     const [chips, numTagsCutOff] = useMemo(() => {
-        let charactersBeforeCutoff = maxCharacters ?? 50;
+        let charactersBeforeCutoff = maxCharacters;
         let chipResult: JSX.Element[] = [];
         for (let i = 0; i < tags.length; i++) {
             const tag = tags[i];

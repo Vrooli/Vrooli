@@ -1,4 +1,4 @@
-import { CustomError } from "../events";
+import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
 import { GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
@@ -223,23 +223,30 @@ export type StandardPolicy = {
  * @parma userData Data about the user performing the action
  * @returns Map of permissions objects, keyed by ID
  */
-export function getMultiTypePermissions(
+export async function getMultiTypePermissions(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     userData: SessionUser | null,
-): { [id: string]: { [x: string]: any } } {
+): Promise<{ [id: string]: { [x: string]: any } }> {
+    console.log('getMultiTypePermissions start', JSON.stringify(authDataById), '\n\n');
     // Initialize result
     const permissionsById: { [id: string]: { [key in QueryAction]?: boolean } } = {};
     // Loop through each ID and calculate permissions
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
         const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
+        console.log('before isOwnerAdminCheck', JSON.stringify(authDataById[id]));
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
+        console.log('getMultiTypePermissions loop 1', id, isAdmin, isDeleted, isPublic)
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataById[id] });
+        console.log('getMultiTypePermissions loop 2', permissionResolvers)
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
-        const permissions = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
+        const permissions = await Promise.all(
+            Object.entries(permissionResolvers).map(async ([key, resolver]) => [key, await resolver()])
+        ).then(entries => Object.fromEntries(entries));
+        console.log('getMultiTypePermissions loop 3', JSON.stringify(permissions), '\n\n')
         // Add permissions object to result
         permissionsById[id] = permissions;
     }
@@ -265,11 +272,19 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
     const { delegate, validate } = getLogic(['delegate', 'validate'], type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
+    console.log('getsingletypepermissions 1', type);
     // Get auth data for all objects
-    const authData = await delegate(prisma).findMany({
-        where: { id: { in: ids } },
-        select: permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ['en']), 
-    })
+    let select: any;
+    let authData: any = [];
+    try {
+        select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ['en']);
+        authData = await delegate(prisma).findMany({
+            where: { id: { in: ids } },
+            select,
+        })
+    } catch (error) {
+        throw new CustomError('0388', 'InternalError', userData?.languages ?? ['en'], { ids, select, objectType: type });
+    }
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataItem), userData?.id);
@@ -278,12 +293,13 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataItem });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
-        const permissionsObject = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
+        const permissionsObject = Object.fromEntries(Object.entries(permissionResolvers).map(([key, resolver]) => [key, resolver()]));
         // Add permissions object to result
         for (const key of Object.keys(permissionsObject)) {
             permissions[key as keyof Permissions] = [...(permissions[key as keyof Permissions] ?? []), permissionsObject[key]];
         }
     }
+    console.log('getsingletypepermissions 11', type, JSON.stringify(permissions), '\n\n')
     return permissions as { [K in keyof Permissions]: Permissions[K][] };
 }
 
@@ -295,13 +311,15 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
  * in case one ID is used for multiple actions.
  * @parma userId ID of user requesting permissions
  */
-export function permissionsCheck(
+export async function permissionsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     userData: SessionUser | null,
 ) {
+    console.log('permissisonsCheck start', JSON.stringify(idsByAction), '\n\n')
     // Get permissions
-    const permissionsById = getMultiTypePermissions(authDataById, userData);
+    const permissionsById = await getMultiTypePermissions(authDataById, userData);
+    console.log('permissisonsCheck 2', JSON.stringify(permissionsById), '\n\n');
     // Loop through each action and validate permissions
     for (const action of Object.keys(idsByAction)) {
         // Get IDs for this action
@@ -310,6 +328,10 @@ export function permissionsCheck(
         for (const id of ids) {
             // Get permissions for this ID
             const permissions = permissionsById[id];
+            // Make sure permissions exists. If not, something went wrong.
+            if (!permissions) {
+                throw new CustomError('0390', 'InternalError', userData?.languages ?? ['en'], { action, id, __typename: authDataById[id].__typename });
+            }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
                 throw new CustomError('0297', 'Unauthorized', userData?.languages ?? ['en'], { action, id, __typename: authDataById[id].__typename });

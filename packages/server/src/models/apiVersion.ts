@@ -1,14 +1,17 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
+import { ApiModel } from "./api";
+import { apiVersionValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 
 const __typename = 'ApiVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
-const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
+type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
+const suppFields = ['you'] as const;
 export const ApiVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -18,8 +21,8 @@ export const ApiVersionModel: ModelLogic<{
     GqlModel: ApiVersion,
     GqlSearch: ApiVersionSearchInput,
     GqlSort: ApiVersionSortBy,
-    PrismaCreate: Prisma.api_keyUpsertArgs['create'],
-    PrismaUpdate: Prisma.api_keyUpsertArgs['update'],
+    PrismaCreate: Prisma.api_versionUpsertArgs['create'],
+    PrismaUpdate: Prisma.api_versionUpsertArgs['update'],
     PrismaModel: Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>,
     PrismaSelect: Prisma.api_versionSelect,
     PrismaWhere: Prisma.api_versionWhereInput,
@@ -42,6 +45,7 @@ export const ApiVersionModel: ModelLogic<{
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'ApiVersion',
+            pullRequest: 'PullRequest',
             reports: 'Report',
             resourceList: 'ResourceList',
             root: 'Api',
@@ -66,24 +70,75 @@ export const ApiVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
-                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
             },
         },
     },
-    mutate: {} as any,
+    mutate: {
+        shape: {
+            pre: async ({ createList, updateList, deleteList, prisma, userData }) => {
+                await versionsCheck({
+                    createList,
+                    deleteList,
+                    objectType: __typename,
+                    prisma,
+                    updateList,
+                    userData,
+                });
+                const combined = [...createList, ...updateList.map(({ data }) => data)];
+                combined.forEach(input => lineBreaksCheck(input, ['summary'], 'LineBreaksBio', userData.languages));
+            },
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                callLink: data.callLink,
+                documentationLink: noNull(data.documentationLink),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: data.versionLabel,
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Api', parentRelationshipName: 'versions', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                callLink: noNull(data.callLink),
+                documentationLink: noNull(data.documentationLink),
+                isPrivate: noNull(data.isPrivate),
+                isComplete: noNull(data.isComplete),
+                versionLabel: noNull(data.versionLabel),
+                versionNotes: noNull(data.versionNotes),
+                ...(await shapeHelper({ relation: 'directoryListings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'ProjectVersionDirectory', parentRelationshipName: 'childApiVersions', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'apiVersion', data, ...rest })),
+                ...(await shapeHelper({ relation: 'root', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'Api', parentRelationshipName: 'versions', data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
+            }),
+            post: async (params) => {
+                await postShapeVersion({ ...params, objectType: __typename });
+            }
+        },
+        yup: apiVersionValidation,
+    },
     search: {
         defaultSort: ApiVersionSortBy.DateUpdatedDesc,
         sortBy: ApiVersionSortBy,
         searchFields: {
-            createdById: true,
+            createdByIdRoot: true,
             createdTimeFrame: true,
-            minScore: true,
-            minStars: true,
-            minViews: true,
-            ownedByOrganizationId: true,
-            ownedByUserId: true,
-            tags: true,
+            isCompleteWithRoot: true,
+            maxBookmarksRoot: true,
+            maxScoreRoot: true,
+            maxViewsRoot: true,
+            minBookmarksRoot: true,
+            minScoreRoot: true,
+            minViewsRoot: true,
+            ownedByOrganizationIdRoot: true,
+            ownedByUserIdRoot: true,
+            tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             visibility: true,
@@ -97,5 +152,41 @@ export const ApiVersionModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            ApiModel.validate!.isPublic(data.root as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ApiModel.validate!.owner(data.root as any),
+        permissionsSelect: () => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            root: ['Api', ['versions']],
+        }),
+        permissionResolvers: defaultPermissions,
+        visibility: {
+            private: {
+                isDeleted: false,
+                root: { isDeleted: false },
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
+            },
+            public: {
+                isDeleted: false,
+                root: { isDeleted: false },
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
+            },
+            owner: (userId) => ({
+                root: ApiModel.validate!.visibility.owner(userId),
+            }),
+        },
+    },
 })

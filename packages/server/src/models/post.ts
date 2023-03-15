@@ -1,14 +1,15 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
+import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { bestLabel } from "../utils";
+import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
+import { postValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Post' as const;
-
 const suppFields = [] as const;
-
 export const PostModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -17,7 +18,7 @@ export const PostModel: ModelLogic<{
     GqlModel: Post,
     GqlSearch: PostSearchInput,
     GqlSort: PostSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.postUpsertArgs['create'],
     PrismaUpdate: Prisma.postUpsertArgs['update'],
     PrismaModel: Prisma.postGetPayload<SelectWrap<Prisma.postSelect>>,
@@ -42,7 +43,7 @@ export const PostModel: ModelLogic<{
             repostedFrom: 'Post',
             reposts: 'Post',
             resourceList: 'ResourceList',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             tags: 'Tag',
         },
         prismaRelMap: {
@@ -53,15 +54,99 @@ export const PostModel: ModelLogic<{
             reposts: 'Post',
             resourceList: 'ResourceList',
             comments: 'Comment',
-            starredBy: 'User',
+            bookmarkedBy: 'User',
             votedBy: 'Vote',
             viewedBy: 'View',
             reports: 'Report',
             tags: 'Tag',
         },
-        countFields: {},
+        countFields: {
+            commentsCount: true,
+            repostsCount: true,
+        },
     },
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                isPinned: noNull(data.isPinned),
+                isPrivate: noNull(data.isPrivate),
+                organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
+                user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
+                ...(await shapeHelper({ relation: 'repostedFrom', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Post', parentRelationshipName: 'reposts', data, ...rest })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Post', relation: 'tags', data, ...rest })),
+            }),
+            update: async ({ data, ...rest }) => ({
+                isPinned: noNull(data.isPinned),
+                isPrivate: noNull(data.isPrivate),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'post', data, ...rest })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Post', relation: 'tags', data, ...rest })),
+            })
+        },
+        trigger: {
+            onCommon: async (params) => {
+                await onCommonPlain({
+                    ...params,
+                    objectType: __typename,
+                    ownerOrganizationField: 'organization',
+                    ownerUserField: 'user',
+                });
+            },
+        },
+        yup: postValidation,
+    },
+    search: {
+        defaultSort: PostSortBy.ScoreDesc,
+        sortBy: PostSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            excludeIds: true,
+            isPinned: true,
+            maxScore: true,
+            maxBookmarks: true,
+            minScore: true,
+            minBookmarks: true,
+            organizationId: true,
+            userId: true,
+            repostedFromIds: true,
+            tags: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'descriptionWrapped',
+                'nameWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isDeleted: (data) => data.isDeleted === true,
+        isPublic: (data) => data.isPrivate === false,
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => defaultPermissions({ isAdmin, isDeleted, isPublic }),
+        permissionsSelect: () => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            organization: 'Organization',
+            user: 'User',
+        }),
+        visibility: {
+            private: { isPrivate: true, isDeleted: false },
+            public: { isPrivate: false, isDeleted: false },
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

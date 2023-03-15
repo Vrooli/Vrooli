@@ -4,10 +4,10 @@ import { GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType, SingleOrArray } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
-import { groupIdsByType } from "./groupIdsByType";
-import { pickObjectById } from "./pickObjectById";
+import { groupPrismaData } from "./groupPrismaData";
 import { PartialGraphQLInfo } from "./types";
 import pkg from 'lodash';
+import { getLogic } from "../getters";
 const { merge } = pkg;
 
 /**
@@ -25,47 +25,38 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: SingleOrArray<PartialGraphQLInfo>,
 ): Promise<{ [x: string]: any }[]> => {
+    console.log('addSupplementalFields start', JSON.stringify(partialInfo), '\n\n');
     if (data.length === 0) return [];
-    // Group data IDs and select fields by type. This is needed to reduce the number of times 
-    // the database is called, as we can query all objects of the same type at once
-    let objectIdsDict: { [x: string]: string[] } = {};
-    let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
-    for (let i = 0; i < data.length; i++) {
-        const currData = data[i];
-        const currPartialInfo = Array.isArray(partialInfo) ? partialInfo[i] : partialInfo;
-        if (!currData || !currPartialInfo) continue;
-        const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(currData, currPartialInfo);
-        // Merge each array in childObjectIdsDict into objectIdsDict
-        for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
-            objectIdsDict[childType] = objectIdsDict[childType] ?? [];
-            objectIdsDict[childType].push(...childObjects);
-        }
-        // Merge each object in childSelectFieldsDict into selectFieldsDict
-        selectFieldsDict = merge(selectFieldsDict, childSelectFieldsDict);
-    }
+    // Group data into dictionaries, which will make later operations easier
+    let { objectTypesIdsDict, selectFieldsDict, objectIdsDataDict } = groupPrismaData(data, partialInfo);
+    console.log('addSupplementalFields 2', JSON.stringify(objectTypesIdsDict), '\n\n');
+    // Dictionary to store supplemental data
+    const supplementsByObjectId: { [x: string]: any } = {};
 
-    // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
-    const objectsById: { [x: string]: any } = {};
-
-    // Loop through each type in objectIdsDict
-    for (const [type, ids] of Object.entries(objectIdsDict)) {
-        // Find the data for each id in ids. Since the data parameter is an array,
-        // we must loop through each element in it and call pickObjectById
-        const objectData = ids.map((id: string) => pickObjectById(data, id));
-        // Now that we have the data for each object, we can add the supplemental fields
-        const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
-        const valuesWithSupplements = formatter?.supplemental ?
+    // Loop through each type in objectTypesIdsDict
+    for (const [type, ids] of Object.entries(objectTypesIdsDict)) {
+        // Find the supplemental data for each object id in ids
+        const objectData = ids.map((id: string) => objectIdsDataDict[id]);
+        console.log('addSupplementalFields loop2 a', type, ids, JSON.stringify(objectData), '\n\n');
+        const { format } = getLogic(['format'], type as keyof typeof ObjectMap, userData?.languages ?? ['en'], 'addSupplementalFields');
+        const valuesWithSupplements = format?.supplemental ?
             await addSupplementalFieldsHelper({ languages: userData?.languages ?? ['en'], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;
-        // Add each value to objectsById
+        // Supplements are calculated for an array of objects, so we must loop through 
+        console.log('addSupplementalFields loop2 d', Boolean(format?.supplemental), JSON.stringify(valuesWithSupplements), '\n\n');
+        // Add each value to supplementsByObjectId
         for (const v of valuesWithSupplements) {
-            objectsById[v.id] = v;
+            supplementsByObjectId[v.id] = v;
             // Also add the type to the object, which can be used 
             // by our union resolver to determine which __typename to use
-            objectsById[v.id].__typename = type;
+            supplementsByObjectId[v.id].__typename = type;
         }
+        console.log('addSupplementalFields loop2 e')
     }
-    // Convert objectsById dictionary back into shape of data
-    let result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, objectsById));
+    console.log('addSupplementalFields before combining supplements: data', JSON.stringify(data), '\n\n')
+    console.log('addSupplementalFields before combining supplements: supplementsByObjectId', JSON.stringify(supplementsByObjectId), '\n\n')
+    // Convert supplementsByObjectId dictionary back into shape of data
+    let result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, supplementsByObjectId));
+    console.log('addSupplementalFields after combining supplements: result', JSON.stringify(result), '\n\n')
     return result
 }

@@ -169,7 +169,7 @@ export const RoutineListNode = ({
         if (!labelVisible) return null;
         return (
             <EditableLabel
-                canEdit={isEditing && collapseOpen}
+                canUpdate={isEditing && collapseOpen}
                 handleUpdate={handleLabelUpdate}
                 onDialogOpen={onLabelDialogOpen}
                 renderLabel={(l) => (
@@ -185,7 +185,7 @@ export const RoutineListNode = ({
                             lineBreak: 'anywhere' as any,
                             whiteSpace: 'pre' as any,
                         } as CSSProperties}
-                    >{firstString(l, t('common:Unlinked', { lng: language }))}</Typography>
+                    >{firstString(l, t('Unlinked'))}</Typography>
                 )}
                 sxs={{
                     stack: {
@@ -197,14 +197,14 @@ export const RoutineListNode = ({
                 validationSchema={nameValidation.required(reqErr)}
             />
         )
-    }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, node.id, t, language]);
+    }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, node.id, t]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{
             ...noSelect,
             background: palette.mode === 'light' ? '#b0bbe7' : '#384164',
         }}>
-            <Tooltip placement={'top'} title={t('common:MustCompleteRoutinesInOrder', { lng: language })}>
+            <Tooltip placement={'top'} title={t('MustCompleteRoutinesInOrder')}>
                 <FormControlLabel
                     disabled={!isEditing}
                     label='Ordered'
@@ -223,10 +223,10 @@ export const RoutineListNode = ({
                     sx={{ ...routineNodeCheckboxLabel }}
                 />
             </Tooltip>
-            <Tooltip placement={'top'} title={t('common:RoutineCanSkip', { lng: language })}>
+            <Tooltip placement={'top'} title={t('RoutineCanSkip')}>
                 <FormControlLabel
                     disabled={!isEditing}
-                    label={t('common:Optional', { lng: language })}
+                    label={t('Optional')}
                     control={
                         <Checkbox
                             id={`${label ?? ''}-optional-option`}
@@ -243,7 +243,7 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [collapseOpen, palette.mode, t, language, isEditing, label, node.routineList.isOrdered, node.routineList.isOptional, onOrderedChange, onOptionalChange]);
+    ), [collapseOpen, palette.mode, t, isEditing, label, node.routineList.isOrdered, node.routineList.isOptional, onOrderedChange, onOptionalChange]);
 
     /** 
      * Subroutines, sorted from lowest to highest index
@@ -344,7 +344,7 @@ export const RoutineListNode = ({
                 }}
             >
                 <>
-                    <Tooltip placement={'top'} title={firstString(label, t('common:RoutineList', { lng: language }))}>
+                    <Tooltip placement={'top'} title={firstString(label, t('RoutineList'))}>
                         <Container
                             id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                             aria-owns={contextOpen ? contextId : undefined}

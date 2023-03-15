@@ -10,7 +10,7 @@ RUN yarn global add serve
 
 # Copy required files
 COPY --chown=node:node package.json yarn.lock ./
-COPY --chown=node:node packages/ui/package.json packages/ui/build packages/ui/
+COPY --chown=node:node packages/ui/package.json packages/ui/dist packages/ui/
 COPY --chown=node:node scripts/* scripts/
 
 # Set port

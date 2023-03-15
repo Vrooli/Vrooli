@@ -1,55 +1,20 @@
 import { CustomError } from "../events";
-import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, Vote } from '@shared/consts';
+import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
-import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
+import { ModelLogic } from "./types";
+import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { padSelect, permissionsSelectHelper } from "../builders";
+import { selPad, permissionsSelectHelper, noNull } from "../builders";
 import { Prisma } from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { getLogic } from "../getters";
-import { isOwnerAdminCheck } from "../validators";
+import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
 import { Notify } from "../notify";
-
-type Model = {
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: undefined,
-    GqlUpdate: undefined,
-    GqlModel: Transfer,
-    GqlSearch: TransferSearchInput,
-    GqlSort: TransferSortBy,
-    GqlPermission: any,
-    PrismaCreate: Prisma.transferUpsertArgs['create'],
-    PrismaUpdate: Prisma.transferUpsertArgs['update'],
-    PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,
-    PrismaSelect: Prisma.transferSelect,
-    PrismaWhere: Prisma.transferWhereInput,
-}
+import { transferValidation } from "@shared/validation";
 
 const __typename = 'Transfer' as const;
+type Permissions = Pick<TransferYou, 'canDelete' | 'canUpdate'>;
 const suppFields = [] as const;
-// const formatter = (): Formatter<Model, typeof suppFields> => ({
-//     gqlRelMap: {
-//         __typename,
-//         fromOwner: {
-//             fromUser: 'User',
-//             fromOrganization: 'Organization',
-//         },
-//         toOwner: {
-//             toUser: 'User',
-//             toOrganization: 'Organization',
-//         },
-//         object: {
-//             api: 'Api',
-//             note: 'Note',
-//             project: 'Project',
-//             routine: 'Routine',
-//             smartContract: 'SmartContract',
-//             standard: 'Standard',
-//         }
-//     },
-// })
 
 /**
  * Maps a transferable object type to its field name in the database
@@ -71,13 +36,39 @@ export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
  * 3. Otherwise, a notification is sent to the user/org that is receiving the object,
  *   and they can accept or reject the transfer.
  */
-const transfer = (prisma: PrismaType) => ({
+export const transfer = (prisma: PrismaType) => ({
+    /**
+     * Checks if objects being created/updated require a transfer request. Used by mutate functions 
+     * of other models, so model-specific permissions checking is not required.
+     * @param owners List of owners of the objects being created/updated
+     * @param userData Session data of the user making the request
+     * @returns List of booleans indicating if the object requires a transfer request. 
+     * List is in same order as owners list.
+     */
+    checkTransferRequests: async (
+        owners: { id: string, __typename: 'Organization' | 'User' }[],
+        userData: SessionUser,
+    ): Promise<boolean[]> => {
+        // Grab all create organization IDs
+        const orgIds = owners.filter(o => o.__typename === 'Organization').map(o => o.id);
+        // Check if user is an admin of each organization
+        const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
+        // Create return list
+        console.log('checking transfer requests', orgIds, userData.id, JSON.stringify(owners), '\n\n');
+        const requiresTransferRequest: boolean[] = owners.map((o, i) => {
+            // If owner is a user, transfer is required if user is not the same as the session user
+            if (o.__typename === 'User') return o.id !== userData.id;
+            // If owner is an organization, transfer is required if user is not an admin
+            const orgIdIndex = orgIds.indexOf(o.id);
+            return !isAdmins[orgIdIndex];
+        });
+        return requiresTransferRequest;
+    },
     /**
      * Initiates a transfer request from an object you own, to another user/org
      * @returns The ID of the transfer request
      */
     requestSend: async (
-        info: GraphQLResolveInfo | PartialGraphQLInfo,
         input: TransferRequestSendInput,
         userData: SessionUser,
     ): Promise<string> => {
@@ -92,15 +83,9 @@ const transfer = (prisma: PrismaType) => ({
         // Check if user is allowed to transfer this object
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
-        // Check if the user is transferring to themselves
+        // Get 'to' data
         const toType = input.toOrganizationConnect ? 'Organization' : 'User';
         const toId: string = input.toOrganizationConnect || input.toUserConnect as string;
-        const { delegate: toDelegate, validate: toValidate } = getLogic(['delegate', 'validate'], toType, userData.languages, 'Transfer.request-validator');
-        const toPermissionData = await toDelegate(prisma).findUnique({
-            where: { id: toId },
-            select: permissionsSelectHelper(toValidate.permissionsSelect, userData.id, userData.languages),
-        });
-        const isAdmin = toPermissionData && isOwnerAdminCheck(toValidate.owner(toPermissionData), userData.id)
         // Create transfer request
         const request = await prisma.transfer.create({
             data: {
@@ -109,7 +94,7 @@ const transfer = (prisma: PrismaType) => ({
                 [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
                 toUser: toType === 'User' ? { connect: { id: toId } } : undefined,
                 toOrganization: toType === 'Organization' ? { connect: { id: toId } } : undefined,
-                status: isAdmin ? 'Accepted' : 'Pending',
+                status: 'Pending',
                 message: input.message,
             },
             select: { id: true }
@@ -220,7 +205,8 @@ const transfer = (prisma: PrismaType) => ({
                 }
             }
         });
-        // Notify user/org that sent the transfer request
+        //TODO update object's hasBeenTransferred flag
+        // TODO Notify user/org that sent the transfer request
         //const pushNotification = Notify(prisma, userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
         // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
         // else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
@@ -275,28 +261,32 @@ const transfer = (prisma: PrismaType) => ({
     },
 })
 
-// const mutater = (): Mutater<Model> => ({
-//     shape: {
-//         update: async ({ data }) => ({
-//             id: data.id,
-//             message: data.message
-//         }),
-//     },
-//     yup: { update: {} as any },
-// })
-
-export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
+export const TransferModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: undefined,
+    GqlUpdate: TransferUpdateInput,
+    GqlModel: Transfer,
+    GqlSearch: TransferSearchInput,
+    GqlSort: TransferSortBy,
+    GqlPermission: Permissions,
+    PrismaCreate: Prisma.transferUpsertArgs['create'],
+    PrismaUpdate: Prisma.transferUpsertArgs['update'],
+    PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,
+    PrismaSelect: Prisma.transferSelect,
+    PrismaWhere: Prisma.transferWhereInput,
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.transfer,
     display: {
         select: () => ({
             id: true,
-            api: padSelect(ApiModel.display.select),
-            note: padSelect(NoteModel.display.select),
-            project: padSelect(ProjectModel.display.select),
-            routine: padSelect(RoutineModel.display.select),
-            smartContract: padSelect(SmartContractModel.display.select),
-            standard: padSelect(StandardModel.display.select),
+            api: selPad(ApiModel.display.select),
+            note: selPad(NoteModel.display.select),
+            project: selPad(ProjectModel.display.select),
+            routine: selPad(RoutineModel.display.select),
+            smartContract: selPad(SmartContractModel.display.select),
+            standard: selPad(StandardModel.display.select),
         }),
         label: (select, languages) => {
             if (select.api) return ApiModel.display.label(select.api as any, languages);
@@ -308,8 +298,59 @@ export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
             return '';
         }
     },
-    format: {} as any,// formatter(),
-    mutate: {} as any,//mutater(),
+    format: {
+        gqlRelMap: {
+            __typename,
+            fromOwner: {
+                fromUser: 'User',
+                fromOrganization: 'Organization',
+            },
+            object: {
+                api: 'Api',
+                note: 'Note',
+                project: 'Project',
+                routine: 'Routine',
+                smartContract: 'SmartContract',
+                standard: 'Standard',
+            },
+            toOwner: {
+                toUser: 'User',
+                toOrganization: 'Organization',
+            },
+        },
+        prismaRelMap: {
+            __typename,
+            fromUser: 'User',
+            fromOrganization: 'Organization',
+            toUser: 'User',
+            toOrganization: 'Organization',
+            api: 'Api',
+            note: 'Note',
+            project: 'Project',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+        },
+        countFields: {},
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
+                }
+            },
+        },
+    },
+    mutate: {
+        shape: {
+            update: async ({ data }) => ({
+                message: noNull(data.message),
+            })
+        },
+        yup: transferValidation,
+    },
     transfer,
     validate: {} as any,
 })

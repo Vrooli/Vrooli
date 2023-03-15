@@ -1,13 +1,19 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PrependString, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from '@shared/consts';
+import { MaxObjects, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
+import { QuizQuestionModel } from "./quizQuestion";
+import { noNull, selPad, shapeHelper } from "../builders";
+import i18next from "i18next";
+import { quizQuestionResponseValidation } from "@shared/validation";
+import { defaultPermissions } from "../utils";
+import { QuizAttemptModel } from "./quizAttempt";
 
 const __typename = 'QuizQuestionResponse' as const;
-type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canEdit'>;
-const suppFields = ['you.canDelete', 'you.canEdit'] as const;
+type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canUpdate'>;
+const suppFields = ['you'] as const;
 export const QuizQuestionResponseModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -25,7 +31,13 @@ export const QuizQuestionResponseModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
-    display: {} as any,
+    display: {
+        select: () => ({ id: true, quizQuestion: selPad(QuizQuestionModel.display.select) }),
+        label: (select, languages) => i18next.t(`common:QuizQuestionResponseLabel`, {
+            lng: languages.length > 0 ? languages[0] : 'en',
+            questionLabel: QuizQuestionModel.display.label(select.quizQuestion as any, languages),
+        }),
+    },
     format: {
         gqlRelMap: {
             __typename,
@@ -41,14 +53,61 @@ export const QuizQuestionResponseModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
-                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    you: {
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                    }
                 }
             },
         },
     },
-    mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    mutate: {
+        shape: {
+            create: async ({ data, ...rest }) => ({
+                id: data.id,
+                response: data.response,
+                ...(await shapeHelper({ relation: 'quizAttempt', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'QuizAttempt', parentRelationshipName: 'responses', data, ...rest })),
+                ...(await shapeHelper({ relation: 'quizQuestion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'QuizQuestion', parentRelationshipName: 'responses', data, ...rest })),
+            }),
+            update: async ({ data }) => ({
+                response: noNull(data.response),
+            }),
+        },
+        yup: quizQuestionResponseValidation,
+    },
+    search: {
+        defaultSort: QuizQuestionResponseSortBy.QuestionOrderAsc,
+        sortBy: QuizQuestionResponseSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            quizAttemptId: true,
+            quizQuestionId: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transResponseWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data, languages) => QuizAttemptModel.validate!.isPublic(data.quizAttempt as any, languages),
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => QuizAttemptModel.validate!.owner(data.quizAttempt as any),
+        permissionResolvers: (params) => defaultPermissions(params),
+        permissionsSelect: () => ({
+            id: true,
+            quizAttempt: 'QuizAttempt',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                quizAttempt: QuizAttemptModel.validate!.visibility.owner(userId),
+            })
+        }
+    },
 })

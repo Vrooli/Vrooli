@@ -1,5 +1,6 @@
 import { TextFieldProps } from "@mui/material";
 import { CommentFor, Session } from "@shared/consts";
+import { CommonKey } from "@shared/translations";
 import { MarkdownInputProps } from "components/inputs/types";
 
 export interface CommentContainerProps {
@@ -9,20 +10,28 @@ export interface CommentContainerProps {
     objectId: string;
     objectType: CommentFor;
     onAddCommentClose?: () => void;
-    session: Session;
+    session: Session | undefined;
     zIndex: number;
 }
 
 export interface TitleContainerProps {
     children: JSX.Element | JSX.Element[];
-    helpText?: string;
+    helpKey?: CommonKey;
+    helpVariables?: { [x: string]: string | number };
+    titleKey: CommonKey;
+    titleVariables?: { [x: string]: string | number };
     id?: string;
     loading?: boolean;
     onClick?: (event: React.MouseEvent) => void;
-    options?: [string, (e?: any) => void][];
+    options?: [(CommonKey | { key: CommonKey, variables: Record<string, any> }), (e?: any) => void][];
     sx?: object;
-    title?: string;
     tooltip?: string;
+}
+
+export interface ListContainerProps {
+    children: JSX.Element | JSX.Element[];
+    emptyText?: string;
+    isEmpty?: boolean;
 }
 
 export interface ListTitleContainerProps extends TitleContainerProps {
@@ -44,6 +53,8 @@ export interface ContentCollapseProps {
     }
     title?: string | null;
     titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
+    titleKey?: CommonKey;
+    titleVariables?: { [x: string]: string | number };
     children?: React.ReactNode;
 }
 
@@ -53,6 +64,7 @@ export interface TextCollapseProps {
     loading?: boolean;
     loadingLines?: number;
     onOpenChange?: (isOpen: boolean) => void;
+    session: Session | undefined;
     title?: string | null;
     text?: string | null;
 }

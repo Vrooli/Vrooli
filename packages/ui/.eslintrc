@@ -3,6 +3,8 @@
         "react-app"
     ],
     "ignorePatterns": [
-        "build/"
+        "build/",
+        "dist/",
+        "node_modules/"
     ]
 }

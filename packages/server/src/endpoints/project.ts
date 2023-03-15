@@ -20,8 +20,8 @@ export const typeDef = gql`
         QuestionsDesc
         ScoreAsc
         ScoreDesc
-        StarsAsc
-        StarsDesc
+        BookmarksAsc
+        BookmarksDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
@@ -33,8 +33,8 @@ export const typeDef = gql`
         handle: String
         isPrivate: Boolean
         permissions: String
-        userConnect: ID
-        organizationConnect: ID
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         parentConnect: ID
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -44,11 +44,11 @@ export const typeDef = gql`
     }
     input ProjectUpdateInput {
         id: ID!
-        userConnect: ID
-        organizationConnect: ID
         handle: String
         isPrivate: Boolean
         permissions: String
+        ownedByUserConnect: ID
+        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -69,25 +69,26 @@ export const typeDef = gql`
         isPrivate: Boolean!
         translatedName: String!
         score: Int!
-        stars: Int!
         views: Int!
+        bookmarks: Int!
         createdBy: User
         owner: Owner
         issues: [Issue!]!
         issuesCount: Int!
         labels: [Label!]!
         labelsCount: Int!
-        parent: Project
+        parent: ProjectVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         questions: [Question!]!
         questionsCount: Int!
         quizzes: [Quiz!]!
         quizzesCount: Int!
-        starredBy: [User!]!
+        bookmarkedBy: [User!]!
         stats: [StatsProject!]!
         tags: [Tag!]!
         transfers: [Transfer!]!
+        transfersCount: Int!
         versions: [ProjectVersion!]!
         versionsCount: Int!
         you: ProjectYou!
@@ -95,33 +96,39 @@ export const typeDef = gql`
 
     type ProjectYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
+        canBookmark: Boolean!
         canTransfer: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
-        isStarred: Boolean!
+        isBookmarked: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
     }
 
     input ProjectSearchInput {
         after: String
-        createdTimeFrame: TimeFrame
         createdById: ID
+        createdTimeFrame: TimeFrame
+        excludeIds: [ID!]
+        ids: [ID!]
         hasCompleteVersion: Boolean
-        labelsId: ID
+        issuesId: ID
+        labelsIds: [ID!]
         maxScore: Int
-        maxStars: Int
+        maxBookmarks: Int
+        maxViews: Int
         minScore: Int
-        minStars: Int
+        minBookmarks: Int
+        minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
-        ids: [ID!]
+        pullRequestsId: ID
         searchString: String
         sortBy: ProjectSortBy
         tags: [String!]
+        take: Int
         translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType

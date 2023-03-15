@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server-express';
 
 export const typeDef = gql`
-
     input ProjectVersionDirectoryCreateInput {
         id: ID!
         childOrder: String
@@ -15,7 +14,7 @@ export const typeDef = gql`
         childOrder: String
         isRoot: Boolean
         parentDirectoryConnect: ID
-        parentDirectoryDisconnect: ID
+        parentDirectoryDisconnect: Boolean
         projectVersionConnect: ID
         translationsCreate: [ProjectVersionDirectoryTranslationCreateInput!]
         translationsUpdate: [ProjectVersionDirectoryTranslationUpdateInput!]
@@ -61,6 +60,7 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'ProjectVersionDirectory';
 export const resolvers: {
 } = {
 }

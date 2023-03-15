@@ -30,10 +30,11 @@ export const typeDef = gql`
 
     type StatsStandard {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
+        linksToInputs: Int!
+        linksToOutputs: Int!
     }
 
     type Query {

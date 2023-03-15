@@ -3,11 +3,12 @@ import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from '@sha
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
-import { padSelect } from "../builders";
+import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
+import { OrganizationModel } from "./organization";
+import { RoleModel } from "./role";
 
 const __typename = 'Member' as const;
-
 const suppFields = [] as const;
 export const MemberModel: ModelLogic<{
     IsTransferable: false,
@@ -17,7 +18,7 @@ export const MemberModel: ModelLogic<{
     GqlModel: Member,
     GqlSearch: MemberSearchInput,
     GqlSort: MemberSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.memberUpsertArgs['create'],
     PrismaUpdate: Prisma.memberUpsertArgs['update'],
     PrismaModel: Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>,
@@ -29,7 +30,7 @@ export const MemberModel: ModelLogic<{
     display: {
         select: () => ({
             id: true,
-            user: padSelect(UserModel.display.select),
+            user: selPad(UserModel.display.select),
         }),
         label: (select, languages) => UserModel.display.label(select.user as any, languages),
     },
@@ -37,15 +38,33 @@ export const MemberModel: ModelLogic<{
         gqlRelMap: {
             __typename,
             organization: 'Organization',
+            roles: 'Role',
             user: 'User',
         },
         prismaRelMap: {
             __typename,
             organization: 'Organization',
-            user: 'User',
             roles: 'Role',
+            user: 'User',
         },
         countFields: {},
     },
-    search: {} as any,
+    search: {
+        defaultSort: MemberSortBy.DateCreatedDesc,
+        sortBy: MemberSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            organizationId: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                { organization: OrganizationModel.search!.searchStringQuery() },
+                { role: RoleModel.search!.searchStringQuery() },
+                { user: UserModel.search!.searchStringQuery() },
+            ]
+        })
+    },
 })

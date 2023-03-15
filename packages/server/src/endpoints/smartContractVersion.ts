@@ -25,29 +25,25 @@ export const typeDef = gql`
     input SmartContractVersionCreateInput {
         id: ID!
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         default: String
         contractType: String!
         content: String!
-        rootConnect: ID!
-        rootCreate: SmartContractCreateInput
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
         resourceListCreate: ResourceListCreateInput
+        rootConnect: ID!
+        rootCreate: SmartContractCreateInput
         translationsCreate: [SmartContractVersionTranslationCreateInput!]
     }
     input SmartContractVersionUpdateInput {
         id: ID!
         isComplete: Boolean
-        isLatest: Boolean
         isPrivate: Boolean
         default: String
         contractType: String
         content: String
-        versionIndex: Int!
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -66,6 +62,7 @@ export const typeDef = gql`
         completedAt: Date
         isComplete: Boolean!
         isDeleted: Boolean!
+        isLatest: Boolean!
         isPrivate: Boolean!
         default: String
         contractType: String!
@@ -93,18 +90,21 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
+        name: String!
         jsonVariable: String
     }
     input SmartContractVersionTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        name: String
         jsonVariable: String
     }
     type SmartContractVersionTranslation {
         id: ID!
         language: String!
         description: String
+        name: String!
         jsonVariable: String
     }
 
@@ -112,15 +112,25 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
+        createdByIdRoot: ID
+        ownedByUserIdRoot: ID
+        ownedByOrganizationIdRoot: ID
         ids: [ID!]
-        isComplete: Boolean
-        languages: [String!]
+        isCompleteWithRoot: Boolean
+        isLatest: Boolean
+        translationLanguages: [String!]
+        maxBookmarksRoot: Int
+        maxScoreRoot: Int
+        maxViewsRoot: Int
+        minBookmarksRoot: Int
+        minScoreRoot: Int
+        minViewsRoot: Int
         reportId: ID
         rootId: ID
         searchString: String
         sortBy: SmartContractVersionSortBy
         contractType: String
-        tags: [String!]
+        tagsRoot: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID

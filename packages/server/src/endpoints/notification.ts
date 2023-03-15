@@ -5,18 +5,14 @@ import { rateLimit } from '../middleware';
 import { readManyHelper, readOneHelper } from '../actions';
 import { CustomError } from '../events';
 import { assertRequestFrom } from '../auth';
-import { updateNotificationSettings } from '../notify';
+import { parseNotificationSettings, updateNotificationSettings } from '../notify';
 
 export const typeDef = gql`
     enum NotificationSortBy {
-        CategoryAsc
-        CategoryDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        TitleAsc
-        TitleDesc
     }
 
     type Notification {
@@ -93,6 +89,7 @@ export const typeDef = gql`
     extend type Query {
         notification(input: FindByIdInput!): Notification
         notifications(input: NotificationSearchInput!): NotificationSearchResult!
+        notificationSettings: NotificationSettings!
     }
 
     extend type Mutation {
@@ -108,6 +105,7 @@ export const resolvers: {
     Query: {
         notification: GQLEndpoint<FindByIdInput, FindOneResult<Notification>>;
         notifications: GQLEndpoint<NotificationSearchInput, FindManyResult<Notification>>;
+        notificationSettings: GQLEndpoint<undefined, NotificationSettings>;
     },
     Mutation: {
         notificationMarkAsRead: GQLEndpoint<FindByIdInput, Success>;
@@ -125,6 +123,16 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, prisma, req })
         },
+        notificationSettings: async (_, __, { prisma, req }, info) => {
+            const { id } = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 250, req });
+            const user = await prisma.user.findUnique({
+                where: { id },
+                select: { notificationSettings: true }
+            });
+            if (!user) throw new CustomError('0402', 'InternalError', ['en'])
+            return parseNotificationSettings(user.notificationSettings);
+        }
     },
     Mutation: {
         notificationMarkAsRead: async (_, { input }, { prisma, req }, info) => {

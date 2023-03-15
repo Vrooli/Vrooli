@@ -35,7 +35,6 @@ export const typeDef = gql`
     union TransferObject = Api | Note | Project | Routine | SmartContract | Standard
 
     input TransferRequestSendInput {
-        id: ID!
         objectType: TransferObjectType!
         objectConnect: ID!
         toOrganizationConnect: ID
@@ -43,7 +42,6 @@ export const typeDef = gql`
         message: String
     }
     input TransferRequestReceiveInput {
-        id: ID!
         objectType: TransferObjectType!
         objectConnect: ID!
         toOrganizationConnect: ID # If not set, uses your userId
@@ -67,7 +65,7 @@ export const typeDef = gql`
 
     type TransferYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input TransferSearchInput {
