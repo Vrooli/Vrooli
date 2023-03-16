@@ -58,7 +58,7 @@ export const UnlinkedNodesDialog = ({
             case NodeType.Redirect:
                 return <RedirectNode
                     {...nodeProps}
-                    node={node as Node}//as NodeRedirect}
+                    node={node as any}//as NodeRedirect}
                 />
             case NodeType.RoutineList:
                 return <RoutineListNode

@@ -1,10 +1,11 @@
 import { SmartContract, SmartContractCreateInput, SmartContractUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { SmartContractVersionShape, createOwner, createPrims, createRel, createVersion, LabelShape, shapeSmartContractVersion, shapeLabel, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, updateVersion } from "utils";
+import { SmartContractVersionShape, createOwner, createPrims, createRel, createVersion, LabelShape, shapeSmartContractVersion, shapeLabel, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, updateVersion, OwnerShape } from "utils";
 
 export type SmartContractShape = Pick<SmartContract, 'id' | 'isPrivate'> & {
+    __typename?: 'SmartContract';
     labels?: ({ id: string } | LabelShape)[];
-    owner: { __typename: 'User' | 'Organization', id: string } | null;
+    owner: OwnerShape | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

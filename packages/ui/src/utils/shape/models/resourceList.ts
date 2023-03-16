@@ -3,9 +3,12 @@ import { ResourceShape, shapeResource } from "./resource";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "utils";
 import { ShapeModel } from "types";
 
-export type ResourceListTranslationShape = Pick<ResourceListTranslation, 'id' | 'language' | 'description' | 'name'>
+export type ResourceListTranslationShape = Pick<ResourceListTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'ResourceListTranslation';
+}
 
 export type ResourceListShape = Pick<ResourceList, 'id'> & {
+    __typename?: 'ResourceList';
     resources?: ResourceShape[] | null;
     translations?: ResourceListTranslationShape[] | null;
 }

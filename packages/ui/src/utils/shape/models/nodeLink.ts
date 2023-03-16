@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { NodeLinkWhenShape, createPrims, shapeNodeLinkWhen, shapeUpdate, updatePrims, updateRel, createRel } from "utils";
 
 export type NodeLinkShape = Pick<NodeLink, 'id' | 'operation'> & {
+    __typename?: 'NodeLink';
     from: { id: string };
     to: { id: string };
     routineVersion: { id: string };

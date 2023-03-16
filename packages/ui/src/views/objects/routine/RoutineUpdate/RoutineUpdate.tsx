@@ -67,8 +67,8 @@ export const RoutineUpdate = ({
             // parent: routineVersion?.parent ?? null, TODO
             project: null, // TODO
         });
-        setInputsList(routineVersion?.inputs ?? []);
-        setOutputsList(routineVersion?.outputs ?? []);
+        setInputsList(routineVersion?.inputs ?? [] as RoutineVersionInputShape[]);
+        setOutputsList(routineVersion?.outputs ?? [] as RoutineVersionOutputShape[]);
         setResourceList(routineVersion?.resourceList ?? { id: uuid() } as any);
         setTags(routineVersion?.root?.tags ?? []);
     }, [routineVersion]);
@@ -88,7 +88,6 @@ export const RoutineUpdate = ({
                 name: '',
             }],
             versionInfo: {
-                versionIndex: routineVersion?.root?.versions?.length ?? 0,
                 versionLabel: routineVersion?.versionLabel ?? '1.0.0',
                 versionNotes: '',
             }
@@ -105,7 +104,6 @@ export const RoutineUpdate = ({
                 input: shapeRoutineVersion.update(routineVersion, {
                     id: routineVersion.id,
                     isComplete: relationships.isComplete,
-                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     // project: relationships.project,
                     inputs: inputsList,
@@ -378,7 +376,7 @@ export const RoutineUpdate = ({
                                 <Grid item xs={12}>
                                     <InputOutputContainer
                                         isEditing={true}
-                                        handleUpdate={handleInputsUpdate}
+                                        handleUpdate={handleInputsUpdate as any}
                                         isInput={true}
                                         language={language}
                                         list={inputsList}
@@ -389,7 +387,7 @@ export const RoutineUpdate = ({
                                 <Grid item xs={12} mb={4}>
                                     <InputOutputContainer
                                         isEditing={true}
-                                        handleUpdate={handleOutputsUpdate}
+                                        handleUpdate={handleOutputsUpdate as any}
                                         isInput={false}
                                         language={language}
                                         list={outputsList}

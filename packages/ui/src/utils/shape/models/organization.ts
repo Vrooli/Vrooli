@@ -2,9 +2,12 @@ import { Organization, OrganizationCreateInput, OrganizationTranslation, Organiz
 import { ShapeModel } from "types";
 import { createPrims, createRel, MemberInviteShape, ResourceListShape, RoleShape, shapeMemberInvite, shapeResourceList, shapeRole, shapeTag, shapeUpdate, TagShape, updatePrims, updateRel } from "utils";
 
-export type OrganizationTranslationShape = Pick<OrganizationTranslation, 'id' | 'language' | 'bio' | 'name'>
+export type OrganizationTranslationShape = Pick<OrganizationTranslation, 'id' | 'language' | 'bio' | 'name'> & {
+    __typename?: 'OrganizationTranslation';
+}
 
 export type OrganizationShape = Pick<Organization, 'id' | 'handle' | 'isOpenToNewMembers' | 'isPrivate'> & {
+    __typename?: 'Organization';
     memberInvites?: MemberInviteShape[] | null;
     membersDelete?: { id: string }[] | null;
     resourceList?: ResourceListShape | null;

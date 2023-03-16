@@ -2,7 +2,9 @@ import { QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerUpdateInput } 
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type QuestionAnswerShape = Pick<QuestionAnswer, 'id'>
+export type QuestionAnswerShape = Pick<QuestionAnswer, 'id'> & {
+    __typename?: 'QuestionAnswer';
+}
 
 export const shapeQuestionAnswer: ShapeModel<QuestionAnswerShape, QuestionAnswerCreateInput, QuestionAnswerUpdateInput> = {
     create: (d) => ({}) as any,

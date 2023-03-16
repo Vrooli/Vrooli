@@ -2,9 +2,12 @@ import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, Nod
 import { ShapeModel } from "types";
 import { createPrims, createRel, NodeEndShape, NodeRoutineListShape, shapeNodeEnd, shapeNodeRoutineList, shapeUpdate, updatePrims, updateRel } from "utils";
 
-export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'>
+export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'NodeTranslation';
+}
 
 export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'nodeType'> & {
+    __typename?: 'Node';
     // loop?: LoopShape | null
     end?: NodeEndShape | null;
     routineList?: NodeRoutineListShape | null;

@@ -53,7 +53,6 @@ export const ProjectCreate = ({
                 description: '',
             }],
             versionInfo: {
-                versionIndex: 0,
                 versionLabel: '1.0.0',
                 versionNotes: '',
             }

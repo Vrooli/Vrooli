@@ -2,9 +2,12 @@ import { Resource, ResourceCreateInput, ResourceTranslation, ResourceTranslation
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "utils";
 
-export type ResourceTranslationShape = Pick<ResourceTranslation, 'id' | 'language' | 'description' | 'name'>
+export type ResourceTranslationShape = Pick<ResourceTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'ResourceTranslation';
+}
 
 export type ResourceShape = Pick<Resource, 'id' | 'index' | 'link' | 'usedFor'> & {
+    __typename?: 'Resource';
     list: { __typename?: 'ResourceList', id: string };
     translations: ResourceTranslationShape[];
 }

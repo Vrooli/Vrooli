@@ -1,7 +1,7 @@
-import { Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, TitleContainer, PageTabs, TopBar, ResourceListVertical, HomePrompt } from 'components';
+import { SiteSearchBar, TitleContainer, PageTabs, TopBar, HomePrompt, ResourceListHorizontal } from 'components';
 import { useLocation } from '@shared/route';
 import { LINKS, HomeInput, HomeResult, ResourceList } from '@shared/consts';
 import { HomeViewProps } from '../types';
@@ -142,6 +142,10 @@ export const HomeView = ({
         if (searchString) setLocation(LINKS.Home, { replace: true, searchParams: { search: searchString } });
     }, [searchString, setLocation]);
 
+    const openSchedule = useCallback(() => {
+        setLocation(LINKS.Calendar);
+    }, [setLocation]);
+
     return (
         <>
             <TopBar
@@ -178,7 +182,7 @@ export const HomeView = ({
             {/* Result feeds */}
             <Stack spacing={10} direction="column" mt={10}>
                 {/* Resources */}
-                <ResourceListVertical
+                <ResourceListHorizontal
                     list={resourceList}
                     session={session}
                     canUpdate={true}
@@ -190,6 +194,7 @@ export const HomeView = ({
                 {/* Events */}
                 <TitleContainer
                     titleKey="Schedule"
+                    options={[['Open', openSchedule]]}
                 >
                     {/* TODO */}
                 </TitleContainer>

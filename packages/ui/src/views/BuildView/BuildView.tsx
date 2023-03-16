@@ -674,7 +674,7 @@ export const BuildView = ({
         // Node containing routine list data with ID nodeId
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
-        const routineList: NodeRoutineListShape = changedRoutineVersion.nodes[nodeIndex].routineList!;
+        const routineList: NodeRoutineListShape = changedRoutineVersion.nodes[nodeIndex].routineList! as NodeRoutineListShape;
         const items = [...routineList.items];
         // Find subroutines matching old and new index
         const aIndex = items.findIndex(r => r.index === oldIndex);
@@ -1025,8 +1025,8 @@ export const BuildView = ({
                 isOpen={isLinkDialogOpen}
                 language={translationData.language}
                 link={undefined}
-                nodeFrom={linkDialogFrom}
-                nodeTo={linkDialogTo}
+                nodeFrom={linkDialogFrom as NodeShape}
+                nodeTo={linkDialogTo as NodeShape}
                 routineVersion={changedRoutineVersion}
                 zIndex={zIndex + 3}
             // partial={ }
@@ -1045,7 +1045,7 @@ export const BuildView = ({
                 data={openedSubroutine}
                 defaultLanguage={translationData.language}
                 isEditing={isEditing}
-                handleUpdate={handleSubroutineUpdate}
+                handleUpdate={handleSubroutineUpdate as any}
                 handleReorder={handleSubroutineReorder}
                 handleViewFull={handleSubroutineViewFull}
                 open={Boolean(openedSubroutine)}

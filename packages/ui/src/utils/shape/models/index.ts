@@ -1,6 +1,7 @@
 export * from './api';
 export * from './apiVersion';
 export * from './comment';
+export * from './common';
 export * from './issue';
 export * from './label';
 export * from './meeting';

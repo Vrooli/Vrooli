@@ -77,7 +77,6 @@ export const RoutineCreate = ({
                 name: '',
             }],
             versionInfo: {
-                versionIndex: 0,
                 versionLabel: '1.0.0',
                 versionNotes: '',
             }
@@ -89,7 +88,6 @@ export const RoutineCreate = ({
                 input: shapeRoutineVersion.create({
                     id: values.id,
                     isComplete: relationships.isComplete,
-                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     nodeLinks: values.nodeLinks,
                     nodes: values.nodes,
@@ -383,7 +381,7 @@ export const RoutineCreate = ({
                             <Grid item xs={12}>
                                 <InputOutputContainer
                                     isEditing={true}
-                                    handleUpdate={handleInputsUpdate}
+                                    handleUpdate={handleInputsUpdate as any}
                                     isInput={true}
                                     language={language}
                                     list={inputsList}
@@ -394,7 +392,7 @@ export const RoutineCreate = ({
                             <Grid item xs={12} mb={4}>
                                 <InputOutputContainer
                                     isEditing={true}
-                                    handleUpdate={handleOutputsUpdate}
+                                    handleUpdate={handleOutputsUpdate as any}
                                     isInput={false}
                                     language={language}
                                     list={outputsList}

@@ -4,9 +4,12 @@ import { ProjectShape, shapeProject } from "./project";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, 'id' | 'language' | 'description' | 'name'>
+export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'ProjectVersionTranslation';
+}
 
 export type ProjectVersionShape = Pick<ProjectVersion, 'id' | 'isComplete' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
+    __typename?: 'ProjectVersion';
     directoryListings?: ProjectVersionDirectoryShape[] | null;
     root?: { id: string } | ProjectShape | null;
     suggestedNextByProject?: { id: string }[] | null;

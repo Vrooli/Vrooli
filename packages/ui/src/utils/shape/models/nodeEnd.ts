@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeEndShape = Pick<NodeEnd, 'id' | 'wasSuccessful' | 'suggestedNextRoutineVersions'> & {
+    __typename?: 'NodeEnd';
     node: { id: string };
     suggestedNextRoutineVersions?: { id: string }[] | null;
 }

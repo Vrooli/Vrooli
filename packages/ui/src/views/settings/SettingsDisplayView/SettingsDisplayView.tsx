@@ -6,12 +6,14 @@ import { GridSubmitButtons, HelpButton, SettingsList, SettingsTopBar } from "com
 import { ThemeSwitch } from "components/inputs";
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
-import { UserScheduleFilterType } from "@shared/consts";
+import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
 import { userValidation } from "@shared/validation";
 import { currentSchedules } from "utils/display/scheduleTools";
 import { SettingsDisplayViewProps } from "../types";
 import { useTranslation } from "react-i18next";
 import { BaseForm } from "forms";
+import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
+import { useCustomMutation } from "api";
 
 const interestsHelpText =
     `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`
@@ -65,7 +67,7 @@ export const SettingsDisplayView = ({
     }, [profile]);
 
     // Handle update
-    // const [mutation] = useCustomMutation<User, ProfileUpdateInput>(...endpoints.user().profileUpdate);
+    const [mutation, { loading: isUpdating }] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',

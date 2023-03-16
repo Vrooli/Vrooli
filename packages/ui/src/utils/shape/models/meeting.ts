@@ -3,9 +3,12 @@ import { ShapeModel } from "types";
 import { MeetingInviteShape, shapeMeetingInvite } from "./meetingInvite";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type MeetingTranslationShape = Pick<MeetingTranslation, 'id' | 'language' | 'description' | 'link' | 'name'>
+export type MeetingTranslationShape = Pick<MeetingTranslation, 'id' | 'language' | 'description' | 'link' | 'name'> & {
+    __typename?: 'MeetingTranslation';
+}
 
 export type MeetingShape = Pick<Meeting, 'id' | 'openToAnyoneWithInvite' | 'showOnOrganizationProfile' | 'timeZone' | 'eventStart' | 'eventEnd' | 'recurrStart' | 'recurrEnd'> & {
+    __typename?: 'Meeting';
     organization: { id: string };
     restrictedToRoles?: { id: string }[] | null;
     invites?: MeetingInviteShape[] | null;

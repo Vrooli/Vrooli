@@ -2,9 +2,12 @@ import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenTranslation, NodeLin
 import { createPrims, shapeUpdate, updatePrims, createRel, updateRel } from "utils";
 import { ShapeModel } from "types";
 
-export type NodeLinkWhenTranslationShape = Pick<NodeLinkWhenTranslation, 'id' | 'language' | 'description' | 'name'>
+export type NodeLinkWhenTranslationShape = Pick<NodeLinkWhenTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'NodeLinkWhenTranslation';
+}
 
 export type NodeLinkWhenShape = Pick<NodeLinkWhen, 'id' | 'condition'> & {
+    __typename?: 'NodeLinkWhen';
     link: { id: string };
     translations?: NodeLinkWhenTranslationShape[] | null;
 }

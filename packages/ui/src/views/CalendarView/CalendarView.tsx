@@ -1,13 +1,29 @@
-import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
-import { useCallback, useMemo } from "react";
-import { multiLineEllipsis } from "styles";
-import { getTranslation, getUserLanguages } from "utils";
-import { CalendarViewProps } from "../types";
-import { HelpButton } from "components/buttons";
-import { OpenInNewIcon } from "@shared/icons";
-import { Node, NodeLink, NodeType } from "@shared/consts";
-import { useTranslation } from "react-i18next";
-import { TopBar } from "components";
+import { useEffect, useMemo, useState } from 'react';
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import { format, startOfWeek, getDay, add } from 'date-fns';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { CalendarViewProps } from 'views/types';
+import { Box, useTheme } from '@mui/material';
+import { getUserLocale } from 'utils';
+import { FullPageSpinner, TopBar } from 'components';
+import { useTranslation } from 'react-i18next';
+
+// Replace this with your own events data
+const sampleEvents = [
+    {
+        id: 1,
+        title: 'Meeting',
+        start: new Date(),
+        end: add(new Date(), { hours: 1 }),
+    },
+    {
+        id: 2,
+        title: 'Conference',
+        start: add(new Date(), { days: 3 }),
+        end: add(add(new Date(), { days: 3 }), { hours: 2 }),
+    },
+];
+
 
 export const CalendarView = ({
     display = 'page',
@@ -15,7 +31,37 @@ export const CalendarView = ({
 }: CalendarViewProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
+    const locale = useMemo(() => getUserLocale(session), [session]);
+    const [localizer, setLocalizer] = useState(null);
+
+    // useEffect(() => {
+    //     const loadLocale = async () => {
+    //         try {
+    //             const localeModule = await import(
+    //                 /* @vite-ignore */
+    //                 `date-fns/esm/locale/${locale}/index.js`
+    //             );
+    //             const currentLocale = localeModule.default;
+
+    //             const newLocalizer = dateFnsLocalizer({
+    //                 format,
+    //                 startOfWeek,
+    //                 getDay,
+    //                 locales: {
+    //                     [locale]: currentLocale,
+    //                 },
+    //             });
+
+    //             setLocalizer(newLocalizer);
+    //         } catch (error) {
+    //             console.error('Failed to load locale:', error);
+    //         }
+    //     };
+
+    //     loadLocale();
+    // }, [locale]);
+
+    const [events, setEvents] = useState(sampleEvents);
 
     // const [eventsData, { data: pageData, loading, error }] = useCustomlazyQuery<QueryResult, QueryVariables>(query, {
     //     variables: ({
@@ -33,6 +79,7 @@ export const CalendarView = ({
     //     errorPolicy: 'all',
     // });
 
+    if (!localizer) return <FullPageSpinner />
     return (
         <>
             <TopBar
@@ -43,6 +90,16 @@ export const CalendarView = ({
                     titleKey: 'Calendar',
                 }}
             />
+            <Box style={{ height: '500px' }}>
+                <Calendar
+                    localizer={localizer}
+                    events={events}
+                    startAccessor="start"
+                    endAccessor="end"
+                    views={['month', 'week', 'day']}
+                    style={{ height: '100%' }}
+                />
+            </Box>
         </>
     )
 }

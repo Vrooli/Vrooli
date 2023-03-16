@@ -2,9 +2,12 @@ import { ProfileUpdateInput, User, UserTranslation, UserTranslationCreateInput, 
 import { createPrims, shapeUpdate, shapeUserSchedule, updatePrims, updateRel, UserScheduleShape } from "utils";
 import { ShapeModel } from "types";
 
-export type ProfileTranslationShape = Pick<UserTranslation, 'id' | 'language' | 'bio'>
+export type ProfileTranslationShape = Pick<UserTranslation, 'id' | 'language' | 'bio'> & {
+    __typename?: 'UserTranslation';
+}
 
 export type ProfileShape = Partial<Pick<User, 'handle' | 'isPrivate' | 'isPrivateApis' | 'isPrivateApisCreated' | 'isPrivateMemberships' | 'isPrivateOrganizationsCreated' | 'isPrivateProjects' | 'isPrivateProjectsCreated' | 'isPrivatePullRequests' | 'isPrivateQuestionsAnswered' | 'isPrivateQuestionsAsked' | 'isPrivateQuizzesCreated' | 'isPrivateRoles' | 'isPrivateRoutines' | 'isPrivateRoutinesCreated' | 'isPrivateStandards' | 'isPrivateStandardsCreated' | 'isPrivateBookmarks' | 'isPrivateVotes' | 'name' | 'theme'>> & {
+    __typename?: 'User',
     id: string;
     translations?: ProfileTranslationShape[] | null;
     schedules?: UserScheduleShape[] | null;

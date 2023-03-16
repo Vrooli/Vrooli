@@ -5,9 +5,12 @@ import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
 
-export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, 'id' | 'language' | 'description' | 'name' | 'jsonVariable'>
+export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, 'id' | 'language' | 'description' | 'name' | 'jsonVariable'> & {
+    __typename?: 'SmartContractVersionTranslation';
+}
 
 export type SmartContractVersionShape = Pick<SmartContractVersion, 'id' | 'content' | 'contractType' | 'default' | 'isComplete' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
+    __typename?: 'SmartContractVersion';
     directoryListings?: ProjectVersionDirectoryShape[] | null;
     resourceList?: ResourceListShape | null;
     root?: { id: string } | SmartContractShape | null;

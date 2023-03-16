@@ -1,10 +1,11 @@
 import { Api, ApiCreateInput, ApiUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { ApiVersionShape, createOwner, createPrims, createRel, createVersion, LabelShape, shapeApiVersion, shapeLabel, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, updateVersion } from "utils";
+import { ApiVersionShape, createOwner, createPrims, createRel, createVersion, LabelShape, OwnerShape, shapeApiVersion, shapeLabel, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, updateVersion } from "utils";
 
 export type ApiShape = Pick<Api, 'id' | 'isPrivate'> & {
+    __typename?: 'Api';
     labels?: ({ id: string } | LabelShape)[];
-    owner: { __typename: 'User' | 'Organization', id: string } | null;
+    owner: OwnerShape | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

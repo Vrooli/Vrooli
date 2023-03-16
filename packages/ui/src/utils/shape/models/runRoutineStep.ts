@@ -2,7 +2,9 @@ import { RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } 
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type RunRoutineStepShape = Pick<RunRoutineStep, 'id'>
+export type RunRoutineStepShape = Pick<RunRoutineStep, 'id'> & {
+    __typename?: 'RunRoutineStep';
+}
 
 export const shapeRunRoutineStep: ShapeModel<RunRoutineStepShape, RunRoutineStepCreateInput, RunRoutineStepUpdateInput> = {
     create: (d) => ({}) as any,

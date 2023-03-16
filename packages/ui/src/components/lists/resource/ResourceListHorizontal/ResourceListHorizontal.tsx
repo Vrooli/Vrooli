@@ -9,12 +9,12 @@ import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
-import { AddIcon } from '@shared/icons';
+import { LinkIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
 import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
 
 export const ResourceListHorizontal = ({
-    title = '📌 Resources',
+    title,
     canUpdate = true,
     handleUpdate,
     mutate = true,
@@ -130,7 +130,7 @@ export const ResourceListHorizontal = ({
                 resource={selectedResource}
                 zIndex={zIndex + 1}
             />
-            <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
+            {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
             <Box
                 sx={{
                     borderRadius: '16px',
@@ -194,7 +194,7 @@ export const ResourceListHorizontal = ({
                                 justifyContent: 'center',
                             }}
                         >
-                            <AddIcon fill={palette.primary.main} width='50px' height='50px' />
+                            <LinkIcon fill={palette.primary.main} width='56px' height='56px' />
                         </Box>
                     </Tooltip> : null}
                 </Stack>

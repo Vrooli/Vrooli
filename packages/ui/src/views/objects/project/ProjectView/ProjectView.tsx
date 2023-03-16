@@ -48,18 +48,18 @@ export const ProjectView = ({
         else document.title = `${name} | Vrooli`;
     }, [handle, name]);
 
-    // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
-        let tabs: TabOptions[] = Object.values(TabOptions);
-        // Return tabs shaped for the tab component
-        return tabs.map((tab, i) => ({
-            index: i,
-            label: t(tab, { count: 2 }),
-            value: tab,
-        }));
-    }, [t]);
-    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
-    const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
+    // // Handle tabs
+    // const tabs = useMemo<PageTab<TabOptions>[]>(() => {
+    //     let tabs: TabOptions[] = Object.values(TabOptions);
+    //     // Return tabs shaped for the tab component
+    //     return tabs.map((tab, i) => ({
+    //         index: i,
+    //         label: t(tab, { count: 2 }),
+    //         value: tab,
+    //     }));
+    // }, [t]);
+    // const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
+    // const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -186,12 +186,12 @@ export const ProjectView = ({
         </Box>
     ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, projectVersion, description, zIndex, session, actionData]);
 
-    /**
-    * Opens add new page
-    */
-    const toAddNew = useCallback((event: any) => {
-        setLocation(`${LINKS[currTab.value]}/add`);
-    }, [currTab.value, setLocation]);
+    // /**
+    // * Opens add new page
+    // */
+    // const toAddNew = useCallback((event: any) => {
+    //     setLocation(`${LINKS[currTab.value]}/add`);
+    // }, [currTab.value, setLocation]);
 
     return (
         <>

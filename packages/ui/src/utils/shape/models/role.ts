@@ -2,9 +2,12 @@ import { Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, Rol
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "utils";
 
-export type RoleTranslationShape = Pick<RoleTranslation, 'id' | 'language' | 'description'>
+export type RoleTranslationShape = Pick<RoleTranslation, 'id' | 'language' | 'description'> & {
+    __typename?: 'RoleTranslation';
+}
 
 export type RoleShape = Pick<Role, 'id' | 'name' | 'permissions'> & {
+    __typename?: 'Role';
     members?: { id: string }[] | null;
     organization: { id: string };
     translations?: RoleTranslationShape[] | null;

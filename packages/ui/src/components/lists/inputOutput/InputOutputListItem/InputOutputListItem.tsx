@@ -2,7 +2,7 @@ import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton,
 import { InputOutputListItemProps } from '../types';
 import { InputType, Session, StandardVersion } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getTranslation, RoutineVersionInputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, RoutineVersionOutputTranslationShape, standardVersionToFieldData, updateArray, getUserLanguages, StandardVersionShape } from 'utils';
+import { getTranslation, RoutineVersionInputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, RoutineVersionOutputTranslationShape, standardVersionToFieldData, updateArray, getUserLanguages, StandardVersionShape, RoutineVersionInputShape } from 'utils';
 import { useFormik } from 'formik';
 import { BaseStandardInput, GeneratedInputComponent, MarkdownInput, PreviewSwitch, Selector, StandardVersionSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
@@ -11,6 +11,7 @@ import Markdown from 'markdown-to-jsx';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 import { linkColors } from 'styles';
 import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
+import { getCurrentUser } from 'utils/authentication';
 
 const defaultStandardVersion = (
     item: InputOutputListItemProps['item'],
@@ -21,13 +22,13 @@ const defaultStandardVersion = (
     default: JSON.stringify(generatedSchema?.props?.defaultValue ?? null),
     isComplete: true,
     isPrivate: false, // TODO not sure if this should be true or false
-    isLatest: true,
     standardType: generatedSchema?.type ?? InputTypeOptions[0].value,
     props: JSON.stringify(generatedSchema?.props ?? '{}'),
     yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
     root: {
         id: uuid(),
         name: `${item.name}-schema`,
+        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
         permissions: JSON.stringify({}),
         isInternal: true,
         isPrivate: false, // TODO not sure if this should be true or false
@@ -37,7 +38,6 @@ const defaultStandardVersion = (
         id: uuid(),
         language: getUserLanguages(session)[0],
     }],
-    versionIndex: 0,
     versionLabel: '1.0.0',
 })
 
@@ -45,8 +45,8 @@ const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], 
     if (!item.standardVersion || item.standardVersion.root.isInternal === false) return null;
     return standardVersionToFieldData({
         fieldName: schemaKey,
-        description: getTranslation(item, [language]).description ?? getTranslation(item.standardVersion, [language]).description,
-        helpText: getTranslation(item, [language], false).helpText,
+        description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(item.standardVersion, [language]).description,
+        helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText,
         props: item.standardVersion.props ?? '',
         name: item.standardVersion.root.name ?? '',
         standardType: item.standardVersion.standardType ?? InputTypeOptions[0].value,
@@ -114,8 +114,8 @@ export const InputOutputListItem = ({
     const formik = useFormik({
         initialValues: {
             id: item.id,
-            description: getTranslation(item, [language]).description ?? '',
-            helpText: getTranslation(item, [language]).helpText ?? '',
+            description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? '',
+            helpText: getTranslation(item as RoutineVersionInputShape, [language]).helpText ?? '',
             isRequired: true,
             name: item.name ?? '' as string,
             // Value of generated input component preview
@@ -135,9 +135,9 @@ export const InputOutputListItem = ({
                 ...item,
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
-                translations: allTranslations,
+                translations: allTranslations as any,
                 standardVersion: !canUpdateStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
-            });
+            } as RoutineVersionInputShape);
         },
     });
 
@@ -153,7 +153,7 @@ export const InputOutputListItem = ({
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: StandardVersion | null) => {
         if (s && s.root.isInternal === false) {
-            setStandardVersion(s)
+            setStandardVersion(s as any)
             setIsPreviewOn(true);
         } else {
             setStandardVersion(defaultStandardVersion(item, session))
@@ -326,8 +326,8 @@ export const InputOutputListItem = ({
                                     fieldData={standardVersion ?
                                         standardVersionToFieldData({
                                             fieldName: schemaKey,
-                                            description: getTranslation(item, [language]).description ?? getTranslation(standardVersion, [language]).description,
-                                            helpText: getTranslation(item, [language], false).helpText,
+                                            description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(standardVersion, [language]).description,
+                                            helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText,
                                             props: standardVersion?.props ?? '',
                                             name: standardVersion?.root?.name ?? '',
                                             standardType: standardVersion?.standardType ?? InputTypeOptions[0].value,

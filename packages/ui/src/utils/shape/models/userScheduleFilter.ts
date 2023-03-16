@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { createPrims, createRel, shapeTag, TagShape } from "utils";
 
 export type UserScheduleFilterShape = Pick<UserScheduleFilter, 'id' | 'filterType'> & {
+    __typename?: 'UserScheduleFilter';
     userSchedule: { id: string },
     tag: TagShape,
 }

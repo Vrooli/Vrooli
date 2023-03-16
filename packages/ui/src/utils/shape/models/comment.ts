@@ -2,9 +2,12 @@ import { Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTra
 import { ShapeModel } from "types";
 import { createPrims, shapeUpdate, createRel, updateRel, updatePrims } from "utils";
 
-export type CommentTranslationShape = Pick<CommentTranslation, 'id' | 'language' | 'text'>
+export type CommentTranslationShape = Pick<CommentTranslation, 'id' | 'language' | 'text'> & {
+    __typename?: 'CommentTranslation';
+}
 
 export type CommentShape = Pick<Comment, 'id'> & {
+    __typename?: 'Comment';
     commentedOn: { __typename: `${CommentFor}`, id: string };
     threadId?: string | null;
     translations: CommentTranslationShape[];

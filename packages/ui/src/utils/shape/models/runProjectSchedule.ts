@@ -2,7 +2,9 @@ import { RunProjectSchedule, RunProjectScheduleCreateInput, RunProjectScheduleUp
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type RunProjectScheduleShape = Pick<RunProjectSchedule, 'id'>
+export type RunProjectScheduleShape = Pick<RunProjectSchedule, 'id'> & {
+    __typename?: 'RunProjectSchedule';
+}
 
 export const shapeRunProjectSchedule: ShapeModel<RunProjectScheduleShape, RunProjectScheduleCreateInput, RunProjectScheduleUpdateInput> = {
     create: (d) => ({}) as any,

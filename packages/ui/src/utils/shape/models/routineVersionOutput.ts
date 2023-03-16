@@ -2,9 +2,12 @@ import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOu
 import { ShapeModel } from "types";
 import { createPrims, createRel, hasObjectChanged, shapeStandardVersion, shapeUpdate, StandardVersionShape, updatePrims, updateRel } from "utils";
 
-export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTranslation, 'id' | 'language' | 'description' | 'helpText'>
+export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTranslation, 'id' | 'language' | 'description' | 'helpText'> & {
+    __typename?: 'RoutineVersionOutputTranslation';
+}
 
 export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, 'id' | 'index' | 'name'> & {
+    __typename?: 'RoutineVersionOutput';
     routineVersion: { id: string };
     standardVersion?: StandardVersionShape | null;
     translations?: RoutineVersionOutputTranslationShape[] | null;

@@ -76,7 +76,7 @@ export const SettingsNotificationsView = ({
                     <ListContainer>
                         <SettingsToggleListItem
                             title={t('Notification', { count: 2 })}
-                            description={t('PushNotificationSettingsDescription')}
+                            description={t('PushNotificationToggleDescription')}
                             checked={formik.values.enabled}
                             onChange={() => formik.setFieldValue('enabled', !formik.values.enabled)}
                         />

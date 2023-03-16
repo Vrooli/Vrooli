@@ -65,7 +65,6 @@ export const StandardUpdate = ({
                 jsonVariable: null, //TODO
             }],
             versionInfo: {
-                versionIndex: standardVersion?.root?.versions?.length ?? 0,
                 versionLabel: standardVersion?.versionLabel ?? '1.0.0',
                 versionNotes: '',
             }
@@ -83,7 +82,6 @@ export const StandardUpdate = ({
                 input: shapeStandardVersion.update(standardVersion, {
                     id: standardVersion.id,
                     isComplete: relationships.isComplete,
-                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     resourceList: resourceList,
                     root: {

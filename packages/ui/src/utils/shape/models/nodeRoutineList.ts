@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { createPrims, createRel, NodeRoutineListItemShape, shapeNodeRoutineListItem, shapeUpdate, updatePrims, updateRel } from "utils";
 
 export type NodeRoutineListShape = Pick<NodeRoutineList, 'id' | 'isOptional' | 'isOrdered'> & {
+    __typename?: 'NodeRoutineList';
     items: NodeRoutineListItemShape[];
     node: { id: string };
 }

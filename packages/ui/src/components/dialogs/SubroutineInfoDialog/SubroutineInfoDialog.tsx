@@ -77,8 +77,8 @@ export const SubroutineInfoDialog = ({
             // parent: subroutine?.routineVersion?.parent ?? null, TODO
             project: null //TODO
         });
-        setInputsList(subroutine?.routineVersion?.inputs ?? []);
-        setOutputsList(subroutine?.routineVersion?.outputs ?? []);
+        setInputsList(subroutine?.routineVersion?.inputs ?? [] as RoutineVersionInputShape[]);
+        setOutputsList(subroutine?.routineVersion?.outputs ?? [] as RoutineVersionOutputShape[]);
         setResourceList(subroutine?.routineVersion?.resourceList ?? { id: uuid() } as any);
         setTags(subroutine?.routineVersion?.root?.tags ?? []);
     }, [subroutine?.routineVersion]);
@@ -369,7 +369,7 @@ export const SubroutineInfoDialog = ({
                         {(canUpdate || (inputsList?.length > 0)) && <Grid item xs={12} sm={6}>
                             <InputOutputContainer
                                 isEditing={canUpdate}
-                                handleUpdate={handleInputsUpdate}
+                                handleUpdate={handleInputsUpdate as any}
                                 isInput={true}
                                 language={language}
                                 list={inputsList}
@@ -381,7 +381,7 @@ export const SubroutineInfoDialog = ({
                         {(canUpdate || (outputsList?.length > 0)) && <Grid item xs={12} sm={6}>
                             <InputOutputContainer
                                 isEditing={canUpdate}
-                                handleUpdate={handleOutputsUpdate}
+                                handleUpdate={handleOutputsUpdate as any}
                                 isInput={false}
                                 language={language}
                                 list={outputsList}

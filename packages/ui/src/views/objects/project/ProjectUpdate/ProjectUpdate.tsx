@@ -57,7 +57,6 @@ export const ProjectUpdate = ({
                 description: '',
             }],
             versionInfo: {
-                versionIndex: projectVersion?.root?.versions?.length ?? 0,
                 versionLabel: projectVersion?.versionLabel ?? '1.0.0',
                 versionNotes: '',
             }
@@ -74,7 +73,6 @@ export const ProjectUpdate = ({
                 input: shapeProjectVersion.update(projectVersion, {
                     id: projectVersion.id,
                     isComplete: relationships.isComplete,
-                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     root: {
                         id: projectVersion.root.id,

@@ -4,9 +4,12 @@ import { ResourceListShape } from "./resourceList";
 import { StandardShape } from "./standard";
 import { createPrims, shapeUpdate, updatePrims } from "./tools";
 
-export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, 'id' | 'language' | 'description' | 'jsonVariable'>
+export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, 'id' | 'language' | 'description' | 'jsonVariable'> & {
+    __typename?: 'StandardVersionTranslation';
+}
 
 export type StandardVersionShape = Pick<StandardVersion, 'id' | 'isComplete' | 'isPrivate' | 'isFile' | 'default' | 'props' | 'yup' | 'standardType' | 'versionLabel' | 'versionNotes'> & {
+    __typename?: 'StandardVersion';
     directoryListings?: { id: string }[] | null;
     root: StandardShape;
     resourceList?: ResourceListShape | null;

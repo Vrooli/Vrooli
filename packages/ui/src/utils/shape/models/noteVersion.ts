@@ -3,9 +3,12 @@ import { ShapeModel } from "types";
 import { NoteShape, shapeNote } from "./note";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type NoteVersionTranslationShape = Pick<NoteVersionTranslation, 'id' | 'language' | 'description' | 'name' | 'text'>
+export type NoteVersionTranslationShape = Pick<NoteVersionTranslation, 'id' | 'language' | 'description' | 'name' | 'text'> & {
+    __typename?: 'NoteVersionTranslation';
+}
 
 export type NoteVersionShape = Pick<NoteVersion, 'id' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
+    __typename?: 'NoteVersion';
     directoryListings?: { id: string }[] | null;
     root?: { id: string } | NoteShape | null;
     translations?: NoteVersionTranslationShape[] | null;

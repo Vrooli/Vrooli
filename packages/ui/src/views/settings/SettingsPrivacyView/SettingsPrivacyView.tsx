@@ -28,12 +28,6 @@ export const SettingsPrivacyView = ({
     const [mutation, { loading: isUpdating }] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
     const formik = useFormik({
         initialValues: {
-            name: profile?.name ?? '',
-            translationsUpdate: profile?.translations ?? [{
-                id: DUMMY_ID,
-                language: getUserLanguages(session)[0],
-                bio: '',
-            }],
         },
         enableReinitialize: true,
         validationSchema: userValidation.update({}),
@@ -46,21 +40,19 @@ export const SettingsPrivacyView = ({
                 PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: 'Error' });
                 return;
             }
-            const input = shapeProfile.update(profile, {
-                id: profile.id,
-                name: values.name,
-                translations: values.translationsUpdate,
-            })
-            if (!input || Object.keys(input).length === 0) {
-                PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: 'Info' });
-                return;
-            }
-            mutationWrapper<User, ProfileUpdateInput>({
-                mutation,
-                input,
-                successMessage: () => ({ key: 'SettingsUpdated' }),
-                onError: () => { formik.setSubmitting(false) },
-            })
+            // const input = shapeProfile.update(profile, {
+            //     id: profile.id,
+            // })
+            // if (!input || Object.keys(input).length === 0) {
+            //     PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: 'Info' });
+            //     return;
+            // }
+            // mutationWrapper<User, ProfileUpdateInput>({
+            //     mutation,
+            //     input,
+            //     successMessage: () => ({ key: 'SettingsUpdated' }),
+            //     onError: () => { formik.setSubmitting(false) },
+            // })
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });

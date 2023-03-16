@@ -8,9 +8,12 @@ import { RoutineVersionInputShape, shapeRoutineVersionInput } from "./routineVer
 import { RoutineVersionOutputShape, shapeRoutineVersionOutput } from "./routineVersionOutput";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, 'id' | 'language' | 'description' | 'instructions' | 'name'>
+export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, 'id' | 'language' | 'description' | 'instructions' | 'name'> & {
+    __typename?: 'RoutineVersionTranslation';
+}
 
 export type RoutineVersionShape = Pick<RoutineVersion, 'id' | 'isAutomatable' | 'isComplete' | 'isPrivate' | 'versionLabel' | 'versionNotes' | 'smartContractCallData'> & {
+    __typename?: 'RoutineVersion';
     apiVersion?: { id: string } | null;
     directoryListings?: { id: string }[] | null;
     inputs?: RoutineVersionInputShape[] | null;

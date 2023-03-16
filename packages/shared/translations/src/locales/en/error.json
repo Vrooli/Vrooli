@@ -34,6 +34,7 @@
     "CouldNotReadQuestionAnswer": "Failed to read question answer data.",
     "CouldNotReadQuiz": "Failed to read quiz data.",
     "CouldNotReadReminder": "Failed to read reminder data.",
+    "CouldNotReadResource": "Failed to read resource data.",
     "CouldNotReadRoutine": "Failed to read routine data.",
     "CouldNotReadRoutineVersion": "Failed to read routine version data.",
     "CouldNotReadSmartContract": "Failed to read smart contract data.",

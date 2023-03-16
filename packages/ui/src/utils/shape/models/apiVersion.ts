@@ -4,9 +4,12 @@ import { ApiShape, shapeApi } from "./api";
 import { shapeResourceList } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, 'id' | 'language' | 'details' | 'name' | 'summary'>
+export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, 'id' | 'language' | 'details' | 'name' | 'summary'> & {
+    __typename?: 'ApiVersionTranslation';
+}
 
 export type ApiVersionShape = Pick<ApiVersion, 'id' | 'callLink' | 'documentationLink' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
+    __typename?: 'ApiVersion';
     directoryListings?: { id: string }[] | null;
     resourceList?: { id: string } | null;
     root?: { id: string } | ApiShape | null;

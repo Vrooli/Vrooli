@@ -3,9 +3,12 @@ import { ShapeModel } from "types";
 import { LabelShape, shapeLabel } from "./label";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type IssueTranslationShape = Pick<IssueTranslation, 'id' | 'language' | 'description' | 'name'>
+export type IssueTranslationShape = Pick<IssueTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'IssueTranslation';
+}
 
 export type IssueShape = Pick<Issue, 'id'> & {
+    __typename?: 'Issue';
     issueFor: IssueFor;
     for: { id: string };
     labels?: ({ id: string } | LabelShape)[];

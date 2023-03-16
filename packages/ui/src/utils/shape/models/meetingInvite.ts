@@ -2,7 +2,9 @@ import { MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput } fro
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type MeetingInviteShape = Pick<MeetingInvite, 'id'>
+export type MeetingInviteShape = Pick<MeetingInvite, 'id'> & {
+    __typename?: 'MeetingInvite';
+}
 
 export const shapeMeetingInvite: ShapeModel<MeetingInviteShape, MeetingInviteCreateInput, MeetingInviteUpdateInput> = {
     create: (d) => ({}) as any,

@@ -274,14 +274,15 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         columnIndex: 2,
         rowIndex: 0,
         routineVersion: { id: routineVersionId },
-    } as Node;
+        translations: [],
+    };
     const link1: NodeLinkShape = {
         id: uuid(),
         from: startNode,
         to: endNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId }
+        routineVersion: { id: routineVersionId },
     }
     const link2: NodeLinkShape = {
         id: uuid(),
@@ -289,7 +290,7 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         to: endNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId }
+        routineVersion: { id: routineVersionId },
     }
     return {
         nodes: [startNode, routineListNode, endNode],

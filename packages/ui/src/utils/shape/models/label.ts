@@ -2,9 +2,12 @@ import { Label, LabelCreateInput, LabelTranslation, LabelTranslationCreateInput,
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "utils";
 
-export type LabelTranslationShape = Pick<LabelTranslation, 'id' | 'language' | 'description'>
+export type LabelTranslationShape = Pick<LabelTranslation, 'id' | 'language' | 'description'> & {
+    __typename?: 'LabelTranslation';
+}
 
 export type LabelShape = Pick<Label, 'id' | 'label' | 'color'> & {
+    __typename?: 'Label';
     organization?: { id: string } | null; // If no organization specified, assumes current user
     translations: LabelTranslationShape[];
     // Connects and disconnects of labels to other objects are handled separately, or in parent shape

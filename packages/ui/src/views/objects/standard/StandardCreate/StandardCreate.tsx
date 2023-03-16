@@ -81,7 +81,6 @@ export const StandardCreate = ({
                 jsonVariable: null, //TODO
             }],
             versionInfo: {
-                versionIndex: 0,
                 versionLabel: '1.0.0',
                 versionNotes: '',
             }
@@ -94,7 +93,6 @@ export const StandardCreate = ({
                     id: values.id,
                     default: values.default,
                     isComplete: relationships.isComplete,
-                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),

@@ -2,7 +2,9 @@ import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } 
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type RunProjectStepShape = Pick<RunProjectStep, 'id'>
+export type RunProjectStepShape = Pick<RunProjectStep, 'id'> & {
+    __typename?: 'RunProjectStep';
+}
 
 export const shapeRunProjectStep: ShapeModel<RunProjectStepShape, RunProjectStepCreateInput, RunProjectStepUpdateInput> = {
     create: (d) => ({}) as any,
