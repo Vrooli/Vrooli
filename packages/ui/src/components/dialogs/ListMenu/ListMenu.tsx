@@ -7,8 +7,9 @@ import {
     Menu,
     useTheme
 } from '@mui/material';
-import { HelpButton, MenuTitle } from 'components';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
 import { useMemo } from 'react';
+import { MenuTitle } from '../MenuTitle/MenuTitle';
 import { ListMenuProps } from '../types';
 
 const titleId = 'list-menu-title';

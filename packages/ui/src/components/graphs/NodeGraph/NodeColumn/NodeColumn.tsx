@@ -2,11 +2,12 @@
  * Displays a list of nodes vertically.
  */
 import { Box, Stack } from '@mui/material';
-import { useMemo } from 'react';
-import { NodeColumnProps } from '../types';
-import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
-import { getTranslation, NodeShape } from 'utils';
 import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
+import { useMemo } from 'react';
+import { getTranslation } from 'utils/display/translationTools';
+import { NodeShape } from 'utils/shape/models/node';
+import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
+import { NodeColumnProps } from '../types';
 
 export const NodeColumn = ({
     handleAction,

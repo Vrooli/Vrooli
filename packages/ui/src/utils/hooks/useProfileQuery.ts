@@ -2,7 +2,7 @@ import { Session, User } from "@shared/consts";
 import { useCustomLazyQuery } from "api";
 import { userProfile } from "api/generated/endpoints/user_profile";
 import { useCallback, useEffect, useState } from "react";
-import { getCurrentUser } from "utils/authentication";
+import { getCurrentUser } from "utils/authentication/session";
 
 export const useProfileQuery = (session: Session | undefined) => {
     const [getData, { data, loading: isProfileLoading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: 'all' });

@@ -1,6 +1,6 @@
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { useCallback, useMemo } from "react";
-import { TagShape } from "utils";
+import { TagShape } from "utils/shape/models/tag";
 import { GeneratedInputComponentProps } from "../types";
 
 export const GeneratedTagSelector = ({

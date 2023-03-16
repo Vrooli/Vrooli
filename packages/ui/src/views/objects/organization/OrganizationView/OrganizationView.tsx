@@ -4,14 +4,25 @@ import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgPro
 import { useLocation } from '@shared/route';
 import { uuidValidate } from '@shared/uuid';
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
-import { BookmarkButton, DateDisplay, ObjectActionMenu, PageTabs, ReportsLink, SearchList, SelectLanguageMenu, TopBar } from "components";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { ResourceListVertical } from "components/lists";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { ResourceListVertical } from "components/lists/resource";
+import { SearchList } from "components/lists/SearchList/SearchList";
 import { SearchListGenerator } from "components/lists/types";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, SearchType, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
+import { placeholderColor, toSearchListData } from "utils/display/listTools";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SearchType } from "utils/search/objectToSearch";
 import { OrganizationViewProps } from "../types";
 
 enum TabOptions {

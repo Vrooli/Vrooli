@@ -1,11 +1,12 @@
 import { AppBar, Box, Button, Dialog, Stack, Typography, useTheme } from "@mui/material";
-import { MarkdownInput } from "components/inputs";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay, useKeyboardOpen } from "utils";
+import { getDisplay } from "utils/display/listTools";
+import { useKeyboardOpen } from "utils/hooks/useKeyboardOpen";
 import { PopoverWithArrow } from "../PopoverWithArrow/PopoverWithArrow";
 import { UpTransition } from "../transitions";
-import { CommentDialogProps } from "../types"
+import { CommentDialogProps } from "../types";
 
 
 /**

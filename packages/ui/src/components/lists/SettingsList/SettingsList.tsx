@@ -3,7 +3,7 @@ import { LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWindowSize } from 'utils';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { accountSettingsData, displaySettingsData } from 'views/settings';
 
 export const SettingsList = () => {

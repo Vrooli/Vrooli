@@ -1,5 +1,5 @@
 import { Session } from '@shared/consts';
-import { getCurrentUser } from 'utils/authentication';
+import { getCurrentUser } from 'utils/authentication/session';
 import { getLocalStorageKeys } from 'utils/localStorage';
 import { PubSub } from 'utils/pubsub';
 

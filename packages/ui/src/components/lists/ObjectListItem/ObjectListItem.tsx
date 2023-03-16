@@ -1,18 +1,29 @@
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { ObjectListItemProps } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { RoleList, TagList, TextLoading } from '..';
-import { getYou, getDisplay, getUserLanguages, ObjectAction, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getBookmarkFor, ListObjectType, useObjectActions } from 'utils';
-import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
-import { CommentsButton, ReportsButton, BookmarkButton, VoteButton } from 'components/buttons';
-import { ObjectActionMenu } from 'components/dialogs';
-import { uuid } from '@shared/uuid';
+import { useLocation } from '@shared/route';
 import { isOfType } from '@shared/utils';
+import { uuid } from '@shared/uuid';
+import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
+import { CommentsButton } from 'components/buttons/CommentsButton/CommentsButton';
+import { ReportsButton } from 'components/buttons/ReportsButton/ReportsButton';
+import { VoteButton } from 'components/buttons/VoteButton/VoteButton';
+import { ObjectActionMenu } from 'components/dialogs/ObjectActionMenu/ObjectActionMenu';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { multiLineEllipsis } from 'styles';
+import { ObjectAction } from 'utils/actions/objectActions';
+import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from 'utils/display/listTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { useObjectActions } from 'utils/hooks/useObjectActions';
+import usePress from 'utils/hooks/usePress';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { getObjectEditUrl, getObjectUrl } from 'utils/navigation/openObject';
+import { RoleList } from '../RoleList/RoleList';
+import { smallHorizontalScrollbar } from '../styles';
+import { TagList } from '../TagList/TagList';
+import { TextLoading } from '../TextLoading/TextLoading';
+import { ObjectListItemProps } from '../types';
 
 function CompletionBar(props) {
     return (

@@ -4,12 +4,14 @@ import { uuid } from '@shared/uuid';
 import { reminderValidation } from '@shared/validation';
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
 import { useCustomMutation } from "api/hooks";
-import { GridSubmitButtons, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useMemo } from "react";
-import { useCreateActions, usePromptBeforeUnload } from "utils";
-import { checkIfLoggedIn } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication/session";
+import { useCreateActions } from "utils/hooks/useCreateActions";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { ReminderCreateProps } from "../types";
 
 export const ReminderCreate = ({

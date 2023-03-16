@@ -1,7 +1,7 @@
 import { Box, Button } from '@mui/material';
 import { LINKS } from '@shared/consts';
 import { Link } from '@shared/route';
-import { TopBar } from 'components';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useTranslation } from 'react-i18next';
 import { NotFoundViewProps } from 'views/types';
 
@@ -20,7 +20,7 @@ export const NotFoundView = ({
                     title: t('PageNotFound', { ns: 'error', defaultValue: 'Page Not Found' }),
                 }}
             />
-            < Box
+            <Box
                 sx={{
                     position: 'absolute',
                     top: '50%',
@@ -35,7 +35,7 @@ export const NotFoundView = ({
                 <Link to={LINKS.Home}>
                     <Button>{t('GoToHome')}</Button>
                 </Link>
-            </Box >
+            </Box>
         </>
     );
 }

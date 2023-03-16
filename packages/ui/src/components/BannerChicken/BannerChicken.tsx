@@ -1,6 +1,6 @@
-import { BannerChickenProps } from "components/types"
-import { useMemo, useState } from "react"
-import { getCurrentUser } from "utils/authentication"
+import { BannerChickenProps } from "components/types";
+import { useMemo, useState } from "react";
+import { getCurrentUser } from "utils/authentication/session";
 
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 

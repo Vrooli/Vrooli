@@ -1,5 +1,5 @@
 import { Stack, Typography } from "@mui/material";
-import { HelpButton } from "components/buttons";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { noSelect } from "styles";
 import { HeaderProps } from "../types";
 

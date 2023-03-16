@@ -1,19 +1,23 @@
-import { useCustomMutation } from "api/hooks";
-import { DUMMY_ID } from "@shared/uuid";
-import { CommentDialog } from "components/dialogs"
-import { useEffect, useMemo } from "react";
-import { getUserLanguages, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
-import { CommentUpdateInputProps } from "../types"
-import { commentValidation, commentTranslationValidation } from '@shared/validation';
-import { checkIfLoggedIn } from "utils/authentication";
-import { mutationWrapper } from "api/utils";
-import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons";
-import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
+import { DUMMY_ID } from "@shared/uuid";
+import { commentTranslationValidation, commentValidation } from '@shared/validation';
 import { commentUpdate } from "api/generated/endpoints/comment_update";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
+import { useFormik } from "formik";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { checkIfLoggedIn } from "utils/authentication/session";
+import { getUserLanguages } from "utils/display/translationTools";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { useWindowSize } from "utils/hooks/useWindowSize";
+import { shapeComment } from "utils/shape/models/comment";
+import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
+import { CommentUpdateInputProps } from "../types";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments

@@ -1,6 +1,7 @@
 import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, NodeRoutineListItemShape, shapeNodeRoutineListItem, shapeUpdate, updatePrims, updateRel } from "utils";
+import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "./nodeRoutineListItem";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeRoutineListShape = Pick<NodeRoutineList, 'id' | 'isOptional' | 'isOrdered'> & {
     __typename?: 'NodeRoutineList';

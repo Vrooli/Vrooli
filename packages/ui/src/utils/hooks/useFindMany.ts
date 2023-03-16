@@ -5,8 +5,9 @@ import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AutocompleteOption } from "types";
-import { getUserLanguages, listToAutocomplete } from "utils/display";
-import { SearchType, searchTypeToParams } from "utils/search";
+import { listToAutocomplete } from "utils/display/listTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { useDisplayApolloError } from "./useDisplayApolloError";
 

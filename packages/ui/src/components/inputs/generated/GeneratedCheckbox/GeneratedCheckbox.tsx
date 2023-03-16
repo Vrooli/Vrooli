@@ -1,7 +1,7 @@
 import { Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, FormLabel } from "@mui/material";
 import { CheckboxProps } from "forms/types";
 import { useMemo } from "react";
-import { updateArray } from "utils";
+import { updateArray } from "utils/shape/general";
 import { GeneratedInputComponentProps } from "../types";
 
 export const GeneratedCheckbox = ({

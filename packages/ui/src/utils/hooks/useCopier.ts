@@ -3,7 +3,7 @@ import { exists } from "@shared/utils";
 import { mutationWrapper, useCustomMutation } from "api";
 import { copyCopy } from "api/generated/endpoints/copy_copy";
 import { useCallback } from "react";
-import { ObjectActionComplete } from "utils/actions";
+import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
 
 type UseCopierProps = {

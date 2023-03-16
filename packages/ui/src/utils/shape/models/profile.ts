@@ -1,6 +1,7 @@
 import { ProfileUpdateInput, User, UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "@shared/consts";
-import { createPrims, shapeUpdate, shapeUserSchedule, updatePrims, updateRel, UserScheduleShape } from "utils";
 import { ShapeModel } from "types";
+import { createPrims, shapeUpdate, updatePrims, updateRel } from "./tools";
+import { shapeUserSchedule, UserScheduleShape } from "./userSchedule";
 
 export type ProfileTranslationShape = Pick<UserTranslation, 'id' | 'language' | 'bio'> & {
     __typename?: 'UserTranslation';

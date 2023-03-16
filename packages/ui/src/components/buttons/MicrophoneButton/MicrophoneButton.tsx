@@ -1,9 +1,10 @@
 import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
 import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from '@shared/icons';
-import { TranscriptDialog } from 'components/dialogs';
+import { TranscriptDialog } from 'components/dialogs/TranscriptDialog/TranscriptDialog';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PubSub, useSpeech } from 'utils';
+import { useSpeech } from 'utils/hooks/useSpeech';
+import { PubSub } from 'utils/pubsub';
 import { MicrophoneButtonProps } from '../types';
 
 type MicrophoneStatus = 'On' | 'Off' | 'Disabled';

@@ -1,10 +1,10 @@
 import { Box, ListItemText, Stack, useTheme } from '@mui/material';
-import { useCallback, useMemo } from 'react';
-import { ReportsButtonProps } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useLocation } from '@shared/route';
 import { ReportIcon } from '@shared/icons';
-import { getObjectReportUrl } from 'utils';
+import { useLocation } from '@shared/route';
+import { useCallback, useMemo } from 'react';
+import { multiLineEllipsis } from 'styles';
+import { getObjectReportUrl } from 'utils/navigation/openObject';
+import { ReportsButtonProps } from '../types';
 
 export const ReportsButton = ({
     reportsCount = 0,

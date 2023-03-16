@@ -5,13 +5,22 @@ import { uuid } from '@shared/uuid';
 import { questionTranslationValidation, questionValidation } from '@shared/validation';
 import { questionCreate } from "api/generated/endpoints/question_create";
 import { useCustomMutation } from "api/hooks";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { RelationshipsObject } from "components/inputs/types";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, getUserLanguages, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { checkIfLoggedIn } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication/session";
+import { defaultRelationships } from "utils/defaults/relationships";
+import { defaultResourceList } from "utils/defaults/resourceList";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useCreateActions } from "utils/hooks/useCreateActions";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { TagShape } from "utils/shape/models/tag";
 import { QuestionCreateProps } from "../types";
 
 export const QuestionCreate = ({

@@ -1,17 +1,16 @@
-import {
-    AccountMenu,
-    ContactInfo,
-    PopupMenu
-} from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
-import { openLink, useLocation } from '@shared/route';
-import React, { useCallback, useMemo, useState } from 'react';
-import { NavListProps } from '../types';
 import { LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
+import { PopupMenu } from 'components/buttons/PopupMenu/PopupMenu';
+import { AccountMenu } from 'components/dialogs/AccountMenu/AccountMenu';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { checkIfLoggedIn } from 'utils/authentication';
+import { checkIfLoggedIn } from 'utils/authentication/session';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils/navigation/userActions';
+import { ContactInfo } from '../ContactInfo/ContactInfo';
+import { NavListProps } from '../types';
 
 const navItemStyle = (palette: Palette) => ({
     background: 'transparent',

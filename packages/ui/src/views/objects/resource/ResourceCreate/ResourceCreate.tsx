@@ -4,12 +4,17 @@ import { uuid } from '@shared/uuid';
 import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { resourceCreate } from "api/generated/endpoints/resource_create";
 import { useCustomMutation } from "api/hooks";
-import { GridSubmitButtons, LanguageInput, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useMemo } from "react";
-import { getUserLanguages, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { checkIfLoggedIn } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication/session";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useCreateActions } from "utils/hooks/useCreateActions";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { ResourceCreateProps } from "../types";
 
 export const ResourceCreate = ({

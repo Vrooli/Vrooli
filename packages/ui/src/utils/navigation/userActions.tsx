@@ -8,7 +8,7 @@ import {
 import { LINKS, Session } from '@shared/consts';
 import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
 import { openLink, SetLocation } from '@shared/route';
-import { checkIfLoggedIn } from 'utils/authentication';
+import { checkIfLoggedIn } from 'utils/authentication/session';
 
 export enum ACTION_TAGS {
     Home = 'Home',

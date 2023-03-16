@@ -1,7 +1,7 @@
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
 import { OpenThreadIcon, OrganizationIcon, UserIcon } from '@shared/icons';
 import { useMemo } from 'react';
-import { placeholderColor } from 'utils';
+import { placeholderColor } from 'utils/display/listTools';
 import { CommentConnectorProps } from '../types';
 
 /**

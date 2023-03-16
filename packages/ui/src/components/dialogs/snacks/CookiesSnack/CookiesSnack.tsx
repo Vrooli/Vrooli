@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from '@mui/material';
 import { CloseIcon, LargeCookieIcon } from '@shared/icons';
-import { CookiesSnackProps } from '../types';
-import { CookieSettingsDialog } from 'components';
-import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
+import { CookieSettingsDialog } from 'components/dialogs/CookieSettingsDialog/CookieSettingsDialog';
+import { useState } from 'react';
 import { noSelect } from 'styles';
+import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
+import { CookiesSnackProps } from '../types';
 
 /**
  * "This site uses cookies" consent dialog

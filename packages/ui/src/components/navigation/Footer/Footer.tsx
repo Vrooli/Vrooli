@@ -1,20 +1,17 @@
-import { LINKS, SOCIALS } from '@shared/consts';
 import {
-    Box,
-    List,
+    Box, Grid, List,
     ListItem,
     ListItemIcon,
-    ListItemText,
-    Grid,
-    Tooltip,
-    useTheme,
+    ListItemText, Tooltip,
+    useTheme
 } from '@mui/material';
-import { InfoIcon, DiscordIcon, GitHubIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
-import { CopyrightBreadcrumbs } from 'components';
+import { LINKS, SOCIALS } from '@shared/consts';
+import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
 import { openLink, useLocation } from '@shared/route';
-import { getDeviceInfo } from 'utils';
+import { CopyrightBreadcrumbs } from 'components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getDeviceInfo } from 'utils/display/device';
 
 const contactLinks: [string, string, string, string, SvgComponent][] = [
     ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],

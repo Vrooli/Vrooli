@@ -1,23 +1,23 @@
 /**
  * Displays a list of emails for the user to manage
  */
-import { EmailListProps } from '../types';
-import { useCallback } from 'react';
 import { Stack, TextField, useTheme } from '@mui/material';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { PubSub } from 'utils';
-import { useFormik } from 'formik';
-import { EmailListItem } from '../EmailListItem/EmailListItem';
-import { AddIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success } from '@shared/consts';
+import { AddIcon } from '@shared/icons';
 import { emailValidation } from '@shared/validation';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 import { emailCreate } from 'api/generated/endpoints/email_create';
 import { emailVerify } from 'api/generated/endpoints/email_verify';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { ListContainer } from 'components/containers';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { ListContainer } from 'components/containers/ListContainer/ListContainer';
+import { useFormik } from 'formik';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PubSub } from 'utils/pubsub';
+import { EmailListItem } from '../EmailListItem/EmailListItem';
+import { EmailListProps } from '../types';
 
 export const EmailList = ({
     handleUpdate,

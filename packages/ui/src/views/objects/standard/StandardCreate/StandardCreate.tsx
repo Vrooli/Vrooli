@@ -6,16 +6,32 @@ import { standardVersionTranslationValidation, standardVersionValidation } from 
 import { standardVersionCreate } from "api/generated/endpoints/standardVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { GridSubmitButtons, LanguageInput, ResourceListHorizontal, Selector, TagSelector, TopBar } from "components";
-import { BaseStandardInput, GeneratedInputComponent, PreviewSwitch, RelationshipButtons } from "components/inputs";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { GeneratedInputComponent } from "components/inputs/generated";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
+import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
+import { Selector } from "components/inputs/Selector/Selector";
+import { BaseStandardInput } from "components/inputs/standards";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { RelationshipsObject } from "components/inputs/types";
+import { ResourceListHorizontal } from "components/lists/resource";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { generateYupSchema } from "forms/generators";
 import { FieldData } from "forms/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, getUserLanguages, InputTypeOption, InputTypeOptions, shapeStandardVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { checkIfLoggedIn } from "utils/authentication";
+import { checkIfLoggedIn } from "utils/authentication/session";
+import { InputTypeOption, InputTypeOptions } from "utils/consts";
+import { defaultRelationships } from "utils/defaults/relationships";
+import { defaultResourceList } from "utils/defaults/resourceList";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useCreateActions } from "utils/hooks/useCreateActions";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { shapeStandardVersion } from "utils/shape/models/standardVersion";
+import { TagShape } from "utils/shape/models/tag";
 import { StandardCreateProps } from "../types";
 
 export const StandardCreate = ({

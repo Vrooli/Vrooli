@@ -12,8 +12,8 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { GridSubmitButtons } from 'components/buttons';
-import { DialogTitle } from 'components/dialogs';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MoveNodeMenuProps } from '../types';

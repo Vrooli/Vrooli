@@ -4,14 +4,24 @@ import { HomeInput, HomeResult, LINKS, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DUMMY_ID } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
-import { HomePrompt, PageTabs, ResourceListHorizontal, SiteSearchBar, TitleContainer, TopBar } from 'components';
+import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
+import { SiteSearchBar } from 'components/inputs/search';
+import { ResourceListHorizontal } from 'components/lists/resource';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { PageTabs } from 'components/PageTabs/PageTabs';
+import { HomePrompt } from 'components/text/HomePrompt/HomePrompt';
 import { PageTab } from 'components/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
 import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
-import { actionsItems, getUserLanguages, listToAutocomplete, openObject, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
-import { getCurrentUser } from 'utils/authentication';
+import { getCurrentUser } from 'utils/authentication/session';
+import { listToAutocomplete } from 'utils/display/listTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
+import { useReactSearch } from 'utils/hooks/useReactSearch';
+import { openObject } from 'utils/navigation/openObject';
+import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { HomeViewProps } from '../types';
 
 enum TabOptions {

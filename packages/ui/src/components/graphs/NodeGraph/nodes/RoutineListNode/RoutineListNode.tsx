@@ -8,22 +8,26 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
+import { NodeRoutineListItem } from '@shared/consts';
+import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
+import { name as nameValidation, reqErr } from '@shared/validation';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { EditableLabel } from 'components/inputs/EditableLabel/EditableLabel';
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RoutineListNodeProps } from '../types';
+import { useTranslation } from 'react-i18next';
+import { multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { BuildAction } from 'utils/consts';
+import { firstString } from 'utils/display/stringTools';
+import { getTranslation, updateTranslationFields } from 'utils/display/translationTools';
+import { useDebounce } from 'utils/hooks/useDebounce';
+import usePress from 'utils/hooks/usePress';
+import { PubSub } from 'utils/pubsub';
 import { calculateNodeSize, DraggableNode, SubroutineNode } from '..';
 import { NodeContextMenu, NodeWidth } from '../..';
 import {
-    routineNodeCheckboxOption,
-    routineNodeCheckboxLabel,
+    routineNodeCheckboxLabel, routineNodeCheckboxOption
 } from '../styles';
-import { multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress, firstString, useDebounce } from 'utils';
-import { EditableLabel } from 'components/inputs';
-import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
-import { reqErr, name as nameValidation } from '@shared/validation';
-import { ColorIconButton } from 'components/buttons';
-import { useTranslation } from 'react-i18next';
-import { NodeRoutineListItem } from '@shared/consts';
+import { RoutineListNodeProps } from '../types';
 
 /**
  * Distance before a click is considered a drag

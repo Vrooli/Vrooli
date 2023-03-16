@@ -2,13 +2,13 @@
  * Input for entering (and viewing format of) Checkbox data that 
  * must match a certain schema.
  */
-import { CheckboxStandardInputProps } from '../types';
-import { checkboxStandardInputForm as validationSchema } from '@shared/validation';
-import { useFormik } from 'formik';
-import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { AddIcon, DeleteIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { checkboxStandardInputForm as validationSchema } from '@shared/validation';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useFormik } from 'formik';
+import { useCallback, useEffect } from 'react';
+import { CheckboxStandardInputProps } from '../types';
 
 /**
  * Create new option

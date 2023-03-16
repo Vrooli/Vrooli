@@ -1,10 +1,13 @@
-import { CardGrid, Header, SettingsTopBar, TIDCard } from 'components';
-import { SettingsData, SettingsViewProps } from '../types';
-import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from '@shared/icons';
-import { useTranslation } from 'react-i18next';
-import { useLocation } from '@shared/route';
-import { useCallback } from 'react';
 import { LINKS } from '@shared/consts';
+import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from '@shared/icons';
+import { useLocation } from '@shared/route';
+import { CardGrid } from 'components/cards/CardGrid/CardGrid';
+import { TIDCard } from 'components/cards/TIDCard/TIDCard';
+import { SettingsTopBar } from 'components/navigation/SettingsTopBar/SettingsTopBar';
+import { Header } from 'components/text/Header/Header';
+import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { SettingsData, SettingsViewProps } from '../types';
 
 
 export const accountSettingsData: SettingsData[] = [

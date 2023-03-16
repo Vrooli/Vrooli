@@ -240,6 +240,7 @@
     "Navigate": "Navigate",
     "New": "New",
     "No": "No",
+    "NoWalletsInstalled": "No wallets installed",
     "NodeDeleteWithName": "Delete \"{{nodeName}}\"",
     "NodeEndEdit": "Edit end node",
     "NodeEndInfo": "End node information",

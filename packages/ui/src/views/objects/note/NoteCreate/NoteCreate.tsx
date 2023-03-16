@@ -6,14 +6,24 @@ import { noteVersionTranslationValidation, noteVersionValidation } from '@shared
 import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { RelationshipsObject } from "components/inputs/types";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { defaultRelationships, getUserLanguages, shapeNoteVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
+import { defaultRelationships } from "utils/defaults/relationships";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useCreateActions } from "utils/hooks/useCreateActions";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { shapeNoteVersion } from "utils/shape/models/noteVersion";
+import { TagShape } from "utils/shape/models/tag";
 import { NoteCreateProps } from "../types";
 
 export const NoteCreate = ({

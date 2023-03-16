@@ -1,6 +1,6 @@
 import { Box, Container, useTheme } from '@mui/material';
 import { Session } from '@shared/consts';
-import { TopBar } from 'components';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { ViewDisplayType } from 'views/types';
 
 interface Props {

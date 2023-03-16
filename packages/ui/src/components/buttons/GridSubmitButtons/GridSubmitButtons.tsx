@@ -4,7 +4,7 @@
 import { Box, Button, CircularProgress, Grid, useTheme } from '@mui/material';
 import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
 import { exists } from '@shared/utils';
-import { PopoverWithArrow } from 'components/dialogs';
+import { PopoverWithArrow } from 'components/dialogs/PopoverWithArrow/PopoverWithArrow';
 import Markdown from 'markdown-to-jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

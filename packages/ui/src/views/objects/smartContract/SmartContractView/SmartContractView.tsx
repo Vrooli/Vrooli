@@ -3,10 +3,18 @@ import { BookmarkFor, FindVersionInput, SmartContractVersion } from "@shared/con
 import { EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
-import { BookmarkButton, DateDisplay, ObjectActionMenu, ReportsLink, SelectLanguageMenu, TopBar } from "components";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { placeholderColor } from "utils/display/listTools";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({

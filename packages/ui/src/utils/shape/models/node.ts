@@ -1,6 +1,8 @@
 import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, NodeEndShape, NodeRoutineListShape, shapeNodeEnd, shapeNodeRoutineList, shapeUpdate, updatePrims, updateRel } from "utils";
+import { NodeEndShape, shapeNodeEnd } from "./nodeEnd";
+import { NodeRoutineListShape, shapeNodeRoutineList } from "./nodeRoutineList";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'> & {
     __typename?: 'NodeTranslation';

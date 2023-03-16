@@ -1,6 +1,6 @@
 import { Resource, ResourceCreateInput, ResourceTranslation, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "utils";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type ResourceTranslationShape = Pick<ResourceTranslation, 'id' | 'language' | 'description' | 'name'> & {
     __typename?: 'ResourceTranslation';

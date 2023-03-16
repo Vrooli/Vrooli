@@ -1,5 +1,6 @@
 import { Session } from "@shared/consts/src";
-import { RoutineVersionInputShape, RoutineVersionOutputShape } from "utils";
+import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
+import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 
 export interface InputOutputContainerProps {
     handleUpdate: (updatedList: (RoutineVersionInputShape | RoutineVersionOutputShape)[]) => void;

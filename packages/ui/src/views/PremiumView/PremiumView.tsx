@@ -1,5 +1,5 @@
 import { Button, Stack, Typography } from "@mui/material";
-import { TopBar } from "components";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useTranslation } from "react-i18next";
 import { PremiumViewProps } from "../types";
 

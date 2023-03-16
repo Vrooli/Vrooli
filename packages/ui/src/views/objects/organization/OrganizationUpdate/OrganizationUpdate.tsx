@@ -6,12 +6,26 @@ import { organizationFindOne } from "api/generated/endpoints/organization_findOn
 import { organizationUpdate } from "api/generated/endpoints/organization_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { RelationshipsObject } from "components/inputs/types";
+import { ResourceListHorizontal } from "components/lists/resource";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { defaultRelationships } from "utils/defaults/relationships";
+import { defaultResourceList } from "utils/defaults/resourceList";
+import { getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { useUpdateActions } from "utils/hooks/useUpdateActions";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { PubSub } from "utils/pubsub";
+import { shapeOrganization } from "utils/shape/models/organization";
+import { TagShape } from "utils/shape/models/tag";
 import { OrganizationUpdateProps } from "../types";
 
 export const OrganizationUpdate = ({

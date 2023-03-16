@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from "react";
-import { ListMenu, ObjectActionDialogs } from "..";
+import { getActionsDisplayData, ObjectAction } from "utils/actions/objectActions";
+import { ListMenu } from "../ListMenu/ListMenu";
+import { ObjectActionDialogs } from "../ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenuProps } from "../types";
-import { getActionsDisplayData, ObjectAction } from "utils";
 
 export const ObjectActionMenu = ({
     actionData,

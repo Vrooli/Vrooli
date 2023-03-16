@@ -2,13 +2,13 @@
  * Input for entering (and viewing format of) Radio data that 
  * must match a certain schema.
  */
-import { RadioStandardInputProps } from '../types';
-import { radioStandardInputForm as validationSchema } from '@shared/validation';
-import { useFormik } from 'formik';
-import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { AddIcon, DeleteIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { radioStandardInputForm as validationSchema } from '@shared/validation';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useFormik } from 'formik';
+import { useCallback, useEffect } from 'react';
+import { RadioStandardInputProps } from '../types';
 
 /**
  * Create new option

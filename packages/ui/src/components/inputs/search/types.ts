@@ -2,7 +2,7 @@ import { InputProps } from '@mui/material';
 import { Session } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { AutocompleteOption } from 'types';
-import { SearchItem } from 'utils';
+import { SearchItem } from 'utils/search/siteToSearch';
 
 export type SiteSearchBarProps = InputProps & {
     debounce?: number;

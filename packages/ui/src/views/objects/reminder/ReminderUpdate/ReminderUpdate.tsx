@@ -5,11 +5,15 @@ import { reminderValidation } from '@shared/validation';
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 import { reminderUpdate } from "api/generated/endpoints/reminder_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { GridSubmitButtons, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useEffect, useMemo } from "react";
-import { parseSingleItemUrl, PubSub, usePromptBeforeUnload, useUpdateActions } from "utils";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useUpdateActions } from "utils/hooks/useUpdateActions";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { PubSub } from "utils/pubsub";
 import { ReminderUpdateProps } from "../types";
 
 export const ReminderUpdate = ({

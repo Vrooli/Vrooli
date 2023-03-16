@@ -1,8 +1,8 @@
 import { LINKS } from '@shared/consts';
-import { useLocation, Redirect } from '@shared/route';
+import { Redirect, useLocation } from '@shared/route';
+import { PageContainer } from 'components/containers/PageContainer/PageContainer';
+import { PubSub } from 'utils/pubsub';
 import { PageProps } from '../../views/wrapper/types';
-import { PubSub } from 'utils';
-import { PageContainer } from 'components';
 
 export const Page = ({
     children,

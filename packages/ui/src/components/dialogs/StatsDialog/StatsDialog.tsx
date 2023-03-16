@@ -1,8 +1,8 @@
 import { Box, Dialog } from "@mui/material";
-import { StatsCompact } from "components/text";
-import { StatsCompactPropsObject } from "components/text/types"
+import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
+import { StatsCompactPropsObject } from "components/text/types";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
-import { StatsDialogProps } from "../types"
+import { StatsDialogProps } from "../types";
 
 const titleId = 'stats-object-dialog-title';
 

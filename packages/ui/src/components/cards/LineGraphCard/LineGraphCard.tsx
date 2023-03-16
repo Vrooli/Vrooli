@@ -4,8 +4,8 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { LineGraph } from 'components';
-import { useDimensions } from 'utils';
+import { LineGraph } from 'components/graphs/LineGraph/LineGraph';
+import { useDimensions } from 'utils/hooks/useDimensions';
 import { LineGraphCardProps } from '../types';
 
 export const LineGraphCard = ({

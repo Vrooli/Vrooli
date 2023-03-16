@@ -4,8 +4,8 @@ import { exists } from "@shared/utils";
 import { useCustomLazyQuery } from "api";
 import { DocumentNode } from "graphql";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display";
-import { parseSingleItemUrl } from "utils/navigation";
+import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display/listTools";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { useDisplayApolloError } from "./useDisplayApolloError";
 

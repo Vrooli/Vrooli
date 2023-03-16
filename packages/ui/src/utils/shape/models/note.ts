@@ -1,6 +1,10 @@
 import { Note, NoteCreateInput, NoteUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { NoteVersionShape, createOwner, createPrims, createRel, createVersion, LabelShape, shapeNoteVersion, shapeLabel, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, updateVersion, OwnerShape } from "utils";
+import { OwnerShape } from "./common";
+import { LabelShape, shapeLabel } from "./label";
+import { NoteVersionShape, shapeNoteVersion } from "./noteVersion";
+import { shapeTag, TagShape } from "./tag";
+import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 
 export type NoteShape = Pick<Note, 'id' | 'isPrivate'> & {
     __typename?: 'Note';

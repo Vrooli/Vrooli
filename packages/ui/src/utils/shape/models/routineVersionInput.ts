@@ -1,6 +1,8 @@
 import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, hasObjectChanged, shapeStandardVersion, shapeUpdate, StandardVersionShape, updatePrims, updateRel } from "utils";
+import { hasObjectChanged } from "../general";
+import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type RoutineVersionInputTranslationShape = Pick<RoutineVersionInputTranslation, 'id' | 'language' | 'description' | 'helpText'> & {
     __typename?: 'RoutineVersionInputTranslation';

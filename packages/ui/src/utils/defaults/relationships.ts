@@ -1,6 +1,6 @@
 import { Session } from "@shared/consts";
 import { exists } from "@shared/utils";
-import { userFromSession } from "components";
+import { userFromSession } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { RelationshipsObject } from "components/inputs/types";
 
 /**

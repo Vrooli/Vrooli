@@ -1,16 +1,16 @@
-import { EndNodeDialogProps } from '../types';
 import { Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { useTranslatedFields } from 'utils';
+import { Node } from '@shared/consts';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { nodeEndValidation, nodeTranslationValidation } from '@shared/validation';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { useFormik } from 'formik';
-import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
 import { useCallback, useEffect } from 'react';
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { GridSubmitButtons } from 'components/buttons';
-import { linkColors } from 'styles';
 import { useTranslation } from 'react-i18next';
-import { Node } from '@shared/consts';
+import { linkColors } from 'styles';
+import { useTranslatedFields } from 'utils/hooks/useTranslatedFields';
+import { EndNodeDialogProps } from '../types';
 
 const titleId = 'end-node-dialog-title';
 

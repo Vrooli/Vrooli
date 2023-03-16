@@ -2,19 +2,19 @@
  * Displays all search options for an organization
  */
 import {
-    Button,
-    Dialog,
-    Grid,
+    Button, Grid,
     Stack,
     Switch,
     Typography,
     useTheme
 } from '@mui/material';
-import { CookieSettingsDialogProps } from '../types';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
 import { useFormik } from 'formik';
-import { DialogTitle, HelpButton, LargeDialog } from 'components';
-import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
 import { useTranslation } from 'react-i18next';
+import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { CookieSettingsDialogProps } from '../types';
 
 const titleId = 'cookie-settings-dialog-title';
 const strictlyNecessaryUses = ['Authentication'] as const;

@@ -1,9 +1,9 @@
-import i18next from 'i18next';
-import { Session } from "@shared/consts";
-import { normalizeText, removeEmojis, removePunctuation } from 'utils/display';
 import { FilterOptionsState } from '@mui/material';
+import { Session } from "@shared/consts";
 import { CommonKey } from '@shared/translations';
-import { getSiteLanguage } from 'utils/authentication';
+import i18next from 'i18next';
+import { getSiteLanguage } from 'utils/authentication/session';
+import { normalizeText, removeEmojis, removePunctuation } from 'utils/display/documentTools';
 
 /**
  * A search item before it is translated into the user's language.

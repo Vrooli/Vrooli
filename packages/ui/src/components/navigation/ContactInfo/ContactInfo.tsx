@@ -1,20 +1,20 @@
-import { LINKS, SOCIALS } from '@shared/consts';
 import {
     BottomNavigation,
     BottomNavigationAction,
     Box,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
+import { LINKS, SOCIALS } from '@shared/consts';
 import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
-import { ContactInfoProps } from '../types';
-import { ColorIconButton } from 'components/buttons';
-import { CopyrightBreadcrumbs } from 'components/breadcrumbs';
-import { noSelect } from 'styles';
 import { openLink, useLocation } from '@shared/route';
+import { CopyrightBreadcrumbs } from 'components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
+import { ContactInfoProps } from '../types';
 
 type NavActionListData = [string, string, string, SvgComponent]
 

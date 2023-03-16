@@ -1,8 +1,9 @@
-import { CommonProps } from "types";
-import { Forms, TagShape } from "utils";
-import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { InputType, Session } from "@shared/consts";
+import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { FormEvent } from "react";
+import { CommonProps } from "types";
+import { Forms } from "utils/consts";
+import { TagShape } from "utils/shape/models/tag";
 
 //==============================================================
 /* #region Specific Form Props */

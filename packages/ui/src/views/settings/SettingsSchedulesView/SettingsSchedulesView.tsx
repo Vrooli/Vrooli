@@ -4,12 +4,14 @@ import { useLocation } from '@shared/route';
 import { userValidation } from "@shared/validation";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { useCustomMutation } from "api/hooks";
-import { SettingsTopBar } from "components";
-import { GridSubmitButtons } from "components/buttons";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback } from "react";
-import { PubSub, useProfileQuery, usePromptBeforeUnload } from "utils";
+import { useProfileQuery } from "utils/hooks/useProfileQuery";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { PubSub } from "utils/pubsub";
 import { SettingsSchedulesViewProps } from "../types";
 
 export const SettingsSchedulesView = ({

@@ -1,8 +1,11 @@
 import { DeleteType, ReportFor } from "@shared/consts";
-import { DeleteDialog, ReportDialog, StatsDialog } from "..";
-import { ObjectActionDialogsProps } from "../types";
-import { getDisplay, getUserLanguages } from "utils";
+import { getDisplay } from "utils/display/listTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
+import { ReportDialog } from "../ReportDialog/ReportDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
+import { StatsDialog } from "../StatsDialog/StatsDialog";
+import { ObjectActionDialogsProps } from "../types";
 
 export const ObjectActionDialogs = ({
     hasBookmarkingSupport,

@@ -1,5 +1,5 @@
 import { Session, UserSchedule } from "@shared/consts";
-import { getCurrentUser } from "utils/authentication"
+import { getCurrentUser } from "utils/authentication/session";
 
 /**
  * Finds all schedules which are occuring right now

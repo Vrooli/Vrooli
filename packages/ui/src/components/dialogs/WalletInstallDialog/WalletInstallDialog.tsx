@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, ListItem, ListItemText } from '@mui/material';
+import { walletDownloadUrls } from 'utils/authentication/walletIntegration';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { WalletInstallDialogProps } from '../types';
-import { walletDownloadUrls } from 'utils/authentication';
-import { DialogTitle } from 'components';
 
 const installExtension = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');

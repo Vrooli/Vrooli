@@ -1,4 +1,5 @@
-import { Subheader, TopBar } from "components"
+import { TopBar } from "components/navigation/TopBar/TopBar"
+import { Subheader } from "components/text/Subheader/Subheader"
 import { AboutViewProps } from "views/types"
 
 export const AboutView = ({

@@ -1,6 +1,6 @@
 import { Box, Grid } from '@mui/material';
+import { GridSubmitButtons } from '../GridSubmitButtons/GridSubmitButtons';
 import { BuildEditButtonsProps } from '../types';
-import { GridSubmitButtons } from 'components/buttons';
 
 export const BuildEditButtons = ({
     canSubmitMutate,

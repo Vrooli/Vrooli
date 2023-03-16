@@ -3,18 +3,24 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { firstString, getDisplay, getResourceIcon, getResourceType, getResourceUrl, getUserLanguages, PubSub, usePress } from 'utils';
-import { useCallback, useMemo, useState } from 'react';
-import { openLink, useLocation } from '@shared/route';
-import { ResourceCardProps } from '../types';
-import { multiLineEllipsis, noSelect } from 'styles';
-import { DeleteIcon, EditIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
 import { ResourceUsedFor } from '@shared/consts';
-import { useTranslation } from 'react-i18next';
+import { DeleteIcon, EditIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { multiLineEllipsis, noSelect } from 'styles';
+import { getResourceIcon } from 'utils/display/getResourceIcon';
+import { getDisplay } from 'utils/display/listTools';
+import { firstString } from 'utils/display/stringTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import usePress from 'utils/hooks/usePress';
+import { getResourceType, getResourceUrl } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { ResourceCardProps } from '../types';
 
 export const ResourceCard = ({
     canUpdate,

@@ -3,11 +3,17 @@ import { BookmarkFor, FindVersionInput, ProjectVersion } from "@shared/consts";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
-import { BookmarkButton, DateDisplay, ObjectActionMenu, SelectLanguageMenu, TopBar } from "components";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, useObjectActions, useObjectFromUrl } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({

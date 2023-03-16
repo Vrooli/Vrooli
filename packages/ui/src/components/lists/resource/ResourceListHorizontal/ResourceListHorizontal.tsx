@@ -1,17 +1,18 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { ResourceCard, ResourceListItemContextMenu } from 'components';
-import { ResourceListHorizontalProps } from '../types';
-import { useCallback, useMemo, useState } from 'react';
-import { cardRoot } from 'components/cards/styles';
-import { ResourceDialog } from 'components/dialogs';
-import { updateArray } from 'utils';
+import { Count, DeleteManyInput, Resource } from '@shared/consts';
+import { LinkIcon } from '@shared/icons';
+import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
-import { LinkIcon } from '@shared/icons';
-import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
+import { ResourceCard } from 'components/cards/ResourceCard/ResourceCard';
+import { cardRoot } from 'components/cards/styles';
+import { ResourceDialog } from 'components/dialogs/ResourceDialog/ResourceDialog';
+import { useCallback, useMemo, useState } from 'react';
+import { updateArray } from 'utils/shape/general';
+import { ResourceListItemContextMenu } from '../ResourceListItemContextMenu/ResourceListItemContextMenu';
+import { ResourceListHorizontalProps } from '../types';
 
 export const ResourceListHorizontal = ({
     title,

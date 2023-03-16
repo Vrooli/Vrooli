@@ -1,13 +1,13 @@
 /**
  * Shows valid/invalid/incomplete status of some object
  */
-import { useCallback, useMemo, useState } from 'react';
 import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import Markdown from 'markdown-to-jsx';
-import { StatusButtonProps } from '../types';
-import { Status } from 'utils';
-import { noSelect } from 'styles';
 import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from '@shared/icons';
+import Markdown from 'markdown-to-jsx';
+import { useCallback, useMemo, useState } from 'react';
+import { noSelect } from 'styles';
+import { Status } from 'utils/consts';
+import { StatusButtonProps } from '../types';
 
 /**
  * Status indicator and slider change color to represent routine's status

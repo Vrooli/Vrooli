@@ -1,8 +1,8 @@
 // Defines common props
-import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
+import { RoutineStepType } from "utils/consts";
 
 /**
  * Top-level props that can be passed into any routed component

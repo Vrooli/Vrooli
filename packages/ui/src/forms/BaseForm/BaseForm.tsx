@@ -1,5 +1,5 @@
-import { FullPageSpinner } from "components";
-import { BaseFormProps } from "../types";
+import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner"
+import { BaseFormProps } from "forms/types"
 
 /**
  * Form tag used to wrap any form. Has a fallback loading state.

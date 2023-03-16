@@ -7,12 +7,18 @@ import { mutationWrapper } from "api";
 import { notificationSettings } from "api/generated/endpoints/notification_settings";
 import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
 import { useCustomMutation } from "api/hooks";
-import { ListContainer, PushList, SettingsList, SettingsToggleListItem, SettingsTopBar, Subheader } from "components";
+import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { PushList } from "components/lists/devices";
+import { SettingsList } from "components/lists/SettingsList/SettingsList";
+import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
+import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { Subheader } from "components/text/Subheader/Subheader";
 import { useFormik } from "formik";
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { Wrap } from "types";
-import { useDisplayApolloError, usePromptBeforeUnload } from "utils";
+import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({

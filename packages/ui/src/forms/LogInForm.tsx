@@ -1,7 +1,3 @@
-import { parseSearchParams, useLocation } from '@shared/route';
-import { useCustomMutation } from 'api/hooks';
-import { LINKS, EmailLogInInput, Session } from '@shared/consts';
-import { useFormik } from 'formik';
 import {
     Button,
     Grid,
@@ -10,17 +6,22 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { Forms, PubSub } from 'utils';
-import { LogInFormProps } from './types';
-import { formNavLink, formPaper, formSubmit } from './styles';
-import { clickSize } from 'styles';
-import { PasswordTextField } from 'components';
-import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
-import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
+import { EmailLogInInput, LINKS, Session } from '@shared/consts';
+import { parseSearchParams, useLocation } from '@shared/route';
 import { emailLogInFormValidation } from '@shared/validation';
 import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
+import { useCustomMutation } from 'api/hooks';
+import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
+import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
+import { useFormik } from 'formik';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { clickSize } from 'styles';
+import { Forms } from 'utils/consts';
+import { PubSub } from 'utils/pubsub';
+import { formNavLink, formPaper, formSubmit } from './styles';
+import { LogInFormProps } from './types';
 
 export const LogInForm = ({
     onFormChange = () => { }

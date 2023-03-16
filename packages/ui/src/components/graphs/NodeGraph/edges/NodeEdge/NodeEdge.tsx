@@ -1,10 +1,10 @@
-import { useCallback, useMemo } from 'react';
-import { NodeEdgeProps } from '../types';
 import { Stack, Tooltip, useTheme } from '@mui/material';
-import { BaseEdge } from '../BaseEdge/BaseEdge';
 import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useCallback, useMemo } from 'react';
 import { calculateNodeSize } from '../../nodes';
+import { BaseEdge } from '../BaseEdge/BaseEdge';
+import { NodeEdgeProps } from '../types';
 
 /**
  * Displays a line between two nodes of a routine graph

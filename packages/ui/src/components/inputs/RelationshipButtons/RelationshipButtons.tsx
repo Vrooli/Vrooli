@@ -3,20 +3,24 @@
  * to objects
  */
 import { Box, Stack, Tooltip, useTheme } from '@mui/material';
-import { useCallback, useMemo, useState } from 'react';
-import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProjectVersion, RelationshipItemRoutineVersion, RelationshipItemUser, RelationshipOwner } from '../types';
-import { firstString, getTranslation, getUserLanguages, openObject, PubSub } from 'utils';
-import { ListMenu, SelectOrCreateDialog } from 'components/dialogs';
-import { ListMenuItemData } from 'components/dialogs/types';
-import { TextShrink } from 'components/text/TextShrink/TextShrink';
+import { Session } from '@shared/consts';
 import { CompleteIcon as CompletedIcon, InvisibleIcon, OrganizationIcon, ProjectIcon as ProjIcon, RoutineIcon, UserIcon as SelfIcon, VisibleIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
-import { getCurrentUser } from 'utils/authentication';
-import { ColorIconButton } from 'components/buttons';
-import { noSelect } from 'styles';
-import { Session } from '@shared/consts';
-import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
 import { isOfType } from '@shared/utils';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { ListMenu } from 'components/dialogs/ListMenu/ListMenu';
+import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
+import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
+import { ListMenuItemData } from 'components/dialogs/types';
+import { TextShrink } from 'components/text/TextShrink/TextShrink';
+import { useCallback, useMemo, useState } from 'react';
+import { noSelect } from 'styles';
+import { getCurrentUser } from 'utils/authentication/session';
+import { firstString } from 'utils/display/stringTools';
+import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { openObject } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProjectVersion, RelationshipItemRoutineVersion, RelationshipItemUser, RelationshipOwner } from '../types';
 
 /**
  * Converts session to user object

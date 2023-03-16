@@ -1,6 +1,7 @@
-import { useLocation } from '@shared/route';
 import { BottomNavigation, useTheme } from '@mui/material';
-import { actionsToBottomNav, getUserActions, useKeyboardOpen } from 'utils';
+import { useLocation } from '@shared/route';
+import { useKeyboardOpen } from 'utils/hooks/useKeyboardOpen';
+import { actionsToBottomNav, getUserActions } from 'utils/navigation/userActions';
 import { BottomNavProps } from '../types';
 
 export const BottomNav = ({

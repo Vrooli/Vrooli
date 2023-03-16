@@ -5,11 +5,18 @@ import { resourceTranslationValidation, resourceValidation } from '@shared/valid
 import { resourceFindOne } from "api/generated/endpoints/resource_findOne";
 import { resourceUpdate } from "api/generated/endpoints/resource_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { GridSubmitButtons, LanguageInput, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useEffect, useMemo } from "react";
-import { getUserLanguages, parseSingleItemUrl, PubSub, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { getUserLanguages } from "utils/display/translationTools";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { useUpdateActions } from "utils/hooks/useUpdateActions";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { PubSub } from "utils/pubsub";
 import { ResourceUpdateProps } from "../types";
 
 export const ResourceUpdate = ({

@@ -9,18 +9,21 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { CSSProperties, useCallback, useMemo, useState } from 'react';
-import { SubroutineNodeProps } from '../types';
-import {
-    routineNodeCheckboxOption,
-    routineNodeCheckboxLabel,
-} from '../styles';
-import { multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction, firstString, getDisplay, updateTranslationFields, usePress } from 'utils';
-import { calculateNodeSize, EditableLabel, NodeContextMenu } from 'components';
-import { CloseIcon } from '@shared/icons';
-import { reqErr, name as nameValidation } from '@shared/validation';
 import { Routine } from '@shared/consts';
+import { CloseIcon } from '@shared/icons';
+import { name as nameValidation, reqErr } from '@shared/validation';
+import { EditableLabel } from 'components/inputs/EditableLabel/EditableLabel';
+import { CSSProperties, useCallback, useMemo, useState } from 'react';
+import { multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { BuildAction } from 'utils/consts';
+import { getDisplay } from 'utils/display/listTools';
+import { firstString } from 'utils/display/stringTools';
+import { updateTranslationFields } from 'utils/display/translationTools';
+import usePress from 'utils/hooks/usePress';
+import { calculateNodeSize } from '..';
+import { NodeContextMenu } from '../../NodeContextMenu/NodeContextMenu';
+import { routineNodeCheckboxLabel, routineNodeCheckboxOption } from '../styles';
+import { SubroutineNodeProps } from '../types';
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 

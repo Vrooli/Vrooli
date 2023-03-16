@@ -3,11 +3,11 @@ import { Box, useTheme } from "@mui/material";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { getLastUrlPart } from "@shared/route";
 import { reportFindMany } from "api/generated/endpoints/report_findMany";
-import { TopBar } from "components";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Wrap } from "types";
-import { parseSingleItemUrl } from "utils";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { ReportsViewProps } from "../types";
 
 /**

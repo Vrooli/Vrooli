@@ -1,17 +1,27 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { InputOutputListItemProps } from '../types';
 import { InputType, Session, StandardVersion } from '@shared/consts';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getTranslation, RoutineVersionInputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, RoutineVersionOutputTranslationShape, standardVersionToFieldData, updateArray, getUserLanguages, StandardVersionShape, RoutineVersionInputShape } from 'utils';
-import { useFormik } from 'formik';
-import { BaseStandardInput, GeneratedInputComponent, MarkdownInput, PreviewSwitch, Selector, StandardVersionSelectSwitch } from 'components';
-import { FieldData } from 'forms/types';
-import { uuid } from '@shared/uuid';
-import Markdown from 'markdown-to-jsx';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
-import { linkColors } from 'styles';
+import { uuid } from '@shared/uuid';
 import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
-import { getCurrentUser } from 'utils/authentication';
+import { GeneratedInputComponent } from 'components/inputs/generated';
+import { MarkdownInput } from 'components/inputs/MarkdownInput/MarkdownInput';
+import { PreviewSwitch } from 'components/inputs/PreviewSwitch/PreviewSwitch';
+import { Selector } from 'components/inputs/Selector/Selector';
+import { BaseStandardInput } from 'components/inputs/standards';
+import { StandardVersionSelectSwitch } from 'components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch';
+import { useFormik } from 'formik';
+import { FieldData } from 'forms/types';
+import Markdown from 'markdown-to-jsx';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { linkColors } from 'styles';
+import { getCurrentUser } from 'utils/authentication/session';
+import { InputTypeOption, InputTypeOptions } from 'utils/consts';
+import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { jsonToString, standardVersionToFieldData, updateArray } from 'utils/shape/general';
+import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from 'utils/shape/models/routineVersionInput';
+import { RoutineVersionOutputTranslationShape } from 'utils/shape/models/routineVersionOutput';
+import { StandardVersionShape } from 'utils/shape/models/standardVersion';
+import { InputOutputListItemProps } from '../types';
 
 const defaultStandardVersion = (
     item: InputOutputListItemProps['item'],

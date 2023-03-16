@@ -2,11 +2,17 @@ import { useQuery } from "@apollo/client";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
 import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award_findMany";
-import { AwardCard, AwardList, CardGrid, ContentCollapse, TopBar } from "components";
+import { AwardCard } from "components/cards/AwardCard/AwardCard";
+import { CardGrid } from "components/cards/CardGrid/CardGrid";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { AwardList } from "components/lists/AwardList/AwardList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay, Wrap } from "types";
-import { awardToDisplay, getUserLanguages, useDisplayApolloError } from "utils";
+import { awardToDisplay } from "utils/display/awardsDisplay";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
 import { AwardsViewProps } from "views/types";
 
 // Category array for sorting

@@ -8,13 +8,20 @@ import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { SettingsList, SettingsTopBar } from "components";
-import { ColorIconButton, GridSubmitButtons } from "components/buttons";
-import { LanguageInput } from "components/inputs";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { SettingsList } from "components/lists/SettingsList/SettingsList";
+import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useEffect, useState } from "react";
-import { getUserLanguages, PubSub, shapeProfile, useProfileQuery, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useProfileQuery } from "utils/hooks/useProfileQuery";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { PubSub } from "utils/pubsub";
+import { shapeProfile } from "utils/shape/models/profile";
 import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({

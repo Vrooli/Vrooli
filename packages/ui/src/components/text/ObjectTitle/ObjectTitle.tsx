@@ -1,5 +1,5 @@
 import { LinearProgress, Stack, Typography } from "@mui/material";
-import { SelectLanguageMenu } from "components/dialogs";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectTitleProps } from "../types";
 
 /**

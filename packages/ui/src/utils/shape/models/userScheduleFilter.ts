@@ -1,6 +1,7 @@
 import { UserScheduleFilter, UserScheduleFilterCreateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, shapeTag, TagShape } from "utils";
+import { shapeTag, TagShape } from "./tag";
+import { createPrims, createRel } from "./tools";
 
 export type UserScheduleFilterShape = Pick<UserScheduleFilter, 'id' | 'filterType'> & {
     __typename?: 'UserScheduleFilter';

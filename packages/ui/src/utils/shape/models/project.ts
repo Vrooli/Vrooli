@@ -1,6 +1,10 @@
 import { Project, ProjectCreateInput, ProjectUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createOwner, createRel, ProjectVersionShape, LabelShape, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, shapeProjectVersion, shapeLabel, createVersion, updateVersion, createPrims, OwnerShape } from "utils";
+import { OwnerShape } from "./common";
+import { LabelShape, shapeLabel } from "./label";
+import { ProjectVersionShape, shapeProjectVersion } from "./projectVersion";
+import { shapeTag, TagShape } from "./tag";
+import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
 
 export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permissions'> & {
     __typename?: 'Project';

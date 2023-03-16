@@ -1,11 +1,11 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCallback, useMemo } from 'react';
-import { ThemeSwitchProps } from '../types';
-import { noSelect } from 'styles';
-import { PubSub } from 'utils';
 import { DarkModeIcon, LightModeIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
+import { PubSub } from 'utils/pubsub';
+import { ThemeSwitchProps } from '../types';
 
 export function ThemeSwitch({
     showText = true,

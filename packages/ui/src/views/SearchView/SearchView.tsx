@@ -6,13 +6,18 @@ import { GqlModelType, LINKS } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from "@shared/translations";
-import { PageTabs, SearchList, ShareSiteDialog, TopBar } from "components";
+import { ShareSiteDialog } from "components/dialogs/ShareSiteDialog/ShareSiteDialog";
+import { SearchList } from "components/lists/SearchList/SearchList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { centeredDiv } from "styles";
-import { getObjectUrlBase, PubSub, SearchPageTabOption as TabOptions, SearchType } from "utils";
-import { getCurrentUser } from "utils/authentication";
+import { getCurrentUser } from "utils/authentication/session";
+import { getObjectUrlBase } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
+import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SearchViewProps } from "../types";
 
 // Tab data type
@@ -21,7 +26,7 @@ type BaseParams = {
     popupTitleKey: CommonKey;
     popupTooltipKey: CommonKey;
     searchType: SearchType;
-    tabType: TabOptions;
+    tabType: SearchPageTabOption;
     where: { [x: string]: any };
 }
 
@@ -31,63 +36,63 @@ const tabParams: BaseParams[] = [{
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Api,
-    tabType: TabOptions.Apis,
+    tabType: SearchPageTabOption.Apis,
     where: {},
 }, {
     Icon: NoteIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Note,
-    tabType: TabOptions.Notes,
+    tabType: SearchPageTabOption.Notes,
     where: {},
 }, {
     Icon: OrganizationIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.Organization,
-    tabType: TabOptions.Organizations,
+    tabType: SearchPageTabOption.Organizations,
     where: {},
 }, {
     Icon: ProjectIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Project,
-    tabType: TabOptions.Projects,
+    tabType: SearchPageTabOption.Projects,
     where: {},
 }, {
     Icon: HelpIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.Question,
-    tabType: TabOptions.Questions,
+    tabType: SearchPageTabOption.Questions,
     where: {},
 }, {
     Icon: RoutineIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Routine,
-    tabType: TabOptions.Routines,
+    tabType: SearchPageTabOption.Routines,
     where: { isInternal: false },
 }, {
     Icon: SmartContractIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.SmartContract,
-    tabType: TabOptions.SmartContracts,
+    tabType: SearchPageTabOption.SmartContracts,
     where: {},
 }, {
     Icon: StandardIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Standard,
-    tabType: TabOptions.Standards,
+    tabType: SearchPageTabOption.Standards,
     where: {},
 }, {
     Icon: UserIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.User,
-    tabType: TabOptions.Users,
+    tabType: SearchPageTabOption.Users,
     where: {},
 }];
 
@@ -106,7 +111,7 @@ export const SearchView = ({
     const closeShareDialog = useCallback(() => setShareDialogOpen(false), []);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
+    const tabs = useMemo<PageTab<SearchPageTabOption>[]>(() => {
         return tabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
@@ -114,7 +119,7 @@ export const SearchView = ({
             value: tab.tabType,
         }));
     }, [t]);
-    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(() => {
+    const [currTab, setCurrTab] = useState<PageTab<SearchPageTabOption>>(() => {
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
         // Default to routine tab
@@ -122,7 +127,7 @@ export const SearchView = ({
         // Return tab
         return tabs[index];
     });
-    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<SearchPageTabOption>) => {
         e.preventDefault();
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
@@ -160,7 +165,7 @@ export const SearchView = ({
     }, [searchType, session, setLocation]);
 
     const onPopupButtonClick = useCallback((ev: any) => {
-        if ([TabOptions.Organizations, TabOptions.Users].includes(currTab.value)) {
+        if ([SearchPageTabOption.Organizations, SearchPageTabOption.Users].includes(currTab.value)) {
             setShareDialogOpen(true);
         } else {
             onAddClick(ev);

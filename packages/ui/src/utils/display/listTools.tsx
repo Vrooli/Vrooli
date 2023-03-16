@@ -1,13 +1,13 @@
-import { AutocompleteOption, NavigableObject } from "types";
-import { getTranslation, getUserLanguages } from "./translationTools";
-import { displayDate, firstString } from "./stringTools";
-import { ObjectListItem } from "components";
-import { DotNotation, GqlModelType, Session, BookmarkFor } from "@shared/consts";
-import { valueFromDot } from "utils/shape";
-import { exists, isOfType } from "@shared/utils";
-import { SearchListGenerator } from "components/lists/types";
-import { SearchType } from "utils/search";
+import { BookmarkFor, DotNotation, GqlModelType, Session } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
+import { exists, isOfType } from "@shared/utils";
+import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
+import { SearchListGenerator } from "components/lists/types";
+import { AutocompleteOption, NavigableObject } from "types";
+import { SearchType } from "utils/search/objectToSearch";
+import { valueFromDot } from "utils/shape/general";
+import { displayDate, firstString } from "./stringTools";
+import { getTranslation, getUserLanguages } from "./translationTools";
 
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(

@@ -1,5 +1,5 @@
 import { COOKIE, UserSchedule, ValueOf } from "@shared/consts";
-import { getDeviceInfo } from "./display";
+import { getDeviceInfo } from "./display/device";
 
 /**
  * Handles storing and retrieving cookies, which may or 

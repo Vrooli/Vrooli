@@ -1,12 +1,12 @@
+import { ApolloProvider } from '@apollo/client';
+import { Router } from '@shared/route';
+import { initializeApollo } from 'api/utils/initialize';
+import { ErrorBoundary } from 'components/ErrorBoundary/ErrorBoundary';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
-import { Router } from '@shared/route';
-import { ApolloProvider } from '@apollo/client';
-import { initializeApollo } from 'api/utils/initialize';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
-import reportWebVitals from './reportWebVitals';
-import { ErrorBoundary } from 'components';
 import './i18n'; // Must import for translations to work
+import reportWebVitals from './reportWebVitals';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 const client = initializeApollo();
 

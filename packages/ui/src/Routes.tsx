@@ -1,16 +1,15 @@
-import { lazily } from 'react-lazily';
-import { Route, RouteProps, Switch } from '@shared/route';
-import { LINKS } from '@shared/consts';
-import {
-    ForgotPasswordForm,
-    ResetPasswordForm
-} from 'forms';
-import { FullPageSpinner, ScrollToTop } from 'components';
-import { CommonProps } from 'types';
-import { Page } from './components/Page/Page';
 import { Box } from '@mui/material';
-import { PageProps } from 'views/wrapper/types';
+import { LINKS } from '@shared/consts';
+import { Route, RouteProps, Switch } from '@shared/route';
+import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
 import { NavbarProps } from 'components/navigation/types';
+import { ScrollToTop } from 'components/ScrollToTop';
+import { ForgotPasswordForm } from 'forms/ForgotPasswordForm';
+import { ResetPasswordForm } from 'forms/ResetPasswordForm';
+import { lazily } from 'react-lazily';
+import { CommonProps } from 'types';
+import { PageProps } from 'views/wrapper/types';
+import { Page } from './components/Page/Page';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {

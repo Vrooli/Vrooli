@@ -2,7 +2,7 @@ import { BoxProps, TypographyProps } from "@mui/material";
 import { Api, Organization, Project, Quiz, Routine, Session, SmartContract, Standard, User } from "@shared/consts";
 import { SvgComponent } from "@shared/icons";
 import { VersionInfo } from "types";
-import { ObjectType } from "utils";
+import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends BoxProps {
     loading?: boolean;

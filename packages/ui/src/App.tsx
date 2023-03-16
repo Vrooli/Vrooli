@@ -1,28 +1,29 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-    AlertDialog,
-    BannerChicken,
-    BottomNav,
-    CommandPalette,
-    FindInPage,
-    Footer,
-    PullToRefresh,
-    SnackStack,
-    WelcomeDialog,
-} from 'components';
-import { getDeviceInfo, PubSub, themes, useReactHash } from 'utils';
-import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme, createTheme } from '@mui/material';
+import { Box, CircularProgress, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useCustomMutation } from 'api/hooks';
-import SakBunderan from './assets/font/SakBunderan.woff';
-import Confetti from 'react-confetti';
-import { getSiteLanguage, guestSession } from 'utils/authentication';
-import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
-import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
+import { useCustomMutation } from 'api/hooks';
+import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { BannerChicken } from 'components/BannerChicken/BannerChicken';
+import { AlertDialog } from 'components/dialogs/AlertDialog/AlertDialog';
+import { SnackStack } from 'components/dialogs/snacks';
+import { WelcomeDialog } from 'components/dialogs/WelcomeDialog/WelcomeDialog';
+import { BottomNav } from 'components/navigation/BottomNav/BottomNav';
+import { CommandPalette } from 'components/navigation/CommandPalette/CommandPalette';
+import { FindInPage } from 'components/navigation/FindInPage/FindInPage';
+import { Footer } from 'components/navigation/Footer/Footer';
+import { PullToRefresh } from 'components/PullToRefresh/PullToRefresh';
 import i18next from 'i18next';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Confetti from 'react-confetti';
 import { Routes } from 'Routes';
+import { getSiteLanguage, guestSession } from 'utils/authentication/session';
+import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
+import { getDeviceInfo } from 'utils/display/device';
+import { themes } from 'utils/display/theme';
+import { useReactHash } from 'utils/hooks/useReactHash';
+import { PubSub } from 'utils/pubsub';
+import SakBunderan from './assets/font/SakBunderan.woff';
 
 /**
  * Adds font size to theme

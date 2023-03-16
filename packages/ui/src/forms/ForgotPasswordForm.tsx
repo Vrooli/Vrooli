@@ -1,6 +1,3 @@
-import { useCustomMutation } from 'api/hooks';
-import { emailRequestPasswordChangeSchema } from '@shared/validation';
-import { useFormik } from 'formik';
 import {
     Button,
     Grid,
@@ -9,16 +6,19 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { LINKS, EmailRequestPasswordChangeInput, Success } from '@shared/consts';
-import { Forms } from 'utils';
-import { mutationWrapper } from 'api/utils';
-import { useLocation } from '@shared/route';
-import { FormProps } from './types';
-import { formNavLink, formPaper, formSubmit } from './styles';
-import { clickSize } from 'styles';
 import { CSSProperties } from '@mui/styles';
+import { EmailRequestPasswordChangeInput, LINKS, Success } from '@shared/consts';
+import { useLocation } from '@shared/route';
+import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { authEmailRequestPasswordChange } from 'api/generated/endpoints/auth_emailRequestPasswordChange';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { useFormik } from 'formik';
 import { useTranslation } from 'react-i18next';
+import { clickSize } from 'styles';
+import { Forms } from 'utils/consts';
+import { formNavLink, formPaper, formSubmit } from './styles';
+import { FormProps } from './types';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }

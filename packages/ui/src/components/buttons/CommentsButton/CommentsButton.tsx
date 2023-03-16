@@ -1,10 +1,10 @@
 import { Box, ListItemText, Stack, useTheme } from '@mui/material';
-import { useCallback, useMemo } from 'react';
-import { CommentsButtonProps } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useLocation } from '@shared/route';
 import { CommentIcon } from '@shared/icons';
-import { getObjectUrl } from 'utils';
+import { useLocation } from '@shared/route';
+import { useCallback, useMemo } from 'react';
+import { multiLineEllipsis } from 'styles';
+import { getObjectUrl } from 'utils/navigation/openObject';
+import { CommentsButtonProps } from '../types';
 
 export const CommentsButton = ({
     commentsCount = 0,

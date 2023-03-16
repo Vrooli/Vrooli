@@ -1,6 +1,7 @@
 import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { NodeLinkWhenShape, createPrims, shapeNodeLinkWhen, shapeUpdate, updatePrims, updateRel, createRel } from "utils";
+import { NodeLinkWhenShape, shapeNodeLinkWhen } from "./nodeLinkWhen";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeLinkShape = Pick<NodeLink, 'id' | 'operation'> & {
     __typename?: 'NodeLink';

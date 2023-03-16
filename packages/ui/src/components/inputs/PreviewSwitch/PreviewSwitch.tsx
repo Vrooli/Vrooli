@@ -1,9 +1,9 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCallback, useMemo } from 'react';
-import { PreviewSwitchProps } from '../types';
-import { noSelect } from 'styles';
 import { BuildIcon, SvgComponent, VisibleIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useCallback, useMemo } from 'react';
+import { noSelect } from 'styles';
+import { PreviewSwitchProps } from '../types';
 
 const grey = {
     400: '#BFC7CF',

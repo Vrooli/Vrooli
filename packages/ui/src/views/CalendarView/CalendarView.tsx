@@ -1,11 +1,12 @@
 import { Box, useTheme } from '@mui/material';
-import { FullPageSpinner, TopBar } from 'components';
+import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { add } from 'date-fns';
 import { useMemo, useState } from 'react';
 import { Calendar } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useTranslation } from 'react-i18next';
-import { getUserLocale } from 'utils';
+import { getUserLocale } from 'utils/display/translationTools';
 import { CalendarViewProps } from 'views/types';
 
 // Replace this with your own events data

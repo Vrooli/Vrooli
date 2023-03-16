@@ -1,12 +1,14 @@
 import { Box, Tooltip, Typography } from '@mui/material';
+import { CSSProperties } from '@mui/styles';
+import { Node, NodeEnd } from '@shared/consts';
 import { useCallback, useMemo, useState } from 'react';
-import { EndNodeProps } from '../types';
+import { noSelect } from 'styles';
+import { BuildAction } from 'utils/consts';
+import { firstString } from 'utils/display/stringTools';
+import usePress from 'utils/hooks/usePress';
 import { calculateNodeSize, DraggableNode, EndNodeDialog, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
-import { noSelect } from 'styles';
-import { CSSProperties } from '@mui/styles';
-import { BuildAction, firstString, usePress } from 'utils';
-import { Node, NodeEnd } from '@shared/consts';
+import { EndNodeProps } from '../types';
 
 /**
  * Distance before a click is considered a drag

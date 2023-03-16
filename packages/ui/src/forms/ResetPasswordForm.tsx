@@ -1,21 +1,21 @@
-import { useCustomMutation } from 'api/hooks';
-import { emailResetPasswordSchema } from '@shared/validation';
-import { useFormik } from 'formik';
 import {
     Button,
     Grid,
-    Paper,
+    Paper
 } from '@mui/material';
-import { LINKS, EmailResetPasswordInput, Session } from '@shared/consts';
-import { mutationWrapper } from 'api/utils';
+import { EmailResetPasswordInput, LINKS, Session } from '@shared/consts';
 import { parseSearchParams, useLocation } from '@shared/route';
-import { formPaper, formSubmit } from './styles';
-import { PasswordTextField } from 'components';
-import { PubSub } from 'utils';
-import { authEmailResetPassword } from 'api/generated/endpoints/auth_emailResetPassword';
-import { useMemo } from 'react';
 import { uuidValidate } from '@shared/uuid';
+import { emailResetPasswordSchema } from '@shared/validation';
+import { authEmailResetPassword } from 'api/generated/endpoints/auth_emailResetPassword';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
+import { useFormik } from 'formik';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PubSub } from 'utils/pubsub';
+import { formPaper, formSubmit } from './styles';
 
 export const ResetPasswordForm = () => {
     const { t } = useTranslation();

@@ -1,8 +1,8 @@
-import { useRef, useCallback, useEffect } from "react";
 import { Box, FormControl, Input, InputLabel, Tooltip, useTheme } from '@mui/material';
-import { IntegerInputProps } from "../types";
 import { MinusIcon, PlusIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useCallback, useEffect, useRef } from "react";
+import { IntegerInputProps } from "../types";
 
 const buttonProps = {
     minWidth: 30,

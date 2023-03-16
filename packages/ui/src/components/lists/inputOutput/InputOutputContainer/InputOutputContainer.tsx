@@ -1,13 +1,16 @@
 import { Stack, Tooltip, useTheme } from '@mui/material';
-import { ColorIconButton, ContentCollapse } from 'components';
-import { InputOutputContainerProps } from '../types';
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { RoutineVersionInputShape, RoutineVersionOutputShape, updateArray } from 'utils';
-import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
-import { uuid } from '@shared/uuid';
 import { AddIcon } from '@shared/icons';
+import { uuid } from '@shared/uuid';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { ContentCollapse } from 'components/containers/ContentCollapse/ContentCollapse';
 import { ReorderInputDialog } from 'components/dialogs/ReorderInputDialog/ReorderInputDialog';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { updateArray } from 'utils/shape/general';
+import { RoutineVersionInputShape } from 'utils/shape/models/routineVersionInput';
+import { RoutineVersionOutputShape } from 'utils/shape/models/routineVersionOutput';
+import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
+import { InputOutputContainerProps } from '../types';
 
 interface AddButtonProps {
     index: number;

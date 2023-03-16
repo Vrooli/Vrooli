@@ -2,7 +2,6 @@
  * Drawer to display a routine list item's info on the build page. 
  * Swipes up from bottom of screen
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Box,
     Grid,
@@ -11,18 +10,38 @@ import {
     TextField,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { SubroutineInfoDialogProps } from '../types';
-import { defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
-import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
-import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, IntegerInput, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
-import { useFormik } from 'formik';
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { CloseIcon, OpenInNewIcon } from '@shared/icons';
-import { RelationshipItemRoutineVersion, RelationshipsObject } from 'components/inputs/types';
-import { getCurrentUser } from 'utils/authentication';
 import { NodeRoutineListItem, ResourceList } from '@shared/consts';
+import { CloseIcon, OpenInNewIcon } from '@shared/icons';
+import { DUMMY_ID, uuid } from '@shared/uuid';
+import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { EditableTextCollapse } from 'components/containers/EditableTextCollapse/EditableTextCollapse';
+import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
+import { LanguageInput } from 'components/inputs/LanguageInput/LanguageInput';
+import { RelationshipButtons } from 'components/inputs/RelationshipButtons/RelationshipButtons';
+import { TagSelector } from 'components/inputs/TagSelector/TagSelector';
+import { RelationshipItemRoutineVersion, RelationshipsObject } from 'components/inputs/types';
+import { VersionInput } from 'components/inputs/VersionInput/VersionInput';
+import { InputOutputContainer } from 'components/lists/inputOutput';
+import { ResourceListHorizontal } from 'components/lists/resource';
+import { TagList } from 'components/lists/TagList/TagList';
+import { VersionDisplay } from 'components/text/VersionDisplay/VersionDisplay';
+import { useFormik } from 'formik';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCurrentUser } from 'utils/authentication/session';
+import { defaultRelationships } from 'utils/defaults/relationships';
+import { defaultResourceList } from 'utils/defaults/resourceList';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { usePromptBeforeUnload } from 'utils/hooks/usePromptBeforeUnload';
+import { useTranslatedFields } from 'utils/hooks/useTranslatedFields';
+import { getMinimumVersion } from 'utils/shape/general';
+import { RoutineVersionInputShape } from 'utils/shape/models/routineVersionInput';
+import { RoutineVersionOutputShape } from 'utils/shape/models/routineVersionOutput';
+import { TagShape } from 'utils/shape/models/tag';
+import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
+import { SubroutineInfoDialogProps } from '../types';
 
 export const SubroutineInfoDialog = ({
     data,

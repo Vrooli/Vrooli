@@ -1,12 +1,14 @@
-import { JsonStandardInputProps } from '../types';
-import { jsonStandardInputForm as validationSchema } from '@shared/validation';
-import { useEffect, useMemo, useState } from 'react';
-import { useFormik } from 'formik';
 import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from '@mui/material';
-import { HelpButton, StatusButton } from 'components/buttons';
-import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status } from 'utils';
-import Markdown from 'markdown-to-jsx';
 import { InvisibleIcon, VisibleIcon } from '@shared/icons';
+import { jsonStandardInputForm as validationSchema } from '@shared/validation';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { StatusButton } from 'components/buttons/StatusButton/StatusButton';
+import { useFormik } from 'formik';
+import Markdown from 'markdown-to-jsx';
+import { useEffect, useMemo, useState } from 'react';
+import { Status } from 'utils/consts';
+import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString } from 'utils/shape/general';
+import { JsonStandardInputProps } from '../types';
 
 /**
  * Input for entering (and viewing format of) JSON data that 

@@ -8,20 +8,22 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { DeleteAccountDialogProps } from '../types';
-import { useCallback, useMemo } from 'react';
-import { mutationWrapper } from 'api/utils';
-import { useCustomMutation } from 'api/hooks';
 import { LINKS, Success, UserDeleteInput } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { DialogTitle, LargeDialog, PasswordTextField } from 'components';
 import { DeleteIcon } from '@shared/icons';
-import { getCurrentUser } from 'utils/authentication';
+import { useLocation } from '@shared/route';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
-import { PubSub } from 'utils';
-import { useFormik } from 'formik';
 import { userDeleteOne } from 'api/generated/endpoints/user_deleteOne';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
+import { useFormik } from 'formik';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCurrentUser } from 'utils/authentication/session';
+import { PubSub } from 'utils/pubsub';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { DeleteAccountDialogProps } from '../types';
 
 const titleId = 'delete-object-dialog-title';
 

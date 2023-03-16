@@ -7,16 +7,16 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { UnlinkedNodesDialogProps } from '../types';
-import { noSelect } from 'styles';
-import { useCallback } from 'react';
-import { EndNode, RedirectNode, RoutineListNode } from 'components';
-import { getTranslation } from 'utils';
-import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
 import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
+import { EndNode, RedirectNode, RoutineListNode } from 'components/graphs/NodeGraph';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
+import { getTranslation } from 'utils/display/translationTools';
+import { UnlinkedNodesDialogProps } from '../types';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,

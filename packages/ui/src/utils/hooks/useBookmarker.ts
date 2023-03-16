@@ -5,7 +5,7 @@ import { bookmarkCreate } from "api/generated/endpoints/bookmark_create";
 import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCallback } from "react";
-import { ObjectActionComplete } from "utils/actions";
+import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
 
 type UseBookmarkerProps = {

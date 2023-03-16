@@ -1,6 +1,6 @@
 import { Label, LabelCreateInput, LabelTranslation, LabelTranslationCreateInput, LabelTranslationUpdateInput, LabelUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "utils";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type LabelTranslationShape = Pick<LabelTranslation, 'id' | 'language' | 'description'> & {
     __typename?: 'LabelTranslation';

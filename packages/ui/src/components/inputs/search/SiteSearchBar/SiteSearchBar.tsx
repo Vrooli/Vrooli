@@ -1,13 +1,16 @@
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, Tooltip, useTheme } from '@mui/material';
-import { SiteSearchBarProps } from '../types';
-import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
-import { AutocompleteOption } from 'types';
-import { ActionIcon, ApiIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, BookmarkFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
-import { getLocalStorageKeys, performAction, useDebounce } from 'utils';
 import { BookmarkFor } from '@shared/consts';
-import { MicrophoneButton, BookmarkButton } from 'components/buttons';
-import { getCurrentUser } from 'utils/authentication';
+import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
+import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
+import { MicrophoneButton } from 'components/buttons/MicrophoneButton/MicrophoneButton';
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AutocompleteOption } from 'types';
+import { getCurrentUser } from 'utils/authentication/session';
+import { useDebounce } from 'utils/hooks/useDebounce';
+import { getLocalStorageKeys } from 'utils/localStorage';
+import { performAction } from 'utils/navigation/quickActions';
+import { SiteSearchBarProps } from '../types';
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
 

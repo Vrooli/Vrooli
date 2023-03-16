@@ -1,6 +1,7 @@
 import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslation, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, RoutineVersionShape, shapeRoutineVersion, shapeUpdate, updatePrims, updateRel } from "utils";
+import { RoutineVersionShape, shapeRoutineVersion } from "./routineVersion";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NodeRoutineListItemTranslationShape = Pick<NodeRoutineListItemTranslation, 'id' | 'language' | 'description' | 'name'> & {
     __typename?: 'NodeRoutineListItemTranslation';

@@ -2,11 +2,16 @@ import { Box, Typography } from '@mui/material';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useCustomLazyQuery } from 'api';
 import { statsSiteFindMany } from 'api/generated/endpoints/statsSite_findMany';
-import { CardGrid, DateRangeMenu, LineGraphCard, PageTabs, TopBar } from 'components';
+import { CardGrid } from 'components/cards/CardGrid/CardGrid';
+import { LineGraphCard } from 'components/cards/LineGraphCard/LineGraphCard';
+import { DateRangeMenu } from 'components/lists/DateRangeMenu/DateRangeMenu';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { PageTabs } from 'components/PageTabs/PageTabs';
 import { PageTab } from 'components/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { displayDate, statsDisplay } from 'utils';
+import { statsDisplay } from 'utils/display/statsDisplay';
+import { displayDate } from 'utils/display/stringTools';
 import { StatsViewProps } from '../types';
 
 /**

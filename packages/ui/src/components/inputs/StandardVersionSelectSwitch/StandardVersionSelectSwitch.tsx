@@ -1,10 +1,10 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCallback, useMemo, useState } from 'react';
-import { StandardVersionSelectSwitchProps } from '../types';
-import { noSelect } from 'styles';
-import { SelectOrCreateDialog } from 'components/dialogs';
 import { EditIcon as CustomIcon, LinkIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
+import { useCallback, useMemo, useState } from 'react';
+import { noSelect } from 'styles';
+import { StandardVersionSelectSwitchProps } from '../types';
 
 const grey = {
     400: '#BFC7CF',

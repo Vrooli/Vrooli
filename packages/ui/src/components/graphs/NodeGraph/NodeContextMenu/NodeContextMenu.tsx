@@ -1,21 +1,21 @@
-import { NodeContextMenuProps } from '../types';
-import { ListMenuItemData } from 'components/dialogs/types';
-import { ListMenu } from 'components';
-import { BuildAction } from 'utils';
-import { useMemo } from 'react';
-import { 
+import {
     AddEndNodeAfterIcon,
-    AddIncomingLinkIcon, 
-    AddOutgoingLinkIcon, 
-    AddRoutineListAfterIcon, 
-    AddRoutineListBeforeIcon, 
-    DeleteIcon, 
-    DeleteNodeIcon, 
-    EditIcon, 
-    MoveNodeIcon, 
-    SvgComponent, 
-    UnlinkNodeIcon 
+    AddIncomingLinkIcon,
+    AddOutgoingLinkIcon,
+    AddRoutineListAfterIcon,
+    AddRoutineListBeforeIcon,
+    DeleteIcon,
+    DeleteNodeIcon,
+    EditIcon,
+    MoveNodeIcon,
+    SvgComponent,
+    UnlinkNodeIcon
 } from '@shared/icons';
+import { ListMenu } from 'components/dialogs/ListMenu/ListMenu';
+import { ListMenuItemData } from 'components/dialogs/types';
+import { useMemo } from 'react';
+import { BuildAction } from 'utils/consts';
+import { NodeContextMenuProps } from '../types';
 
 const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]?: [string, SvgComponent] } = {
     AddIncomingLink: ['Add incoming link', AddIncomingLinkIcon],

@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    DialogContent,
-    useTheme,
-} from '@mui/material';
-import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcuts, useDisplayApolloError } from 'utils';
-import { SiteSearchBar } from 'components/inputs';
+import { DialogContent, useTheme } from '@mui/material';
 import { LINKS, PopularInput, PopularResult } from '@shared/consts';
-import { AutocompleteOption, ShortcutOption } from 'types';
-import { useCustomLazyQuery } from 'api/hooks';
-import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
-import { DialogTitle, LargeDialog } from 'components';
 import { uuidValidate } from '@shared/uuid';
-import { useTranslation } from 'react-i18next';
 import { feedPopular } from 'api/generated/endpoints/feed_popular';
+import { useCustomLazyQuery } from 'api/hooks';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
+import { SiteSearchBar } from 'components/inputs/search';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AutocompleteOption, ShortcutOption } from 'types';
+import { listToAutocomplete } from 'utils/display/listTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
+import { getObjectUrl } from 'utils/navigation/openObject';
+import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
+import { PubSub } from 'utils/pubsub';
+import { CommandPaletteProps } from '../types';
 
 /**
  * Strips URL for comparison against the current URL.

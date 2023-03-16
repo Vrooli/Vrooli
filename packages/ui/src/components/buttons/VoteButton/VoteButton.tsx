@@ -1,10 +1,11 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
+import { Success } from '@shared/consts';
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getCurrentUser } from 'utils/authentication';
+import { ObjectActionComplete } from 'utils/actions/objectActions';
+import { getCurrentUser } from 'utils/authentication/session';
+import { useVoter } from 'utils/hooks/useVoter';
 import { VoteButtonProps } from '../types';
-import { Success } from '@shared/consts';
-import { ObjectActionComplete, useVoter } from 'utils';
 
 export const VoteButton = ({
     direction = "column",

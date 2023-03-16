@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
 import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
-import Markdown from 'markdown-to-jsx';
-import { HelpButtonProps } from '../types';
-import { MenuTitle } from 'components/dialogs';
 import { HelpIcon } from '@shared/icons';
+import { MenuTitle } from 'components/dialogs/MenuTitle/MenuTitle';
+import Markdown from 'markdown-to-jsx';
+import { useCallback, useState } from 'react';
 import { linkColors, noSelect } from 'styles';
+import { HelpButtonProps } from '../types';
 
 export const HelpButton = ({
     id = 'help-details-menu',

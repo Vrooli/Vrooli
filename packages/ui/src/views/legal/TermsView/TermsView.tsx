@@ -1,4 +1,4 @@
-import { TopBar } from "components";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { TermsViewProps } from "../types";
 
 export const TermsView = ({

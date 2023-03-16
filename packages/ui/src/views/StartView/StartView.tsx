@@ -18,16 +18,23 @@ import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
 import { authGuestLogIn } from 'api/generated/endpoints/auth_guestLogIn';
 import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
-import { DialogTitle, HelpButton, TopBar, WalletInstallDialog, WalletSelectDialog } from 'components';
-import {
-    ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm
-} from 'forms';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { WalletInstallDialog } from 'components/dialogs/WalletInstallDialog/WalletInstallDialog';
+import { WalletSelectDialog } from 'components/dialogs/WalletSelectDialog/WalletSelectDialog';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { ForgotPasswordForm } from 'forms/ForgotPasswordForm';
+import { LogInForm } from 'forms/LogInForm';
+import { ResetPasswordForm } from 'forms/ResetPasswordForm';
+import { SignUpForm } from 'forms/SignUpForm';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
-import { Forms, PubSub, useReactSearch } from 'utils';
-import { getCurrentUser } from 'utils/authentication';
+import { getCurrentUser } from 'utils/authentication/session';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
+import { Forms } from 'utils/consts';
+import { useReactSearch } from 'utils/hooks/useReactSearch';
+import { PubSub } from 'utils/pubsub';
 import { StartViewProps } from '../types';
 
 const helpText =

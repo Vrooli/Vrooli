@@ -10,10 +10,10 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { GridSubmitButtons } from 'components/buttons';
-import { DialogTitle } from 'components/dialogs';
-import { IntegerInput } from 'components/inputs';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { ReorderInputDialogProps } from '../types';
 
 const titleId = 'reorder-input-output-dialog-title';

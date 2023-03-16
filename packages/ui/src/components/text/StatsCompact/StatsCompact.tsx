@@ -1,8 +1,9 @@
-import { Stack } from "@mui/material"
+import { Stack } from "@mui/material";
 import { VoteFor } from "@shared/consts";
-import { ReportsLink, VoteButton } from "components/buttons";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
+import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { useMemo } from "react";
-import { getCounts, getYou } from "utils";
+import { getCounts, getYou } from "utils/display/listTools";
 import { StatsCompactProps, StatsCompactPropsObject } from "../types";
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
 

@@ -1,4 +1,4 @@
-import { WelcomeView } from "views";
+import { WelcomeView } from "views/WelcomeView/WelcomeView";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { WelcomeDialogProps } from "../types";
 

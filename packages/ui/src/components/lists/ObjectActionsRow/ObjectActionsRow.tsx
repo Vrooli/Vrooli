@@ -1,9 +1,11 @@
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { EllipsisIcon } from "@shared/icons";
-import { ObjectActionMenu } from "components/dialogs";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import React, { useCallback, useMemo, useState } from "react";
-import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction } from "utils";
-import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
+import { getActionsDisplayData, getAvailableActions, ObjectAction } from "utils/actions/objectActions";
+import { getDisplay } from "utils/display/listTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import { ObjectActionsRowObject, ObjectActionsRowProps } from "../types";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',

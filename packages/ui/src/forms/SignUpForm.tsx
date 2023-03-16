@@ -1,6 +1,3 @@
-import { useCustomMutation } from 'api/hooks';
-import { LINKS, BUSINESS_NAME, EmailSignUpInput, Session } from '@shared/consts';
-import { useFormik } from 'formik';
 import {
     Button,
     Checkbox,
@@ -12,18 +9,22 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { Forms, PubSub } from 'utils';
-import { emailSignUpFormValidation } from '@shared/validation';
-import { hasErrorCode, mutationWrapper } from 'api/utils';
-import { useLocation } from '@shared/route';
-import { FormProps } from './types';
-import { formNavLink, formPaper, formSubmit } from './styles';
-import { clickSize } from 'styles';
-import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
-import { subscribeUserToPush } from 'serviceWorkerRegistration';
+import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session } from '@shared/consts';
+import { useLocation } from '@shared/route';
+import { emailSignUpFormValidation } from '@shared/validation';
 import { authEmailSignUp } from 'api/generated/endpoints/auth_emailSignUp';
+import { useCustomMutation } from 'api/hooks';
+import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
+import { useFormik } from 'formik';
 import { useTranslation } from 'react-i18next';
+import { subscribeUserToPush } from 'serviceWorkerRegistration';
+import { clickSize } from 'styles';
+import { Forms } from 'utils/consts';
+import { PubSub } from 'utils/pubsub';
+import { formNavLink, formPaper, formSubmit } from './styles';
+import { FormProps } from './types';
 
 export const SignUpForm = ({
     onFormChange = () => { },

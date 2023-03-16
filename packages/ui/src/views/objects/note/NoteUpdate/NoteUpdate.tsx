@@ -6,14 +6,26 @@ import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne"
 import { noteVersionUpdate } from "api/generated/endpoints/noteVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TopBar } from "components";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { RelationshipsObject } from "components/inputs/types";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { defaultRelationships, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { getCurrentUser } from "utils/authentication";
+import { getCurrentUser } from "utils/authentication/session";
+import { defaultRelationships } from "utils/defaults/relationships";
+import { getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { useUpdateActions } from "utils/hooks/useUpdateActions";
+import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { PubSub } from "utils/pubsub";
+import { shapeNoteVersion } from "utils/shape/models/noteVersion";
+import { TagShape } from "utils/shape/models/tag";
 import { NoteUpdateProps } from "../types";
 
 export const NoteUpdate = ({

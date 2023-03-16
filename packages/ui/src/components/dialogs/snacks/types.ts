@@ -1,4 +1,3 @@
-import { Session } from '@shared/consts';
 import { SnackSeverity } from './BasicSnack/BasicSnack';
 
 export interface BasicSnackProps {

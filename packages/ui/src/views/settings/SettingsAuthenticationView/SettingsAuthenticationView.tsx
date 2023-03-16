@@ -7,15 +7,21 @@ import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { DeleteAccountDialog, PasswordTextField, SettingsTopBar, Subheader } from "components";
-import { GridSubmitButtons } from "components/buttons";
-import { EmailList, SettingsList, WalletList } from "components/lists";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
+import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
+import { EmailList, WalletList } from "components/lists/devices";
+import { SettingsList } from "components/lists/SettingsList/SettingsList";
+import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { Subheader } from "components/text/Subheader/Subheader";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PubSub, useProfileQuery, usePromptBeforeUnload } from "utils";
-import { getCurrentUser, guestSession } from "utils/authentication";
+import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { useProfileQuery } from "utils/hooks/useProfileQuery";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { PubSub } from "utils/pubsub";
 import { SettingsAuthenticationViewProps } from "../types";
 
 export const SettingsAuthenticationView = ({

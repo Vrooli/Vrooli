@@ -1,8 +1,11 @@
+import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
 import { exists, uniqBy } from "@shared/utils";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
-import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
-import { NodeLinkShape, NodeShape, shapeRunRoutineInput, updateRel } from "./shape";
+import { NodeShape } from "./shape/models/node";
+import { NodeLinkShape } from "./shape/models/nodeLink";
+import { shapeRunRoutineInput } from "./shape/models/runRoutineInput";
+import { updateRel } from "./shape/models/tools";
 
 /**
  * Calculates the percentage of the run that has been completed.

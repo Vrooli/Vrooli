@@ -1,7 +1,7 @@
 import { FormikProps } from "formik";
 import { useCallback, useMemo, useState } from "react";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeTranslation } from "utils/display";
-import { booleanSpread, stringSpread } from "utils/shape";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeTranslation } from "utils/display/translationTools";
+import { booleanSpread, stringSpread } from "utils/shape/general";
 import * as yup from 'yup';
 
 /**

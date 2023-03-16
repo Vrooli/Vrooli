@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { LINKS, BUSINESS_NAME } from '@shared/consts';
-import { AppBar, Box, useTheme, Stack } from '@mui/material';
-import { NavList } from '../NavList/NavList';
+import { AppBar, Box, Stack, useTheme } from '@mui/material';
+import { BUSINESS_NAME, LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { NavbarProps } from '../types';
-import { HideOnScroll } from '..';
-import { noSelect } from 'styles'
-import { Header } from 'components/text';
+import { Header } from 'components/text/Header/Header';
+import { useCallback, useEffect, useMemo } from 'react';
+import { noSelect } from 'styles';
+import { useDimensions } from 'utils/hooks/useDimensions';
+import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { HideOnScroll } from '../HideOnScroll/HideOnScroll';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
-import { NavbarLogoState } from '../types';
-import { useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
+import { NavList } from '../NavList/NavList';
+import { NavbarLogoState, NavbarProps } from '../types';
 
 /**
  * Navbar displayed at the top of the page. Has a few different 

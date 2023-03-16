@@ -1,11 +1,9 @@
 import { Box, useTheme } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookmarkButtonProps } from '../types';
-import { uuidValidate } from '@shared/uuid';
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from '@shared/icons';
-import { getCurrentUser } from 'utils/authentication';
-import { PubSub } from 'utils';
-import { documentNodeWrapper } from 'api/utils';
+import { uuidValidate } from '@shared/uuid';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCurrentUser } from 'utils/authentication/session';
+import { BookmarkButtonProps } from '../types';
 
 export const BookmarkButton = ({
     disabled = false,

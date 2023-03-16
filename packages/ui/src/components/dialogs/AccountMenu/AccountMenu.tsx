@@ -9,27 +9,34 @@ import {
     ListItemText,
     SwipeableDrawer,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
 import { Stack } from '@mui/system';
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
-import { AccountMenuProps } from '../types';
-import { noSelect } from 'styles';
-import { LanguageSelector, LeftHandedCheckbox, TextSizeButtons, ThemeSwitch } from 'components/inputs';
-import React, { useCallback, useMemo, useState } from 'react';
-import { useCustomMutation } from 'api/hooks';
-import { HistorySearchPageTabOption, PubSub, shapeProfile, useIsLeftHanded, useWindowSize } from 'utils';
-import { mutationWrapper } from 'api/utils';
-import { useFormik } from 'formik';
 import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
-import { getCurrentUser, guestSession } from 'utils/authentication';
-import { ContactInfo } from 'components/navigation';
 import { userValidation } from '@shared/validation';
-import { userProfileUpdate } from 'api/generated/endpoints/user_profileUpdate';
-import { useTranslation } from 'react-i18next';
-import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCurrentAccount';
 import { authLogOut } from 'api/generated/endpoints/auth_logOut';
+import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCurrentAccount';
+import { userProfileUpdate } from 'api/generated/endpoints/user_profileUpdate';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { LanguageSelector } from 'components/inputs/LanguageSelector/LanguageSelector';
+import { LeftHandedCheckbox } from 'components/inputs/LeftHandedCheckbox/LeftHandedCheckbox';
+import { TextSizeButtons } from 'components/inputs/TextSizeButtons/TextSizeButtons';
+import { ThemeSwitch } from 'components/inputs/ThemeSwitch/ThemeSwitch';
+import { ContactInfo } from 'components/navigation/ContactInfo/ContactInfo';
+import { useFormik } from 'formik';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
+import { getCurrentUser, guestSession } from 'utils/authentication/session';
+import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { PubSub } from 'utils/pubsub';
+import { HistorySearchPageTabOption } from 'utils/search/objectToSearch';
+import { shapeProfile } from 'utils/shape/models/profile';
+import { AccountMenuProps } from '../types';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;

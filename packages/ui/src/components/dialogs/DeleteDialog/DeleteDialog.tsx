@@ -6,16 +6,17 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { DeleteDialogProps } from '../types';
-import { useCallback, useState } from 'react';
-import { mutationWrapper } from 'api/utils';
-import { useCustomMutation } from 'api/hooks';
-import { LINKS, DeleteOneInput, Success } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { DialogTitle, LargeDialog } from 'components';
+import { DeleteOneInput, LINKS, Success } from '@shared/consts';
 import { DeleteIcon } from '@shared/icons';
+import { useLocation } from '@shared/route';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { DeleteDialogProps } from '../types';
 
 export const DeleteDialog = ({
     handleClose,

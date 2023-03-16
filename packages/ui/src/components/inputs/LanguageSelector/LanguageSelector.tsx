@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { LanguageSelectorProps } from '../types';
 import { useTranslation } from 'react-i18next';
-import { AllLanguages, PubSub } from 'utils';
+import { getSiteLanguage, siteLanguages } from 'utils/authentication/session';
+import { AllLanguages } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
 import { Selector } from '../Selector/Selector';
-import { getSiteLanguage, siteLanguages } from 'utils/authentication';
+import { LanguageSelectorProps } from '../types';
 
 /**
  * Updates the language of the entire app

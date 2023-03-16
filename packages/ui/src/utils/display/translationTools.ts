@@ -1,11 +1,11 @@
-import { FormikProps } from "formik";
-import { ObjectSchema, ValidationError } from 'yup';
-import { uuid } from '@shared/uuid';
-import { getCurrentUser } from "utils/authentication";
-import i18next from 'i18next';
 import { Session } from "@shared/consts";
 import { CommonKey, ErrorKey } from "@shared/translations";
+import { uuid } from '@shared/uuid';
+import { FormikProps } from "formik";
+import i18next from 'i18next';
 import { OptionalTranslation } from "types";
+import { getCurrentUser } from "utils/authentication/session";
+import { ObjectSchema, ValidationError } from 'yup';
 
 export type TranslationObject = {
     id: string,

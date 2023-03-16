@@ -1,13 +1,16 @@
 import { DialogProps, PopoverProps } from '@mui/material';
-import { HelpButtonProps } from "components/buttons/types";
 import { Comment, DeleteType, Node, NodeRoutineList, NodeRoutineListItem, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Session } from '@shared/consts';
-import { NavigableObject, RoutineStep } from 'types';
-import { ListObjectType, NodeLinkShape, NodeShape, SearchType, UseObjectActionsReturn } from 'utils';
 import { SvgComponent } from '@shared/icons';
+import { HelpButtonProps } from "components/buttons/types";
+import { StatsCompactPropsObject } from 'components/text/types';
+import { NavigableObject, RoutineStep } from 'types';
 import { ObjectAction } from 'utils/actions/objectActions';
 import { CookiePreferences } from 'utils/cookies';
-import { StatsCompactPropsObject } from 'components/text/types';
-import { BaseViewProps } from 'views/types';
+import { ListObjectType } from 'utils/display/listTools';
+import { UseObjectActionsReturn } from 'utils/hooks/useObjectActions';
+import { SearchType } from 'utils/search/objectToSearch';
+import { NodeShape } from 'utils/shape/models/node';
+import { NodeLinkShape } from 'utils/shape/models/nodeLink';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;

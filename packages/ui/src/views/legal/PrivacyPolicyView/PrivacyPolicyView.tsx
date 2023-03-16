@@ -1,4 +1,4 @@
-import { TopBar } from "components";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PrivacyPolicyViewProps } from "../types";
 
 export const PrivacyPolicyView = ({

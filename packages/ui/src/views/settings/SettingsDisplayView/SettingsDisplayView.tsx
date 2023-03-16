@@ -4,15 +4,22 @@ import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { userValidation } from "@shared/validation";
 import { useCustomMutation } from "api";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { GridSubmitButtons, HelpButton, SettingsList, SettingsTopBar } from "components";
-import { ThemeSwitch } from "components/inputs";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
+import { SettingsList } from "components/lists/SettingsList/SettingsList";
+import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { useFormik } from 'formik';
-import { BaseForm } from "forms";
+import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { clearSearchHistory, TagShape, useProfileQuery, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
-import { getCurrentUser } from "utils/authentication";
+import { getCurrentUser } from "utils/authentication/session";
 import { currentSchedules } from "utils/display/scheduleTools";
+import { useProfileQuery } from "utils/hooks/useProfileQuery";
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { clearSearchHistory } from "utils/search/clearSearchHistory";
+import { TagShape } from "utils/shape/models/tag";
+import { UserScheduleFilterShape } from "utils/shape/models/userScheduleFilter";
 import { SettingsDisplayViewProps } from "../types";
 
 const interestsHelpText =

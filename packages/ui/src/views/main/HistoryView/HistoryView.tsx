@@ -3,13 +3,20 @@ import { Stack } from '@mui/material';
 import { HistoryInput, HistoryResult, LINKS, RunStatus } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { historyHistory } from 'api/generated/endpoints/history_history';
-import { ListTitleContainer, PageTabs, SiteSearchBar, TopBar } from 'components';
+import { ListTitleContainer } from 'components/containers/ListTitleContainer/ListTitleContainer';
+import { SiteSearchBar } from 'components/inputs/search';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { PageTabs } from 'components/PageTabs/PageTabs';
 import { PageTab } from 'components/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
 import { AutocompleteOption, Wrap } from 'types';
-import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
+import { listToAutocomplete, listToListItems } from 'utils/display/listTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { useReactSearch } from 'utils/hooks/useReactSearch';
+import { openObject } from 'utils/navigation/openObject';
+import { HistorySearchPageTabOption } from 'utils/search/objectToSearch';
 import { HistoryViewProps } from '../types';
 
 enum TabOptions {

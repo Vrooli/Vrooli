@@ -1,20 +1,24 @@
-import { useCustomMutation } from 'api/hooks';
-import { reportCreateForm as validationSchema } from '@shared/validation';
 import { DialogContent, Link, Stack, TextField, Typography } from '@mui/material';
-import { useFormik } from 'formik';
-import { ReportDialogProps } from '../types';
-import { getUserLanguages, usePromptBeforeUnload } from 'utils';
-import { useCallback, useEffect, useState } from 'react';
-import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
-import { DialogTitle, GridSubmitButtons, LargeDialog, Selector } from 'components';
-import { uuid } from '@shared/uuid';
-import { Report, ReportCreateInput } from '@shared/consts';
-import { mutationWrapper } from 'api/utils';
-import { reportCreate } from 'api/generated/endpoints/report_create';
-import { clickSize } from 'styles';
-import { formNavLink } from 'forms/styles';
-import { useTranslation } from 'react-i18next';
 import { CSSProperties } from '@mui/styles';
+import { Report, ReportCreateInput } from '@shared/consts';
+import { uuid } from '@shared/uuid';
+import { reportCreateForm as validationSchema } from '@shared/validation';
+import { reportCreate } from 'api/generated/endpoints/report_create';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { Selector } from 'components/inputs/Selector/Selector';
+import { useFormik } from 'formik';
+import { formNavLink } from 'forms/styles';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { clickSize } from 'styles';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { usePromptBeforeUnload } from 'utils/hooks/usePromptBeforeUnload';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
+import { ReportDialogProps } from '../types';
 
 enum ReportOptions {
     Inappropriate = 'Inappropriate',

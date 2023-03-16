@@ -3,14 +3,14 @@
  * Stores new text until committed.
  */
 import { Dialog, DialogContent, DialogContentText, Grid, IconButton, Stack, TextField } from '@mui/material';
-import { useCallback, useEffect, useState } from 'react';
-import { EditableLabelProps } from '../types';
-import { DialogTitle } from 'components/dialogs';
 import { EditIcon } from '@shared/icons';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { useFormik } from 'formik';
-import { GridSubmitButtons } from 'components/buttons';
-import * as yup from 'yup';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import * as yup from 'yup';
+import { EditableLabelProps } from '../types';
 
 const titleId = 'editable-label-dialog-title';
 const descriptionAria = 'editable-label-dialog-description';

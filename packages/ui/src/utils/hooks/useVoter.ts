@@ -3,7 +3,7 @@ import { exists } from "@shared/utils";
 import { mutationWrapper, useCustomMutation } from "api";
 import { voteVote } from "api/generated/endpoints/vote_vote";
 import { useCallback } from "react";
-import { ObjectActionComplete } from "utils/actions";
+import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
 
 type UseVoterProps = {

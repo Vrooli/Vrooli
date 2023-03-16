@@ -2,11 +2,12 @@
  * A text collapse that supports editing mode, either with 
  * a TextField or MarkdownInput
  */
-import { EditableTextCollapseProps } from '../types';
-import { ContentCollapse, MarkdownInput } from 'components';
-import Markdown from 'markdown-to-jsx';
 import { TextField, useTheme } from '@mui/material';
+import { MarkdownInput } from 'components/inputs/MarkdownInput/MarkdownInput';
+import Markdown from 'markdown-to-jsx';
 import { linkColors } from 'styles';
+import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
+import { EditableTextCollapseProps } from '../types';
 
 export function EditableTextCollapse({
     helpText,

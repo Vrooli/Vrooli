@@ -2,7 +2,7 @@ import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, Auto
 import { SearchIcon } from '@shared/icons';
 import { ChangeEvent, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { findSearchResults, SearchItem, shapeSearchText } from 'utils';
+import { findSearchResults, SearchItem, shapeSearchText } from 'utils/search/siteToSearch';
 import { SettingsSearchBarProps } from '../types';
 
 const FullWidthPopper = function (props) {

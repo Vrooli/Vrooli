@@ -1,9 +1,10 @@
-import { BoxProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
+import { BoxProps, SelectChangeEvent, SelectProps, SwitchProps, TextFieldProps } from '@mui/material';
 import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, StandardVersion, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent, FocusEventHandler } from 'react';
 import { VersionInfo } from 'types';
-import { ObjectType, TagShape } from 'utils';
+import { ObjectType } from 'utils/navigation/openObject';
+import { TagShape } from 'utils/shape/models/tag';
 import { StringSchema } from 'yup';
 
 export interface CommentCreateInputProps {

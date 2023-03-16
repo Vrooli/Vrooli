@@ -1,7 +1,7 @@
 import { Session, SessionUser } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
 import { getCookieLanguage } from "utils/cookies";
-import { getUserLanguages } from "utils/display";
+import { getUserLanguages } from "utils/display/translationTools";
 
 /**
  * Session object that indicates no user is logged in

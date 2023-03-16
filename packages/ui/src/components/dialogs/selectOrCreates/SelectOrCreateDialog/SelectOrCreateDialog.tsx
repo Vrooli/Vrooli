@@ -1,27 +1,29 @@
 import {
-    Dialog,
     IconButton,
     Stack,
     Tooltip,
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, DialogTitle, LargeDialog, ShareSiteDialog } from 'components';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
-import { SearchList } from 'components/lists';
-import { useCustomLazyQuery } from 'api/hooks';
-import { SearchType, searchTypeToParams } from 'utils';
-import { removeSearchParams, useLocation } from '@shared/route';
-import { AddIcon } from '@shared/icons';
-import { getCurrentUser } from 'utils/authentication';
-import { useTranslation } from 'react-i18next';
 import { FindByIdInput } from '@shared/consts';
-import { isOfType } from '@shared/utils';
-import { SearchParams } from 'utils/search/schemas/base';
+import { AddIcon } from '@shared/icons';
+import { removeSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
+import { isOfType } from '@shared/utils';
+import { useCustomLazyQuery } from 'api/hooks';
+import { BaseObjectDialog } from 'components/dialogs/BaseObjectDialog/BaseObjectDialog';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
+import { ShareSiteDialog } from 'components/dialogs/ShareSiteDialog/ShareSiteDialog';
+import { SearchList } from 'components/lists/SearchList/SearchList';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lazily } from 'react-lazily';
+import { getCurrentUser } from 'utils/authentication/session';
+import { SearchType, searchTypeToParams } from 'utils/search/objectToSearch';
+import { SearchParams } from 'utils/search/schemas/base';
 import { CreateProps } from 'views/objects/types';
+import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 const { ApiCreate } = lazily(() => import('../../../../views/objects/api/ApiCreate/ApiCreate'));
 const { NoteCreate } = lazily(() => import('../../../../views/objects/note/NoteCreate/NoteCreate'));
 const { OrganizationCreate } = lazily(() => import('../../../../views/objects/organization/OrganizationCreate/OrganizationCreate'));

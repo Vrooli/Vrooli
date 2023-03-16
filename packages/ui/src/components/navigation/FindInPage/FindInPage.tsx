@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
     Box,
     Dialog,
@@ -8,13 +7,16 @@ import {
     TextField,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { getTextNodes, keyComboToString, normalizeText, PubSub, removeHighlights, wrapMatches } from 'utils';
 import { Stack } from '@mui/system';
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { keyComboToString } from 'utils/display/device';
+import { getTextNodes, normalizeText, removeHighlights, wrapMatches } from 'utils/display/documentTools';
+import { PubSub } from 'utils/pubsub';
 import { FindInPageProps } from '../types';
 
 const commonButtonSx = (palette: Palette) => ({

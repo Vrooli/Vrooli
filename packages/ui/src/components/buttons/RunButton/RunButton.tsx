@@ -3,10 +3,15 @@ import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine } 
 import { PlayIcon } from "@shared/icons";
 import { parseSearchParams, setSearchParams, useLocation } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
-import { PopoverWithArrow, RunPickerMenu, UpTransition } from "components/dialogs";
+import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
+import { UpTransition } from "components/dialogs/transitions";
 import { useCallback, useMemo, useState } from "react";
-import { getProjectVersionStatus, getRoutineVersionStatus, PubSub, Status, uuidToBase36 } from "utils";
-import { RunView } from "views";
+import { Status } from "utils/consts";
+import { uuidToBase36 } from "utils/navigation/urlTools";
+import { PubSub } from "utils/pubsub";
+import { getProjectVersionStatus, getRoutineVersionStatus } from "utils/runUtils";
+import { RunView } from "views/runs";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
 

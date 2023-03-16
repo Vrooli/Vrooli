@@ -1,23 +1,21 @@
 /**
  * Displays all search options for an organization
  */
-import {
-    Box,
-    Button,
-    Dialog,
-    Grid,
-    useTheme
-} from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
-import { AdvancedSearchDialogProps } from '../types';
-import { useFormik } from 'formik';
-import { FieldData, FormSchema } from 'forms/types';
-import { generateDefaultProps, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, convertSearchForFormik, searchTypeToParams } from 'utils';
-import { DialogTitle, GeneratedGrid, GridActionButtons, LargeDialog } from 'components';
+import { Box, Button, Grid, useTheme } from '@mui/material';
 import { CancelIcon, SearchIcon } from '@shared/icons';
-import { useTranslation } from 'react-i18next';
 import { parseSearchParams } from '@shared/route';
+import { GridActionButtons } from 'components/buttons/GridActionButtons/GridActionButtons';
+import { GeneratedGrid } from 'components/inputs/generated';
+import { useFormik } from 'formik';
+import { generateDefaultProps, generateYupSchema } from 'forms/generators';
+import { FieldData, FormSchema } from 'forms/types';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { convertFormikForSearch, convertSearchForFormik } from 'utils/search/inputToSearch';
+import { searchTypeToParams } from 'utils/search/objectToSearch';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { AdvancedSearchDialogProps } from '../types';
 
 const titleId = 'advanced-search-dialog-title';
 

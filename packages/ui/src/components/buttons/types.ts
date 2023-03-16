@@ -1,10 +1,11 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor, VoteFor } from '@shared/consts';
+import { BookmarkFor, ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, VoteFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import { FormSchema } from 'forms/types';
 import React from 'react';
-import { NavigableObject} from 'types';
-import { SearchType, Status } from 'utils';
+import { NavigableObject } from 'types';
+import { Status } from 'utils/consts';
+import { SearchType } from 'utils/search/objectToSearch';
 import { ViewDisplayType } from 'views/types';
 
 export interface AdvancedSearchButtonProps {

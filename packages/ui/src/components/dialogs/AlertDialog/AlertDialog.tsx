@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
     Button,
     Dialog,
     DialogActions,
     DialogContent,
-    DialogContentText,
+    DialogContentText
 } from '@mui/material';
-import { firstString, PubSub, translateSnackMessage } from 'utils';
-import { DialogTitle } from 'components';
 import i18next from 'i18next';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { firstString } from 'utils/display/stringTools';
+import { translateSnackMessage } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
 
 interface StateButton {
     label: string;

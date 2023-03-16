@@ -1,7 +1,7 @@
 import { Box, IconButton, Palette, Stack, useTheme } from '@mui/material';
 import { ArrowLeftIcon, ArrowRightIcon, CompleteIcon } from '@shared/icons';
 import { SetLocation, useLocation } from '@shared/route';
-import { TopBar } from 'components';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useCallback, useMemo, useState } from 'react';
 import { TutorialViewProps } from '../types';
 

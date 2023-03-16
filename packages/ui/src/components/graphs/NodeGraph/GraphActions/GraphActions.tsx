@@ -7,10 +7,10 @@ import {
     useTheme
 } from '@mui/material';
 import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
-import { UnlinkedNodesDialog } from 'components/dialogs';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { UnlinkedNodesDialog } from 'components/dialogs/UnlinkedNodesDialog/UnlinkedNodesDialog';
 import { useCallback, useMemo, useState } from 'react';
-import { useWindowSize } from 'utils';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { GraphActionsProps } from '../types';
 
 export const GraphActions = ({

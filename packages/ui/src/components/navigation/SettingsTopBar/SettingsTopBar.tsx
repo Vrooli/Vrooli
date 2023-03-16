@@ -1,8 +1,8 @@
 import { Box } from '@mui/material';
 import { useLocation } from '@shared/route';
-import { SettingsSearchBar } from 'components/inputs';
+import { SettingsSearchBar } from 'components/inputs/search';
 import { useCallback, useMemo, useState } from 'react';
-import { PreSearchItem, translateSearchItems } from 'utils';
+import { PreSearchItem, translateSearchItems } from 'utils/search/siteToSearch';
 import { TopBar } from '../TopBar/TopBar';
 import { SettingsTopBarProps } from '../types';
 

@@ -1,15 +1,18 @@
 /**
  * Dialog for spreading the word about the site.
  */
-import { LINKS } from '@shared/consts';
 import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
-import { ShareSiteDialogProps } from '../types';
-import QRCode from "react-qr-code";
+import { LINKS } from '@shared/consts';
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { getDeviceInfo, PubSub, usePress } from 'utils';
-import { ColorIconButton, LargeDialog } from 'components';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { useTranslation } from 'react-i18next';
+import QRCode from "react-qr-code";
+import { getDeviceInfo } from 'utils/display/device';
+import usePress from 'utils/hooks/usePress';
+import { PubSub } from 'utils/pubsub';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { ShareSiteDialogProps } from '../types';
 
 // Invite link
 const inviteLink = `https://vrooli.com${LINKS.Start}`;

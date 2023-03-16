@@ -2,12 +2,12 @@ import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import { LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
 import { openLink, useLocation } from '@shared/route';
-import { TopBar } from 'components';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clickSize } from 'styles';
-import { PubSub } from 'utils';
-import { checkIfLoggedIn } from 'utils/authentication';
+import { checkIfLoggedIn } from 'utils/authentication/session';
+import { PubSub } from 'utils/pubsub';
 import { WelcomeViewProps } from '../types';
 
 const buttonProps = {

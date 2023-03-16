@@ -1,6 +1,7 @@
-import { DialogTitle, Navbar } from 'components';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { useMemo } from 'react';
-import { getTranslatedTitleAndHelp } from 'utils/display';
+import { getTranslatedTitleAndHelp } from 'utils/display/translationTools';
+import { Navbar } from '../Navbar/Navbar';
 import { TopBarProps } from '../types';
 
 /**

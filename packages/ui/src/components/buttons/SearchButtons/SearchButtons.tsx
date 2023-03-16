@@ -1,5 +1,7 @@
 import { Box } from "@mui/material"
-import { AdvancedSearchButton, SortButton, TimeButton } from "components/buttons"
+import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton"
+import { SortButton } from "../SortButton/SortButton"
+import { TimeButton } from "../TimeButton/TimeButton"
 import { SearchButtonsProps } from "../types"
 
 export const SearchButtons = ({
