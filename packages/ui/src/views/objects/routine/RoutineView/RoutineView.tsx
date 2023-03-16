@@ -1,26 +1,26 @@
-import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
+import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material";
+import { CommentFor, FindVersionInput, LINKS, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
+import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
-import { LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
-import { useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ResourceListHorizontal, UpTransition, VersionDisplay, ObjectTitle, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel, TopBar } from "components";
-import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsCreate, standardVersionToFieldData, TagShape, defaultRelationships, defaultResourceList, useObjectActions, useObjectFromUrl } from "utils";
-import { mutationWrapper } from "api/utils";
+import { setDotNotationValue } from "@shared/utils";
 import { uuid } from '@shared/uuid';
+import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
+import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { ColorIconButton, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, RunButton, TagList, TopBar, UpTransition, VersionDisplay } from "components";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
+import { RelationshipsObject } from "components/inputs/types";
+import { smallHorizontalScrollbar } from "components/lists/styles";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
-import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
-import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
-import { getCurrentUser } from "utils/authentication";
-import { smallHorizontalScrollbar } from "components/lists/styles";
-import { RelationshipsObject } from "components/inputs/types";
-import { setDotNotationValue } from "@shared/utils";
-import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
-import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { defaultRelationships, defaultResourceList, formikToRunInputs, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsCreate, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl } from "utils";
+import { getCurrentUser } from "utils/authentication";
 import { BuildView } from "views/BuildView/BuildView";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { RoutineViewProps } from "../types";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.`

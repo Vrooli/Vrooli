@@ -1,4 +1,4 @@
-import { Box, Container, Typography, useTheme } from '@mui/material';
+import { Box, Container, useTheme } from '@mui/material';
 import { Session } from '@shared/consts';
 import { TopBar } from 'components';
 import { ViewDisplayType } from 'views/types';

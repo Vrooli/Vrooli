@@ -1,17 +1,17 @@
-import { Grid, TextField } from "@mui/material"
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { QuestionUpdateProps } from "../types";
-import { questionValidation, questionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeQuestion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, TagSelector, TopBar } from "components";
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
+import { Grid, TextField } from "@mui/material";
 import { FindByIdInput, Question, QuestionUpdateInput, ResourceList } from "@shared/consts";
+import { DUMMY_ID, uuid } from '@shared/uuid';
+import { questionTranslationValidation, questionValidation } from '@shared/validation';
 import { questionFindOne } from "api/generated/endpoints/question_findOne";
 import { questionUpdate } from "api/generated/endpoints/question_update";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TagSelector, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { QuestionUpdateProps } from "../types";
 
 export const QuestionUpdate = ({
     display = 'page',

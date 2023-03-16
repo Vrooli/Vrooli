@@ -1,18 +1,18 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { OrganizationUpdateProps } from "../types";
-import { mutationWrapper } from 'api/utils';
-import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
+import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
+import { DUMMY_ID, uuid } from '@shared/uuid';
+import { organizationTranslationValidation, organizationValidation } from '@shared/validation';
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { organizationUpdate } from "api/generated/endpoints/organization_update";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { OrganizationUpdateProps } from "../types";
 
 export const OrganizationUpdate = ({
     display = 'page',

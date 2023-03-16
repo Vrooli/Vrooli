@@ -1,18 +1,16 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
-import { resourceValidation, resourceTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { getUserLanguages, shapeResource, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { ResourceCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, Header, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
-import { uuid } from '@shared/uuid';
-import { checkIfLoggedIn } from "utils/authentication";
+import { Grid } from "@mui/material";
 import { Resource, ResourceCreateInput } from "@shared/consts";
+import { uuid } from '@shared/uuid';
+import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { resourceCreate } from "api/generated/endpoints/resource_create";
-import { parseSearchParams } from "@shared/route";
+import { useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, TopBar } from "components";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useMemo } from "react";
+import { getUserLanguages, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { ResourceCreateProps } from "../types";
 
 export const ResourceCreate = ({
     display = 'dialog',

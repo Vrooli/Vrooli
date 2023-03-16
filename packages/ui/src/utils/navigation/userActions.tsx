@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { LINKS, Session } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
     Button,
-    IconButton,
+    IconButton
 } from '@mui/material';
+import { LINKS, Session } from '@shared/consts';
 import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
-import { checkIfLoggedIn } from 'utils/authentication';
 import { openLink, SetLocation } from '@shared/route';
+import { checkIfLoggedIn } from 'utils/authentication';
 
 export enum ACTION_TAGS {
     Home = 'Home',

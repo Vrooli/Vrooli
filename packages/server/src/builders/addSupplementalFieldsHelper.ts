@@ -1,9 +1,9 @@
+import { GqlModelType, SessionUser } from '@shared/consts';
+import { getDotNotationValue, setDotNotationValue } from "@shared/utils";
 import { ObjectMap } from "../models";
-import { DotNotation, GqlModelType, SessionUser } from '@shared/consts';
+import { SupplementalConverter } from "../models/types";
 import { PrismaType, RecursivePartial } from "../types";
 import { PartialGraphQLInfo } from "./types";
-import { SupplementalConverter } from "../models/types";
-import { getDotNotationValue, setDotNotationValue } from "@shared/utils";
 
 /**
  * Returns a list of dot notation strings that describe every key in the input object, excluding arrays.

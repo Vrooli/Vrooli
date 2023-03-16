@@ -1,10 +1,10 @@
-import { PageTabs, SearchList, TopBar } from "components";
-import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { SearchType, HistorySearchPageTabOption as TabOptions } from "utils";
-import { PageTab } from "components/types";
-import { useTranslation } from "react-i18next";
 import { CommonKey } from "@shared/translations";
+import { PageTabs, SearchList, TopBar } from "components";
+import { PageTab } from "components/types";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { HistorySearchPageTabOption as TabOptions, SearchType } from "utils";
 import { HistorySearchViewProps } from "../types";
 
 // Tab data type

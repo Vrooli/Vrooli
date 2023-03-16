@@ -1,22 +1,21 @@
-import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useState } from "react";
-import { mutationWrapper } from 'api/utils';
-import { LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
-import { useFormik } from 'formik';
-import { getUserLanguages, shapeProfile, useProfileQuery, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { SettingsProfileViewProps } from "../types";
-import { useLocation } from '@shared/route';
-import { LanguageInput } from "components/inputs";
-import { ColorIconButton, GridSubmitButtons } from "components/buttons";
-import { PubSub } from 'utils'
+import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material";
+import { FindHandlesInput, LINKS, ProfileUpdateInput, User } from '@shared/consts';
 import { RefreshIcon } from "@shared/icons";
+import { useLocation } from '@shared/route';
 import { DUMMY_ID } from '@shared/uuid';
 import { userTranslationValidation, userValidation } from "@shared/validation";
-import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
+import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
 import { SettingsList, SettingsTopBar } from "components";
+import { ColorIconButton, GridSubmitButtons } from "components/buttons";
+import { LanguageInput } from "components/inputs";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useState } from "react";
+import { getUserLanguages, PubSub, shapeProfile, useProfileQuery, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { SettingsProfileViewProps } from "../types";
 
 export const SettingsProfileView = ({
     display = 'page',

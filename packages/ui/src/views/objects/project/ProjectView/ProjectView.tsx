@@ -1,16 +1,14 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, FindVersionInput, ProjectVersion } from "@shared/consts";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { LINKS, FindVersionInput, ProjectVersion, BookmarkFor, VisibilityType } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
-import { ProjectViewProps } from "../types";
-import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
-import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
+import { BookmarkButton, DateDisplay, ObjectActionMenu, SelectLanguageMenu, TopBar } from "components";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PageTab } from "components/types";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, useObjectActions, useObjectFromUrl } from "utils";
+import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
     display = 'page',

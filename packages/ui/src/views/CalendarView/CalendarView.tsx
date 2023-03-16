@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, startOfWeek, getDay, add } from 'date-fns';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { CalendarViewProps } from 'views/types';
 import { Box, useTheme } from '@mui/material';
-import { getUserLocale } from 'utils';
 import { FullPageSpinner, TopBar } from 'components';
+import { add } from 'date-fns';
+import { useMemo, useState } from 'react';
+import { Calendar } from 'react-big-calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useTranslation } from 'react-i18next';
+import { getUserLocale } from 'utils';
+import { CalendarViewProps } from 'views/types';
 
 // Replace this with your own events data
 const sampleEvents = [

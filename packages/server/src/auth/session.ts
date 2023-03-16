@@ -1,6 +1,6 @@
+import { Session, SessionUser } from '@shared/consts';
 import { Request } from "express";
 import { CustomError } from "../events";
-import { GqlModelType, Session, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 
 /**

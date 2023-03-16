@@ -1,9 +1,9 @@
-import { Link } from '@shared/route';
 import { Box, Button } from '@mui/material';
 import { LINKS } from '@shared/consts';
-import { NotFoundViewProps } from 'views/types';
-import { useTranslation } from 'react-i18next';
+import { Link } from '@shared/route';
 import { TopBar } from 'components';
+import { useTranslation } from 'react-i18next';
+import { NotFoundViewProps } from 'views/types';
 
 export const NotFoundView = ({
     session

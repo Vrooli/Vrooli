@@ -1,13 +1,12 @@
-import { ObjectMap } from "../models";
-import { Formatter } from "../models/types";
 import { GqlModelType, SessionUser } from '@shared/consts';
+import pkg from 'lodash';
+import { getLogic } from "../getters";
+import { ObjectMap } from "../models";
 import { PrismaType, SingleOrArray } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
 import { PartialGraphQLInfo } from "./types";
-import pkg from 'lodash';
-import { getLogic } from "../getters";
 const { merge } = pkg;
 
 /**

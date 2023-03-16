@@ -1,20 +1,20 @@
 import { Grid, useTheme } from "@mui/material";
+import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
+import { parseSearchParams } from "@shared/route";
+import { uuid } from '@shared/uuid';
+import { noteVersionTranslationValidation, noteVersionValidation } from '@shared/validation';
+import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, getUserLanguages, shapeNoteVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { NoteCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TagSelector, TopBar } from "components";
-import { uuid } from '@shared/uuid';
+import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TopBar } from "components";
 import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
-import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
-import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
-import { parseSearchParams } from "@shared/route";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { defaultRelationships, getUserLanguages, shapeNoteVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
+import { NoteCreateProps } from "../types";
 
 export const NoteCreate = ({
     display = 'page',

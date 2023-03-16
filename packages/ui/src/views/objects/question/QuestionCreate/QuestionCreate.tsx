@@ -1,19 +1,18 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
-import { questionValidation, questionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getUserLanguages, shapeQuestion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { QuestionCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
-import { uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn } from "utils/authentication";
+import { Grid } from "@mui/material";
 import { Question, QuestionCreateInput, ResourceList } from "@shared/consts";
-import { questionCreate } from "api/generated/endpoints/question_create";
 import { parseSearchParams } from "@shared/route";
+import { uuid } from '@shared/uuid';
+import { questionTranslationValidation, questionValidation } from '@shared/validation';
+import { questionCreate } from "api/generated/endpoints/question_create";
+import { useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getUserLanguages, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { QuestionCreateProps } from "../types";
 
 export const QuestionCreate = ({
     display = 'page',

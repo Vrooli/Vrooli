@@ -4,35 +4,31 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { useLocation } from '@shared/route';
 import {
     Box,
     Button,
     Dialog,
     Stack,
     SxProps,
-    Typography,
+    Typography
 } from '@mui/material';
-import { Forms, PubSub, useReactSearch } from 'utils';
-import { LINKS, EmailLogInInput, Session } from '@shared/consts';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { DialogTitle, HelpButton, TopBar, WalletInstallDialog, WalletSelectDialog } from 'components';
-import {
-    LogInForm,
-    ForgotPasswordForm,
-    SignUpForm,
-    ResetPasswordForm,
-} from 'forms';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { StartViewProps } from '../types';
-import { hasErrorCode } from 'api/utils';
-import { getCurrentUser } from 'utils/authentication';
-import { subscribeUserToPush } from 'serviceWorkerRegistration';
+import { EmailLogInInput, LINKS, Session } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
 import { authGuestLogIn } from 'api/generated/endpoints/auth_guestLogIn';
+import { useCustomMutation } from 'api/hooks';
+import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { DialogTitle, HelpButton, TopBar, WalletInstallDialog, WalletSelectDialog } from 'components';
+import {
+    ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm
+} from 'forms';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { subscribeUserToPush } from 'serviceWorkerRegistration';
+import { Forms, PubSub, useReactSearch } from 'utils';
+import { getCurrentUser } from 'utils/authentication';
+import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
+import { StartViewProps } from '../types';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.\n\nChoose **ENTER AS GUEST** if you only want to view the site or execute existing routines.`

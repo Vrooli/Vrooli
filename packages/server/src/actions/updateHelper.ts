@@ -1,10 +1,10 @@
 import { assertRequestFrom } from "../auth/request";
+import { addSupplementalFields, toPartialGraphQLInfo } from "../builders";
 import { CustomError } from "../events";
+import { getLogic } from "../getters";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cudHelper";
 import { UpdateHelperProps } from "./types";
-import { getLogic } from "../getters";
-import { addSupplementalFields, toPartialGraphQLInfo } from "../builders";
 
 /**
  * Helper function for updating one object in a single line

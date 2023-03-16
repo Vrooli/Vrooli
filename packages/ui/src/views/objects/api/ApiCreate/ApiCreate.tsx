@@ -1,19 +1,18 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
-import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getUserLanguages, shapeApiVersion, TagShape, useCreateActions, useObjectActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { ApiCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
-import { uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn } from "utils/authentication";
+import { Grid } from "@mui/material";
 import { ApiVersion, ApiVersionCreateInput, ResourceList } from "@shared/consts";
-import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { parseSearchParams } from "@shared/route";
+import { uuid } from '@shared/uuid';
+import { apiVersionTranslationValidation, apiVersionValidation } from '@shared/validation';
+import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
+import { useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getUserLanguages, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { ApiCreateProps } from "../types";
 
 export const ApiCreate = ({
     display = 'page',

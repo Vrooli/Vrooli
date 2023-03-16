@@ -1,18 +1,17 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { SmartContractUpdateProps } from "../types";
-import { mutationWrapper } from 'api/utils';
-import { smartContractVersionValidation, smartContractVersionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, removeTranslation, shapeSmartContractVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
+import { Grid } from "@mui/material";
+import { FindByIdInput, ResourceList, SmartContractVersion, SmartContractVersionUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
-import { FindByIdInput, SmartContractVersion, SmartContractVersionUpdateInput, ResourceList } from "@shared/consts";
+import { smartContractVersionTranslationValidation, smartContractVersionValidation } from '@shared/validation';
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 import { smartContractVersionUpdate } from "api/generated/endpoints/smartContractVersion_update";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { SmartContractUpdateProps } from "../types";
 
 export const SmartContractUpdate = ({
     display = 'page',

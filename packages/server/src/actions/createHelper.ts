@@ -1,10 +1,10 @@
 import { assertRequestFrom } from "../auth/request";
+import { addSupplementalFields, toPartialGraphQLInfo } from "../builders";
 import { CustomError } from "../events";
+import { getLogic } from "../getters";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cudHelper";
 import { CreateHelperProps } from "./types";
-import { addSupplementalFields, toPartialGraphQLInfo } from "../builders";
-import { getLogic } from "../getters";
 
 /**
  * Helper function for creating one object in a single line.

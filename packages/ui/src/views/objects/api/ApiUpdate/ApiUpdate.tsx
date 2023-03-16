@@ -1,18 +1,17 @@
-import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ApiUpdateProps } from "../types";
-import { mutationWrapper } from 'api/utils';
-import { apiVersionValidation, apiVersionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeApiVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
+import { Grid } from "@mui/material";
+import { ApiVersion, ApiVersionUpdateInput, FindByIdInput, ResourceList } from "@shared/consts";
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
-import { FindByIdInput, ApiVersion, ApiVersionUpdateInput, ResourceList } from "@shared/consts";
+import { apiVersionTranslationValidation, apiVersionValidation } from '@shared/validation';
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { ApiUpdateProps } from "../types";
 
 export const ApiUpdate = ({
     display = 'page',

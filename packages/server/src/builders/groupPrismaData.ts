@@ -1,9 +1,9 @@
+import { GqlModelType } from "@shared/consts";
 import { isObject } from "@shared/utils";
+import pkg from 'lodash';
+import { SingleOrArray } from "../types";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { PartialGraphQLInfo } from "./types";
-import pkg from 'lodash';
-import { GqlModelType } from "@shared/consts";
-import { SingleOrArray } from "../types";
 const { merge } = pkg;
 
 type GroupPrismaDataReturn = {

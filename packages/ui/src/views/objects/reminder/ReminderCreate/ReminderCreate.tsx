@@ -1,17 +1,16 @@
-import { Checkbox, FormControlLabel, Grid } from "@mui/material";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
-import { reminderValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { useCreateActions, usePromptBeforeUnload } from "utils";
-import { ReminderCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, Header, TopBar } from "components";
-import { uuid } from '@shared/uuid';
-import { checkIfLoggedIn, getCurrentUser } from "utils/authentication";
+import { Grid } from "@mui/material";
 import { Reminder, ReminderCreateInput } from "@shared/consts";
+import { uuid } from '@shared/uuid';
+import { reminderValidation } from '@shared/validation';
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
+import { useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, TopBar } from "components";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useMemo } from "react";
+import { useCreateActions, usePromptBeforeUnload } from "utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { ReminderCreateProps } from "../types";
 
 export const ReminderCreate = ({
     display = 'page',

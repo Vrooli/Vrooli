@@ -1,11 +1,11 @@
 import { Count, GqlModelType } from '@shared/consts';
+import { reqArr } from '@shared/validation';
+import { modelToGraphQL, selectHelper } from "../builders";
+import { CustomError } from '../events';
+import { getLogic } from "../getters";
 import { cudInputsToMaps, getAuthenticatedData } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
-import { modelToGraphQL, selectHelper } from "../builders";
-import { getLogic } from "../getters";
-import { reqArr } from '@shared/validation';
-import { CustomError } from '../events';
 
 /**
  * Performs create, update, and delete operations. 

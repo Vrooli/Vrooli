@@ -1,18 +1,18 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, FindByIdOrHandleInput, LINKS, ResourceList, User, VisibilityType } from "@shared/consts";
+import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, VisibilityType } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
-import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, SearchType, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
-import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
-import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { getCurrentUser } from "utils/authentication";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
-import { useTranslation } from "react-i18next";
+import { BookmarkButton, DateDisplay, ObjectActionMenu, PageTabs, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, TopBar } from "components";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { SearchListGenerator } from "components/lists/types";
 import { PageTab } from "components/types";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, SearchType, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
+import { getCurrentUser } from "utils/authentication";
+import { UserViewProps } from "../types";
 
 enum TabOptions {
     Resource = "Resource",

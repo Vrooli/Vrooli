@@ -1,14 +1,14 @@
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ApiVersion, BookmarkFor, FindVersionInput, ResourceList } from "@shared/consts";
+import { ApiIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { ApiVersion, ResourceList, BookmarkFor, FindVersionInput } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
-import { ApiViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
-import { ResourceListVertical } from "components/lists";
-import { EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
+import { BookmarkButton, DateDisplay, ObjectActionMenu, ReportsLink, SelectLanguageMenu, TopBar } from "components";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { ResourceListVertical } from "components/lists";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { ApiViewProps } from "../types";
 
 export const ApiView = ({
     display = 'page',

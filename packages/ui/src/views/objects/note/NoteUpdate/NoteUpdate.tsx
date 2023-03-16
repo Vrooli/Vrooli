@@ -1,20 +1,20 @@
-import { Grid, useTheme } from "@mui/material"
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { NoteUpdateProps } from "../types";
-import { mutationWrapper } from 'api/utils';
-import { noteVersionValidation, noteVersionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TopBar } from "components";
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
+import { Grid, useTheme } from "@mui/material";
 import { FindVersionInput, NoteVersion, NoteVersionUpdateInput } from "@shared/consts";
+import { DUMMY_ID } from '@shared/uuid';
+import { noteVersionTranslationValidation, noteVersionValidation } from '@shared/validation';
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 import { noteVersionUpdate } from "api/generated/endpoints/noteVersion_update";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
+import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
-import { getCurrentUser } from "utils/authentication";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { defaultRelationships, getPreferredLanguage, getUserLanguages, parseSingleItemUrl, PubSub, shapeNoteVersion, TagShape, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { getCurrentUser } from "utils/authentication";
+import { NoteUpdateProps } from "../types";
 
 export const NoteUpdate = ({
     display = 'page',

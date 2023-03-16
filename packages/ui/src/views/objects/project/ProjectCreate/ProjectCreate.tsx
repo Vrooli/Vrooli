@@ -1,19 +1,19 @@
 import { Grid, TextField } from "@mui/material";
+import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
+import { parseSearchParams } from "@shared/route";
+import { uuid } from '@shared/uuid';
+import { projectVersionTranslationValidation, projectVersionValidation } from '@shared/validation';
+import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { projectVersionTranslationValidation, projectVersionValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getUserLanguages, shapeProjectVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { ProjectCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar, VersionInput } from "components";
-import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn } from "utils/authentication";
-import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
-import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
-import { parseSearchParams } from "@shared/route";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getUserLanguages, shapeProjectVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { ProjectCreateProps } from "../types";
 
 export const ProjectCreate = ({
     display = 'page',

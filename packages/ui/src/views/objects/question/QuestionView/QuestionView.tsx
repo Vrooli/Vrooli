@@ -1,13 +1,13 @@
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation } from '@shared/route';
-import { Question, BookmarkFor, FindByIdInput } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
-import { QuestionViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, FindByIdInput, Question } from "@shared/consts";
 import { EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { useLocation } from '@shared/route';
 import { questionFindOne } from "api/generated/endpoints/question_findOne";
+import { BookmarkButton, DateDisplay, ObjectActionMenu, ReportsLink, SelectLanguageMenu, TopBar } from "components";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({
     display = 'page',

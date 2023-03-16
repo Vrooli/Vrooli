@@ -1,22 +1,22 @@
 import { Box, Grid, TextField } from "@mui/material";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getUserLanguages, InputTypeOption, InputTypeOptions, shapeStandardVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { StandardCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, ResourceListHorizontal, Selector, TagSelector, TopBar } from "components";
-import { uuid } from '@shared/uuid';
-import { FieldData } from "forms/types";
-import { BaseStandardInput, GeneratedInputComponent, PreviewSwitch, RelationshipButtons } from "components/inputs";
-import { generateYupSchema } from "forms/generators";
-import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
+import { parseSearchParams } from "@shared/route";
+import { uuid } from '@shared/uuid';
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
 import { standardVersionCreate } from "api/generated/endpoints/standardVersion_create";
-import { parseSearchParams } from "@shared/route";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
+import { GridSubmitButtons, LanguageInput, ResourceListHorizontal, Selector, TagSelector, TopBar } from "components";
+import { BaseStandardInput, GeneratedInputComponent, PreviewSwitch, RelationshipButtons } from "components/inputs";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { generateYupSchema } from "forms/generators";
+import { FieldData } from "forms/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getUserLanguages, InputTypeOption, InputTypeOptions, shapeStandardVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { StandardCreateProps } from "../types";
 
 export const StandardCreate = ({
     display = 'page',

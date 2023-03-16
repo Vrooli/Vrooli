@@ -1,12 +1,12 @@
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material"
-import { useLocation } from '@shared/route';
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { FindByIdInput, Reminder } from "@shared/consts";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
-import { ObjectActionMenu, TopBar } from "components";
-import { ReminderViewProps } from "../types";
-import { placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { EllipsisIcon, HelpIcon } from "@shared/icons";
+import { useLocation } from '@shared/route';
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
+import { ObjectActionMenu, TopBar } from "components";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { ReminderViewProps } from "../types";
 
 export const ReminderView = ({
     display = 'page',

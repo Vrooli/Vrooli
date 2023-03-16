@@ -1,21 +1,21 @@
-import express from 'express';
-import cookieParser from 'cookie-parser';
-import * as auth from './auth/request';
-import cors from "cors";
-import { ApolloServer } from 'apollo-server-express';
-import { context, depthLimit } from './middleware';
-import { graphqlUploadExpress } from 'graphql-upload';
-import { schema } from './endpoints';
-import { setupDatabase } from './utils/setupDatabase';
-import { logger } from './events/logger';
-import { initializeRedis } from './redisConn';
 import { i18nConfig } from '@shared/translations';
+import { ApolloServer } from 'apollo-server-express';
+import cookieParser from 'cookie-parser';
+import cors from "cors";
+import express from 'express';
+import { graphqlUploadExpress } from 'graphql-upload';
 import i18next from 'i18next';
-import { initStatsCronJobs } from './schedules/stats';
-import { initEventsCronJobs } from './schedules/events';
-import { initCountsCronJobs } from './schedules/counts';
+import * as auth from './auth/request';
+import { schema } from './endpoints';
+import { logger } from './events/logger';
+import { context, depthLimit } from './middleware';
+import { initializeRedis } from './redisConn';
 import { initSitemapCronJob } from './schedules';
+import { initCountsCronJobs } from './schedules/counts';
+import { initEventsCronJobs } from './schedules/events';
 import { initModerationCronJobs } from './schedules/moderate';
+import { initStatsCronJobs } from './schedules/stats';
+import { setupDatabase } from './utils/setupDatabase';
 
 const debug = process.env.NODE_ENV === 'development';
 

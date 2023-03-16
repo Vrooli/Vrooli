@@ -1,19 +1,19 @@
-import { Stack } from "@mui/material"
-import { SettingsNotificationsViewProps } from "../types";
-import { useDisplayApolloError, usePromptBeforeUnload } from "utils";
-import { useCustomMutation } from "api/hooks";
-import { useFormik } from "formik";
-import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
-import { userValidation } from "@shared/validation";
-import { BaseForm } from "forms";
-import { ListContainer, IntegerInput, SettingsList, SettingsToggleListItem, SettingsTopBar, PushList, Subheader } from "components";
-import { useTranslation } from "react-i18next";
-import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
-import { notificationSettings } from "api/generated/endpoints/notification_settings";
 import { useQuery } from "@apollo/client";
-import { Wrap } from "types";
-import { mutationWrapper } from "api";
+import { Stack } from "@mui/material";
+import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
 import { PhoneIcon } from "@shared/icons";
+import { userValidation } from "@shared/validation";
+import { mutationWrapper } from "api";
+import { notificationSettings } from "api/generated/endpoints/notification_settings";
+import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
+import { useCustomMutation } from "api/hooks";
+import { ListContainer, PushList, SettingsList, SettingsToggleListItem, SettingsTopBar, Subheader } from "components";
+import { useFormik } from "formik";
+import { BaseForm } from "forms";
+import { useTranslation } from "react-i18next";
+import { Wrap } from "types";
+import { useDisplayApolloError, usePromptBeforeUnload } from "utils";
+import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({
     display = 'page',

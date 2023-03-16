@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { LINKS, GqlModelType, RunProject, RunRoutine, Bookmark, View, Vote } from "@shared/consts";
+import { Bookmark, GqlModelType, LINKS, RunProject, RunRoutine, View, Vote } from "@shared/consts";
 import { SetLocation, stringifySearchParams } from "@shared/route";
 import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";

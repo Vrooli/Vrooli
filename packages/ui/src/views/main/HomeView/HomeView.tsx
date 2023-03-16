@@ -1,18 +1,18 @@
-import { Stack } from '@mui/material';
-import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
-import { SiteSearchBar, TitleContainer, PageTabs, TopBar, HomePrompt, ResourceListHorizontal } from 'components';
+import { Stack } from '@mui/material';
+import { HomeInput, HomeResult, LINKS, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { LINKS, HomeInput, HomeResult, ResourceList } from '@shared/consts';
-import { HomeViewProps } from '../types';
-import { actionsItems, getUserLanguages, listToAutocomplete, openObject, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
-import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
-import { getCurrentUser } from 'utils/authentication';
-import { feedHome } from 'api/generated/endpoints/feed_home';
-import { PageTab } from 'components/types';
-import { useTranslation } from 'react-i18next';
 import { DUMMY_ID } from '@shared/uuid';
+import { feedHome } from 'api/generated/endpoints/feed_home';
+import { HomePrompt, PageTabs, ResourceListHorizontal, SiteSearchBar, TitleContainer, TopBar } from 'components';
+import { PageTab } from 'components/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
+import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
+import { actionsItems, getUserLanguages, listToAutocomplete, openObject, shortcuts, useDisplayApolloError, useReactSearch } from 'utils';
+import { getCurrentUser } from 'utils/authentication';
+import { HomeViewProps } from '../types';
 
 enum TabOptions {
     ForYou = "ForYou",

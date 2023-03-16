@@ -1,9 +1,9 @@
 import { LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
+import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { PubSub } from "utils/pubsub";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { clearSearchHistory, HistorySearchPageTabOption, PreSearchItem, SearchPageTabOption } from "utils/search";
 
 export interface ShortcutItem {

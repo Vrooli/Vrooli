@@ -1,11 +1,11 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
+import { Node, NodeLink, NodeType } from "@shared/consts";
+import { OpenInNewIcon } from "@shared/icons";
+import { TopBar } from "components";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
 import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
-import { OpenInNewIcon } from "@shared/icons";
-import { Node, NodeLink, NodeType } from "@shared/consts";
-import { TopBar } from "components";
 
 type Decision = {
     node: Node;

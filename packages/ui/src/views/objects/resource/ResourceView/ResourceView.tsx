@@ -1,11 +1,11 @@
-import { Box, useTheme } from "@mui/material"
+import { Box, useTheme } from "@mui/material";
+import { FindByIdInput, Resource } from "@shared/consts";
 import { useLocation } from '@shared/route';
-import { Resource, FindByIdInput } from "@shared/consts";
-import { useEffect, useMemo, useState } from "react";
-import { SelectLanguageMenu, TopBar } from "components";
-import { ResourceViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, useObjectActions, useObjectFromUrl } from "utils";
 import { resourceFindOne } from "api/generated/endpoints/resource_findOne";
+import { SelectLanguageMenu, TopBar } from "components";
+import { useEffect, useMemo, useState } from "react";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, useObjectActions, useObjectFromUrl } from "utils";
+import { ResourceViewProps } from "../types";
 
 export const ResourceView = ({
     display = 'dialog',

@@ -1,7 +1,7 @@
 import pkg from '@prisma/client';
 import { GqlModelType, SessionUser } from '@shared/consts';
-import { Context } from './middleware';
 import { GraphQLResolveInfo } from 'graphql';
+import { Context } from './middleware';
 
 // Request type
 declare global {

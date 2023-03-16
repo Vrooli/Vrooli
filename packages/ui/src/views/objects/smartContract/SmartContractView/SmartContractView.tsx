@@ -1,13 +1,13 @@
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation } from '@shared/route';
-import { SmartContractVersion, BookmarkFor, FindVersionInput } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
-import { SmartContractViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, FindVersionInput, SmartContractVersion } from "@shared/consts";
 import { EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { useLocation } from '@shared/route';
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
+import { BookmarkButton, DateDisplay, ObjectActionMenu, ReportsLink, SelectLanguageMenu, TopBar } from "components";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
+import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
     display = 'page',

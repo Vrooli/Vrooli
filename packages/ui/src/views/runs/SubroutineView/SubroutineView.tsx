@@ -1,16 +1,16 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentContainer, ContentCollapse, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, StatsCompact, TagList, TextCollapse, TopBar, VersionDisplay } from "components";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
-import { useLocation } from '@shared/route';
-import { SubroutineViewProps } from "../types";
-import { FieldData } from "forms/types";
-import { useFormik } from "formik";
 import { CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
+import { SuccessIcon } from "@shared/icons";
+import { useLocation } from '@shared/route';
+import { uuid } from "@shared/uuid";
+import { CommentContainer, ContentCollapse, DateDisplay, GeneratedInputComponentWithLabel, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, TagList, TextCollapse, TopBar, VersionDisplay } from "components";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
-import { uuid } from "@shared/uuid";
-import { SuccessIcon } from "@shared/icons";
+import { useFormik } from "formik";
+import { FieldData } from "forms/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, useObjectActions } from "utils";
+import { SubroutineViewProps } from "../types";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,

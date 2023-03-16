@@ -1,19 +1,19 @@
-import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFormik } from 'formik';
-import { clearSearchHistory, TagShape, useProfileQuery, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
+import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material";
+import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
+import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
+import { userValidation } from "@shared/validation";
+import { useCustomMutation } from "api";
+import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { GridSubmitButtons, HelpButton, SettingsList, SettingsTopBar } from "components";
 import { ThemeSwitch } from "components/inputs";
-import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
+import { useFormik } from 'formik';
+import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { clearSearchHistory, TagShape, useProfileQuery, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
 import { getCurrentUser } from "utils/authentication";
-import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
-import { userValidation } from "@shared/validation";
 import { currentSchedules } from "utils/display/scheduleTools";
 import { SettingsDisplayViewProps } from "../types";
-import { useTranslation } from "react-i18next";
-import { BaseForm } from "forms";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { useCustomMutation } from "api";
 
 const interestsHelpText =
     `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`

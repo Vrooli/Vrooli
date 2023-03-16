@@ -1,16 +1,16 @@
-import { Grid, TextField } from "@mui/material"
-import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ResourceUpdateProps } from "../types";
-import { resourceValidation, resourceTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { getUserLanguages, parseSingleItemUrl, PubSub, shapeResource, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, TagSelector, TopBar } from "components";
+import { Grid, TextField } from "@mui/material";
+import { FindByIdInput, Resource, ResourceUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { FindByIdInput, Resource, ResourceUpdateInput, ResourceList } from "@shared/consts";
+import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { resourceFindOne } from "api/generated/endpoints/resource_findOne";
 import { resourceUpdate } from "api/generated/endpoints/resource_update";
+import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, TopBar } from "components";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useEffect, useMemo } from "react";
+import { getUserLanguages, parseSingleItemUrl, PubSub, usePromptBeforeUnload, useTranslatedFields, useUpdateActions } from "utils";
+import { ResourceUpdateProps } from "../types";
 
 export const ResourceUpdate = ({
     display = 'dialog',

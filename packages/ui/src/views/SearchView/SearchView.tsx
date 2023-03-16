@@ -2,18 +2,18 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { PageTabs, SearchList, ShareSiteDialog, TopBar } from "components";
-import { useCallback, useMemo, useState } from "react";
-import { centeredDiv } from "styles";
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { SearchViewProps } from "../types";
-import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions } from "utils";
-import { LINKS, GqlModelType } from "@shared/consts";
+import { GqlModelType, LINKS } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
-import { getCurrentUser } from "utils/authentication";
-import { useTranslation } from "react-i18next";
-import { PageTab } from "components/types";
+import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from "@shared/translations";
+import { PageTabs, SearchList, ShareSiteDialog, TopBar } from "components";
+import { PageTab } from "components/types";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { centeredDiv } from "styles";
+import { getObjectUrlBase, PubSub, SearchPageTabOption as TabOptions, SearchType } from "utils";
+import { getCurrentUser } from "utils/authentication";
+import { SearchViewProps } from "../types";
 
 // Tab data type
 type BaseParams = {

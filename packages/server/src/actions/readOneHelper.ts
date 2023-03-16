@@ -1,14 +1,14 @@
 import { ViewFor } from "@shared/consts";
+import { getUser } from "../auth";
+import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { CustomError } from "../events";
+import { getIdFromHandle, getLatestVersion } from "../getters";
+import { ObjectMap } from "../models";
+import { ViewModel } from "../models/view";
 import { RecursivePartial } from "../types";
 import { getAuthenticatedData } from "../utils";
 import { permissionsCheck } from "../validators";
-import { ViewModel } from "../models/view";
 import { ReadOneHelperProps } from "./types";
-import { getUser } from "../auth";
-import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { getIdFromHandle, getLatestVersion } from "../getters";
-import { ObjectMap } from "../models";
 
 /**
  * Helper function for reading one object in a single line

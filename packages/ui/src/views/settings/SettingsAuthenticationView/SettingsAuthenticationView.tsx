@@ -1,22 +1,22 @@
-import { Box, Button, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useCustomMutation } from "api/hooks";
-import { useCallback, useState } from "react";
-import { mutationWrapper } from 'api/utils';
-import { LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
-import { useFormik } from 'formik';
-import { PubSub, useProfileQuery, usePromptBeforeUnload } from "utils";
-import { SettingsAuthenticationViewProps } from "../types";
-import { useLocation } from '@shared/route';
-import { GridSubmitButtons } from "components/buttons";
-import { EmailList, SettingsList, WalletList } from "components/lists";
-import { DeleteAccountDialog, PasswordTextField, SettingsTopBar, Subheader } from "components";
+import { Box, Button, Grid, Stack, TextField, useTheme } from "@mui/material";
+import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
-import { getCurrentUser, guestSession } from "utils/authentication";
+import { useLocation } from '@shared/route';
 import { userValidation } from "@shared/validation";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
+import { DeleteAccountDialog, PasswordTextField, SettingsTopBar, Subheader } from "components";
+import { GridSubmitButtons } from "components/buttons";
+import { EmailList, SettingsList, WalletList } from "components/lists";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PubSub, useProfileQuery, usePromptBeforeUnload } from "utils";
+import { getCurrentUser, guestSession } from "utils/authentication";
+import { SettingsAuthenticationViewProps } from "../types";
 
 export const SettingsAuthenticationView = ({
     display = 'page',

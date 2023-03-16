@@ -1,19 +1,18 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
-import { smartContractVersionValidation, smartContractVersionTranslationValidation } from '@shared/validation';
-import { useFormik } from 'formik';
-import { defaultRelationships, defaultResourceList, getUserLanguages, shapeSmartContractVersion, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { SmartContractCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, TopBar } from "components";
-import { uuid } from '@shared/uuid';
-import { RelationshipsObject } from "components/inputs/types";
-import { checkIfLoggedIn } from "utils/authentication";
-import { SmartContractVersion, SmartContractVersionCreateInput, ResourceList } from "@shared/consts";
-import { smartContractVersionCreate } from "api/generated/endpoints/smartContractVersion_create";
+import { Grid } from "@mui/material";
+import { ResourceList, SmartContractVersion, SmartContractVersionCreateInput } from "@shared/consts";
 import { parseSearchParams } from "@shared/route";
+import { uuid } from '@shared/uuid';
+import { smartContractVersionTranslationValidation, smartContractVersionValidation } from '@shared/validation';
+import { smartContractVersionCreate } from "api/generated/endpoints/smartContractVersion_create";
+import { useCustomMutation } from "api/hooks";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, TopBar } from "components";
+import { RelationshipsObject } from "components/inputs/types";
+import { useFormik } from 'formik';
 import { BaseForm } from "forms";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getUserLanguages, TagShape, useCreateActions, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { checkIfLoggedIn } from "utils/authentication";
+import { SmartContractCreateProps } from "../types";
 
 export const SmartContractCreate = ({
     display = 'page',

@@ -1,14 +1,14 @@
-import { LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
-import { openLink, useLocation } from '@shared/route';
-import { clickSize } from 'styles';
-import { useEffect } from 'react';
-import { PubSub } from 'utils';
+import { LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
-import { checkIfLoggedIn } from 'utils/authentication';
-import { useTranslation } from 'react-i18next';
-import { WelcomeViewProps } from '../types';
+import { openLink, useLocation } from '@shared/route';
 import { TopBar } from 'components';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { clickSize } from 'styles';
+import { PubSub } from 'utils';
+import { checkIfLoggedIn } from 'utils/authentication';
+import { WelcomeViewProps } from '../types';
 
 const buttonProps = {
     height: "48px",

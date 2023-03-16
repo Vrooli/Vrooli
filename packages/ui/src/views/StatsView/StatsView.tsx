@@ -1,13 +1,13 @@
 import { Box, Typography } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LineGraphCard, DateRangeMenu, PageTabs, CardGrid, TopBar } from 'components';
-import { useTranslation } from 'react-i18next';
-import { displayDate, statsDisplay } from 'utils';
-import { StatsViewProps } from '../types';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useCustomLazyQuery } from 'api';
 import { statsSiteFindMany } from 'api/generated/endpoints/statsSite_findMany';
+import { CardGrid, DateRangeMenu, LineGraphCard, PageTabs, TopBar } from 'components';
 import { PageTab } from 'components/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { displayDate, statsDisplay } from 'utils';
+import { StatsViewProps } from '../types';
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 

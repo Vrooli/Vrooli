@@ -1,8 +1,8 @@
 import { SessionUser } from '@shared/consts';
+import pkg from 'lodash';
 import { PrismaType } from "../types";
 import { addSupplementalFields } from "./addSupplementalFields";
 import { PartialGraphQLInfo } from "./types";
-import pkg from 'lodash';
 const { flatten } = pkg;
 
 /**

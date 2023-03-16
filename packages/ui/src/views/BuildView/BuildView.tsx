@@ -1,16 +1,16 @@
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLinkShape, PubSub, usePromptBeforeUnload, getRoutineVersionStatus, NodeRoutineListShape, NodeRoutineListItemShape } from 'utils';
+import { Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion } from '@shared/consts';
+import { CloseIcon } from '@shared/icons';
 import { keepSearchParams, useLocation } from '@shared/route';
 import { exists, isEqual } from '@shared/utils';
-import { BuildViewProps } from '../types';
 import { uuid, uuidValidate } from '@shared/uuid';
-import { StatusMessageArray } from 'components/buttons/types';
+import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, HelpButton, LanguageInput, LinkDialog, NodeGraph, SelectLanguageMenu, SubroutineInfoDialog, SubroutineSelectOrCreateDialog } from 'components';
 import { BuildEditButtons, StatusButton } from 'components/buttons';
+import { StatusMessageArray } from 'components/buttons/types';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
-import { CloseIcon } from '@shared/icons';
-import { Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion } from '@shared/consts';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BuildAction, deleteArrayIndex, getRoutineVersionStatus, NodeLinkShape, NodeRoutineListItemShape, NodeRoutineListShape, NodeShape, PubSub, Status, updateArray, usePromptBeforeUnload } from 'utils';
+import { BuildViewProps } from '../types';
 
 const helpText =
     `## What am I looking at?\nThis is the **Build** page. Here you can create and edit multi-step routines.\n\n## What is a routine?\nA *routine* is simply a process for completing a task, which takes inputs, performs some action, and outputs some results. By connecting multiple routines together, you can perform arbitrarily complex tasks.\n\nAll valid multi-step routines have a *start* node and at least one *end* node. Each node inbetween stores a list of subroutines, which can be optional or required.\n\nWhen a user runs the routine, they traverse the routine graph from left to right. Each subroutine is rendered as a page, with components such as TextFields for each input. Where the graph splits, users are given a choice of which subroutine to go to next.\n\n## How do I build a multi-step routine?\nIf you are starting from scratch, you will see a *start* node, a *routine list* node, and an *end* node.\n\nYou can press the routine list node to toggle it open/closed. The *open* stats allows you to select existing subroutines from Vrooli, or create a new one.\n\nEach link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.\n\nYou also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.`

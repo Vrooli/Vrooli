@@ -1,19 +1,19 @@
-import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
-import { useLocation } from '@shared/route';
+import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material";
 import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton, TopBar } from "components";
-import { StandardViewProps } from "../types";
-import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl } from "utils";
+import { EditIcon } from "@shared/icons";
+import { useLocation } from '@shared/route';
 import { uuid } from '@shared/uuid';
-import { FieldData, FieldDataJSON } from "forms/types";
-import { useFormik } from "formik";
+import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
+import { BaseStandardInput, ColorIconButton, CommentContainer, DateDisplay, ObjectActionsRow, ObjectTitle, ResourceListHorizontal, TagList, TextCollapse, TopBar, VersionDisplay } from "components";
 import { PreviewSwitch, RelationshipButtons } from "components/inputs";
+import { GeneratedInputComponent } from "components/inputs/generated";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
-import { EditIcon } from "@shared/icons";
-import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
-import { GeneratedInputComponent } from "components/inputs/generated";
+import { useFormik } from "formik";
+import { FieldData, FieldDataJSON } from "forms/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl } from "utils";
+import { StandardViewProps } from "../types";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
