@@ -10,7 +10,7 @@
         "@apollo/client": "^3.3.19",
         "@emotion/react": "^11.10.6",
         "@emotion/styled": "^11.10.6",
-        "@mui/lab": "5.0.0-alpha.84",
+        "@mui/lab": "^5.0.0-alpha.123",
         "@mui/material": "^5.11.10",
         "@mui/styles": "^5.11.9",
         "@shared/consts": "*",
@@ -56,7 +56,7 @@
     "scripts": {
         "build": "tsc && vite build",
         "start-development": "vite",
-        "start-production": "vite preview",
+        "start-production": "serve dist",
         "analyze": "source-map-explorer dist/assets/*",
         "graphql-generate": "graphql-codegen --config codegen.yml",
         "lint": "eslint src"

@@ -1,4 +1,6 @@
 {
+    "editor.formatOnSave": true,
+    // "editor.fixAll.eslint": true, // Useful but I have a lot of partially implemented code right now that I don't want deleted
     "editor.codeActionsOnSave": {
         "source.organizeImports": true
     },

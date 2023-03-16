@@ -6452,8 +6452,6 @@ export type RoutineVersionInputCreateInput = {
   standardVersionConnect?: InputMaybe<Scalars['ID']>;
   standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
   translationsCreate?: InputMaybe<Array<RoutineVersionInputTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<RoutineVersionInputTranslationUpdateInput>>;
 };
 
 export type RoutineVersionInputTranslation = {
@@ -6509,8 +6507,6 @@ export type RoutineVersionOutputCreateInput = {
   standardVersionConnect?: InputMaybe<Scalars['ID']>;
   standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
   translationsCreate?: InputMaybe<Array<RoutineVersionOutputTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<RoutineVersionOutputTranslationUpdateInput>>;
 };
 
 export type RoutineVersionOutputTranslation = {

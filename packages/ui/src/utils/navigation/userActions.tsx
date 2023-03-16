@@ -6,8 +6,10 @@ import {
     IconButton
 } from '@mui/material';
 import { LINKS, Session } from '@shared/consts';
-import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
+import { CreateAccountIcon, CreateIcon, GridIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SvgComponent } from '@shared/icons';
 import { openLink, SetLocation } from '@shared/route';
+import { CommonKey } from '@shared/translations';
+import i18next from 'i18next';
 import { checkIfLoggedIn } from 'utils/authentication/session';
 
 export enum ACTION_TAGS {
@@ -15,13 +17,13 @@ export enum ACTION_TAGS {
     Search = 'Search',
     Create = 'Create',
     Notifications = 'Notifications',
-    Settings = 'Settings',
     LogIn = 'LogIn',
+    MyStuff = 'MyStuff',
 }
 
 export type ActionArray = [string, any, string, any, number];
 export interface Action {
-    label: string;
+    label: CommonKey;
     value: ACTION_TAGS;
     link: string;
     Icon: SvgComponent;
@@ -52,7 +54,7 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
         actions.push(
             ['Create', ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
             ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
-            ['Settings', ACTION_TAGS.Settings, LINKS.Settings, SettingsIcon, 0],
+            ['MyStuff', ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         )
     } else {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
@@ -85,7 +87,7 @@ export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuPr
             onClick={(e) => { e.preventDefault(); openLink(setLocation, link) }}
             sx={sx}
         >
-            {label}
+            {i18next.t(label, { count: 2 })}
         </Button>
     ));
 }
@@ -99,7 +101,7 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
     return actions.map(({ label, value, link, Icon, numNotifications }) => (
         <BottomNavigationAction
             key={value}
-            label={label}
+            label={i18next.t(label, { count: 2 })}
             value={value}
             href={link}
             onClick={(e: any) => {

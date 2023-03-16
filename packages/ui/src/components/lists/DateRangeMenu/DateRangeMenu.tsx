@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Box, Button, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { DateRangeMenuProps } from "../types";
 import { LocalizationProvider, MobileDatePicker } from '@mui/lab';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
+import { Box, Button, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DateRangeMenuProps } from "../types";
 
 export const DateRangeMenu = ({
     anchorEl,
@@ -31,46 +31,36 @@ export const DateRangeMenu = ({
     }, [range, minDate, maxDate]);
 
     useEffect(() => {
-        console.log('in drm 1', after, minDate, new Date());
         let changedAfter = after ?? minDate ?? new Date();
         if (changedAfter < (minDate ?? 0)) {
-            console.log('in drm 2');
             changedAfter = minDate ?? new Date(0);
         }
         const latestBefore = new Date(Date.now() - (strictIntervalRange ?? 0));
-        console.log('in drm 3', changedAfter, latestBefore);
         if (changedAfter > latestBefore) {
-            console.log('in drm 4');
             changedAfter = latestBefore;
         }
         // Only update after if it is different from the new calculated value. 
         // Ignore changes smaller than 1 second
         if (changedAfter.getTime() - (after?.getTime() ?? 0) > 1000) {
-            console.log('in drm 5', changedAfter.getTime() - (after?.getTime() ?? 0));
             setAfter(changedAfter);
             // Only update before if it is different from the new calculated value
             if (strictIntervalRange && before !== new Date(changedAfter.getTime() + strictIntervalRange)) {
-                console.log('in drm 6', changedAfter.getTime() - (after?.getTime() ?? 0));
                 setBefore(new Date(changedAfter.getTime() + strictIntervalRange));
             }
         }
     }, [after, before, minDate, strictIntervalRange]);
 
     useEffect(() => {
-        console.log('in drm 7', before, maxDate, new Date());
         let changedBefore = before ?? maxDate ?? new Date();
         if (after && changedBefore < after) {
-            console.log('in drm 8');
             changedBefore = after;
         }
         if (changedBefore > new Date()) {
-            console.log('in drm 9');
             changedBefore = new Date();
         }
         // Only update before if it is different from the new calculated value.
         // Ignore changes smaller than 1 second
         if (changedBefore.getTime() !== (before?.getTime() ?? 0)) {
-            console.log('in drm 10', changedBefore.getTime() - (before?.getTime() ?? 0))
             setBefore(changedBefore);
         }
     }, [after, before, maxDate]);

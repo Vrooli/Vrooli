@@ -13,6 +13,7 @@ export const LINKS = {
     History: '/history',
     HistorySearch: '/history-search',
     Home: '/', // Main dashboard for logged in users
+    MyStuff: '/my',
     Note: '/note',
     Notifications: '/notifications',
     Organization: '/org',

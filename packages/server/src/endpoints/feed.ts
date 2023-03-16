@@ -1,11 +1,11 @@
+import { ApiSortBy, HomeInput, HomeResult, MeetingSortBy, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, RunProjectScheduleSortBy, RunRoutineScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, Project, Routine, PopularInput, PopularResult, ApiSortBy, NoteSortBy, SmartContractSortBy, HomeInput, HomeResult, MeetingSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RunProjectScheduleSortBy, RunRoutineScheduleSortBy } from '@shared/consts';
-import { GQLEndpoint } from '../types';
-import { rateLimit } from '../middleware';
+import { readManyAsFeedHelper } from '../actions';
 import { assertRequestFrom, getUser } from '../auth/request';
 import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
 import { PartialGraphQLInfo } from '../builders/types';
-import { readManyAsFeedHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     input PopularInput {
@@ -27,8 +27,8 @@ export const typeDef = gql`
 
     input HomeInput {
         searchString: String!
-        showOnlyRelevantToSchedule: Boolean
         take: Int
+        userScheduleId: ID
     }
 
     type HomeResult {
@@ -38,6 +38,7 @@ export const typeDef = gql`
         resources: [Resource!]!
         runProjectSchedules: [RunProjectSchedule!]!
         runRoutineSchedules: [RunRoutineSchedule!]!
+        userSchedules: [UserSchedule!]!
     }
 
     type Query {
@@ -56,6 +57,8 @@ export const resolvers: {
         home: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
+            // If no schedule specified, try to find the user's active schedule
+            //TODO
             const partial = toPartialGraphQLInfo(info, {
                 __typename: 'HomeResult',
                 meetings: 'Meeting',

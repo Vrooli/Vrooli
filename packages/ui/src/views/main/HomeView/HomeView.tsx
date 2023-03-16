@@ -1,8 +1,8 @@
 import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
-import { HomeInput, HomeResult, LINKS, ResourceList } from '@shared/consts';
+import { HomeInput, HomeResult, LINKS, ResourceList, UserSchedule } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DUMMY_ID } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
 import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
 import { SiteSearchBar } from 'components/inputs/search';
@@ -24,11 +24,6 @@ import { openObject } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { HomeViewProps } from '../types';
 
-enum TabOptions {
-    ForYou = "ForYou",
-    History = "History",
-}
-
 const zIndex = 200;
 
 export const HomeView = ({
@@ -38,7 +33,25 @@ export const HomeView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    // TODO query should take the current user schedule into account somehow
+    // Handle schedules
+    const [selectedSchedule, setSelectedSchedule] = useState<UserSchedule | null>(null);
+    const [schedules, setSchedules] = useState<UserSchedule[]>([
+        { id: uuid(), name: 'Work' } as any,
+        { id: uuid(), name: 'Side Project' } as any,
+    ]);//Temp values
+
+    // Handle tabs
+    const tabs = useMemo<PageTab<UserSchedule>[]>(() => schedules.map((schedule, index) => ({
+        index,
+        label: schedule.name,
+        value: schedule,
+    })), [schedules]);
+    const currTab = useMemo(() => tabs[0], [tabs])
+    const handleTabChange = useCallback((e: any, tab: PageTab<UserSchedule>) => {
+        e.preventDefault();
+        setSelectedSchedule(tab.value);
+    }, []);
+
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
     useEffect(() => {
@@ -48,7 +61,11 @@ export const HomeView = ({
     const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, 'home'>, Wrap<HomeInput, 'input'>>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
     useDisplayApolloError(error);
-    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
+
+    // Only show tabs if:
+    // 1. The user is logged in 
+    // 2. The user has at least two schedules
+    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && schedules.length > 1, [session, schedules]);
 
     // Converts resources to a resource list
     const [resourceList, setResourceList] = useState<ResourceList>({
@@ -71,24 +88,6 @@ export const HomeView = ({
             });
         }
     }, [data]);
-
-    // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
-        index: 0,
-        href: LINKS.Home,
-        label: t('ForYou'),
-        value: TabOptions.ForYou,
-    }, {
-        index: 1,
-        href: LINKS.History,
-        label: t('History'),
-        value: TabOptions.History,
-    }]), [t]);
-    const currTab = useMemo(() => tabs[0], [tabs])
-    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
-        e.preventDefault();
-        setLocation(tab.href!, { replace: true });
-    }, [setLocation]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 

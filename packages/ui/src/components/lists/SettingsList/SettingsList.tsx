@@ -1,4 +1,4 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, useTheme } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
 import { LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useCallback, useMemo, useState } from 'react';
@@ -23,7 +23,6 @@ export const SettingsList = () => {
         const isSelected = (link: string) => window.location.pathname.includes(link);
         return Object.entries(accountSettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
-                button
                 key={index}
                 onClick={() => onSelect(link)}
                 sx={{
@@ -46,7 +45,6 @@ export const SettingsList = () => {
         const isSelected = (link: string) => window.location.pathname.includes(link);
         return Object.entries(displaySettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
-                button
                 key={index}
                 onClick={() => onSelect(link)}
                 sx={{
@@ -74,16 +72,16 @@ export const SettingsList = () => {
         }}>
             <List>
                 {/* Account-related items */}
-                <ListItemButton onClick={toggleAccountList}>
+                <ListItem onClick={toggleAccountList}>
                     <ListItemText primary={t(`Account`)} />
-                </ListItemButton>
+                </ListItem>
                 <List component="div">
                     {accountList}
                 </List>
                 {/* Display-related items */}
-                <ListItemButton onClick={toggleDisplayList}>
+                <ListItem onClick={toggleDisplayList}>
                     <ListItemText primary={t(`Display`)} />
-                </ListItemButton>
+                </ListItem>
                 <List component="div">
                     {displayList}
                 </List>
