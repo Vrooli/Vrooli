@@ -1,7 +1,7 @@
 import { BoxProps, SelectChangeEvent, SelectProps, SwitchProps, TextFieldProps } from '@mui/material';
 import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, StandardVersion, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
-import { ChangeEvent, FocusEventHandler } from 'react';
+import { FocusEventHandler } from 'react';
 import { VersionInfo } from 'types';
 import { ObjectType } from 'utils/navigation/openObject';
 import { TagShape } from 'utils/shape/models/tag';
@@ -226,15 +226,9 @@ export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
 export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;
     autoFocus?: boolean;
-    error?: boolean;
-    helperText?: string | null | undefined;
     fullWidth?: boolean;
-    id?: string;
     label?: string;
-    name?: string;
-    onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
-    onChange: (e: ChangeEvent<any>) => any;
-    value: string;
+    name: string;
 }
 
 export type PreviewSwitchProps = Omit<BoxProps, 'onChange'> & {
@@ -246,18 +240,14 @@ export type PreviewSwitchProps = Omit<BoxProps, 'onChange'> & {
 export interface IntegerInputProps extends BoxProps {
     autoFocus?: boolean;
     disabled?: boolean;
-    error?: boolean;
-    handleChange: (newValue: number) => any;
-    helperText?: string | null | undefined;
-    id: string;
     key?: string;
     initial?: number;
     label?: string;
     max?: number;
     min?: number;
+    name: string;
     step?: number;
     tooltip?: string;
-    value: number;
 }
 
 export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &

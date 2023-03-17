@@ -12,7 +12,9 @@ import {
 } from '@mui/material';
 import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
 import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFormik } from 'formik';
+import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { ReorderInputDialogProps } from '../types';
 
@@ -26,28 +28,26 @@ export const ReorderInputDialog = ({
     zIndex,
 }: ReorderInputDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const isOpen = useMemo(() => startIndex >= 0, [startIndex]);
 
-    const [toIndex, setToIndex] = useState<number>(1);
-    useEffect(() => {
-        setToIndex(Math.max(0, startIndex) + 1);
-    }, [startIndex]);
-
-    const handleToIndexChange = useCallback((index: number) => {
-        setToIndex(index);
-    }, [setToIndex]);
-
-    const onSubmit = useCallback(() => {
-        handleClose(toIndex - 1);
-    }, [handleClose, toIndex]);
+    const formik = useFormik({
+        initialValues: {
+            toIndex: Math.max(0, startIndex) + 1, // Add 1 because non-programmers start counting at 1 (weirdos :P)
+        },
+        enableReinitialize: true,
+        onSubmit: (values) => {
+            handleClose(values.toIndex - 1);
+        },
+    });
 
     const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
         // Don't close if toIndex !== startIndex (i.e. not initial condition) and clicked outside
-        if (toIndex !== startIndex + 1 && reason === 'backdropClick') return;
+        if (formik.values.toIndex !== startIndex + 1 && reason === 'backdropClick') return;
         // Otherwise, close
         handleClose();
-    }, [handleClose, startIndex, toIndex]);
+    }, [formik.values.toIndex, handleClose, startIndex]);
 
     return (
         <Dialog
@@ -69,7 +69,7 @@ export const ReorderInputDialog = ({
                 <Stack direction="row" justifyContent="center" alignItems="center" pt={2} sx={{ color: palette.background.textPrimary }}>
                     {/* From */}
                     <Typography variant="h6">
-                        From: {startIndex + 1}
+                        {t('From')}: {startIndex + 1}
                     </Typography>
                     {/* Right arrow */}
                     <Box sx={{
@@ -86,12 +86,10 @@ export const ReorderInputDialog = ({
                     </Box>
                     {/* To */}
                     <IntegerInput
-                        id="move-input-output-to-position"
-                        label="To"
+                        label={t('To')}
                         min={1}
                         max={listLength + 1}
-                        value={toIndex}
-                        handleChange={handleToIndexChange}
+                        name="to"
                     />
                 </Stack>
                 {/* Action buttons */}
@@ -100,7 +98,7 @@ export const ReorderInputDialog = ({
                         display="dialog"
                         isCreate={false}
                         onCancel={handleCancel}
-                        onSubmit={onSubmit}
+                        onSubmit={formik.handleSubmit}
                     />
                 </Grid>
             </DialogContent>

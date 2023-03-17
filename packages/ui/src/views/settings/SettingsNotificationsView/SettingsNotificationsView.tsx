@@ -1,61 +1,25 @@
 import { useQuery } from "@apollo/client";
 import { Stack } from "@mui/material";
 import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
-import { EmailIcon, PhoneIcon } from "@shared/icons";
-import { userValidation } from "@shared/validation";
 import { mutationWrapper } from "api";
 import { notificationSettings } from "api/generated/endpoints/notification_settings";
 import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
 import { useCustomMutation } from "api/hooks";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
-import { PushList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Subheader } from "components/text/Subheader/Subheader";
-import { useFormik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useTranslation } from "react-i18next";
+import { Formik } from "formik";
+import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
 import { Wrap } from "types";
 import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({
     display = 'page',
     session,
 }: SettingsNotificationsViewProps) => {
-    const { t } = useTranslation();
-
     const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, 'notificationSettings'>>(notificationSettings, { errorPolicy: 'all' });
     useDisplayApolloError(error);
-
-    // Handle update
     const [mutation, { loading: isUpdating }] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
-    const formik = useFormik({
-        initialValues: {
-            includedEmails: [] as string[],
-            includedSms: [] as string[],
-            includedPush: [] as string[],
-            toEmails: false,
-            toSms: false,
-            toPush: false,
-            dailyLimit: 0,
-            enabled: false,
-            categories: [] as NotificationSettingsCategory[],
-        },
-        enableReinitialize: true,
-        validationSchema: userValidation.update({}),
-        onSubmit: (values) => {
-            mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
-                mutation,
-                input: values,
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     return (
         <>
@@ -70,73 +34,34 @@ export const SettingsNotificationsView = ({
             />
             <Stack direction="row">
                 <SettingsList />
-                <BaseForm
-                    isLoading={isLoading || isUpdating}
-                    onSubmit={formik.handleSubmit}
-                    style={{
-                        width: { xs: '100%', md: 'min(100%, 700px)' },
-                        margin: 'auto',
-                        display: 'block',
-                    }}
+                <Formik
+                    enableReinitialize={true}
+                    initialValues={{
+                        includedEmails: [] as string[],
+                        includedSms: [] as string[],
+                        includedPush: [] as string[],
+                        toEmails: false,
+                        toSms: false,
+                        toPush: false,
+                        dailyLimit: 0,
+                        enabled: true,
+                        categories: [] as NotificationSettingsCategory[],
+                    } as NotificationSettingsUpdateInput}
+                    onSubmit={(values, helpers) =>
+                        mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
+                            mutation,
+                            input: values,
+                            onError: () => { helpers.setSubmitting(false) }
+                        })
+                    }
                 >
-                    {/* Overall notifications toggle */}
-                    <ListContainer>
-                        <SettingsToggleListItem
-                            title={t('Notification', { count: 2 })}
-                            description={t('PushNotificationToggleDescription')}
-                            checked={formik.values.enabled}
-                            onChange={() => formik.setFieldValue('enabled', !formik.values.enabled)}
-                        />
-                    </ListContainer>
-                    {/* Daily limit input */}
-                    <IntegerInput
-                        id="dailyLimit"
-                        title={t('DailyLimit')}
-                        // description={t('DailyLimitNotificationDescription')}
-                        disabled={!formik.values.enabled}
-                        value={formik.values.dailyLimit}
-                        handleChange={(value) => formik.setFieldValue('dailyLimit', value)}
-                    />
-                    {/* Push notifications toggle */}
-                    <ListContainer>
-                        <SettingsToggleListItem
-                            title={t('PushNotification', { count: 2 })}
-                            description={t('PushNotificationToggleDescription')}
-                            disabled={!formik.values.toPush}
-                            checked={true}
-                            onChange={() => formik.setFieldValue('toPush', !formik.values.toPush)}
-                        />
-                    </ListContainer>
-                    {/* Push Device list */}
-                    <Subheader
-                        Icon={PhoneIcon}
-                        title={t('Device', { count: 2 })} />
-                    <PushList
-                        handleUpdate={() => { }}
-                        list={[]}
-                    />
-                    {/* Email notifications toggle */}
-                    <ListContainer>
-                        <SettingsToggleListItem
-                            title={t('EmailNotification', { count: 2 })}
-                            description={t('EmailNotificationToggleDescription')}
-                            disabled={!formik.values.toEmails}
-                            checked={true}
-                            onChange={() => formik.setFieldValue('toEmails', !formik.values.toEmails)}
-                        />
-                    </ListContainer>
-                    {/* Email list */}
-                    <Subheader
-                        Icon={EmailIcon}
-                        title={t('Email', { count: 2 })} />
-                    {/* <EmailList
-                        handleUpdate={updateEmails}
-                        list={profile?.emails ?? []}
-                        numVerifiedWallets={numVerifiedWallets}
-                    /> */}
-                    {/* Toggle individual categories */}
-                    {/* TODO */}
-                </BaseForm>
+                    {(formik) => <SettingsNotificationForm
+                        display={display}
+                        isLoading={isLoading || isUpdating}
+                        onCancel={formik.resetForm}
+                        {...formik}
+                    />}
+                </Formik>
             </Stack>
         </>
     )

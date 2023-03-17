@@ -30,6 +30,7 @@ import { TagList } from 'components/lists/TagList/TagList';
 import { VersionDisplay } from 'components/text/VersionDisplay/VersionDisplay';
 import { useFormik } from 'formik';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from 'utils/authentication/session';
 import { defaultRelationships } from 'utils/defaults/relationships';
 import { defaultResourceList } from 'utils/defaults/resourceList';
@@ -56,6 +57,8 @@ export const SubroutineInfoDialog = ({
     zIndex,
 }: SubroutineInfoDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const subroutine = useMemo<NodeRoutineListItem | undefined>(() => {
@@ -147,6 +150,13 @@ export const SubroutineInfoDialog = ({
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+
+    // On index change, update the index of the subroutine
+    useEffect(() => {
+        if (formik.values.index !== subroutine?.index) {
+            handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, formik.values.index - 1);
+        }
+    }, [data?.node?.id, formik.values.index, handleReorder, subroutine?.id, subroutine?.index]);
 
     const {
         handleAddLanguage,
@@ -292,19 +302,14 @@ export const SubroutineInfoDialog = ({
                                 canUpdate && <Box sx={{
                                     marginBottom: 2,
                                 }}>
-                                    <Typography variant="h6">Order</Typography>
+                                    <Typography variant="h6">{t('Order')}</Typography>
                                     <IntegerInput
-                                        id="subroutine-position"
                                         disabled={!canUpdate}
-                                        label="Order"
+                                        label={t('Order')}
                                         min={1}
                                         max={data?.node?.routineList?.items?.length ?? 1}
+                                        name="index"
                                         tooltip="The order of this subroutine in its parent routine"
-                                        value={formik.values.index}
-                                        handleChange={(value: number) => {
-                                            formik.setFieldValue('index', value);
-                                            handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, value - 1);
-                                        }}
                                     />
                                 </Box>
                             }

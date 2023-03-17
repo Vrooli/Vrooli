@@ -1,6 +1,6 @@
-import { CheckboxProps, DropzoneProps, JsonProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, IntegerInputProps, TagSelectorProps, LanguageInputProps, YupField } from '../types';
-import { FieldData } from 'forms/types';
 import { InputType } from '@shared/consts';
+import { FieldData } from 'forms/types';
+import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from '../types';
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -11,7 +11,7 @@ import { InputType } from '@shared/consts';
 const defaultMap: { [key in InputType]: (props: any) => any } = {
     [InputType.Checkbox]: (props: Partial<CheckboxProps>): CheckboxProps => ({
         color: 'secondary',
-        defaultValue: new Array(props.options?.length?? 0).fill(false),
+        defaultValue: new Array(props.options?.length ?? 0).fill(false),
         options: [],
         row: true,
         ...props
@@ -28,7 +28,7 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: [],
         ...props
     }),
-    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, 'id' | 'value' | 'handleChange'>>): Omit<IntegerInputProps, 'id' | 'value' | 'handleChange'> => ({
+    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, 'name'>>): Omit<IntegerInputProps, 'name'> => ({
         ...props
     }),
     [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id'> => ({
@@ -39,10 +39,10 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
         ...props
     }),
-    [InputType.Selector]: (props: Partial<SelectorProps<any>>): SelectorProps<any> => ({ 
+    [InputType.Selector]: (props: Partial<SelectorProps<any>>): SelectorProps<any> => ({
         options: [],
         getOptionLabel: (option: any) => option,
-        ...props 
+        ...props
     }),
     [InputType.Slider]: (props: SliderProps) => {
         let { defaultValue, min, max, step, ...otherProps } = props;

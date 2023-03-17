@@ -1,14 +1,15 @@
-import { ListItem, Stack, Switch, Typography, useTheme } from "@mui/material"
+import { ListItem, Stack, Switch, Typography, useTheme } from "@mui/material";
+import { useField } from "formik";
 import { SettingsToggleListItemProps } from "../types";
 
 export const SettingsToggleListItem = ({
     description,
     disabled,
-    checked,
-    onChange,
+    name,
     title,
 }: SettingsToggleListItemProps) => {
     const { palette } = useTheme();
+    const [field, , helpers] = useField(name);
 
     return (
         <ListItem
@@ -31,10 +32,10 @@ export const SettingsToggleListItem = ({
                 </Typography>
             </Stack>
             <Switch
-                checked={checked}
+                checked={field.value}
                 color="secondary"
                 disabled={disabled}
-                onChange={onChange}
+                onChange={(e) => helpers.setValue(e.target.checked)}
             />
         </ListItem>
     )

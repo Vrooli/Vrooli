@@ -1,6 +1,5 @@
 import { InputType, Session } from "@shared/consts";
 import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
-import { FormEvent } from "react";
 import { CommonProps } from "types";
 import { Forms } from "utils/consts";
 import { TagShape } from "utils/shape/models/tag";
@@ -10,9 +9,12 @@ import { TagShape } from "utils/shape/models/tag";
 //==============================================================
 export interface BaseFormProps {
     children: JSX.Element | JSX.Element[];
+    dirty?: boolean;
+    enableReinitialize?: boolean;
     isLoading?: boolean;
-    onSubmit: (e?: FormEvent<HTMLFormElement> | undefined) => void;
+    promptBeforeUnload?: boolean;
     style?: { [key: string]: any };
+    validationSchema?: any;
 }
 
 export interface BaseGeneratedFormProps {
@@ -157,7 +159,7 @@ export interface TextFieldProps {
 /**
  * Props for rendering a IntegerInput input component
  */
-export interface IntegerInputProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
+export interface IntegerInputProps extends Omit<QP, 'name'> {
     defaultValue?: any; // Ignored
 }
 

@@ -1,9 +1,10 @@
-import { IntegerStandardInputProps } from '../types';
+import { Grid } from '@mui/material';
 import { quantityBoxStandardInputForm as validationSchema } from '@shared/validation';
+import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
-import { Grid } from '@mui/material';
-import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
+import { useTranslation } from 'react-i18next';
+import { IntegerStandardInputProps } from '../types';
 
 /**
  * Input for entering (and viewing format of) IntegerInput data that 
@@ -17,6 +18,7 @@ export const IntegerStandardInput = ({
     step,
     onPropsChange,
 }: IntegerStandardInputProps) => {
+    const { t } = useTranslation();
 
     const formik = useFormik({
         initialValues: {
@@ -40,54 +42,34 @@ export const IntegerStandardInput = ({
         <Grid container spacing={2}>
             <Grid item xs={12}>
                 <IntegerInput
-                    id="defaultValue"
                     disabled={!isEditing}
-                    label="Default Value"
+                    label={t('DefaultValue')}
+                    name="defaultValue"
                     tooltip="The default value of the input"
-                    value={formik.values.defaultValue}
-                    onBlur={formik.handleBlur}
-                    handleChange={(value: number) => formik.setFieldValue('defaultValue', value)}
-                    error={formik.touched.defaultValue && Boolean(formik.errors.defaultValue)}
-                    helperText={formik.touched.defaultValue ? formik.errors.defaultValue as string : null}
                 />
             </Grid>
             <Grid item xs={12}>
                 <IntegerInput
-                    id="min"
                     disabled={!isEditing}
-                    label="Minimum"
+                    label={t('Min')}
+                    name="min"
                     tooltip="The minimum value of the integer"
-                    value={formik.values.min}
-                    onBlur={formik.handleBlur}
-                    handleChange={(value: number) => formik.setFieldValue('min', value)}
-                    error={formik.touched.min && Boolean(formik.errors.min)}
-                    helperText={formik.touched.min ? formik.errors.min : null}
                 />
             </Grid>
             <Grid item xs={12}>
                 <IntegerInput
-                    id="max"
                     disabled={!isEditing}
-                    label="Maximum"
+                    label={t('Max')}
+                    name="max"
                     tooltip="The maximum value of the integer"
-                    value={formik.values.max}
-                    onBlur={formik.handleBlur}
-                    handleChange={(value: number) => formik.setFieldValue('max', value)}
-                    error={formik.touched.max && Boolean(formik.errors.max)}
-                    helperText={formik.touched.max ? formik.errors.max : null}
                 />
             </Grid>
             <Grid item xs={12}>
                 <IntegerInput
-                    id="step"
                     disabled={!isEditing}
-                    label="Step"
+                    label={t('Step')}
+                    name="step"
                     tooltip="How much to increment/decrement by"
-                    value={formik.values.step}
-                    onBlur={formik.handleBlur}
-                    handleChange={(value: number) => formik.setFieldValue('step', value)}
-                    error={formik.touched.step && Boolean(formik.errors.step)}
-                    helperText={formik.touched.step ? formik.errors.step : null}
                 />
             </Grid>
         </Grid>

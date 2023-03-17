@@ -23,6 +23,7 @@ export const SettingsList = () => {
         const isSelected = (link: string) => window.location.pathname.includes(link);
         return Object.entries(accountSettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
+                button
                 key={index}
                 onClick={() => onSelect(link)}
                 sx={{
@@ -45,6 +46,7 @@ export const SettingsList = () => {
         const isSelected = (link: string) => window.location.pathname.includes(link);
         return Object.entries(displaySettingsData).map(([_, { title, link, Icon }], index) => (
             <ListItem
+                button
                 key={index}
                 onClick={() => onSelect(link)}
                 sx={{

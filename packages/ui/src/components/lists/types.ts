@@ -112,8 +112,7 @@ export interface SearchQueryVariablesInput<SortBy> {
 export interface SettingsToggleListItemProps {
     description?: string;
     disabled?: boolean;
-    checked: boolean;
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    name: string;
     title: string;
 }
 
