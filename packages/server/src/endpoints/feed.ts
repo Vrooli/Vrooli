@@ -1,4 +1,4 @@
-import { ApiSortBy, HomeInput, HomeResult, MeetingSortBy, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, RunProjectScheduleSortBy, RunRoutineScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from '@shared/consts';
+import { ApiSortBy, HomeInput, HomeResult, MeetingSortBy, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, RunProjectScheduleSortBy, RunRoutineScheduleSortBy, SmartContractSortBy, StandardSortBy, UserScheduleSortBy, UserSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { readManyAsFeedHelper } from '../actions';
 import { assertRequestFrom, getUser } from '../auth/request';
@@ -67,6 +67,7 @@ export const resolvers: {
                 resources: 'Resource',
                 runProjectSchedules: 'RunProjectSchedule',
                 runRoutineSchedules: 'RunRoutineSchedule',
+                userSchedules: 'UserSchedule',
             }, req.languages, true);
             const take = 5;
             const commonReadParams = { prisma, req }
@@ -102,15 +103,15 @@ export const resolvers: {
             const { nodes: resources } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: {
-                    list: {
-                        userSchedule: input.showOnlyRelevantToSchedule ? {
-                            id: { in: activeScheduleIds }
-                        } : {
-                            user: {
-                                id: userData.id
-                            }
-                        }
-                    }
+                    // list: {
+                    //     userSchedule: input.showOnlyRelevantToSchedule ? {
+                    //         id: { in: activeScheduleIds }
+                    //     } : {
+                    //         user: {
+                    //             id: userData.id
+                    //         }
+                    //     }
+                    // }
                 },
                 info: partial.resources as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ResourceSortBy.IndexAsc },
@@ -134,11 +135,19 @@ export const resolvers: {
                 input: { ...input, take, sortBy: RunRoutineScheduleSortBy.WindowStartAsc },
                 objectType: 'RunRoutineSchedule',
             });
+            // Query userSchedules
+            const { nodes: userSchedules } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                additionalQueries: { user: { id: userData.id } },
+                info: partial.userSchedules as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: UserScheduleSortBy.TitleAsc },
+                objectType: 'UserSchedule',
+            });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [meetings, notes, reminders, resources, runProjectSchedules, runRoutineSchedules],
-                [partial.meetings, partial.notes, partial.reminders, partial.resources, partial.runProjectSchedules, partial.runRoutineSchedules] as PartialGraphQLInfo[],
-                ['m', 'n', 'rem', 'res', 'rps', 'rrs'],
+                [meetings, notes, reminders, resources, runProjectSchedules, runRoutineSchedules, userSchedules],
+                [partial.meetings, partial.notes, partial.reminders, partial.resources, partial.runProjectSchedules, partial.runRoutineSchedules, partial.userSchedules] as PartialGraphQLInfo[],
+                ['m', 'n', 'rem', 'res', 'rps', 'rrs', 'us'],
                 getUser(req),
                 prisma,
             )
@@ -151,6 +160,7 @@ export const resolvers: {
                 resources: withSupplemental['res'],
                 runProjectSchedules: withSupplemental['rps'],
                 runRoutineSchedules: withSupplemental['rrs'],
+                userSchedules: withSupplemental['us'],
             }
         },
         popular: async (_, { input }, { prisma, req }, info) => {

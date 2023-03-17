@@ -1,14 +1,14 @@
+import { ReportStatus } from "@prisma/client";
+import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, SubscribableObject } from '@shared/consts';
+import i18next, { TFuncKey } from 'i18next';
 import { CustomError, logger } from "../events";
+import { getLogic } from "../getters";
+import { OrganizationModel, subscribableMapper } from "../models";
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
 import { sendMail } from "./email";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
-import i18next, { TFuncKey } from 'i18next';
-import { OrganizationModel, subscribableMapper } from "../models";
-import { getLogic } from "../getters";
-import { LINKS, GqlModelType, IssueStatus, NotificationSettings, PullRequestStatus, SubscribableObject } from '@shared/consts';
-import { ReportStatus } from "@prisma/client";
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 
@@ -408,7 +408,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
      * Updates a user's notification settings
      * @param settings The new settings
      */
-    updateSettings: async (settings: NotificationSettings, userId: string) => {
+    updateSettings: async (settings: NotificationSettingsUpdateInput, userId: string) => {
         await updateNotificationSettings(settings, prisma, userId);
     },
     pushApiOutOfCredits: (): NotifyResultType => NotifyResult({

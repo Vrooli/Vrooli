@@ -914,8 +914,8 @@ export type HistoryResult = {
 
 export type HomeInput = {
   searchString: Scalars['String'];
-  showOnlyRelevantToSchedule?: InputMaybe<Scalars['Boolean']>;
   take?: InputMaybe<Scalars['Int']>;
+  userScheduleId?: InputMaybe<Scalars['ID']>;
 };
 
 export type HomeResult = {
@@ -926,6 +926,7 @@ export type HomeResult = {
   resources: Array<Resource>;
   runProjectSchedules: Array<RunProjectSchedule>;
   runRoutineSchedules: Array<RunRoutineSchedule>;
+  userSchedules: Array<UserSchedule>;
 };
 
 export type ImportCalendarInput = {
@@ -3006,9 +3007,9 @@ export type NotificationSettings = {
   categories?: Maybe<Array<NotificationSettingsCategory>>;
   dailyLimit?: Maybe<Scalars['Int']>;
   enabled: Scalars['Boolean'];
-  includedEmails?: Maybe<Array<Scalars['ID']>>;
-  includedPush?: Maybe<Array<Scalars['ID']>>;
-  includedSms?: Maybe<Array<Scalars['ID']>>;
+  includedEmails?: Maybe<Array<Email>>;
+  includedPush?: Maybe<Array<PushDevice>>;
+  includedSms?: Maybe<Array<Phone>>;
   toEmails?: Maybe<Scalars['Boolean']>;
   toPush?: Maybe<Scalars['Boolean']>;
   toSms?: Maybe<Scalars['Boolean']>;
@@ -10787,6 +10788,7 @@ export type HomeResultResolvers<ContextType = any, ParentType extends ResolversP
   resources?: Resolver<Array<ResolversTypes['Resource']>, ParentType, ContextType>;
   runProjectSchedules?: Resolver<Array<ResolversTypes['RunProjectSchedule']>, ParentType, ContextType>;
   runRoutineSchedules?: Resolver<Array<ResolversTypes['RunRoutineSchedule']>, ParentType, ContextType>;
+  userSchedules?: Resolver<Array<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11430,9 +11432,9 @@ export type NotificationSettingsResolvers<ContextType = any, ParentType extends 
   categories?: Resolver<Maybe<Array<ResolversTypes['NotificationSettingsCategory']>>, ParentType, ContextType>;
   dailyLimit?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   enabled?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  includedEmails?: Resolver<Maybe<Array<ResolversTypes['ID']>>, ParentType, ContextType>;
-  includedPush?: Resolver<Maybe<Array<ResolversTypes['ID']>>, ParentType, ContextType>;
-  includedSms?: Resolver<Maybe<Array<ResolversTypes['ID']>>, ParentType, ContextType>;
+  includedEmails?: Resolver<Maybe<Array<ResolversTypes['Email']>>, ParentType, ContextType>;
+  includedPush?: Resolver<Maybe<Array<ResolversTypes['PushDevice']>>, ParentType, ContextType>;
+  includedSms?: Resolver<Maybe<Array<ResolversTypes['Phone']>>, ParentType, ContextType>;
   toEmails?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   toPush?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   toSms?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
