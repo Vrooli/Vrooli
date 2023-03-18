@@ -1,7 +1,6 @@
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeTranslation } from "utils/display/translationTools";
-import { booleanSpread, stringSpread } from "utils/shape/general";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, removeTranslation } from "utils/display/translationTools";
 import * as yup from 'yup';
 
 /**
@@ -27,15 +26,7 @@ export function useTranslatedFields({
 
     // Get the translated fields, touched status, and error messages
     const [field, meta, helpers] = useField('translations');
-    const translations = useMemo(() => {
-        const { error, touched, value } = getTranslationData(field, meta, language);
-        return {
-            ...stringSpread(value, fields),
-            ...stringSpread(error, fields, 'error'),
-            ...booleanSpread(touched, fields, 'touched'),
-            errorsWithTranslations: getFormikErrorsWithTranslations(field, meta, validationSchema),
-        } as any
-    }, [field, fields, language, meta, validationSchema]);
+    const translationErrors = useMemo(() => getFormikErrorsWithTranslations(field, meta, validationSchema) as any, [field, meta, validationSchema]);
 
     // Find languages with translations
     const languages = useMemo(() => field.value.map((t: any) => t.language), [field.value]);
@@ -58,23 +49,13 @@ export function useTranslatedFields({
         setLanguage(newLanguages[0]);
         removeTranslation(field, meta, helpers, language);
     }, [field, helpers, languages, meta]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(field, meta, e, language)
-    }, [field, language, meta]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(field, meta, helpers, e, language)
-    }, [field, helpers, language, meta]);
 
     return {
         handleAddLanguage,
         handleDeleteLanguage,
         language,
         languages,
-        onTranslationBlur,
-        onTranslationChange,
         setLanguage,
-        translations,
+        translationErrors,
     }
 }

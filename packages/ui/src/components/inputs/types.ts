@@ -195,7 +195,10 @@ export interface LanguageInputProps {
     handleAdd: (language: string) => any;
     handleDelete: (language: string) => void;
     handleCurrent: (language: string) => void;
-    translations: { language: string }[];
+    /**
+     * All languages that currently have translations for the object being edited.
+     */
+    languages: string[];
     zIndex: number;
 }
 

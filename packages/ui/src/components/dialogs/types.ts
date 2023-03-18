@@ -252,9 +252,9 @@ export interface SelectLanguageMenuProps {
     handleCurrent: (language: string) => any;
     isEditing?: boolean;
     /**
-     * Available translations
+     * Languages that currently have a translation
      */
-    translations: { language: string }[];
+    languages: string[];
     sxs?: { root: any };
     zIndex: number;
 }

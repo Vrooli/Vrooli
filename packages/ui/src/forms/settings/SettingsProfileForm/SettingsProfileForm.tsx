@@ -1,4 +1,4 @@
-import { Autocomplete, Stack, TextField, useTheme } from "@mui/material";
+import { Autocomplete, Grid, Stack, TextField, useTheme } from "@mui/material";
 import { FindHandlesInput } from "@shared/consts";
 import { RefreshIcon } from "@shared/icons";
 import { userTranslationValidation } from "@shared/validation";
@@ -6,6 +6,7 @@ import { useCustomLazyQuery } from "api";
 import { walletFindHandles } from "api/generated/endpoints/wallet_findHandles";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -35,17 +36,14 @@ export const SettingsProfileForm = ({
         handleAddLanguage,
         handleDeleteLanguage,
         language,
-        onTranslationBlur,
-        onTranslationChange,
+        languages,
         setLanguage,
-        translations,
+        translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['bio'],
         validationSchema: userTranslationValidation.update({}),
     });
-
-    console.log('translations', translations);
 
     // Handle handles
     const [handlesField, , handlesHelpers] = useField('handle');
@@ -74,61 +72,75 @@ export const SettingsProfileForm = ({
                 display: 'block',
             }}
         >
-            {/* <LanguageInput
-                currentLanguage={language}
-                handleAdd={handleAddLanguage}
-                handleDelete={handleDeleteLanguage}
-                handleCurrent={setLanguage}
-                translations={translations}
-                zIndex={200}
-            /> */}
-            <Stack direction="row" spacing={0}>
-                <Autocomplete
-                    disablePortal
-                    id="ada-handle-select"
-                    loading={handlesLoading}
-                    options={handles}
-                    onOpen={fetchHandles}
-                    onChange={(_, value) => { handlesHelpers.setValue(value) }}
-                    renderInput={(params) => <TextField
-                        {...params}
-                        label="(ADA) Handle"
-                        sx={{
-                            '& .MuiInputBase-root': {
-                                borderRadius: '5px 0 0 5px',
-                            }
-                        }}
-                    />}
-                    value={handlesField.value}
-                    sx={{
-                        width: '100%',
-                    }}
-                />
-                <ColorIconButton
-                    aria-label='fetch-handles'
-                    background={palette.secondary.main}
-                    onClick={fetchHandles}
-                    sx={{ borderRadius: '0 5px 5px 0' }}
-                >
-                    <RefreshIcon />
-                </ColorIconButton>
-            </Stack>
-            <Field fullWidth name="name" label={t('Name')} as={TextField} />
-            {/* <Field fullWidth name="bio" label={t('Bio')} as={TextField} /> */}
-            <TranslatedTextField
-                fullWidth
-                name="bio"
-                label={t('Bio')}
-                language={language}
-                multiline
-                minRows={4}
-                maxRows={10}
-            />
+            <Grid container spacing={2} sx={{
+                paddingBottom: 4,
+                paddingLeft: 2,
+                paddingRight: 2,
+                paddingTop: 2,
+            }}>
+                <Grid item xs={12}>
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleDelete={handleDeleteLanguage}
+                        handleCurrent={setLanguage}
+                        languages={languages}
+                        zIndex={200}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <Stack direction="row" spacing={0}>
+                        <Autocomplete
+                            disablePortal
+                            id="ada-handle-select"
+                            loading={handlesLoading}
+                            options={handles}
+                            onOpen={fetchHandles}
+                            onChange={(_, value) => { handlesHelpers.setValue(value) }}
+                            renderInput={(params) => <TextField
+                                {...params}
+                                label="(ADA) Handle"
+                                sx={{
+                                    '& .MuiInputBase-root': {
+                                        borderRadius: '5px 0 0 5px',
+                                    }
+                                }}
+                            />}
+                            value={handlesField.value}
+                            sx={{
+                                width: '100%',
+                            }}
+                        />
+                        <ColorIconButton
+                            aria-label='fetch-handles'
+                            background={palette.secondary.main}
+                            onClick={fetchHandles}
+                            sx={{ borderRadius: '0 5px 5px 0' }}
+                        >
+                            <RefreshIcon />
+                        </ColorIconButton>
+                    </Stack>
+                </Grid>
+                <Grid item xs={12}>
+                    <Field fullWidth name="name" label={t('Name')} as={TextField} />
+                </Grid>
+                <Grid item xs={12}>
+                    <TranslatedTextField
+                        fullWidth
+                        name="bio"
+                        label={t('Bio')}
+                        language={language}
+                        multiline
+                        minRows={4}
+                        maxRows={10}
+                    />
+                </Grid>
+            </Grid>
             <GridSubmitButtons
                 display={display}
                 errors={{
                     ...props.errors,
-                    ...translations.errorsWithTranslations
+                    ...translationErrors,
                 }}
                 isCreate={false}
                 loading={props.isSubmitting}
