@@ -5,13 +5,6 @@ import { CommonKey } from '@shared/translations';
 import { RoutineStepType } from "utils/consts";
 
 /**
- * Top-level props that can be passed into any routed component
- */
-export interface CommonProps {
-    session: Session | undefined;
-}
-
-/**
  * Data to display title information for a component, which may not
  * always be translated.
  */

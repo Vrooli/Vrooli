@@ -12,7 +12,6 @@ import { BaseGeneratedFormProps } from '../types';
  */
 export const BaseGeneratedForm = ({
     schema,
-    session,
     onSubmit,
     zIndex,
 }: BaseGeneratedFormProps) => {
@@ -62,10 +61,8 @@ export const BaseGeneratedForm = ({
             {schema && <GeneratedGrid
                 childContainers={schema.containers}
                 fields={schema.fields}
-                formik={formik}
                 layout={schema.formLayout}
                 onUpload={onUpload}
-                session={session}
                 theme={theme}
                 zIndex={zIndex}
             />}

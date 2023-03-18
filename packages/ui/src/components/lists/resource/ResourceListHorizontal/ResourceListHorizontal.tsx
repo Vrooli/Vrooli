@@ -21,7 +21,6 @@ export const ResourceListHorizontal = ({
     mutate = true,
     list,
     loading = false,
-    session,
     zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
@@ -107,10 +106,9 @@ export const ResourceListHorizontal = ({
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
-            session={session}
             zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
 
     return (
         <Box>
@@ -159,7 +157,6 @@ export const ResourceListHorizontal = ({
                             canUpdate={canUpdate}
                             key={`resource-card-${index}`}
                             index={index}
-                            session={session}
                             data={c}
                             onContextMenu={openContext}
                             onEdit={openUpdateDialog}

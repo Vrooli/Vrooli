@@ -16,7 +16,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { placeholderColor, toSearchListData } from "utils/display/listTools";
@@ -24,6 +24,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { SearchType } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";
 
 enum TabOptions {
@@ -59,10 +60,10 @@ const tabParams: TabParams[] = [{
 
 export const UserView = ({
     display = 'page',
-    session,
     partialData,
     zIndex = 200,
 }: UserViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -100,7 +101,6 @@ export const UserView = ({
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList}
-            session={session}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!user) return;
@@ -113,7 +113,7 @@ export const UserView = ({
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [isLoading, permissions.canUpdate, resourceList, session, setUser, user, zIndex]);
+    ) : null, [isLoading, permissions.canUpdate, resourceList, setUser, user, zIndex]);
 
 
     // Handle tabs
@@ -156,7 +156,6 @@ export const UserView = ({
     const actionData = useObjectActions({
         object: user,
         objectType: 'User',
-        session,
         setLocation,
         setObject: setUser,
     });
@@ -276,7 +275,6 @@ export const UserView = ({
                     <ShareButton object={user} zIndex={zIndex} />
                     <BookmarkButton
                         disabled={permissions.canUpdate}
-                        session={session}
                         objectId={user?.id ?? ''}
                         bookmarkFor={BookmarkFor.User}
                         isBookmarked={user?.you?.isBookmarked ?? false}
@@ -287,7 +285,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, user, zIndex]);
+    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, user, zIndex]);
 
     /**
      * Opens add new page
@@ -300,8 +298,7 @@ export const UserView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'User',
                 }}
@@ -312,7 +309,6 @@ export const UserView = ({
                 anchorEl={moreMenuAnchor}
                 object={user}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -332,7 +328,6 @@ export const UserView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
                         translations={user?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
@@ -357,7 +352,6 @@ export const UserView = ({
                                 id="user-view-list"
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}
-                                session={session}
                                 take={20}
                                 where={where}
                                 zIndex={zIndex}

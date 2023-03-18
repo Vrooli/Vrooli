@@ -1,4 +1,4 @@
-import { BookmarkFor, DotNotation, GqlModelType, Session } from "@shared/consts";
+import { BookmarkFor, DotNotation, GqlModelType } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
 import { exists, isOfType } from "@shared/utils";
 import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
@@ -388,10 +388,6 @@ export interface ListToListItemProps {
      * Whether the list is loading
      */
     loading: boolean,
-    /**
-     * Current session
-     */
-    session: Session | undefined,
     zIndex: number,
 }
 
@@ -406,7 +402,6 @@ export function listToListItems({
     hideUpdateButton,
     items,
     loading,
-    session,
     zIndex,
 }: ListToListItemProps): JSX.Element[] {
     let listItems: JSX.Element[] = [];
@@ -421,7 +416,6 @@ export function listToListItems({
                 index={i}
                 loading={true}
                 objectType={'Routine'}
-                session={session}
                 zIndex={zIndex}
             />);
         }
@@ -439,7 +433,6 @@ export function listToListItems({
             index={i}
             loading={false}
             objectType={curr.__typename}
-            session={session}
             zIndex={zIndex}
         />);
     }

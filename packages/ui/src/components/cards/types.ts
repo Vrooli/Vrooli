@@ -1,4 +1,4 @@
-import { Resource, Session } from "@shared/consts";
+import { Resource } from "@shared/consts";
 import { SvgComponent } from "@shared/icons";
 import { LineGraphProps } from "components/graphs/types";
 import { AwardDisplay } from "types";
@@ -25,7 +25,6 @@ export interface ResourceCardProps {
     onContextMenu: (target: EventTarget, index: number) => void;
     onEdit: (index: number) => void;
     onDelete: (index: number) => void;
-    session: Session | undefined;
 }
 
 export interface TIDCardProps {

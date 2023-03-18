@@ -30,7 +30,6 @@ import { NavbarLogoState, NavbarProps } from '../types';
  * content is inside the navbar on small screens, and below the navbar on large screens.
  */
 export const Navbar = ({
-    session,
     shouldHideTitle = false,
     title,
     help,
@@ -101,7 +100,7 @@ export const Navbar = ({
                             marginRight: 'auto',
                             maxHeight: '100%',
                         }}>
-                            <NavList session={session} />
+                            <NavList />
                         </Box>}
                         {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
@@ -110,7 +109,7 @@ export const Navbar = ({
                             marginLeft: 'auto',
                             maxHeight: '100%',
                         }}>
-                            <NavList session={session} />
+                            <NavList />
                         </Box>}
                     </Stack>
                     {/* "below" displayed inside AppBar on mobile */}

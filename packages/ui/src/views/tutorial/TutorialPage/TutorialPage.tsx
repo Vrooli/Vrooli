@@ -52,7 +52,6 @@ type PageProps = {
  */
 export const TutorialView = ({
     display = 'page',
-    session,
 }: TutorialViewProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -82,7 +81,6 @@ export const TutorialView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Tutorial',
                 }}

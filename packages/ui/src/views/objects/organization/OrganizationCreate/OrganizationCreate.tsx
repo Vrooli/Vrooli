@@ -15,7 +15,7 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
@@ -23,15 +23,17 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
 import { shapeOrganization } from "utils/shape/models/organization";
 import { TagShape } from "utils/shape/models/tag";
 import { OrganizationCreateProps } from "../types";
 
 export const OrganizationCreate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: OrganizationCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<Organization>();
 
     // Handle relationships
@@ -107,7 +109,6 @@ export const OrganizationCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateOrganization',
                 }}
@@ -120,7 +121,6 @@ export const OrganizationCreate = ({
                             objectType={'Organization'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -130,7 +130,6 @@ export const OrganizationCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsCreate}
                             zIndex={zIndex}
                         />
@@ -170,7 +169,6 @@ export const OrganizationCreate = ({
                             canUpdate={true}
                             handleUpdate={handleResourcesUpdate}
                             loading={false}
-                            session={session}
                             mutate={false}
                             zIndex={zIndex}
                         />
@@ -178,7 +176,6 @@ export const OrganizationCreate = ({
                     <Grid item xs={12}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>

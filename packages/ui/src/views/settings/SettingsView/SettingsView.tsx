@@ -54,7 +54,6 @@ export const displaySettingsData: SettingsData[] = [
 
 export const SettingsView = ({
     display = 'page',
-    session,
 }: SettingsViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -69,7 +68,6 @@ export const SettingsView = ({
             <SettingsTopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Settings',
                 }}

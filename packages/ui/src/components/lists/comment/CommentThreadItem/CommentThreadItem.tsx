@@ -12,13 +12,14 @@ import { CommentCreateInput } from 'components/inputs/CommentCreateInput/Comment
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { TextLoading } from 'components/lists/TextLoading/TextLoading';
 import { OwnerLabel } from 'components/text/OwnerLabel/OwnerLabel';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getYou } from 'utils/display/listTools';
 import { displayDate } from 'utils/display/stringTools';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { ObjectType } from 'utils/navigation/openObject';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { CommentThreadItemProps } from '../types';
 
 export function CommentThreadItem({
@@ -30,9 +31,9 @@ export function CommentThreadItem({
     language,
     loading,
     object,
-    session,
     zIndex,
 }: CommentThreadItemProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
 
     const { objectId, objectType } = useMemo(() => ({
@@ -110,7 +111,6 @@ export function CommentThreadItem({
                                 {objectType && <OwnerLabel
                                     objectType={objectType as unknown as ObjectType}
                                     owner={data?.owner}
-                                    session={session}
                                     sxs={{
                                         label: {
                                             color: palette.background.textPrimary,
@@ -153,7 +153,6 @@ export function CommentThreadItem({
                         <VoteButton
                             direction="row"
                             disabled={!canVote}
-                            session={session}
                             objectId={data?.id ?? ''}
                             voteFor={VoteFor.Comment}
                             isUpvoted={isUpvoted}
@@ -161,7 +160,6 @@ export function CommentThreadItem({
                             onChange={() => { }}
                         />
                         {canBookmark && <BookmarkButton
-                            session={session}
                             objectId={data?.id ?? ''}
                             bookmarkFor={BookmarkFor.Comment}
                             isBookmarked={isBookmarked ?? false}
@@ -178,7 +176,6 @@ export function CommentThreadItem({
                         {canReport && <ReportButton
                             forId={data?.id ?? ''}
                             reportFor={objectType as any as ReportFor}
-                            session={session}
                             zIndex={zIndex}
                         />}
                         {canDelete && <Tooltip title="Delete" placement='top'>
@@ -199,7 +196,6 @@ export function CommentThreadItem({
                             objectType={objectType}
                             onCommentAdd={handleCommentAdd}
                             parent={(object as any) ?? null}
-                            session={session}
                             zIndex={zIndex}
                         />
                     }
@@ -213,7 +209,6 @@ export function CommentThreadItem({
                             objectType={objectType}
                             onCommentUpdate={handleCommentUpdate}
                             parent={(object as any) ?? null}
-                            session={session}
                             zIndex={zIndex}
                         />
                     }

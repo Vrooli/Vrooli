@@ -16,7 +16,7 @@ import { LanguageInput } from 'components/inputs/LanguageInput/LanguageInput';
 import { SiteSearchBar } from 'components/inputs/search';
 import { useFormik } from 'formik';
 import { BaseForm } from 'forms/BaseForm/BaseForm';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AutocompleteOption, Wrap } from 'types';
 import { getResourceIcon } from 'utils/display/getResourceIcon';
@@ -26,6 +26,7 @@ import { usePromptBeforeUnload } from 'utils/hooks/usePromptBeforeUnload';
 import { useTranslatedFields } from 'utils/hooks/useTranslatedFields';
 import { getObjectUrl } from 'utils/navigation/openObject';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { ResourceShape, shapeResource } from 'utils/shape/models/resource';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
@@ -45,10 +46,10 @@ export const ResourceDialog = ({
     onUpdated,
     index,
     partialData,
-    session,
     listId,
     zIndex,
 }: ResourceDialogProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -76,9 +77,9 @@ export const ResourceDialog = ({
         onSubmit: (values) => {
             const input = {
                 ...values,
-                list: { 
+                list: {
                     __typename: 'ResourceList' as const,
-                    id: values.listConnect, 
+                    id: values.listConnect,
                 } as ResourceList,
             };
             if (mutate) {
@@ -216,7 +217,6 @@ export const ResourceDialog = ({
                         value={searchString}
                         onChange={updateSearch}
                         onInputChange={onInputSelect}
-                        session={session}
                         showSecondaryLabel={true}
                         sxs={{
                             root: { width: '100%', top: 0, marginTop: 2 },
@@ -253,7 +253,6 @@ export const ResourceDialog = ({
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
-                                session={session}
                                 translations={formik.values.translations}
                                 zIndex={zIndex + 1}
                             />

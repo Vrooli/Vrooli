@@ -22,13 +22,14 @@ import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
 import { FieldData, FieldDataJSON } from "forms/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardViewProps } from "../types";
@@ -46,9 +47,9 @@ const containerProps = (palette: Palette) => ({
 export const StandardView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: StandardViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -99,7 +100,6 @@ export const StandardView = ({
         object: standardVersion,
         objectType: 'Standard',
         openAddCommentDialog,
-        session,
         setLocation,
         setObject: setStandardVersion,
     });
@@ -134,8 +134,7 @@ export const StandardView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Standard',
                 }}
@@ -175,7 +174,6 @@ export const StandardView = ({
                     language={language}
                     loading={isLoading}
                     title={name}
-                    session={session}
                     setLanguage={setLanguage}
                     translations={standardVersion?.translations ?? partialData?.translations ?? []}
                     zIndex={zIndex}
@@ -186,7 +184,6 @@ export const StandardView = ({
                     objectType={'Routine'}
                     onRelationshipsChange={onRelationshipsChange}
                     relationships={relationships}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Resources */}
@@ -196,12 +193,11 @@ export const StandardView = ({
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
-                    session={session}
                     zIndex={zIndex}
                 />}
                 {/* Box with description */}
                 <Box sx={containerProps(palette)}>
-                    <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
+                    <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                 </Box>
                 {/* Box with standard */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
@@ -215,8 +211,6 @@ export const StandardView = ({
                             schema ? <GeneratedInputComponent
                                 disabled={true}
                                 fieldData={schema}
-                                formik={previewFormik}
-                                session={session}
                                 onUpload={() => { }}
                                 zIndex={zIndex}
                             /> :
@@ -242,7 +236,6 @@ export const StandardView = ({
                 {tags.length > 0 && <TagList
                     maxCharacters={30}
                     parentId={standardVersion?.id ?? ''}
-                    session={session}
                     tags={tags as any[]}
                     sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                 />}
@@ -265,14 +258,12 @@ export const StandardView = ({
                 handleObjectUpdate={updateStandard}
                 loading={loading}
                 object={standardVersion}
-                session={session}
             /> */}
                 {/* Action buttons */}
                 <ObjectActionsRow
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                     object={standardVersion}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Comments */}
@@ -283,7 +274,6 @@ export const StandardView = ({
                         objectId={standardVersion?.id ?? ''}
                         objectType={CommentFor.StandardVersion}
                         onAddCommentClose={closeAddCommentDialog}
-                        session={session}
                         zIndex={zIndex}
                     />
                 </Box>

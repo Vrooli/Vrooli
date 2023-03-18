@@ -10,10 +10,8 @@ export const GeneratedInputComponentWithLabel = ({
     copyInput,
     disabled,
     fieldData,
-    formik,
     index,
     onUpload,
-    session,
     textPrimary,
     zIndex,
 }: GeneratedInputComponentWithLabelProps) => {
@@ -24,13 +22,11 @@ export const GeneratedInputComponentWithLabel = ({
         <GeneratedInputComponent
             fieldData={fieldData}
             disabled={false}
-            formik={formik}
             index={index}
-            session={session}
             onUpload={() => { }}
             zIndex={zIndex}
         />
-    }, [fieldData, formik, index, session, zIndex])
+    }, [fieldData, index, zIndex])
 
     return (
         <Box key={index} sx={{

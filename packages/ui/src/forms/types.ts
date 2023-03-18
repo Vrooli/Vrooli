@@ -1,4 +1,4 @@
-import { InputType, Session } from "@shared/consts";
+import { InputType } from "@shared/consts";
 import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { CommonProps } from "types";
 import { Forms } from "utils/consts";
@@ -19,7 +19,6 @@ export interface BaseFormProps {
 
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
-    session: Session | undefined;
     onSubmit: (values: any) => any;
     zIndex: number;
 }
@@ -75,7 +74,7 @@ export interface JsonProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zInde
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'session' | 'translations' | 'zIndex'> {
+export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'translations' | 'zIndex'> {
     defaultValue?: string[];
 }
 
@@ -134,7 +133,7 @@ export interface SwitchProps {
 /**
  * Props for rendering a TagSelector input component
  */
-export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'handleTagsUpdate' | 'zIndex'> {
+export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'tags' | 'handleTagsUpdate' | 'zIndex'> {
     defaultValue?: TagShape[];
 }
 

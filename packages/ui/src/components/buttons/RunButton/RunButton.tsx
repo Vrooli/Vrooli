@@ -27,7 +27,6 @@ export const RunButton = ({
     isBuildGraphOpen,
     isEditing,
     runnableObject,
-    session,
     zIndex,
 }: RunButtonProps) => {
     const { palette } = useTheme();
@@ -36,8 +35,8 @@ export const RunButton = ({
     // Check object status to see if it is valid and complete
     const status = useMemo<Status>(() => {
         if (!runnableObject) return Status.Invalid;
-        return (runnableObject.__typename === GqlModelType.ProjectVersion ? 
-            getProjectVersionStatus(runnableObject as ProjectVersion) : 
+        return (runnableObject.__typename === GqlModelType.ProjectVersion ?
+            getProjectVersionStatus(runnableObject as ProjectVersion) :
             getRoutineVersionStatus(runnableObject as RoutineVersion)).status;
     }, [runnableObject]);
 
@@ -139,7 +138,6 @@ export const RunButton = ({
                 {runnableObject && <RunView
                     handleClose={runStop}
                     runnableObject={runnableObject}
-                    session={session}
                     zIndex={zIndex + 3}
                 />}
             </Dialog>
@@ -151,7 +149,6 @@ export const RunButton = ({
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 runnableObject={runnableObject}
-                session={session}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">

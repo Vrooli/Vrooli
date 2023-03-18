@@ -1,5 +1,5 @@
 import { BoxProps, SelectChangeEvent, SelectProps, SwitchProps, TextFieldProps } from '@mui/material';
-import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, StandardVersion, Tag, User } from '@shared/consts';
+import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Standard, StandardVersion, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { FocusEventHandler } from 'react';
 import { VersionInfo } from 'types';
@@ -14,7 +14,6 @@ export interface CommentCreateInputProps {
     objectType: CommentFor;
     onCommentAdd: (comment: Comment) => any;
     parent: Comment | null;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -26,7 +25,6 @@ export interface CommentUpdateInputProps {
     objectType: CommentFor;
     onCommentUpdate: (comment: Comment) => any;
     parent: Comment | null;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -197,17 +195,11 @@ export interface LanguageInputProps {
     handleAdd: (language: string) => any;
     handleDelete: (language: string) => void;
     handleCurrent: (language: string) => void;
-    session: Session | undefined;
     translations: { language: string }[];
     zIndex: number;
 }
 
 export interface LanguageSelectorProps {
-    session: Session | undefined;
-}
-
-export interface LeftHandedCheckboxProps {
-    session: Session | undefined;
 }
 
 export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
@@ -289,7 +281,6 @@ export interface RelationshipButtonsProps {
     objectType: ObjectType;
     onRelationshipsChange: (relationships: Partial<RelationshipsObject>) => void;
     relationships: RelationshipsObject;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -310,7 +301,6 @@ export type SelectorProps<T extends string | number | { [x: string]: any }> = Se
 }
 
 export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
-    session: Session | undefined;
     selected: {
         root: {
             name: Standard['name']
@@ -325,18 +315,7 @@ export interface TagSelectorProps {
     disabled?: boolean;
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
     placeholder?: string;
-    session: Session | undefined;
     tags: (TagShape | Tag)[];
-}
-
-export interface TextSizeButtonsProps {
-    session: Session | undefined;
-}
-
-export interface ThemeSwitchProps {
-    showText?: boolean;
-    theme: 'light' | 'dark';
-    onChange: (theme: 'light' | 'dark') => any;
 }
 
 export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange' | 'value'> & {

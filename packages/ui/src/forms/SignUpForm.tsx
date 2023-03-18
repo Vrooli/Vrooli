@@ -120,29 +120,17 @@ export const SignUpForm = ({
                     <Grid item xs={12}>
                         <PasswordTextField
                             fullWidth
-                            id="password"
                             name="password"
                             autoComplete="new-password"
-                            label="Password"
-                            value={formik.values.password}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.password && Boolean(formik.errors.password)}
-                            helperText={formik.touched.password ? formik.errors.password : null}
+                            label={t('Password')}
                         />
                     </Grid>
                     <Grid item xs={12}>
                         <PasswordTextField
                             fullWidth
-                            id="confirmPassword"
                             name="confirmPassword"
                             autoComplete="new-password"
-                            label="Confirm Password"
-                            value={formik.values.confirmPassword}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-                            helperText={formik.touched.confirmPassword ? formik.errors.confirmPassword : null}
+                            label={t('PasswordConfirm')}
                         />
                     </Grid>
                     <Grid item xs={12}>

@@ -22,15 +22,17 @@ import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { shapeProjectVersion } from "utils/shape/models/projectVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { ProjectUpdateProps } from "../types";
 
 export const ProjectUpdate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: ProjectUpdateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onUpdated } = useUpdateActions<ProjectVersion>();
 
     // Fetch existing data
@@ -124,7 +126,6 @@ export const ProjectUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateProject',
                 }}
@@ -137,7 +138,6 @@ export const ProjectUpdate = ({
                             objectType={'Project'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -147,7 +147,6 @@ export const ProjectUpdate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
                         />
@@ -183,7 +182,6 @@ export const ProjectUpdate = ({
                     <Grid item xs={12} mb={4}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>

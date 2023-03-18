@@ -9,20 +9,22 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useMemo } from "react";
+import { useContext, useMemo } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
 import { ResourceCreateProps } from "../types";
 
 export const ResourceCreate = ({
     display = 'dialog',
     listId,
-    session,
     zIndex = 200,
 }: ResourceCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<Resource>();
 
     // Handle create
@@ -75,7 +77,6 @@ export const ResourceCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateResource',
                 }}
@@ -88,7 +89,6 @@ export const ResourceCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsCreate}
                             zIndex={zIndex}
                         />

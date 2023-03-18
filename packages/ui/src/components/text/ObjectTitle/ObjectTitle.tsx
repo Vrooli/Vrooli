@@ -9,13 +9,11 @@ import { ObjectTitleProps } from "../types";
 export const ObjectTitle = ({
     language,
     loading,
-    session,
     setLanguage,
     translations,
     title,
     zIndex,
 }: ObjectTitleProps) => {
-
     // Display title or loading bar
     const titleComponent = loading ? <LinearProgress color="inherit" sx={{
         borderRadius: 1,
@@ -52,7 +50,6 @@ export const ObjectTitle = ({
             <SelectLanguageMenu
                 currentLanguage={language}
                 handleCurrent={setLanguage}
-                session={session}
                 translations={translations}
                 zIndex={zIndex}
             />

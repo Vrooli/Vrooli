@@ -13,7 +13,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
@@ -22,14 +22,16 @@ import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { TagShape } from "utils/shape/models/tag";
 import { QuestionUpdateProps } from "../types";
 
 export const QuestionUpdate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: QuestionUpdateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onUpdated } = useUpdateActions<Question>();
 
     // Fetch existing data
@@ -120,7 +122,6 @@ export const QuestionUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateQuestion',
                 }}
@@ -133,7 +134,6 @@ export const QuestionUpdate = ({
                             objectType={'Question'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -143,7 +143,6 @@ export const QuestionUpdate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
                         />
@@ -179,7 +178,6 @@ export const QuestionUpdate = ({
                     <Grid item xs={12}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>

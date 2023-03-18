@@ -1,4 +1,4 @@
-import { Node, NodeEnd, NodeLink, RoutineVersion, Session } from '@shared/consts';
+import { Node, NodeEnd, NodeLink, RoutineVersion } from '@shared/consts';
 import { BuildAction } from 'utils/consts';
 
 export interface NodeContextMenuProps {
@@ -17,7 +17,6 @@ export interface AddAfterLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -28,7 +27,6 @@ export interface AddBeforeLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    session: Session | undefined;
     zIndex: number;
 }
 

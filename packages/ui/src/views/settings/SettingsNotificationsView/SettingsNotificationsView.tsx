@@ -15,8 +15,8 @@ import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({
     display = 'page',
-    session,
 }: SettingsNotificationsViewProps) => {
+
     const { data, refetch, loading: isLoading, error } = useQuery<Wrap<NotificationSettings, 'notificationSettings'>>(notificationSettings, { errorPolicy: 'all' });
     useDisplayApolloError(error);
     const [mutation, { loading: isUpdating }] = useCustomMutation<NotificationSettings, NotificationSettingsUpdateInput>(notificationSettingsUpdate);
@@ -26,7 +26,6 @@ export const SettingsNotificationsView = ({
             <SettingsTopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Notification',
                     titleVariables: { count: 2 }

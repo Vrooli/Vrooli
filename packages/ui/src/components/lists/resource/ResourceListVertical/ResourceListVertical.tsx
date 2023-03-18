@@ -20,7 +20,6 @@ export const ResourceListVertical = ({
     mutate,
     list,
     loading,
-    session,
     zIndex,
 }: ResourceListVerticalProps) => {
 
@@ -105,10 +104,9 @@ export const ResourceListVertical = ({
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
-            session={session}
             zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
 
     return (
         <>
@@ -148,7 +146,6 @@ export const ResourceListVertical = ({
                         handleDelete={onDelete}
                         index={index}
                         loading={loading}
-                        session={session}
                     />
                 ))}
             </Box>}

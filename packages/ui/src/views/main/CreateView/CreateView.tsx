@@ -67,7 +67,6 @@ const createCards: CreateInfo[] = [
 
 export const CreateView = ({
     display = 'page',
-    session
 }: CreateViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -81,7 +80,6 @@ export const CreateView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Create',
                 }}

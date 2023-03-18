@@ -24,7 +24,6 @@ export const AdvancedSearchDialog = ({
     handleSearch,
     isOpen,
     searchType,
-    session,
     zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
@@ -80,12 +79,6 @@ export const AdvancedSearchDialog = ({
     useEffect(() => {
         console.log('schema changed', schema);
     }, [schema])
-    useEffect(() => {
-        console.log('formik changed', formik);
-    }, [formik])
-    useEffect(() => {
-        console.log('session changed', session);
-    }, [session])
 
     return (
         <LargeDialog
@@ -111,10 +104,8 @@ export const AdvancedSearchDialog = ({
                     {schema && <GeneratedGrid
                         childContainers={schema.containers}
                         fields={schema.fields}
-                        formik={formik}
                         layout={schema.formLayout}
                         onUpload={() => { }}
-                        session={session}
                         theme={theme}
                         zIndex={zIndex}
                     />}

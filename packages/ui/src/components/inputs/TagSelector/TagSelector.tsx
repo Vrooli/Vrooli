@@ -12,7 +12,6 @@ import { TagSelectorProps } from '../types';
 export const TagSelector = ({
     disabled,
     handleTagsUpdate,
-    session,
     tags,
     placeholder = 'Enter tags, followed by commas...',
 }: TagSelectorProps) => {
@@ -173,7 +172,6 @@ export const TagSelector = ({
                 >
                     <ListItemText>{option.tag}</ListItemText>
                     <BookmarkButton
-                        session={session}
                         objectId={(option as Tag).id ?? ''}
                         bookmarkFor={BookmarkFor.Tag}
                         isBookmarked={(option as Tag).you.isBookmarked}

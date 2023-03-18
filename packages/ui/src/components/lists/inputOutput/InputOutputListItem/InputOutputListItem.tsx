@@ -12,11 +12,12 @@ import { StandardVersionSelectSwitch } from 'components/inputs/StandardVersionSe
 import { useFormik } from 'formik';
 import { FieldData } from 'forms/types';
 import Markdown from 'markdown-to-jsx';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { linkColors } from 'styles';
 import { getCurrentUser } from 'utils/authentication/session';
 import { InputTypeOption, InputTypeOptions } from 'utils/consts';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
 import { jsonToString, standardVersionToFieldData, updateArray } from 'utils/shape/general';
 import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from 'utils/shape/models/routineVersionInput';
 import { RoutineVersionOutputTranslationShape } from 'utils/shape/models/routineVersionOutput';
@@ -77,9 +78,9 @@ export const InputOutputListItem = ({
     handleReorder,
     handleUpdate,
     language,
-    session,
     zIndex,
 }: InputOutputListItemProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
@@ -314,7 +315,6 @@ export const InputOutputListItem = ({
                     <Grid item xs={12}>
                         <StandardVersionSelectSwitch
                             disabled={!isEditing}
-                            session={session}
                             selected={!canUpdateStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
@@ -344,8 +344,6 @@ export const InputOutputListItem = ({
                                             yup: standardVersion.yup ?? null,
                                         }) as FieldData :
                                         generatedSchema as FieldData}
-                                    formik={formik}
-                                    session={session}
                                     onUpload={() => { }}
                                     zIndex={zIndex}
                                 />) :

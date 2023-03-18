@@ -5,7 +5,7 @@ import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 import { openLink, useLocation } from '@shared/route';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { TextLoading } from 'components/lists/TextLoading/TextLoading';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 import { multiLineEllipsis } from 'styles';
 import { ResourceType } from 'utils/consts';
 import { getResourceIcon } from 'utils/display/getResourceIcon';
@@ -15,6 +15,7 @@ import { getUserLanguages } from 'utils/display/translationTools';
 import usePress from 'utils/hooks/usePress';
 import { getResourceUrl } from 'utils/navigation/openObject';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { ResourceListItemProps } from '../types';
 
 /**
@@ -37,8 +38,8 @@ export function ResourceListItem({
     handleEdit,
     index,
     loading,
-    session,
 }: ResourceListItemProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);

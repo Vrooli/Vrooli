@@ -14,7 +14,6 @@ import { ReminderViewProps } from "../types";
 export const ReminderView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: ReminderViewProps) => {
     const { palette } = useTheme();
@@ -41,7 +40,6 @@ export const ReminderView = ({
     const actionData = useObjectActions({
         object: reminder,
         objectType: 'Reminder',
-        session,
         setLocation,
         setObject: setReminder,
     });
@@ -102,7 +100,6 @@ export const ReminderView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Reminder',
                 }}
@@ -113,7 +110,6 @@ export const ReminderView = ({
                 anchorEl={moreMenuAnchor}
                 object={reminder as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{

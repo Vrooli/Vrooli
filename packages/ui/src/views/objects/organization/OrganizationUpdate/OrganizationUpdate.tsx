@@ -15,7 +15,7 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
@@ -24,15 +24,17 @@ import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { shapeOrganization } from "utils/shape/models/organization";
 import { TagShape } from "utils/shape/models/tag";
 import { OrganizationUpdateProps } from "../types";
 
 export const OrganizationUpdate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: OrganizationUpdateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onUpdated } = useUpdateActions<Organization>();
 
     // Fetch existing data
@@ -125,7 +127,6 @@ export const OrganizationUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateOrganization',
                 }}
@@ -138,7 +139,6 @@ export const OrganizationUpdate = ({
                             objectType={'Organization'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -148,7 +148,6 @@ export const OrganizationUpdate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
                         />
@@ -188,7 +187,6 @@ export const OrganizationUpdate = ({
                             canUpdate={true}
                             handleUpdate={handleResourcesUpdate}
                             loading={loading}
-                            session={session}
                             mutate={false}
                             zIndex={zIndex}
                         />
@@ -196,7 +194,6 @@ export const OrganizationUpdate = ({
                     <Grid item xs={12}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>

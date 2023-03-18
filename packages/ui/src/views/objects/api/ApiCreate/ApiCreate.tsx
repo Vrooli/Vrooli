@@ -12,7 +12,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
@@ -20,14 +20,16 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
 import { TagShape } from "utils/shape/models/tag";
 import { ApiCreateProps } from "../types";
 
 export const ApiCreate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: ApiCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<ApiVersion>();
 
     // Handle relationships
@@ -99,7 +101,6 @@ export const ApiCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateApi',
                 }}
@@ -112,7 +113,6 @@ export const ApiCreate = ({
                             objectType={'Api'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -122,7 +122,6 @@ export const ApiCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsCreate}
                             zIndex={zIndex}
                         />

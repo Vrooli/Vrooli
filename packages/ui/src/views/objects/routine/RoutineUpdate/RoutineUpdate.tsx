@@ -21,7 +21,7 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -31,6 +31,7 @@ import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
+import { SessionContext } from "utils/SessionContext";
 import { getMinimumVersion } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
@@ -45,9 +46,10 @@ const helpTextSubroutines = `A routine can be made from scratch (single-step), o
 
 export const RoutineUpdate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: RoutineUpdateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onUpdated } = useUpdateActions<RoutineVersion>();
 
     // Fetch existing data
@@ -229,7 +231,6 @@ export const RoutineUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateRoutine',
                 }}
@@ -243,7 +244,6 @@ export const RoutineUpdate = ({
                             objectType={'Routine'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -253,7 +253,6 @@ export const RoutineUpdate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
                         />
@@ -304,7 +303,6 @@ export const RoutineUpdate = ({
                             canUpdate={true}
                             handleUpdate={handleResourcesUpdate}
                             loading={loading}
-                            session={session}
                             mutate={false}
                             zIndex={zIndex}
                         />
@@ -312,7 +310,6 @@ export const RoutineUpdate = ({
                     <Grid item xs={12}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>
@@ -380,7 +377,6 @@ export const RoutineUpdate = ({
                                             handleDeleteLanguage,
                                             translations: formik.values.translationsUpdate as any[],
                                         }}
-                                        session={session}
                                         zIndex={zIndex + 1}
                                     />
                                 </Dialog>
@@ -404,7 +400,6 @@ export const RoutineUpdate = ({
                                         isInput={true}
                                         language={language}
                                         list={inputsList}
-                                        session={session}
                                         zIndex={zIndex}
                                     />
                                 </Grid>
@@ -415,7 +410,6 @@ export const RoutineUpdate = ({
                                         isInput={false}
                                         language={language}
                                         list={outputsList}
-                                        session={session}
                                         zIndex={zIndex}
                                     />
                                 </Grid>

@@ -15,9 +15,7 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
     handleObjectUpdate,
     loading,
     object,
-    session,
 }: StatsCompactProps<T>) => {
-
     const you = useMemo(() => getYou(object as any), [object]);
     const counts = useMemo(() => getCounts(object as any), [object])
 
@@ -42,16 +40,17 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             {object && object.__typename in VoteFor && <VoteButton
                 direction="row"
                 disabled={!you.canVote}
-                session={session}
                 objectId={object.id}
                 voteFor={object.__typename as VoteFor}
                 isUpvoted={you.isUpvoted}
                 score={counts.score}
-                onChange={(isUpvote, score) => { object && handleObjectUpdate({ 
-                    ...object, 
-                    isUpvoted: isUpvote, //TODO
-                    score: score, //TODO
-                }); }}
+                onChange={(isUpvote, score) => {
+                    object && handleObjectUpdate({
+                        ...object,
+                        isUpvoted: isUpvote, //TODO
+                        score: score, //TODO
+                    });
+                }}
             />}
             {/* Views */}
             <ViewsDisplay views={(object as any)?.views} />

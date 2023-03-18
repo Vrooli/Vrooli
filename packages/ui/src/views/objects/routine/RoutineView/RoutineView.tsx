@@ -28,7 +28,7 @@ import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
@@ -39,6 +39,7 @@ import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
+import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
 import { TagShape } from "utils/shape/models/tag";
 import { BuildView } from "views/BuildView/BuildView";
@@ -60,9 +61,9 @@ const containerProps = (palette: Palette) => ({
 export const RoutineView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: RoutineViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -119,7 +120,6 @@ export const RoutineView = ({
         object: routineVersion,
         objectType: 'Routine',
         openAddCommentDialog,
-        session,
         setLocation,
         setObject: setRoutineVersion,
     });
@@ -216,7 +216,6 @@ export const RoutineView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Routine',
                 }}
@@ -247,7 +246,6 @@ export const RoutineView = ({
                         isBuildGraphOpen={isBuildOpen}
                         isEditing={false}
                         runnableObject={routineVersion}
-                        session={session}
                         zIndex={zIndex}
                     /> : null}
                 </SideActionButtons>
@@ -270,7 +268,6 @@ export const RoutineView = ({
                         loading={isLoading}
                         owner={relationships.owner}
                         routineVersion={routineVersion}
-                        session={session}
                         translationData={{
                             language,
                             setLanguage,
@@ -285,7 +282,6 @@ export const RoutineView = ({
                     language={language}
                     loading={isLoading}
                     title={name}
-                    session={session}
                     setLanguage={setLanguage}
                     translations={routineVersion?.translations ?? partialData?.translations ?? []}
                     zIndex={zIndex}
@@ -296,7 +292,6 @@ export const RoutineView = ({
                     objectType={'Routine'}
                     onRelationshipsChange={onRelationshipsChange}
                     relationships={relationships}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Resources */}
@@ -306,15 +301,14 @@ export const RoutineView = ({
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
-                    session={session}
                     zIndex={zIndex}
                 />}
                 {/* Box with description and instructions */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                     {/* Description */}
-                    <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
+                    <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                     {/* Instructions */}
-                    <TextCollapse session={session} title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
+                    <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
                 </Stack>
                 {/* Box with inputs, if this is a single-step routine */}
                 {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
@@ -327,9 +321,7 @@ export const RoutineView = ({
                                 copyInput={copyInput}
                                 disabled={false}
                                 fieldData={fieldData}
-                                formik={formik}
                                 index={index}
-                                session={session}
                                 textPrimary={palette.background.textPrimary}
                                 onUpload={() => { }}
                                 zIndex={zIndex}
@@ -350,7 +342,6 @@ export const RoutineView = ({
                 {tags.length > 0 && <TagList
                     maxCharacters={30}
                     parentId={routineVersion?.id ?? ''}
-                    session={session}
                     tags={tags as any[]}
                     sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                 />}
@@ -373,14 +364,12 @@ export const RoutineView = ({
                 handleObjectUpdate={updateRoutineVersion}
                 loading={loading}
                 object={routineVersion}
-                session={session}
             /> */}
                 {/* Action buttons */}
                 <ObjectActionsRow
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                     object={routineVersion}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Comments */}
@@ -391,7 +380,6 @@ export const RoutineView = ({
                         objectId={routineVersion?.id ?? ''}
                         objectType={CommentFor.RoutineVersion}
                         onAddCommentClose={closeAddCommentDialog}
-                        session={session}
                         zIndex={zIndex}
                     />
                 </Box>

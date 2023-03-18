@@ -10,10 +10,8 @@ export const ObjectActionMenu = ({
     exclude,
     object,
     onClose,
-    session,
     zIndex,
 }: ObjectActionMenuProps) => {
-
     const displayedActions = useMemo(() => getActionsDisplayData(actionData.availableActions.filter(action => !exclude?.includes(action))), [actionData.availableActions, exclude]);
 
     const onSelect = useCallback((action: ObjectAction) => {
@@ -27,7 +25,6 @@ export const ObjectActionMenu = ({
             <ObjectActionDialogs
                 {...actionData}
                 object={object}
-                session={session}
                 zIndex={zIndex + 1}
             />
             {/* The menu to select an action */}

@@ -16,7 +16,7 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
@@ -24,15 +24,17 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
 import { shapeProjectVersion } from "utils/shape/models/projectVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { ProjectCreateProps } from "../types";
 
 export const ProjectCreate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: ProjectCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<ProjectVersion>();
 
     // Handle relationships
@@ -115,7 +117,6 @@ export const ProjectCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateProject',
                 }}
@@ -128,7 +129,6 @@ export const ProjectCreate = ({
                             objectType={'Project'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -138,7 +138,6 @@ export const ProjectCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsCreate}
                             zIndex={zIndex}
                         />
@@ -178,7 +177,6 @@ export const ProjectCreate = ({
                             canUpdate={true}
                             handleUpdate={handleResourcesUpdate}
                             loading={false}
-                            session={session}
                             mutate={false}
                             zIndex={zIndex}
                         />
@@ -186,7 +184,6 @@ export const ProjectCreate = ({
                     <Grid item xs={12} mb={4}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>

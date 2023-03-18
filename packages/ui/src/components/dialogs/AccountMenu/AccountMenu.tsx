@@ -27,7 +27,7 @@ import { TextSizeButtons } from 'components/inputs/TextSizeButtons/TextSizeButto
 import { ThemeSwitch } from 'components/inputs/ThemeSwitch/ThemeSwitch';
 import { ContactInfo } from 'components/navigation/ContactInfo/ContactInfo';
 import { useFormik } from 'formik';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { noSelect } from 'styles';
 import { getCurrentUser, guestSession } from 'utils/authentication/session';
@@ -35,6 +35,7 @@ import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { PubSub } from 'utils/pubsub';
 import { HistorySearchPageTabOption } from 'utils/search/objectToSearch';
+import { SessionContext } from 'utils/SessionContext';
 import { shapeProfile } from 'utils/shape/models/profile';
 import { AccountMenuProps } from '../types';
 
@@ -44,8 +45,8 @@ const MAX_ACCOUNTS = 10;
 export const AccountMenu = ({
     anchorEl,
     onClose,
-    session,
 }: AccountMenuProps) => {
+    const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -221,7 +222,7 @@ export const AccountMenu = ({
                     aria-label="close"
                     edge="end"
                     onClick={handleClose}
-                    sx={{ 
+                    sx={{
                         marginLeft: (isMobile && isLeftHanded) ? 'unset' : 'auto',
                         marginRight: (isMobile && isLeftHanded) ? 'auto' : 'unset',
                     }}
@@ -270,13 +271,10 @@ export const AccountMenu = ({
                     height: 'fit-content',
                     padding: 1,
                 }}>
-                    <ThemeSwitch
-                        theme={formik.values.theme as 'light' | 'dark'}
-                        onChange={(t) => formik.setFieldValue('theme', t)}
-                    />
-                    <TextSizeButtons session={session} />
-                    <LeftHandedCheckbox session={session} />
-                    <LanguageSelector session={session} />
+                    <ThemeSwitch />
+                    <TextSizeButtons />
+                    <LeftHandedCheckbox />
+                    <LanguageSelector />
                     {/* Focus mode */}
                     {/* TODO */}
                 </Box>
@@ -338,7 +336,7 @@ export const AccountMenu = ({
                 {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
             <Collapse in={isAdditionalResourcesOpen} sx={{ display: 'inline-block' }}>
-                <ContactInfo session={session} />
+                <ContactInfo />
             </Collapse>
         </SwipeableDrawer>
     )

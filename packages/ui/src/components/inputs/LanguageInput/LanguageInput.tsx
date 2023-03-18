@@ -3,8 +3,9 @@
  */
 import { Stack, Typography } from '@mui/material';
 import { SelectLanguageMenu } from 'components/dialogs/SelectLanguageMenu/SelectLanguageMenu';
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 import { getLanguageSubtag, getUserLanguages } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
 import { LanguageInputProps } from '../types';
 
 export const LanguageInput = ({
@@ -13,11 +14,11 @@ export const LanguageInput = ({
     handleAdd,
     handleDelete,
     handleCurrent,
-    session,
     translations,
     zIndex,
 }: LanguageInputProps) => {
-    
+    const session = useContext(SessionContext);
+
     const selectLanguage = useCallback((language: string) => {
         // If language is not in translations, add it
         if (!translations.some((translation) => getLanguageSubtag(translation.language) === getLanguageSubtag(language))) {
@@ -59,7 +60,6 @@ export const LanguageInput = ({
                 handleDelete={deleteLanguage}
                 handleCurrent={selectLanguage}
                 isEditing={true}
-                session={session}
                 sxs={{
                     root: { marginLeft: 0.5, marginRight: 0.5 },
                 }}

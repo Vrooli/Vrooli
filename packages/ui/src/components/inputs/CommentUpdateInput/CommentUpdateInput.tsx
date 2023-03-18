@@ -8,13 +8,14 @@ import { mutationWrapper } from "api/utils";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
 import { useFormik } from "formik";
-import { useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { getUserLanguages } from "utils/display/translationTools";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { useWindowSize } from "utils/hooks/useWindowSize";
+import { SessionContext } from "utils/SessionContext";
 import { shapeComment } from "utils/shape/models/comment";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { CommentUpdateInputProps } from "../types";
@@ -30,9 +31,9 @@ export const CommentUpdateInput = ({
     objectType,
     onCommentUpdate,
     parent,
-    session,
     zIndex,
 }: CommentUpdateInputProps) => {
+    const session = useContext(SessionContext);
     const { breakpoints } = useTheme();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);

@@ -10,21 +10,23 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import { getUserLanguages } from "utils/display/translationTools";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { ResourceUpdateProps } from "../types";
 
 export const ResourceUpdate = ({
     display = 'dialog',
     listId,
-    session,
     zIndex = 200,
 }: ResourceUpdateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onUpdated } = useUpdateActions<Resource>();
 
     // Fetch existing data
@@ -89,7 +91,6 @@ export const ResourceUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateResource',
                 }}
@@ -102,7 +103,6 @@ export const ResourceUpdate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
                         />

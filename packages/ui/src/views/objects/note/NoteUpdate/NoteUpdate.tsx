@@ -14,7 +14,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
 import { defaultRelationships } from "utils/defaults/relationships";
@@ -24,18 +24,19 @@ import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { shapeNoteVersion } from "utils/shape/models/noteVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { NoteUpdateProps } from "../types";
 
 export const NoteUpdate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: NoteUpdateProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
-    
+
     const { onCancel, onUpdated } = useUpdateActions<NoteVersion>();
 
     // Fetch existing data
@@ -130,7 +131,6 @@ export const NoteUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateNote',
                 }}
@@ -143,7 +143,6 @@ export const NoteUpdate = ({
                             objectType={'Note'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -153,7 +152,6 @@ export const NoteUpdate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translations}
                             zIndex={zIndex}
                         />

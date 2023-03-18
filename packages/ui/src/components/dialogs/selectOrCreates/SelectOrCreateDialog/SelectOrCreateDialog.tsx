@@ -16,12 +16,13 @@ import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { ShareSiteDialog } from 'components/dialogs/ShareSiteDialog/ShareSiteDialog';
 import { SearchList } from 'components/lists/SearchList/SearchList';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { lazily } from 'react-lazily';
 import { getCurrentUser } from 'utils/authentication/session';
 import { SearchType, searchTypeToParams } from 'utils/search/objectToSearch';
 import { SearchParams } from 'utils/search/schemas/base';
+import { SessionContext } from 'utils/SessionContext';
 import { CreateProps } from 'views/objects/types';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 const { ApiCreate } = lazily(() => import('../../../../views/objects/api/ApiCreate/ApiCreate'));
@@ -57,11 +58,11 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
     help,
     isOpen,
     objectType,
-    session,
     where,
     zIndex,
 }: SelectOrCreateDialogProps<T>) => {
     console.log('selectorcreate 1', objectType);
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -178,7 +179,6 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                 <CreateView
                     // onCreated={handleCreated as any}
                     // onCancel={handleCreateClose}
-                    session={session}
                     zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>}
@@ -206,7 +206,6 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                     beforeNavigation={fetchFullData}
                     searchType={objectType as unknown as SearchType}
                     searchPlaceholder={`SelectExisting${objectType}` as CommonKey}
-                    session={session}
                     take={20}
                     where={where ?? { userId }}
                     zIndex={zIndex}

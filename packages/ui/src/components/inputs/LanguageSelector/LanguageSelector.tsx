@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getSiteLanguage, siteLanguages } from 'utils/authentication/session';
 import { AllLanguages } from 'utils/display/translationTools';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { Selector } from '../Selector/Selector';
 import { LanguageSelectorProps } from '../types';
 
@@ -10,8 +11,8 @@ import { LanguageSelectorProps } from '../types';
  * Updates the language of the entire app
  */
 export function LanguageSelector({
-    session,
 }: LanguageSelectorProps) {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
 
     const [language, setLanguage] = useState(() => getSiteLanguage(session));

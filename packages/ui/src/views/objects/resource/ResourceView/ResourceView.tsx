@@ -4,18 +4,19 @@ import { useLocation } from '@shared/route';
 import { resourceFindOne } from "api/generated/endpoints/resource_findOne";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
 import { ResourceViewProps } from "../types";
 
 export const ResourceView = ({
     display = 'dialog',
     partialData,
-    session,
     zIndex = 200,
 }: ResourceViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -46,7 +47,6 @@ export const ResourceView = ({
     const actionData = useObjectActions({
         object: resource,
         objectType: 'Resource',
-        session,
         setLocation,
         setObject: setResource,
     });
@@ -55,8 +55,7 @@ export const ResourceView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Resource',
                 }}
@@ -77,7 +76,6 @@ export const ResourceView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
                         translations={resource?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />

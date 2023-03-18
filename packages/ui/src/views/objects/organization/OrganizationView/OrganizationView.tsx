@@ -16,13 +16,14 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { SearchType } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
 import { OrganizationViewProps } from "../types";
 
 enum TabOptions {
@@ -59,9 +60,9 @@ const tabParams: TabParams[] = [{
 export const OrganizationView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: OrganizationViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -98,7 +99,6 @@ export const OrganizationView = ({
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList as any}
-            session={session}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!organization) return;
@@ -111,7 +111,7 @@ export const OrganizationView = ({
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [isLoading, organization, permissions.canUpdate, resourceList, session, setOrganization, zIndex]);
+    ) : null, [isLoading, organization, permissions.canUpdate, resourceList, setOrganization, zIndex]);
 
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
@@ -149,7 +149,6 @@ export const OrganizationView = ({
     const actionData = useObjectActions({
         object: organization,
         objectType: 'Organization',
-        session,
         setLocation,
         setObject: setOrganization,
     });
@@ -269,7 +268,6 @@ export const OrganizationView = ({
                     <ReportsLink object={organization} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        session={session}
                         objectId={organization?.id ?? ''}
                         bookmarkFor={BookmarkFor.Organization}
                         isBookmarked={organization?.you?.isBookmarked ?? false}
@@ -279,7 +277,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, organization, bio, zIndex, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, organization, bio, zIndex, actionData]);
 
     /**
      * Opens add new page
@@ -295,7 +293,6 @@ export const OrganizationView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Organization',
                 }}
@@ -306,7 +303,6 @@ export const OrganizationView = ({
                 anchorEl={moreMenuAnchor}
                 object={organization as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -326,7 +322,6 @@ export const OrganizationView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
                         translations={organization?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
@@ -351,7 +346,6 @@ export const OrganizationView = ({
                                 id="organization-view-list"
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}
-                                session={session}
                                 take={20}
                                 where={where}
                                 zIndex={zIndex}

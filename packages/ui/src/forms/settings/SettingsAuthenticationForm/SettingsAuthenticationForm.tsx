@@ -44,7 +44,6 @@ export const SettingsAuthenticationForm = ({
                 <Grid item xs={12}>
                     <PasswordTextField
                         fullWidth
-                        id="newPassword"
                         name="newPassword"
                         label={t('PasswordNew')}
                         autoComplete="new-password"
@@ -53,10 +52,9 @@ export const SettingsAuthenticationForm = ({
                 <Grid item xs={12}>
                     <PasswordTextField
                         fullWidth
-                        id="newPasswordConfirmation"
                         name="newPasswordConfirmation"
                         autoComplete="new-password"
-                        label={t('PasswordNewConfirmation')}
+                        label={t('PasswordNewConfirm')}
                     />
                 </Grid>
             </Grid>

@@ -12,7 +12,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
@@ -20,14 +20,16 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
 import { TagShape } from "utils/shape/models/tag";
 import { QuestionCreateProps } from "../types";
 
 export const QuestionCreate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: QuestionCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<Question>();
 
     // Handle relationships
@@ -98,7 +100,6 @@ export const QuestionCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateQuestion',
                 }}
@@ -111,7 +112,6 @@ export const QuestionCreate = ({
                             objectType={'Question'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -121,7 +121,6 @@ export const QuestionCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsCreate}
                             zIndex={zIndex}
                         />

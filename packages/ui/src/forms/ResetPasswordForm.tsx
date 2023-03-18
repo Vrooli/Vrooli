@@ -64,29 +64,17 @@ export const ResetPasswordForm = () => {
                         <PasswordTextField
                             fullWidth
                             autoFocus
-                            id="newPassword"
                             name="newPassword"
                             autoComplete="new-password"
-                            label="New Password"
-                            value={formik.values.newPassword}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
-                            helperText={formik.touched.newPassword ? formik.errors.newPassword : null}
+                            label={t('PasswordNew')}
                         />
                     </Grid>
                     <Grid item xs={12}>
                         <PasswordTextField
                             fullWidth
-                            id="confirmNewPassword"
                             name="confirmNewPassword"
                             autoComplete="new-password"
-                            label="Confirm New Password"
-                            value={formik.values.confirmNewPassword}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.confirmNewPassword && Boolean(formik.errors.confirmNewPassword)}
-                            helperText={formik.touched.confirmNewPassword ? formik.errors.confirmNewPassword : null}
+                            label={t('PasswordNewConfirm')}
                         />
                     </Grid>
                 </Grid>

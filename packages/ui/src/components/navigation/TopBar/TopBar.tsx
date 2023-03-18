@@ -11,7 +11,6 @@ export const TopBar = ({
     below,
     display,
     onClose,
-    session,
     titleData,
 }: TopBarProps) => {
     const { title, help } = useMemo(() => getTranslatedTitleAndHelp(titleData), [titleData]);
@@ -28,7 +27,6 @@ export const TopBar = ({
         <Navbar
             below={below}
             help={help}
-            session={session}
             shouldHideTitle={titleData?.hideOnDesktop}
             title={title}
         />

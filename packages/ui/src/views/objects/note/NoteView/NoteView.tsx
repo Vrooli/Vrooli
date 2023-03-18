@@ -10,19 +10,20 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
 import { NoteViewProps } from "../types";
 
 export const NoteView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: NoteViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -62,7 +63,6 @@ export const NoteView = ({
     const actionData = useObjectActions({
         object: noteVersion,
         objectType: 'NoteVersion',
-        session,
         setLocation,
         setObject: setNoteVersion,
     });
@@ -163,7 +163,6 @@ export const NoteView = ({
                     <ReportsLink object={noteVersion} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        session={session}
                         objectId={noteVersion?.id ?? ''}
                         bookmarkFor={BookmarkFor.Note}
                         isBookmarked={noteVersion?.root?.you?.isBookmarked ?? false}
@@ -173,14 +172,13 @@ export const NoteView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, noteVersion, description, zIndex, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, noteVersion, description, zIndex, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Note',
                 }}
@@ -191,7 +189,6 @@ export const NoteView = ({
                 anchorEl={moreMenuAnchor}
                 object={noteVersion as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -210,7 +207,6 @@ export const NoteView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
                         translations={noteVersion?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />

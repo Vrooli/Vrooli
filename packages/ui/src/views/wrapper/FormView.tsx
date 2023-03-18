@@ -1,5 +1,4 @@
 import { Box, Container, useTheme } from '@mui/material';
-import { Session } from '@shared/consts';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { ViewDisplayType } from 'views/types';
 
@@ -9,7 +8,6 @@ interface Props {
     autocomplete?: string;
     children: JSX.Element;
     maxWidth?: string | number;
-    session: Session | undefined;
 }
 
 export const FormView = ({
@@ -18,7 +16,6 @@ export const FormView = ({
     autocomplete = 'on',
     children,
     maxWidth = '90%',
-    session,
 }: Props) => {
     const { palette } = useTheme();
 
@@ -26,8 +23,7 @@ export const FormView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     title,
                 }}

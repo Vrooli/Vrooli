@@ -10,11 +10,12 @@ import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubm
 import { Selector } from 'components/inputs/Selector/Selector';
 import { useFormik } from 'formik';
 import { formNavLink } from 'forms/styles';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clickSize } from 'styles';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { usePromptBeforeUnload } from 'utils/hooks/usePromptBeforeUnload';
+import { SessionContext } from 'utils/SessionContext';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
@@ -43,10 +44,10 @@ export const ReportDialog = ({
     onClose,
     open,
     reportFor,
-    session,
     title = 'Report',
     zIndex,
 }: ReportDialogProps) => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
 
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -132,7 +133,6 @@ export const ReportDialog = ({
                         <SelectLanguageMenu
                             currentLanguage={language}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={[{ language }]}
                             zIndex={zIndex}
                         />

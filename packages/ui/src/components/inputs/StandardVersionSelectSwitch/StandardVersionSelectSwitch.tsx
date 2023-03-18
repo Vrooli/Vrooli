@@ -12,7 +12,6 @@ const grey = {
 };
 
 export function StandardVersionSelectSwitch({
-    session,
     selected,
     onChange,
     disabled,
@@ -31,7 +30,7 @@ export function StandardVersionSelectSwitch({
         // If using custom data, remove standardVersion data
         if (Boolean(selected)) {
             onChange(null);
-        } 
+        }
         // Otherwise, open dialog to select standardVersion
         else {
             openCreateDialog();
@@ -49,8 +48,7 @@ export function StandardVersionSelectSwitch({
                 handleAdd={onChange as any}
                 handleClose={closeCreateDialog}
                 objectType="StandardVersion"
-                session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
             {/* Main component */}
             <Stack direction="row" spacing={1}>

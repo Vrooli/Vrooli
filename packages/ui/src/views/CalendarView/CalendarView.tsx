@@ -2,11 +2,12 @@ import { Box, useTheme } from '@mui/material';
 import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { add } from 'date-fns';
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { Calendar } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useTranslation } from 'react-i18next';
 import { getUserLocale } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
 import { CalendarViewProps } from 'views/types';
 
 // Replace this with your own events data
@@ -28,8 +29,8 @@ const sampleEvents = [
 
 export const CalendarView = ({
     display = 'page',
-    session,
 }: CalendarViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const locale = useMemo(() => getUserLocale(session), [session]);
@@ -86,7 +87,6 @@ export const CalendarView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Calendar',
                 }}

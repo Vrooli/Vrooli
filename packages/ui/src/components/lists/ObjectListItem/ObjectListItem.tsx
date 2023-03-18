@@ -9,7 +9,7 @@ import { CommentsButton } from 'components/buttons/CommentsButton/CommentsButton
 import { ReportsButton } from 'components/buttons/ReportsButton/ReportsButton';
 import { VoteButton } from 'components/buttons/VoteButton/VoteButton';
 import { ObjectActionMenu } from 'components/dialogs/ObjectActionMenu/ObjectActionMenu';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { multiLineEllipsis } from 'styles';
 import { ObjectAction } from 'utils/actions/objectActions';
@@ -19,6 +19,7 @@ import { useObjectActions } from 'utils/hooks/useObjectActions';
 import usePress from 'utils/hooks/usePress';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { getObjectEditUrl, getObjectUrl } from 'utils/navigation/openObject';
+import { SessionContext } from 'utils/SessionContext';
 import { RoleList } from '../RoleList/RoleList';
 import { smallHorizontalScrollbar } from '../styles';
 import { TagList } from '../TagList/TagList';
@@ -47,9 +48,9 @@ export function ObjectListItem<T extends ListObjectType>({
     loading,
     data,
     objectType,
-    session,
     zIndex,
 }: ObjectListItemProps<T>) {
+    const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -147,7 +148,6 @@ export function ObjectListItem<T extends ListObjectType>({
                 return (
                     <VoteButton
                         disabled={!canVote}
-                        session={session}
                         objectId={object?.id ?? ''}
                         voteFor={object?.__typename as VoteFor}
                         isUpvoted={isUpvoted}
@@ -158,7 +158,7 @@ export function ObjectListItem<T extends ListObjectType>({
             default:
                 return null;
         }
-    }, [isMobile, object, profileColors, canVote, session, isUpvoted, score]);
+    }, [isMobile, object, profileColors, canVote, isUpvoted, score]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -218,7 +218,6 @@ export function ObjectListItem<T extends ListObjectType>({
                         <VoteButton
                             direction='row'
                             disabled={!canVote}
-                            session={session}
                             objectId={object?.id ?? ''}
                             voteFor={object?.__typename as VoteFor}
                             isUpvoted={isUpvoted}
@@ -228,7 +227,6 @@ export function ObjectListItem<T extends ListObjectType>({
                     )}
                 {bookmarkFor && <BookmarkButton
                     disabled={!canBookmark}
-                    session={session}
                     objectId={starForId}
                     bookmarkFor={bookmarkFor}
                     isBookmarked={isBookmarked}
@@ -245,7 +243,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canBookmark, isBookmarked, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, isUpvoted, score, canBookmark, isBookmarked, canComment]);
 
     /**
      * Run list items may get a progress bar
@@ -270,7 +268,6 @@ export function ObjectListItem<T extends ListObjectType>({
         beforeNavigation,
         object,
         objectType,
-        session,
         setLocation,
         setObject,
     });
@@ -284,7 +281,6 @@ export function ObjectListItem<T extends ListObjectType>({
                 exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
                 onClose={closeContextMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             {/* List item */}
@@ -369,7 +365,6 @@ export function ObjectListItem<T extends ListObjectType>({
                         {/* Tags */}
                         {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 &&
                             <TagList
-                                session={session}
                                 parentId={data?.id ?? ''}
                                 tags={(data as any).tags}
                                 sx={{ ...smallHorizontalScrollbar(palette) }}

@@ -8,17 +8,19 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useMemo } from "react";
+import { useContext, useMemo } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { SessionContext } from "utils/SessionContext";
 import { ReminderCreateProps } from "../types";
 
 export const ReminderCreate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: ReminderCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<Reminder>();
 
     // Handle create
@@ -49,7 +51,6 @@ export const ReminderCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateReminder',
                 }}

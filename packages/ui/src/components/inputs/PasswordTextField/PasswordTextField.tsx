@@ -2,6 +2,7 @@ import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, Ou
 import { InvisibleIcon, VisibleIcon } from "@shared/icons";
 import { useField } from "formik";
 import { useCallback, useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { PasswordTextFieldProps } from "../types";
 
 export const PasswordTextField = ({
@@ -13,6 +14,7 @@ export const PasswordTextField = ({
     ...props
 }: PasswordTextFieldProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [field, meta] = useField(name);
 
     const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -49,7 +51,7 @@ export const PasswordTextField = ({
                         </IconButton>
                     </InputAdornment>
                 }
-                label={label ?? 'Password'}
+                label={label ?? t('Password')}
             />
             <FormHelperText id="adornment-password-error-text" sx={{ color: palette.error.main }}>{meta.touched && meta.error}</FormHelperText>
         </FormControl>

@@ -10,11 +10,9 @@ export function TextCollapse({
     loading,
     loadingLines,
     onOpenChange,
-    session,
     title,
     text,
 }: TextCollapseProps) {
-
     const lines = useMemo(() => {
         if (!loading) return null;
         return Array.from({ length: loadingLines ?? 1 }, (_, i) => (

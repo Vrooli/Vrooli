@@ -7,12 +7,13 @@ import { CardGrid } from "components/cards/CardGrid/CardGrid";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { AwardList } from "components/lists/AwardList/AwardList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay, Wrap } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { SessionContext } from "utils/SessionContext";
 import { AwardsViewProps } from "views/types";
 
 // Category array for sorting
@@ -23,8 +24,8 @@ const categoryList = Object.values(AwardCategory);
 
 export const AwardsView = ({
     display = 'page',
-    session,
 }: AwardsViewProps) => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
@@ -54,7 +55,6 @@ export const AwardsView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Award',
                     titleVariables: { count: 2 },

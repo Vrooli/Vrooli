@@ -18,7 +18,6 @@ import { ReminderUpdateProps } from "../types";
 
 export const ReminderUpdate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: ReminderUpdateProps) => {
     const { onCancel, onUpdated } = useUpdateActions<Reminder>();
@@ -58,7 +57,6 @@ export const ReminderUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateReminder',
                 }}

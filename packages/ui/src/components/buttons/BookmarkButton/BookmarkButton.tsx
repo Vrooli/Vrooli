@@ -1,8 +1,9 @@
 import { Box, useTheme } from '@mui/material';
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from '@shared/icons';
 import { uuidValidate } from '@shared/uuid';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getCurrentUser } from 'utils/authentication/session';
+import { SessionContext } from 'utils/SessionContext';
 import { BookmarkButtonProps } from '../types';
 
 export const BookmarkButton = ({
@@ -10,12 +11,12 @@ export const BookmarkButton = ({
     isBookmarked = false,
     objectId,
     onChange,
-    session,
     showBookmarks = true,
     bookmarkFor,
     bookmarks,
     sxs,
 }: BookmarkButtonProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 

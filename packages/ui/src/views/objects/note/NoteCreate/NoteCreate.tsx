@@ -14,7 +14,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
 import { defaultRelationships } from "utils/defaults/relationships";
@@ -22,15 +22,16 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
 import { shapeNoteVersion } from "utils/shape/models/noteVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { NoteCreateProps } from "../types";
 
 export const NoteCreate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: NoteCreateProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -111,7 +112,6 @@ export const NoteCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateNote',
                 }}
@@ -124,7 +124,6 @@ export const NoteCreate = ({
                             objectType={'Note'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -134,7 +133,6 @@ export const NoteCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translations}
                             zIndex={zIndex}
                         />

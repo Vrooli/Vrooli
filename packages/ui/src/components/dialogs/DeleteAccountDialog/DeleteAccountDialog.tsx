@@ -17,10 +17,11 @@ import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
 import { useFormik } from 'formik';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from 'utils/authentication/session';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { DeleteAccountDialogProps } from '../types';
@@ -34,9 +35,9 @@ const titleId = 'delete-object-dialog-title';
 export const DeleteAccountDialog = ({
     handleClose,
     isOpen,
-    session,
     zIndex,
 }: DeleteAccountDialogProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -97,14 +98,8 @@ export const DeleteAccountDialog = ({
                     <Typography variant="h6">Enter your password to confirm.</Typography>
                     <PasswordTextField
                         fullWidth
-                        id="password"
                         name="password"
                         autoComplete="current-password"
-                        value={formik.values.password}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.password && Boolean(formik.errors.password)}
-                        helperText={formik.touched.password ? formik.errors.password : null}
                     />
                     {/* Is internal checkbox */}
                     <Tooltip placement={'top'} title="If checked, all public data owned by your account will be deleted. Please consider transferring and/or exporting anything important if you decide to choose this.">

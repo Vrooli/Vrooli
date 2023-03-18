@@ -25,7 +25,6 @@ const objectTypeToIdField = {
 
 export const ReportsView = ({
     display = 'page',
-    session
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -47,7 +46,6 @@ export const ReportsView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Reports',
                     helpKey: 'ReportsHelp',

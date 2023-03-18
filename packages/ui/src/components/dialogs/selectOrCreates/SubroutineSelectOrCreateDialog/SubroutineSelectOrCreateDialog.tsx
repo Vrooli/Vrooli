@@ -1,17 +1,16 @@
-import { useCallback, useMemo } from 'react';
-import { SubroutineSelectOrCreateDialogProps } from '../types';
-import { IsCompleteInput, IsInternalInput } from 'types';
-import { uuidValidate } from '@shared/uuid';
 import { RoutineVersion, SearchException, VisibilityType } from '@shared/consts';
-import { SelectOrCreateDialog } from '../SelectOrCreateDialog/SelectOrCreateDialog';
+import { uuidValidate } from '@shared/uuid';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IsCompleteInput, IsInternalInput } from 'types';
+import { SelectOrCreateDialog } from '../SelectOrCreateDialog/SelectOrCreateDialog';
+import { SubroutineSelectOrCreateDialogProps } from '../types';
 
 export const SubroutineSelectOrCreateDialog = ({
     handleAdd,
     nodeId,
     owner,
     routineVersionId,
-    session,
     ...params
 }: SubroutineSelectOrCreateDialogProps) => {
     const { t } = useTranslation();
@@ -48,7 +47,6 @@ export const SubroutineSelectOrCreateDialog = ({
         handleAdd={handleCreated}
         help={t('SelectOrCreateSubroutineDialogHelp')}
         objectType='RoutineVersion'
-        session={session}
         where={where}
     />
 }

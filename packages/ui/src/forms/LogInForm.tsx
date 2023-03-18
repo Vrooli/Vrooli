@@ -28,7 +28,7 @@ export const LogInForm = ({
 }: LogInFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    
+
     const { redirect, verificationCode } = useMemo(() => {
         const params = parseSearchParams();
         return {
@@ -107,15 +107,8 @@ export const LogInForm = ({
                     <Grid item xs={12}>
                         <PasswordTextField
                             fullWidth
-                            id="password"
                             name="password"
                             autoComplete="current-password"
-                            label="Password"
-                            value={formik.values.password}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.password && Boolean(formik.errors.password)}
-                            helperText={formik.touched.password ? formik.errors.password : null}
                         />
                     </Grid>
                 </Grid>

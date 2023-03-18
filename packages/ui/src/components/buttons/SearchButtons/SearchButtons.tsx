@@ -8,7 +8,6 @@ export const SearchButtons = ({
     advancedSearchParams,
     advancedSearchSchema,
     searchType,
-    session,
     setAdvancedSearchParams,
     setSortBy,
     setTimeFrame,
@@ -33,7 +32,6 @@ export const SearchButtons = ({
                 advancedSearchSchema={advancedSearchSchema}
                 searchType={searchType}
                 setAdvancedSearchParams={setAdvancedSearchParams}
-                session={session}
                 zIndex={zIndex}
             />
         </Box>

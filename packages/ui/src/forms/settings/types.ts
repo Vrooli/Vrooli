@@ -1,4 +1,4 @@
-import { NotificationSettingsUpdateInput, ProfileEmailUpdateInput } from "@shared/consts";
+import { NotificationSettingsUpdateInput, ProfileEmailUpdateInput, ProfileUpdateInput } from "@shared/consts";
 import { FormikProps } from "formik";
 import { ViewDisplayType } from "views/types";
 
@@ -8,7 +8,7 @@ export interface SettingsAuthenticationFormProps extends FormikProps<ProfileEmai
     onCancel: () => void;
 }
 
-export interface SettingsDisplayFormProps extends FormikProps<NotificationSettingsUpdateInput> {
+export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput> {
     display: ViewDisplayType;
     isLoading: boolean;
     onCancel: () => void;
@@ -20,7 +20,7 @@ export interface SettingsNotificationFormProps extends FormikProps<NotificationS
     onCancel: () => void;
 }
 
-export interface SettingsPrivacyFormProps extends FormikProps<NotificationSettingsUpdateInput> {
+export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput> {
     display: ViewDisplayType;
     isLoading: boolean;
     onCancel: () => void;

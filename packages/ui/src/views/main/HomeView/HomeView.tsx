@@ -11,7 +11,7 @@ import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
 import { HomePrompt } from 'components/text/HomePrompt/HomePrompt';
 import { PageTab } from 'components/types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
 import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
@@ -22,14 +22,15 @@ import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
 import { openObject } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
+import { SessionContext } from 'utils/SessionContext';
 import { HomeViewProps } from '../types';
 
 const zIndex = 200;
 
 export const HomeView = ({
     display = 'page',
-    session
 }: HomeViewProps) => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -160,7 +161,6 @@ export const HomeView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 // Navigate between for you and history pages
                 below={showTabs && (
                     <PageTabs
@@ -183,7 +183,6 @@ export const HomeView = ({
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
-                    session={session}
                     showSecondaryLabel={true}
                     sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
@@ -193,7 +192,6 @@ export const HomeView = ({
                 {/* Resources */}
                 <ResourceListHorizontal
                     list={resourceList}
-                    session={session}
                     canUpdate={true}
                     handleUpdate={setResourceList}
                     loading={loading}

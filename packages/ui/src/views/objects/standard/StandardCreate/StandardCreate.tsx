@@ -21,7 +21,7 @@ import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { generateYupSchema } from "forms/generators";
 import { FieldData } from "forms/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { InputTypeOption, InputTypeOptions } from "utils/consts";
 import { defaultRelationships } from "utils/defaults/relationships";
@@ -30,15 +30,17 @@ import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
 import { shapeStandardVersion } from "utils/shape/models/standardVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardCreateProps } from "../types";
 
 export const StandardCreate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: StandardCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<StandardVersion>();
 
     // Handle relationships
@@ -162,7 +164,6 @@ export const StandardCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateStandard',
                 }}
@@ -175,7 +176,6 @@ export const StandardCreate = ({
                             objectType={'Standard'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -185,7 +185,6 @@ export const StandardCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsCreate}
                             zIndex={zIndex}
                         />
@@ -245,8 +244,6 @@ export const StandardCreate = ({
                                 (schema && <GeneratedInputComponent
                                     disabled={true}
                                     fieldData={schema}
-                                    formik={previewFormik}
-                                    session={session}
                                     onUpload={() => { }}
                                     zIndex={zIndex}
                                 />) :
@@ -279,7 +276,6 @@ export const StandardCreate = ({
                             canUpdate={true}
                             handleUpdate={handleResourcesUpdate}
                             loading={false}
-                            session={session}
                             mutate={false}
                             zIndex={zIndex}
                         />
@@ -287,7 +283,6 @@ export const StandardCreate = ({
                     <Grid item xs={12} mb={4}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>

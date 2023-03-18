@@ -8,7 +8,7 @@ import { SiteSearchBar } from 'components/inputs/search';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
 import { PageTab } from 'components/types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
 import { AutocompleteOption, Wrap } from 'types';
@@ -17,6 +17,7 @@ import { getUserLanguages } from 'utils/display/translationTools';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
 import { openObject } from 'utils/navigation/openObject';
 import { HistorySearchPageTabOption } from 'utils/search/objectToSearch';
+import { SessionContext } from 'utils/SessionContext';
 import { HistoryViewProps } from '../types';
 
 enum TabOptions {
@@ -31,8 +32,8 @@ const zIndex = 200;
  */
 export const HistoryView = ({
     display = 'page',
-    session
 }: HistoryViewProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -70,36 +71,32 @@ export const HistoryView = ({
         items: data?.history?.activeRuns,
         keyPrefix: 'active-runs-list-item',
         loading,
-        session,
         zIndex,
-    }), [data?.history?.activeRuns, loading, session])
+    }), [data?.history?.activeRuns, loading])
 
     const completedRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
         items: data?.history?.completedRuns,
         keyPrefix: 'completed-runs-list-item',
         loading,
-        session,
         zIndex,
-    }), [data?.history?.completedRuns, loading, session])
+    }), [data?.history?.completedRuns, loading])
 
     const recent = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
         items: data?.history?.recentlyViewed,
         keyPrefix: 'recent-list-item',
         loading,
-        session,
         zIndex,
-    }), [data?.history?.recentlyViewed, loading, session])
+    }), [data?.history?.recentlyViewed, loading])
 
     const bookmarked = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
         items: data?.history?.recentlyBookmarked,
         keyPrefix: 'bookmarked-list-item',
         loading,
-        session,
         zIndex,
-    }), [data?.history?.recentlyBookmarked, loading, session])
+    }), [data?.history?.recentlyBookmarked, loading])
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -154,8 +151,7 @@ export const HistoryView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'History',
                 }}
@@ -179,7 +175,6 @@ export const HistoryView = ({
                         value={searchString}
                         onChange={updateSearch}
                         onInputChange={onInputSelect}
-                        session={session}
                         showSecondaryLabel={true}
                         sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                     />

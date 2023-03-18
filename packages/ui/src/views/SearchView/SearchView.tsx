@@ -11,13 +11,14 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
 import { SearchViewProps } from "../types";
 
 // Tab data type
@@ -98,8 +99,8 @@ const tabParams: BaseParams[] = [{
 
 export const SearchView = ({
     display = 'page',
-    session,
 }: SearchViewProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -203,7 +204,6 @@ export const SearchView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     hideOnDesktop: true,
                     titleKey: 'Search',
@@ -240,7 +240,6 @@ export const SearchView = ({
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
-                session={session}
                 zIndex={200}
                 where={where}
             />}

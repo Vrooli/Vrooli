@@ -1,13 +1,7 @@
-import { id, bio, name, handle, maxStrErr, blankToUndefined, email, req, opt, YupModel, transRel, theme, password, yupObj, bool } from '../utils';
 import * as yup from 'yup';
+import { bio, blankToUndefined, bool, email, handle, maxStrErr, name, opt, password, req, theme, transRel, YupModel, yupObj } from '../utils';
+import { emailValidation } from './email';
 import { userScheduleValidation } from './userSchedule';
-
-export const emailSchema = yup.object().shape({
-    emailAddress: req(email),
-    receivesAccountUpdates: opt(yup.bool().default(true)),
-    receivesBusinessUpdates: opt(yup.bool().default(true)),
-    userId: req(id),
-});
 
 /**
  * Schema for traditional email/password log in. NOT the form
@@ -80,3 +74,12 @@ export const emailResetPasswordSchema = yup.object().shape({
     newPassword: req(password),
     confirmNewPassword: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')
 })
+
+export const profileEmailUpdateValidation: YupModel<false, true> = {
+    update: ({ o }) => yupObj({
+        currentPassword: req(password),
+        newPassword: opt(password),
+    }, [
+        ['emails', ['Create', 'Delete'], 'many', 'opt', emailValidation],
+    ], [], o),
+}

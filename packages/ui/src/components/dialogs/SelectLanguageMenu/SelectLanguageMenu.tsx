@@ -4,10 +4,11 @@ import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageI
 import { translateTranslate } from 'api/generated/endpoints/translate_translate';
 import { useCustomLazyQuery } from 'api/hooks';
 import { queryWrapper } from 'api/utils';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { MouseEvent, useCallback, useContext, useMemo, useState } from 'react';
 import { FixedSizeList } from 'react-window';
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from 'utils/display/translationTools';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { ListMenu } from '../ListMenu/ListMenu';
 import { MenuTitle } from '../MenuTitle/MenuTitle';
 import { ListMenuItemData, SelectLanguageMenuProps } from '../types';
@@ -55,12 +56,13 @@ export const SelectLanguageMenu = ({
     handleDelete,
     handleCurrent,
     isEditing = false,
-    session,
     sxs,
     translations,
     zIndex,
 }: SelectLanguageMenuProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
+
     const [searchString, setSearchString] = useState('');
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
@@ -269,7 +271,7 @@ export const SelectLanguageMenu = ({
                             const canDelete = isSelected && isEditing && translations.length > 1;
                             // Can auto-translate if the language is not selected, is in auto-translate languages, and one of 
                             // the existing translations is in the auto-translate languages.
-                            const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 &&  autoTranslateLanguages.includes(option[0] as any);
+                            const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 && autoTranslateLanguages.includes(option[0] as any);
                             return (
                                 <ListItem
                                     key={index}

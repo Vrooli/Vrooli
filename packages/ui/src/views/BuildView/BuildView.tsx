@@ -56,7 +56,6 @@ export const BuildView = ({
     loading,
     owner,
     routineVersion,
-    session,
     translationData,
     zIndex = 200,
 }: BuildViewProps) => {
@@ -975,7 +974,6 @@ export const BuildView = ({
                 handleAdd={translationData.handleAddLanguage}
                 handleDelete={translationData.handleDeleteLanguage}
                 handleCurrent={translationData.setLanguage}
-                session={session}
                 translations={translationData.translations}
                 zIndex={zIndex}
             />
@@ -984,12 +982,11 @@ export const BuildView = ({
             <SelectLanguageMenu
                 currentLanguage={translationData.language}
                 handleCurrent={translationData.setLanguage}
-                session={session}
                 translations={translationData.translations}
                 zIndex={zIndex}
             />
         )
-    }, [translationData, isEditing, session, zIndex]);
+    }, [translationData, isEditing, zIndex]);
 
     return (
         <Box sx={{
@@ -1007,7 +1004,6 @@ export const BuildView = ({
                 nodeId={addSubroutineNode}
                 owner={owner}
                 routineVersionId={routineVersion?.id}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for "Add after" dialog */}
@@ -1018,7 +1014,6 @@ export const BuildView = ({
                 nodes={changedRoutineVersion.nodes}
                 links={changedRoutineVersion.nodeLinks}
                 nodeId={addAfterLinkNode}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for "Add before" dialog */}
@@ -1029,7 +1024,6 @@ export const BuildView = ({
                 nodes={changedRoutineVersion.nodes}
                 links={changedRoutineVersion.nodeLinks}
                 nodeId={addBeforeLinkNode}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for creating new links */}
@@ -1064,7 +1058,6 @@ export const BuildView = ({
                 handleReorder={handleSubroutineReorder}
                 handleViewFull={handleSubroutineViewFull}
                 open={Boolean(openedSubroutine)}
-                session={session}
                 onClose={closeRoutineInfo}
                 zIndex={zIndex + 3}
             />

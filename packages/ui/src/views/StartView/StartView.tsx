@@ -27,7 +27,7 @@ import { ForgotPasswordForm } from 'forms/ForgotPasswordForm';
 import { LogInForm } from 'forms/LogInForm';
 import { ResetPasswordForm } from 'forms/ResetPasswordForm';
 import { SignUpForm } from 'forms/SignUpForm';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { getCurrentUser } from 'utils/authentication/session';
@@ -35,6 +35,7 @@ import { hasWalletExtension, validateWallet } from 'utils/authentication/walletI
 import { Forms } from 'utils/consts';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { StartViewProps } from '../types';
 
 const helpText =
@@ -48,8 +49,8 @@ const emailTitleId = 'email-login-dialog-title';
 
 export const StartView = ({
     display = 'page',
-    session,
 }: StartViewProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
@@ -213,7 +214,6 @@ export const StartView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Start',
                 }}

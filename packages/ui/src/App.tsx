@@ -23,6 +23,7 @@ import { getDeviceInfo } from 'utils/display/device';
 import { themes } from 'utils/display/theme';
 import { useReactHash } from 'utils/hooks/useReactHash';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import SakBunderan from './assets/font/SakBunderan.woff';
 
 /**
@@ -375,78 +376,76 @@ export function App() {
         <StyledEngineProvider injectFirst>
             <CssBaseline />
             <ThemeProvider theme={theme}>
-                <Box id="App" component="main" sx={{
-                    background: theme.palette.background.default,
-                    color: theme.palette.background.textPrimary,
-                    // Style visited, active, and hovered links differently
-                    // a: {
-                    //     color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
-                    //     '&:visited': {
-                    //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                    //     },
-                    //     '&:active': {
-                    //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                    //     },
-                    //     '&:hover': {
-                    //         color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
-                    //     },
-                    //     // Remove underline on links
-                    //     textDecoration: 'none',
-                    // },
-                }}>
-                    {/* Pull-to-refresh for PWAs */}
-                    <PullToRefresh />
-                    {/* Command palette */}
-                    <CommandPalette session={session} />
-                    {/* Find in page */}
-                    <FindInPage session={session} />
-                    {/* WelcomeDialog */}
-                    <WelcomeDialog
-                        isOpen={isWelcomeDialogOpen}
-                        onClose={() => setIsWelcomeDialogOpen(false)}
-                        session={session}
-                    />
-                    {/* Celebratory confetti. To be used sparingly */}
-                    {
-                        isCelebrating && <Confetti
-                            initialVelocityY={-10}
-                            recycle={false}
-                            confettiSource={{
-                                x: 0,
-                                y: 40,
-                                w: window.innerWidth,
-                                h: 0
-                            }}
-                        />
-                    }
-                    <AlertDialog />
-                    <SnackStack />
-                    <Box id="content-wrap" sx={{
-                        background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
-                        minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
+                <SessionContext.Provider value={session}>
+                    <Box id="App" component="main" sx={{
+                        background: theme.palette.background.default,
+                        color: theme.palette.background.textPrimary,
+                        // Style visited, active, and hovered links differently
+                        // a: {
+                        //     color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
+                        //     '&:visited': {
+                        //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
+                        //     },
+                        //     '&:active': {
+                        //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
+                        //     },
+                        //     '&:hover': {
+                        //         color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
+                        //     },
+                        //     // Remove underline on links
+                        //     textDecoration: 'none',
+                        // },
                     }}>
-
-                        {/* Progress bar */}
-                        {
-                            isLoading && <Box sx={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                zIndex: 100000,
-                            }}>
-                                <CircularProgress size={100} />
-                            </Box>
-                        }
-                        <Routes
-                            session={session}
-                            sessionChecked={session !== undefined}
+                        {/* Pull-to-refresh for PWAs */}
+                        <PullToRefresh />
+                        {/* Command palette */}
+                        <CommandPalette />
+                        {/* Find in page */}
+                        <FindInPage />
+                        {/* WelcomeDialog */}
+                        <WelcomeDialog
+                            isOpen={isWelcomeDialogOpen}
+                            onClose={() => setIsWelcomeDialogOpen(false)}
                         />
+                        {/* Celebratory confetti. To be used sparingly */}
+                        {
+                            isCelebrating && <Confetti
+                                initialVelocityY={-10}
+                                recycle={false}
+                                confettiSource={{
+                                    x: 0,
+                                    y: 40,
+                                    w: window.innerWidth,
+                                    h: 0
+                                }}
+                            />
+                        }
+                        <AlertDialog />
+                        <SnackStack />
+                        <Box id="content-wrap" sx={{
+                            background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
+                            minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
+                        }}>
+
+                            {/* Progress bar */}
+                            {
+                                isLoading && <Box sx={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    zIndex: 100000,
+                                }}>
+                                    <CircularProgress size={100} />
+                                </Box>
+                            }
+                            <Routes sessionChecked={session !== undefined} />
+                        </Box>
+                        <BottomNav />
+                        <BannerChicken />
+                        <Footer />
                     </Box>
-                    <BottomNav session={session} />
-                    <BannerChicken session={session} />
-                    <Footer />
-                </Box>
+                </SessionContext.Provider>
             </ThemeProvider>
         </StyledEngineProvider>
     );

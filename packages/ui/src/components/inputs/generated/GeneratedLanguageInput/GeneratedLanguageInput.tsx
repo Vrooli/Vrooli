@@ -5,9 +5,7 @@ import { GeneratedInputComponentProps } from "../types";
 export const GeneratedLanguageInput = ({
     disabled,
     fieldData,
-    formik,
     index,
-    session,
     zIndex,
 }: GeneratedInputComponentProps) => {
     console.log('rendering language input');
@@ -29,7 +27,6 @@ export const GeneratedLanguageInput = ({
             handleAdd={addLanguage}
             handleDelete={deleteLanguage}
             handleCurrent={() => { }} //TODO
-            session={session}
             translations={languages.map(language => ({ language }))}
             zIndex={zIndex}
         />

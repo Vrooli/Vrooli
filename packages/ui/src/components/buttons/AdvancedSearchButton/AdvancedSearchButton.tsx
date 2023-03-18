@@ -12,7 +12,6 @@ export const AdvancedSearchButton = ({
     advancedSearchSchema,
     searchType,
     setAdvancedSearchParams,
-    session,
     zIndex,
 }: AdvancedSearchButtonProps) => {
     const { palette } = useTheme();
@@ -64,7 +63,6 @@ export const AdvancedSearchButton = ({
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
                 searchType={searchType}
-                session={session}
                 zIndex={zIndex + 1}
             />
             {advancedSearchParams && <Tooltip title={t(`SeeAllSearchSettings`)} placement="top">

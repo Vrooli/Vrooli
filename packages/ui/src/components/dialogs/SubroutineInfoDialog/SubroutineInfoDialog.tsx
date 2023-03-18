@@ -29,7 +29,7 @@ import { ResourceListHorizontal } from 'components/lists/resource';
 import { TagList } from 'components/lists/TagList/TagList';
 import { VersionDisplay } from 'components/text/VersionDisplay/VersionDisplay';
 import { useFormik } from 'formik';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from 'utils/authentication/session';
 import { defaultRelationships } from 'utils/defaults/relationships';
@@ -37,6 +37,7 @@ import { defaultResourceList } from 'utils/defaults/resourceList';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { usePromptBeforeUnload } from 'utils/hooks/usePromptBeforeUnload';
 import { useTranslatedFields } from 'utils/hooks/useTranslatedFields';
+import { SessionContext } from 'utils/SessionContext';
 import { getMinimumVersion } from 'utils/shape/general';
 import { RoutineVersionInputShape } from 'utils/shape/models/routineVersionInput';
 import { RoutineVersionOutputShape } from 'utils/shape/models/routineVersionOutput';
@@ -52,10 +53,10 @@ export const SubroutineInfoDialog = ({
     handleViewFull,
     isEditing,
     open,
-    session,
     onClose,
     zIndex,
 }: SubroutineInfoDialogProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -275,7 +276,6 @@ export const SubroutineInfoDialog = ({
                                 objectType={'Routine'}
                                 onRelationshipsChange={onRelationshipsChange}
                                 relationships={relationships}
-                                session={session}
                                 zIndex={zIndex}
                             />
                         </Grid>
@@ -285,13 +285,11 @@ export const SubroutineInfoDialog = ({
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
-                                session={session}
                                 translations={formik.values.translationsUpdate}
                                 zIndex={zIndex}
                             /> : <SelectLanguageMenu
                                 currentLanguage={language}
                                 handleCurrent={setLanguage}
-                                session={session}
                                 translations={formik.values.translationsUpdate}
                                 zIndex={zIndex}
                             />}
@@ -397,7 +395,6 @@ export const SubroutineInfoDialog = ({
                                 isInput={true}
                                 language={language}
                                 list={inputsList}
-                                session={session}
                                 zIndex={zIndex}
                             />
                         </Grid>}
@@ -409,7 +406,6 @@ export const SubroutineInfoDialog = ({
                                 isInput={false}
                                 language={language}
                                 list={outputsList}
-                                session={session}
                                 zIndex={zIndex}
                             />
                         </Grid>}
@@ -420,7 +416,6 @@ export const SubroutineInfoDialog = ({
                                     list={resourceList}
                                     canUpdate={canUpdate}
                                     handleUpdate={handleResourcesUpdate}
-                                    session={session}
                                     mutate={false}
                                     zIndex={zIndex}
                                 />
@@ -430,10 +425,9 @@ export const SubroutineInfoDialog = ({
                             {
                                 canUpdate ? <TagSelector
                                     handleTagsUpdate={handleTagsUpdate}
-                                    session={session}
                                     tags={tags}
                                 /> :
-                                    <TagList session={session} parentId={''} tags={subroutine?.routineVersion?.root?.tags ?? []} />
+                                    <TagList parentId={''} tags={subroutine?.routineVersion?.root?.tags ?? []} />
                             }
                         </Grid>
                     </Grid>

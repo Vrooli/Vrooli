@@ -13,13 +13,14 @@ import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
 import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import { noSelect } from 'styles';
 import { getCurrentUser } from 'utils/authentication/session';
 import { firstString } from 'utils/display/stringTools';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { openObject } from 'utils/navigation/openObject';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProjectVersion, RelationshipItemRoutineVersion, RelationshipItemUser, RelationshipOwner } from '../types';
 
 /**
@@ -71,9 +72,9 @@ export function RelationshipButtons({
     objectType,
     onRelationshipsChange,
     relationships,
-    session,
     zIndex,
 }: RelationshipButtonsProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session])
@@ -316,7 +317,6 @@ export function RelationshipButtons({
                 handleAdd={selectOrCreateHandleAdd}
                 handleClose={selectOrCreateHandleClose}
                 objectType={selectOrCreateType}
-                session={session}
                 zIndex={zIndex + 1}
             />}
             {/* Row of button labels */}

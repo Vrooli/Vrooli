@@ -1,9 +1,4 @@
-import { Session } from "@shared/consts";
 import { SvgProps } from "@shared/icons";
-
-export interface BannerChickenProps {
-    session: Session | undefined;
-}
 
 export type PageTab<T extends any> = {
     color?: string,

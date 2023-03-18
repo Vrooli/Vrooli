@@ -40,7 +40,6 @@ const tabParams: BaseParams[] = [{
  */
 export const HistorySearchView = ({
     display = 'page',
-    session,
 }: HistorySearchViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -81,7 +80,6 @@ export const HistorySearchView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     hideOnDesktop: true,
                     title,
@@ -98,7 +96,6 @@ export const HistorySearchView = ({
                 id="history-search-page-list"
                 take={20}
                 searchType={searchType}
-                session={session}
                 zIndex={200}
                 where={where}
             />}

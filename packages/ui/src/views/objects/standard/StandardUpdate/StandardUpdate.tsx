@@ -15,7 +15,7 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -24,15 +24,17 @@ import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { shapeStandardVersion } from "utils/shape/models/standardVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardUpdateProps } from "../types";
 
 export const StandardUpdate = ({
     display = 'page',
-    session,
     zIndex = 200,
 }: StandardUpdateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onUpdated } = useUpdateActions<StandardVersion>();
 
     // Fetch existing data
@@ -139,7 +141,6 @@ export const StandardUpdate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'UpdateStandard',
                 }}
@@ -152,7 +153,6 @@ export const StandardUpdate = ({
                             objectType={'Standard'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -162,7 +162,6 @@ export const StandardUpdate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
                         />
@@ -190,7 +189,6 @@ export const StandardUpdate = ({
                             canUpdate={true}
                             handleUpdate={handleResourcesUpdate}
                             loading={loading}
-                            session={session}
                             mutate={false}
                             zIndex={zIndex}
                         />
@@ -198,7 +196,6 @@ export const StandardUpdate = ({
                     <Grid item xs={12} marginBottom={4}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>

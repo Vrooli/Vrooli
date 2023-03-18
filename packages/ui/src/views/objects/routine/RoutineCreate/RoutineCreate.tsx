@@ -21,7 +21,7 @@ import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
@@ -31,6 +31,7 @@ import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
+import { SessionContext } from "utils/SessionContext";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { shapeRoutineVersion } from "utils/shape/models/routineVersion";
@@ -45,9 +46,10 @@ const helpTextSubroutines = `A routine can be made from scratch (single-step), o
 export const RoutineCreate = ({
     display = 'page',
     isSubroutine = false,
-    session,
     zIndex = 200,
 }: RoutineCreateProps) => {
+    const session = useContext(SessionContext);
+
     const { onCancel, onCreated } = useCreateActions<RoutineVersion>();
 
     // Handle relationships
@@ -215,7 +217,6 @@ export const RoutineCreate = ({
             <TopBar
                 display={display}
                 onClose={onCancel}
-                session={session}
                 titleData={{
                     titleKey: 'CreateRoutine',
                 }}
@@ -229,7 +230,6 @@ export const RoutineCreate = ({
                             objectType={'Routine'}
                             onRelationshipsChange={onRelationshipsChange}
                             relationships={relationships}
-                            session={session}
                             zIndex={zIndex}
                         />
                     </Grid>
@@ -239,7 +239,6 @@ export const RoutineCreate = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            session={session}
                             translations={formik.values.translationsCreate}
                             zIndex={zIndex}
                         />
@@ -290,7 +289,6 @@ export const RoutineCreate = ({
                             canUpdate={true}
                             handleUpdate={handleResourcesUpdate}
                             loading={false}
-                            session={session}
                             mutate={false}
                             zIndex={zIndex}
                         />
@@ -298,7 +296,6 @@ export const RoutineCreate = ({
                     <Grid item xs={12}>
                         <TagSelector
                             handleTagsUpdate={handleTagsUpdate}
-                            session={session}
                             tags={tags}
                         />
                     </Grid>
@@ -385,7 +382,6 @@ export const RoutineCreate = ({
                                         handleDeleteLanguage,
                                         translations: formik.values.translationsCreate as any[],
                                     }}
-                                    session={session}
                                     zIndex={zIndex + 1}
                                 />
                             </Dialog>
@@ -407,7 +403,6 @@ export const RoutineCreate = ({
                                     isInput={true}
                                     language={language}
                                     list={inputsList}
-                                    session={session}
                                     zIndex={zIndex}
                                 />
                             </Grid>
@@ -418,7 +413,6 @@ export const RoutineCreate = ({
                                     isInput={false}
                                     language={language}
                                     list={outputsList}
-                                    session={session}
                                     zIndex={zIndex}
                                 />
                             </Grid>

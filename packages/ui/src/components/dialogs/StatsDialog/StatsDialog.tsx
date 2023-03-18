@@ -15,10 +15,8 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
     isOpen,
     object,
     onClose,
-    session,
     zIndex,
 }: StatsDialogProps<T>) => {
-
     return (
         <Dialog
             onClose={onClose}
@@ -46,7 +44,6 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
                     handleObjectUpdate={handleObjectUpdate}
                     loading={false}
                     object={object}
-                    session={session}
                 />
                 {/* Historical stats */}
                 {/* TODO */}

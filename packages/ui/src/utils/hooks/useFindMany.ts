@@ -1,21 +1,21 @@
-import { Session, TimeFrame } from "@shared/consts";
+import { TimeFrame } from "@shared/consts";
 import { addSearchParams, parseSearchParams, useLocation } from "@shared/route";
 import { exists } from "@shared/utils";
 import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AutocompleteOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
+import { SessionContext } from "utils/SessionContext";
 import { useDisplayApolloError } from "./useDisplayApolloError";
 
 type UseFindManyProps = {
     canSearch: boolean;
     searchType: SearchType | `${SearchType}`;
     resolve?: (data: any) => any;
-    session: Session | undefined;
     take?: number;
     where?: any;
 }
@@ -44,11 +44,11 @@ const parseData = (data: any, resolve?: (data: any) => any) => {
 export const useFindMany = <DataType extends Record<string, any>>({
     canSearch,
     searchType,
-    session,
     resolve,
     take = 20,
     where,
 }: UseFindManyProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
     const [{ advancedSearchSchema, defaultSortBy, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
@@ -59,7 +59,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             setSearchParams(await params());
         };
         fetchParams();
-    }, [searchType, session]);
+    }, [searchType]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');

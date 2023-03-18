@@ -57,7 +57,6 @@ const MIN_DATE = new Date(2023, 1, 1);
  */
 export const StatsView = ({
     display = 'page',
-    session,
 }: StatsViewProps) => {
     const { t } = useTranslation();
 
@@ -155,7 +154,6 @@ export const StatsView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'StatisticsShort',
                 }}

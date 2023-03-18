@@ -15,7 +15,6 @@ export const CommentThread = ({
     canOpen,
     data,
     language,
-    session,
     zIndex,
 }: CommentThreadProps) => {
     // open state
@@ -59,11 +58,10 @@ export const CommentThread = ({
                     childThreads: [],
                 }}
                 language={language}
-                session={session}
                 zIndex={zIndex}
             />;
         });
-    }, [canOpen, childData, data, isOpen, language, session, zIndex]);
+    }, [canOpen, childData, data, isOpen, language, zIndex]);
 
     return data && canOpen ? (
         <Stack direction="row" spacing={1} pl={2} pr={2}>
@@ -85,7 +83,6 @@ export const CommentThread = ({
                     language={language}
                     loading={false}
                     object={data.comment.commentedOn}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Child comments */}

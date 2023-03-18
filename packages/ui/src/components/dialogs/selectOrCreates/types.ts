@@ -1,4 +1,4 @@
-import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from "@shared/consts";
+import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersion, Routine, RoutineVersion, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from "@shared/consts";
 
 export type SelectOrCreateObjectType = 'Api' | 'ApiVersion' | 'Note' | 'NoteVersion' | 'Organization' | 'Project' | 'ProjectVersion' | 'Routine' | 'RoutineVersion' | 'SmartContract' | 'SmartContractVersion' | 'Standard' | 'StandardVersion' | 'User';
 export type SelectOrCreateObject = Api |
@@ -22,7 +22,6 @@ export interface SelectOrCreateDialogProps<T extends SelectOrCreateObject> {
     help?: string;
     isOpen: boolean;
     objectType: SelectOrCreateObjectType;
-    session: Session | undefined;
     where?: { [key: string]: any };
     zIndex: number;
 }
@@ -34,6 +33,5 @@ export interface SubroutineSelectOrCreateDialogProps {
     owner: { __typename: 'Organization' | 'User', id: string } | null;
     nodeId: string;
     routineVersionId: string | null | undefined;
-    session: Session | undefined;
     zIndex: number;
 }

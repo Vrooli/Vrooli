@@ -6,9 +6,7 @@ import { GeneratedInputComponentProps } from "../types";
 export const GeneratedTagSelector = ({
     disabled,
     fieldData,
-    formik,
     index,
-    session,
 }: GeneratedInputComponentProps) => {
     console.log('rendering tag selector');
     const tags = useMemo(() => formik.values[fieldData.fieldName] as TagShape[], [formik.values, fieldData.fieldName]);
@@ -18,7 +16,6 @@ export const GeneratedTagSelector = ({
         <TagSelector
             disabled={disabled}
             handleTagsUpdate={handleTagsUpdate}
-            session={session}
             tags={tags}
         />
     );

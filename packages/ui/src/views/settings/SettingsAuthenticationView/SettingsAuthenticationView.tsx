@@ -2,7 +2,7 @@ import { Box, Button, Stack, useTheme } from "@mui/material";
 import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { userValidation } from "@shared/validation";
+import { profileEmailUpdateValidation } from "@shared/validation";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
 import { useCustomMutation } from "api/hooks";
@@ -14,22 +14,23 @@ import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTop
 import { Subheader } from "components/text/Subheader/Subheader";
 import { Formik } from 'formik';
 import { SettingsAuthenticationForm } from "forms/settings";
-import { useCallback, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { SettingsAuthenticationViewProps } from "../types";
 
 export const SettingsAuthenticationView = ({
     display = 'page',
-    session,
 }: SettingsAuthenticationViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery(session);
+    const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 
     const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
     const onLogOut = useCallback(() => {
@@ -76,13 +77,11 @@ export const SettingsAuthenticationView = ({
             <DeleteAccountDialog
                 isOpen={deleteOpen}
                 handleClose={closeDelete}
-                session={session}
                 zIndex={100}
             />
             <SettingsTopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Authentication',
                 }}
@@ -133,7 +132,7 @@ export const SettingsAuthenticationView = ({
                                 onError: () => { helpers.setSubmitting(false) },
                             })
                         }}
-                        validationSchema={userValidation.update({})}
+                        validationSchema={profileEmailUpdateValidation.update({})}
                     >
                         {(formik) => <SettingsAuthenticationForm
                             display={display}

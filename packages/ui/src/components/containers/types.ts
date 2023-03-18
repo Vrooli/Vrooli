@@ -1,5 +1,5 @@
 import { TextFieldProps } from "@mui/material";
-import { CommentFor, Session } from "@shared/consts";
+import { CommentFor } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
 import { MarkdownInputProps } from "components/inputs/types";
 
@@ -10,7 +10,6 @@ export interface CommentContainerProps {
     objectId: string;
     objectType: CommentFor;
     onAddCommentClose?: () => void;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -64,7 +63,6 @@ export interface TextCollapseProps {
     loading?: boolean;
     loadingLines?: number;
     onOpenChange?: (isOpen: boolean) => void;
-    session: Session | undefined;
     title?: string | null;
     text?: string | null;
 }

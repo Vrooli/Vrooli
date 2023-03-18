@@ -9,19 +9,20 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
 import { ProjectViewProps } from "../types";
 
 export const ProjectView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: ProjectViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -76,7 +77,6 @@ export const ProjectView = ({
     const actionData = useObjectActions({
         object: projectVersion,
         objectType: 'ProjectVersion',
-        session,
         setLocation,
         setObject: setProjectVersion,
     });
@@ -178,7 +178,6 @@ export const ProjectView = ({
                     <ShareButton object={projectVersion} zIndex={zIndex} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        session={session}
                         objectId={projectVersion?.id ?? ''}
                         bookmarkFor={BookmarkFor.Project}
                         isBookmarked={projectVersion?.root?.you?.isBookmarked ?? false}
@@ -188,7 +187,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, projectVersion, description, zIndex, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, projectVersion, description, zIndex, actionData]);
 
     // /**
     // * Opens add new page
@@ -201,8 +200,7 @@ export const ProjectView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Project',
                 }}
@@ -213,7 +211,6 @@ export const ProjectView = ({
                 anchorEl={moreMenuAnchor}
                 object={projectVersion as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -233,7 +230,6 @@ export const ProjectView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
                         translations={projectVersion?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
@@ -252,7 +248,6 @@ export const ProjectView = ({
                     id="directory-view-list"
                     searchType={searchType}
                     searchPlaceholder={placeholder}
-                    session={session}
                     take={20}
                     where={where}
                     zIndex={zIndex}

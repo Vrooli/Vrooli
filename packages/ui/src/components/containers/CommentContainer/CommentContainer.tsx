@@ -22,7 +22,6 @@ export function CommentContainer({
     objectId,
     objectType,
     onAddCommentClose,
-    session,
     zIndex,
 }: CommentContainerProps) {
     const { breakpoints } = useTheme();
@@ -40,11 +39,10 @@ export function CommentContainer({
         sortBy,
         sortByOptions,
         timeFrame,
-    } = useFindMany<ThreadType>({ 
+    } = useFindMany<ThreadType>({
         canSearch: uuidValidate(objectId),
         searchType: 'Comment',
         resolve: (result) => result.threads,
-        session,
         where: {
             [`${objectType.toLowerCase()}Id`]: objectId,
         },
@@ -96,7 +94,6 @@ export function CommentContainer({
                     objectType={objectType}
                     onCommentAdd={onCommentAdd}
                     parent={null} // parent is the thread. This is a top-level comment, so no parent
-                    session={session}
                     zIndex={zIndex}
                 />
             }
@@ -106,7 +103,6 @@ export function CommentContainer({
                     advancedSearchParams={advancedSearchParams}
                     advancedSearchSchema={advancedSearchSchema}
                     searchType="Comment"
-                    session={session}
                     setAdvancedSearchParams={setAdvancedSearchParams}
                     setSortBy={setSortBy}
                     setTimeFrame={setTimeFrame}
@@ -123,7 +119,6 @@ export function CommentContainer({
                             canOpen={true}
                             data={thread}
                             language={language}
-                            session={session}
                             zIndex={zIndex}
                         />
                     ))}

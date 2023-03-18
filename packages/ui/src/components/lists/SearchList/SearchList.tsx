@@ -26,7 +26,6 @@ export function SearchList<DataType extends NavigableObject>({
     searchType,
     onScrolledFar,
     where,
-    session,
     zIndex,
 }: SearchListProps) {
     const [, setLocation] = useLocation();
@@ -52,7 +51,6 @@ export function SearchList<DataType extends NavigableObject>({
     } = useFindMany<DataType>({
         canSearch,
         searchType,
-        session,
         take,
         where,
     });
@@ -64,9 +62,8 @@ export function SearchList<DataType extends NavigableObject>({
         items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: `${searchType}-list-item`,
         loading,
-        session: session,
         zIndex,
-    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, session, zIndex])
+    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -111,7 +108,6 @@ export function SearchList<DataType extends NavigableObject>({
                     value={searchString}
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
-                    session={session}
                     sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
             </Box>
@@ -119,7 +115,6 @@ export function SearchList<DataType extends NavigableObject>({
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
                 searchType={searchType}
-                session={session}
                 setAdvancedSearchParams={setAdvancedSearchParams}
                 setSortBy={setSortBy}
                 setTimeFrame={setTimeFrame}

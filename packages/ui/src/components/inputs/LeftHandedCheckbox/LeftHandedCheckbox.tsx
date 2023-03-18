@@ -4,14 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { noSelect } from 'styles';
 import { getCookieIsLeftHanded } from 'utils/cookies';
 import { PubSub } from 'utils/pubsub';
-import { LeftHandedCheckboxProps } from '../types';
 
 /**
  * Updates the font size of the entire app
  */
-export function LeftHandedCheckbox({
-    session,
-}: LeftHandedCheckboxProps) {
+export function LeftHandedCheckbox() {
     const { t } = useTranslation();
 
     const [isLeftHanded, setIsLeftHanded] = useState(getCookieIsLeftHanded() ?? false);

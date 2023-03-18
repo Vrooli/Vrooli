@@ -5,9 +5,10 @@ import { Dialog, DialogContent, List, ListItem, ListItemText } from '@mui/materi
 import { NodeLink } from '@shared/consts';
 import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
 import { AddAfterLinkDialogProps } from '../types';
 
 const titleId = 'add-after-link-dialog-title';
@@ -19,9 +20,9 @@ export const AddAfterLinkDialog = ({
     nodeId,
     nodes,
     links,
-    session,
     zIndex,
 }: AddAfterLinkDialogProps) => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
 
     /**

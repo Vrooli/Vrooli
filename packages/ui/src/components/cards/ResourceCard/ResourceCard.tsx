@@ -10,7 +10,7 @@ import { DeleteIcon, EditIcon } from '@shared/icons';
 import { openLink, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from 'utils/display/getResourceIcon';
@@ -20,6 +20,7 @@ import { getUserLanguages } from 'utils/display/translationTools';
 import usePress from 'utils/hooks/usePress';
 import { getResourceType, getResourceUrl } from 'utils/navigation/openObject';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { ResourceCardProps } from '../types';
 
 export const ResourceCard = ({
@@ -29,8 +30,8 @@ export const ResourceCard = ({
     onContextMenu,
     onEdit,
     onDelete,
-    session,
 }: ResourceCardProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();

@@ -5,7 +5,6 @@ import { PremiumViewProps } from "../types";
 
 export const PremiumView = ({
     display = 'page',
-    session,
 }: PremiumViewProps) => {
     const { t } = useTranslation();
 

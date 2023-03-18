@@ -1,3 +1,5 @@
+import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { SettingsPrivacyFormProps } from "../types";
@@ -22,6 +24,41 @@ export const SettingsPrivacyForm = ({
                 display: 'block',
             }}
         >
+            {/* Overall notifications toggle */}
+            <ListContainer>
+                <SettingsToggleListItem
+                    title={t('PrivateAccount')}
+                    description={t('PushNotificationToggleDescription')}
+                    name="isPrivate"
+                />
+            </ListContainer>
+            {/* By object type */}
+            <ListContainer>
+                <SettingsToggleListItem
+                    title={t('isPrivateApis')}
+                    name="isPrivateApis"
+                />
+                <SettingsToggleListItem
+                    title={t('isPrivateBookmarks')}
+                    name="isPrivateBookmarks"
+                />
+                <SettingsToggleListItem
+                    title={t('isPrivateProjects')}
+                    name="isPrivateProjects"
+                />
+                <SettingsToggleListItem
+                    title={t('isPrivateRoutines')}
+                    name="isPrivateRoutines"
+                />
+                <SettingsToggleListItem
+                    title={t('isPrivateSmartContracts')}
+                    name="isPrivateSmartContracts"
+                />
+                <SettingsToggleListItem
+                    title={t('isPrivateStandards')}
+                    name="isPrivateStandards"
+                />
+            </ListContainer>
         </BaseForm>
     )
 }
