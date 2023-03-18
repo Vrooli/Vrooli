@@ -26,9 +26,10 @@ export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput
     onCancel: () => void;
 }
 
-export interface SettingsProfileFormProps extends FormikProps<NotificationSettingsUpdateInput> {
+export interface SettingsProfileFormProps extends FormikProps<any> {
     display: ViewDisplayType;
     isLoading: boolean;
+    numVerifiedWallets: number;
     onCancel: () => void;
 }
 

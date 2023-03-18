@@ -318,6 +318,17 @@ export interface TagSelectorProps {
     tags: (TagShape | Tag)[];
 }
 
+export interface TranslatedTextFieldProps {
+    fullWidth?: boolean;
+    label?: string;
+    language: string;
+    maxRows?: number;
+    minRows?: number;
+    multiline?: boolean;
+    name: string;
+    placeholder?: string;
+}
+
 export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange' | 'value'> & {
     autoFocus?: boolean;
     error?: boolean;
