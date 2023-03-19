@@ -1,47 +1,70 @@
+import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, useTheme } from '@mui/material';
+import { useField } from 'formik';
 import { useCallback, useMemo } from 'react';
-import { FormControl, InputLabel, MenuItem, Select, useTheme } from '@mui/material';
 import { SelectorProps } from '../types';
 
 export function Selector<T extends string | number | { [x: string]: any }>({
     options,
-    selected,
+    getOptionIcon,
     getOptionLabel,
-    handleChange,
     fullWidth = false,
     inputAriaLabel = 'select-label',
+    onChange,
+    name,
     noneOption = false,
     label = 'Select',
     required = true,
     disabled = false,
-    color,
     sx,
-    ...props
 }: SelectorProps<T>) {
     const { palette, typography } = useTheme();
-
-    // Render all labels
-    const labels = useMemo(() => options.map((option) => getOptionLabel(option)), [options, getOptionLabel]);
-    // Find option from label
-    const findOption = useCallback((label: string) => options.find((option) => getOptionLabel(option) === label), [options, getOptionLabel]);
+    const [field, meta, helpers] = useField(name);
 
     const getOptionStyle = useCallback((label: string) => {
-        const isSelected = selected && getOptionLabel(selected) === label;
+        const isSelected = field.value && getOptionLabel(field.value) === label;
         return {
             fontWeight: isSelected ? typography.fontWeightMedium : typography.fontWeightRegular,
         };
-    }, [getOptionLabel, selected, typography.fontWeightMedium, typography.fontWeightRegular]);
+    }, [field.value, getOptionLabel, typography.fontWeightMedium, typography.fontWeightRegular]);
+
+    // Render all labels
+    const labels = useMemo(() => options.map((option) => {
+        const labelText = getOptionLabel(option);
+        if (getOptionIcon) {
+            const Icon = getOptionIcon(option);
+            return (
+                <MenuItem key={labelText} value={labelText}>
+                    <ListItemIcon sx={{
+                        minWidth: '32px',
+                    }}>
+                        <Icon fill={palette.background.textSecondary} />
+                    </ListItemIcon>
+                    <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
+                </MenuItem>
+            );
+        }
+        return (
+            <MenuItem key={labelText} value={labelText} sx={getOptionStyle(labelText)}>
+                <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
+            </MenuItem>
+        );
+    }), [options, getOptionLabel, getOptionIcon, getOptionStyle, palette.background.textSecondary]);
+
+    // Find option from label
+    const findOption = useCallback((label: string) => options.find((option) => getOptionLabel(option) === label), [options, getOptionLabel]);
 
     /**
      * Determines if label should be shrunk
      */
     const shrinkLabel = useMemo(() => {
-        if (!selected) return false;
-        return getOptionLabel(selected).length > 0;
-    }, [selected, getOptionLabel]);
+        if (!field.value) return false;
+        return getOptionLabel(field.value).length > 0;
+    }, [field.value, getOptionLabel]);
 
     return (
         <FormControl
             variant="outlined"
+            error={meta.touched && !!meta.error}
             sx={{ width: fullWidth ? '-webkit-fill-available' : '' }}
         >
             <InputLabel
@@ -52,17 +75,30 @@ export function Selector<T extends string | number | { [x: string]: any }>({
                 {label}
             </InputLabel>
             <Select
-                labelId={inputAriaLabel}
-                value={selected ? getOptionLabel(selected) : ''}
-                onChange={(e) => handleChange(findOption(e.target.value as string) as T, e)}
-                label={label}
-                required={required}
+                aria-describedby={`helper-text-${name}`}
                 disabled={disabled}
-                variant="filled"
-                {...props}
+                id={name}
+                label={label}
+                labelId={inputAriaLabel}
+                name={name}
+                onChange={(e) => {
+                    const valueAsT = findOption(e.target.value as string) as T;
+                    helpers.setValue(valueAsT);
+                    if (onChange) onChange(valueAsT);
+                }}
+                onBlur={field.onBlur}
+                required={required}
+                value={field.value ? getOptionLabel(field.value) : ''}
+                variant="outlined"
                 sx={{
                     ...sx,
-                    color: palette.background.textPrimary
+                    color: palette.background.textPrimary,
+                    '& .MuiSelect-select': {
+                        paddingTop: '12px',
+                        paddingBottom: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                    }
                 }}
             >
                 {
@@ -73,17 +109,10 @@ export function Selector<T extends string | number | { [x: string]: any }>({
                     ) : null
                 }
                 {
-                    labels.map((label) => (
-                        <MenuItem
-                            key={label}
-                            value={label}
-                            style={getOptionStyle(label)}
-                        >
-                            {label}
-                        </MenuItem>
-                    ))
+                    labels
                 }
             </Select>
+            {meta.touched && meta.error && <FormHelperText id={`helper-text-${name}`}>{meta.error}</FormHelperText>}
         </FormControl>
     );
 }

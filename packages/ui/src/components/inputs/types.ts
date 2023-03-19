@@ -1,5 +1,6 @@
-import { BoxProps, SelectChangeEvent, SelectProps, SwitchProps, TextFieldProps } from '@mui/material';
+import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
 import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Standard, StandardVersion, Tag, User } from '@shared/consts';
+import { SvgComponent } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
 import { FocusEventHandler } from 'react';
 import { VersionInfo } from 'types';
@@ -202,9 +203,6 @@ export interface LanguageInputProps {
     zIndex: number;
 }
 
-export interface LanguageSelectorProps {
-}
-
 export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
     id: string;
     disabled?: boolean;
@@ -287,19 +285,19 @@ export interface RelationshipButtonsProps {
     zIndex: number;
 }
 
-export type SelectorProps<T extends string | number | { [x: string]: any }> = SelectProps & {
-    color?: string;
+export type SelectorProps<T extends string | number | { [x: string]: any }> = {
     disabled?: boolean;
     fullWidth?: boolean;
+    getOptionIcon?: (option: T) => SvgComponent;
     getOptionLabel: (option: T) => string;
-    handleChange: (selected: T, event: SelectChangeEvent<any>) => any;
     inputAriaLabel?: string;
     label?: string;
     multiple?: false;
+    name: string;
     noneOption?: boolean;
+    onChange?: (value: T | null) => any;
     options: T[];
     required?: boolean;
-    selected: T | null | undefined;
     sx?: { [x: string]: any };
 }
 

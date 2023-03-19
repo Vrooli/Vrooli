@@ -68,6 +68,12 @@ export interface DialogTitleProps {
     title?: string;
 }
 
+export interface FindObjectDialogProps {
+    handleClose: (objectLink?: string) => void;
+    isOpen: boolean;
+    zIndex: number;
+}
+
 export interface ListMenuItemData<T> {
     /**
      * Displays help button with data
