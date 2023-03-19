@@ -8,7 +8,7 @@ import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
 import { Selector } from 'components/inputs/Selector/Selector';
-import { useFormik } from 'formik';
+import { Field, useFormik } from 'formik';
 import { formNavLink } from 'forms/styles';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -149,30 +149,21 @@ export const ReportDialog = ({
                             inputAriaLabel="select reason"
                             label={t('Reason')}
                         />
-                        {(formik.values.reason as any) === ReportOptions.Other ? <TextField
+                        {(formik.values.reason as any) === ReportOptions.Other && <Field
                             fullWidth
-                            id="otherReason"
                             name="otherReason"
                             label={t('ReasonCustom')}
-                            value={formik.values.otherReason}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.otherReason && Boolean(formik.errors.otherReason)}
-                            helperText={formik.touched.otherReason ? formik.errors.otherReason : 'Enter custom reason...'}
-
-                        /> : null}
-                        <TextField
+                            helperText={t('ReasonCustomHelp')}
+                            as={TextField}
+                        />}
+                        <Field
                             fullWidth
-                            id="details"
-                            name="details"
-                            label={t('DetailsOptional')}
                             multiline
                             rows={4}
-                            value={formik.values.details}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.details && Boolean(formik.errors.details)}
-                            helperText={formik.touched.details ? formik.errors.details : "Enter any details you'd like to share about this incident. DO NOT include any personal information!"}
+                            name="details"
+                            label={t('DetailsOptional')}
+                            helperText={t('ReportDetailsHelp')}
+                            as={TextField}
                         />
                     </Stack>
                 </form>

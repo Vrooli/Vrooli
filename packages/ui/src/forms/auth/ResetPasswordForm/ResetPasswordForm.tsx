@@ -15,7 +15,7 @@ import { useFormik } from 'formik';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PubSub } from 'utils/pubsub';
-import { formPaper, formSubmit } from './styles';
+import { formPaper, formSubmit } from '../../styles';
 
 export const ResetPasswordForm = () => {
     const { t } = useTranslation();

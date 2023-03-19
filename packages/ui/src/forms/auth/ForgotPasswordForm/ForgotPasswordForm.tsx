@@ -17,8 +17,8 @@ import { useFormik } from 'formik';
 import { useTranslation } from 'react-i18next';
 import { clickSize } from 'styles';
 import { Forms } from 'utils/consts';
-import { formNavLink, formPaper, formSubmit } from './styles';
-import { FormProps } from './types';
+import { formNavLink, formPaper, formSubmit } from '../../styles';
+import { FormProps } from '../../types';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }

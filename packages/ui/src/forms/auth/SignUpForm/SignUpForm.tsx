@@ -23,8 +23,8 @@ import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { clickSize } from 'styles';
 import { Forms } from 'utils/consts';
 import { PubSub } from 'utils/pubsub';
-import { formNavLink, formPaper, formSubmit } from './styles';
-import { FormProps } from './types';
+import { formNavLink, formPaper, formSubmit } from '../../styles';
+import { FormProps } from '../../types';
 
 export const SignUpForm = ({
     onFormChange = () => { },

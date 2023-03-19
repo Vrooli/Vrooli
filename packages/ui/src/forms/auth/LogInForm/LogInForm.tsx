@@ -20,8 +20,8 @@ import { useTranslation } from 'react-i18next';
 import { clickSize } from 'styles';
 import { Forms } from 'utils/consts';
 import { PubSub } from 'utils/pubsub';
-import { formNavLink, formPaper, formSubmit } from './styles';
-import { LogInFormProps } from './types';
+import { formNavLink, formPaper, formSubmit } from '../../styles';
+import { LogInFormProps } from '../../types';
 
 export const LogInForm = ({
     onFormChange = () => { }

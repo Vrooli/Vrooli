@@ -1,6 +1,5 @@
 import { InputType } from "@shared/consts";
 import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
-import { CommonProps } from "types";
 import { Forms } from "utils/consts";
 import { TagShape } from "utils/shape/models/tag";
 
@@ -12,7 +11,9 @@ export interface BaseFormProps {
     dirty?: boolean;
     enableReinitialize?: boolean;
     isLoading?: boolean;
+    onClose?: () => any;
     promptBeforeUnload?: boolean;
+    ref?: any;
     style?: { [key: string]: any };
     validationSchema?: any;
 }
@@ -23,7 +24,7 @@ export interface BaseGeneratedFormProps {
     zIndex: number;
 }
 
-export interface FormProps extends Partial<CommonProps> {
+export interface FormProps {
     onFormChange?: (form: Forms) => any;
 }
 

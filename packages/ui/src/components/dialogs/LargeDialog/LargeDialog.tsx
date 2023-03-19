@@ -33,7 +33,10 @@ export const LargeDialog = ({
                         display: { xs: 'block', sm: 'inline-block' },
                         background: palette.background.default,
                         color: palette.background.textPrimary,
-                    }
+                        '& > .MuiDialogContent-root': {
+                            position: 'relative',
+                        },
+                    },
                 }
             }}
         >
