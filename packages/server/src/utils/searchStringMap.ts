@@ -25,7 +25,7 @@ const wrap = <
     field: Field,
     wrapped: Wrapped
 ): { [x in Field]: Wrapped } => ({ [field]: wrapped }) as any;
- 
+
 /**
  * Maps any search string fields to their corresponding Prisma query.
  * 
@@ -42,6 +42,7 @@ export const SearchStringMap = {
     labelWrapped: (p: P) => wrap('label', SearchStringMap.label(p)),
     labels: ({ insensitive }: P) => ({ some: { label: { label: { ...insensitive } } } }),
     labelsWrapped: (p: P) => wrap('labels', SearchStringMap.labels(p)),
+    labelsOwnerWrapped: ({ insensitive }: P) => wrap('labels', { some: { label: { ...insensitive } } }),
     link: (p: P) => base(p),
     linkWrapped: (p: P) => wrap('link', SearchStringMap.link(p)),
     message: (p: P) => base(p),

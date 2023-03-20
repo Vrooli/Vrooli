@@ -1,18 +1,17 @@
-import { PrismaType } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationYou, PrependString, MaxObjects } from '@shared/consts';
-import { organizationValidation } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
-import { BookmarkModel } from "./bookmark";
-import { ViewModel } from "./view";
-import { ModelLogic } from "./types";
+import { MaxObjects, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou } from '@shared/consts';
+import { exists } from "@shared/utils";
 import { uuid } from "@shared/uuid";
-import { getSingleTypePermissions, lineBreaksCheck, handlesCheck } from "../validators";
+import { organizationValidation } from "@shared/validation";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
-import { exists } from "@shared/utils";
-import { Trigger } from "../events";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { ModelLogic } from "./types";
+import { ViewModel } from "./view";
 
 const __typename = 'Organization' as const;
 type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead'>;
@@ -224,7 +223,7 @@ export const OrganizationModel: ModelLogic<{
         sortBy: OrganizationSortBy,
         searchStringQuery: () => ({
             OR: [
-                'labelsWrapped',
+                'labelsOwnerWrapped',
                 'tagsWrapped',
                 'transNameWrapped',
                 'transBioWrapped'

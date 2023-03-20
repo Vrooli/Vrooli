@@ -1,6 +1,6 @@
 import { HomeResult, PopularResult } from "@shared/consts";
-import { rel } from "../utils";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const homeResult: GqlPartial<HomeResult> = {
     __typename: 'HomeResult',

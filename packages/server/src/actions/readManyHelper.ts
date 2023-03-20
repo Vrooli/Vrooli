@@ -31,9 +31,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
-    console.log('readmanyhelper before toPartialGraphQLInfo', objectType, model.__typename, JSON.stringify(model.format.gqlRelMap), '\n\n');
     let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
-    console.log('readmanyhelper after toPartialGraphQLInfo', objectType, JSON.stringify(partialInfo), '\n\n')
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
@@ -43,6 +41,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     }
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
+    console.log('got searchQuery', objectType, JSON.stringify(searchQuery), '\n\n');
     // Loop through search fields and add each to the search query, 
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];
@@ -62,21 +61,9 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Make sure sort field is valid
     const orderBy = SortMap[input.sortBy ?? searcher!.defaultSort] ?? undefined;
     // Find requested search array
-    console.log('readmanyhelper before selectHelper', objectType, JSON.stringify(partialInfo), '\n\n');
     const select = selectHelper(partialInfo);
-    console.log('readmanyhelper after selectHelper', objectType, JSON.stringify(select), '\n\n');
     let searchResults: any[];
     try {
-        // await prisma.run_project_schedule.findMany({
-        //     "where": {
-        //     },
-        //     "orderBy": {
-        //         "bookmarkedBy": {
-        //           "_count": "desc"
-        //         }
-        //       },
-
-        // })
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,
             orderBy,
