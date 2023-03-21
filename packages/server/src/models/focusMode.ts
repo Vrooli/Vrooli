@@ -36,6 +36,7 @@ export const FocusModeModel: ModelLogic<{
             filters: 'FocusModeFilter',
             labels: 'Label',
             reminderList: 'ReminderList',
+            schedule: 'Schedule',
         },
         prismaRelMap: {
             __typename,
@@ -44,6 +45,7 @@ export const FocusModeModel: ModelLogic<{
             user: 'User',
             labels: 'Label',
             filters: 'FocusModeFilter',
+            schedule: 'Schedule',
         },
         countFields: {},
         joinMap: { labels: 'label' },
@@ -75,7 +77,7 @@ export const FocusModeModel: ModelLogic<{
         yup: focusModeValidation,
     },
     search: {
-        defaultSort: FocusModeSortBy.TitleAsc,
+        defaultSort: FocusModeSortBy.NameAsc,
         sortBy: FocusModeSortBy,
         searchFields: {
             createdTimeFrame: true,

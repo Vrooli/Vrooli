@@ -33,6 +33,7 @@ export type NotificationCategory = 'AccountCreditsOrApi' |
 type TransKey = TFuncKey<'notify', undefined>
 
 type PushToUser = {
+    delays?: number[],
     bodyVariables?: { [key: string]: string | number }, // Variables can change depending on recipient's language
     languages: string[],
     silent?: boolean,
@@ -104,38 +105,41 @@ const push = async ({
         const client = await initializeRedis();
         // For each user
         for (let i = 0; i < users.length; i++) {
-            const { pushDevices, emails, phoneNumbers, dailyLimit } = devicesAndLimits[i];
-            let currSilent = users[i].silent ?? false;
-            const currTitle = userTitles[users[i].userId];
-            const currBody = userBodies[users[i].userId];
-            // Increment count in Redis for this user. If it is over the limit, make the notification silent
-            const count = await client.incr(`notification:${users[i].userId}:${category}`);
-            if (dailyLimit && count > dailyLimit) currSilent = true;
-            // Send the notification to each device, if not silent
-            if (!currSilent) {
-                for (const device of pushDevices) {
-                    try {
-                        const subscription = {
-                            endpoint: device.endpoint,
-                            keys: {
-                                p256dh: device.p256dh,
-                                auth: device.auth,
-                            },
+            // For each delay
+            for (const delay of users[i].delays ?? [0]) {
+                const { pushDevices, emails, phoneNumbers, dailyLimit } = devicesAndLimits[i];
+                let currSilent = users[i].silent ?? false;
+                const currTitle = userTitles[users[i].userId];
+                const currBody = userBodies[users[i].userId];
+                // Increment count in Redis for this user. If it is over the limit, make the notification silent
+                const count = await client.incr(`notification:${users[i].userId}:${category}`);
+                if (dailyLimit && count > dailyLimit) currSilent = true;
+                // Send the notification to each device, if not silent
+                if (!currSilent) {
+                    for (const device of pushDevices) {
+                        try {
+                            const subscription = {
+                                endpoint: device.endpoint,
+                                keys: {
+                                    p256dh: device.p256dh,
+                                    auth: device.auth,
+                                },
+                            }
+                            const payload = { body: currBody, icon, link, title: currTitle };
+                            sendPush(subscription, payload, delay);
+                        } catch (err) {
+                            logger.error('Error sending push notification', { trace: '0306' });
                         }
-                        const payload = { body: currBody, icon, link, title: currTitle };
-                        sendPush(subscription, payload);
-                    } catch (err) {
-                        logger.error('Error sending push notification', { trace: '0306' });
                     }
+                    // Send the notification to each email (ignore if no title)
+                    if (emails.length && currTitle) {
+                        sendMail(emails.map(e => e.emailAddress), currTitle, currBody, '', delay);
+                    }
+                    // Send the notification to each phone number
+                    // for (const phoneNumber of phoneNumbers) {
+                    //     fdasfsd
+                    // }
                 }
-                // Send the notification to each email (ignore if no title)
-                if (emails.length && currTitle) {
-                    sendMail(emails.map(e => e.emailAddress), currTitle, currBody);
-                }
-                // Send the notification to each phone number
-                // for (const phoneNumber of phoneNumbers) {
-                //     fdasfsd
-                // }
             }
         }
         // Store the notifications in the database
@@ -173,6 +177,7 @@ const getEventStartLabel = (date: Date) => {
 
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
+    toUsers: (userIds: (string | { userId: string, delays: number[] })[]) => Promise<void>,
     toOrganization: (organizationId: string, excludeUserId?: string | null | undefined) => Promise<void>,
     toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string | null | undefined) => Promise<void>,
     toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludeUserId?: string | null | undefined) => Promise<void>,
@@ -194,7 +199,7 @@ const replaceLabels = async (
     silent: boolean | undefined,
     prisma: PrismaType,
     languages: string[],
-    users: Pick<PushToUser, 'languages' | 'userId'>[],
+    users: Pick<PushToUser, 'languages' | 'userId' | 'delays'>[],
 ): Promise<PushToUser[]> => {
     const labelRegex = /<Label\|([A-z]+):([0-9\-]+)>/;
     // Initialize the result
@@ -282,6 +287,26 @@ const NotifyResult = ({
         await push({ bodyKey, category, link, prisma, titleKey, users });
     },
     /**
+     * Sends a notification to multiple users
+     * @param userIds The users' ids
+     */
+    toUsers: async (userIds) => {
+        // Shape and translate the notification for each user
+        const users = await replaceLabels(
+            bodyVariables,
+            titleVariables,
+            silent,
+            prisma,
+            languages,
+            userIds.map(data => ({
+                languages,
+                userId: typeof data === 'string' ? data : data.userId,
+                delays: typeof data === 'string' ? undefined : data.delays,
+            })));
+        // Send the notification to each user
+        await push({ bodyKey, category, link, prisma, titleKey, users });
+    },
+    /**
      * Sends a notification to an organization
      * @param organizationId The organization's id
      * @param excludeUserId The user to exclude from the notification 
@@ -345,7 +370,7 @@ const NotifyResult = ({
             // Send the notification to each subscriber
             await push({ bodyKey, category, link, prisma, titleKey, users });
         } while (currentBatchSize === batchSize);
-    }
+    },
 })
 
 /**
@@ -587,20 +612,12 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'RunFailedAutomaticallyTitle',
     }),
-    pushScheduleOrganization: (meetingId: string, startTime: Date): NotifyResultType => NotifyResult({
-        bodyKey: 'ScheduleOrganizationBody',
-        bodyVariables: { meetingName: `<Label|MeetingOrganization:${meetingId}>`, startLabel: getEventStartLabel(startTime) },
-        category: 'Schedule',
-        languages,
-        link: `/meeting/${meetingId}`,
-        prisma,
-        titleKey: 'ScheduleOrganizationTitle',
-    }),
-    pushScheduleUser: (scheduleId: string, startTime: Date): NotifyResultType => NotifyResult({
+    pushScheduleReminder: (scheduleForId: string, scheduleForType: GqlModelType, startTime: Date): NotifyResultType => NotifyResult({
         bodyKey: 'ScheduleUserBody',
-        bodyVariables: { title: `<Label|ScheduleUser:${scheduleId}>`, startLabel: getEventStartLabel(startTime) },
+        bodyVariables: { title: `<Label|${scheduleForType}:${scheduleForId}>`, startLabel: getEventStartLabel(startTime) },
         category: 'Schedule',
         languages,
+        link: scheduleForType === 'Meeting' ? `/meeting/${scheduleForId}` : undefined,
         prisma,
     }),
     pushStreakReminder: (timeToReset: Date): NotifyResultType => NotifyResult({
@@ -622,7 +639,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
         languages,
-        link: `/transfers/${transferId}`,
+        link: `/${LINKS[objectType as any]}/transfers/${transferId}`,
         prisma,
         titleKey: 'TransferRequestSendTitle',
     }),
@@ -631,7 +648,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
         languages,
-        link: `/transfers/${transferId}`,
+        link: `/${LINKS[objectType as any]}/transfers/${transferId}`,
         prisma,
         titleKey: 'TransferRequestReceiveTitle',
     }),

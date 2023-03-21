@@ -58,6 +58,8 @@ const batchAttemptCounts = async (
                 status: true,
                 timeTaken: true,
             },
+            skip,
+            take: batchSize,
         });
         // Increment skip
         skip += batchSize;

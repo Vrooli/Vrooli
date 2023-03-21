@@ -646,6 +646,8 @@ model push_device {
 model notification_subscription {
     id              String          @id @default(uuid()) @db.Uuid
     created_at      DateTime        @default(now()) @db.Timestamptz(6)
+    context         String?         @db.VarChar(2048)
+    silent          Boolean         @default(false)
     apiId           String?         @db.Uuid
     commentId       String?         @db.Uuid
     issueId         String?         @db.Uuid
@@ -658,6 +660,7 @@ model notification_subscription {
     quizId          String?         @db.Uuid
     reportId        String?         @db.Uuid
     routineId       String?         @db.Uuid
+    scheduleId      String?         @db.Uuid
     smartContractId String?         @db.Uuid
     standardId      String?         @db.Uuid
     api             api?            @relation(fields: [apiId], references: [id], onDelete: Cascade)
@@ -672,10 +675,10 @@ model notification_subscription {
     quiz            quiz?           @relation(fields: [quizId], references: [id], onDelete: Cascade)
     report          report?         @relation(fields: [reportId], references: [id], onDelete: Cascade)
     routine         routine?        @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    schedule        schedule?       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     smartContract   smart_contract? @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
     standard        standard?       @relation(fields: [standardId], references: [id], onDelete: Cascade)
     subscriberId    String          @db.Uuid
-    silent          Boolean         @default(false)
     subscriber      user            @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
 }
 
@@ -1772,20 +1775,20 @@ model run_routine_step {
 }
 
 model schedule {
-    id           String                 @id @default(uuid()) @db.Uuid
-    created_at   DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
-    startTime    DateTime
-    endTime      DateTime
-    timezone     String
-    exceptions   schedule_exception[]
-    labels       schedule_labels[]
-    recurrences  schedule_recurrence[]
-    translations schedule_translation[]
-    runProjects  run_project[]          @relation("run_project_schedule")
-    runRoutines  run_routine[]          @relation("run_routine_schedule")
-    focusModes   focus_mode[]           @relation("focus_mode_schedule")
-    meetings     meeting[]              @relation("meeting_schedule")
+    id            String                      @id @default(uuid()) @db.Uuid
+    created_at    DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at    DateTime                    @default(now()) @db.Timestamptz(6)
+    startTime     DateTime
+    endTime       DateTime
+    timezone      String
+    exceptions    schedule_exception[]
+    focusModes    focus_mode[]                @relation("focus_mode_schedule")
+    labels        schedule_labels[]
+    meetings      meeting[]                   @relation("meeting_schedule")
+    recurrences   schedule_recurrence[]
+    runProjects   run_project[]               @relation("run_project_schedule")
+    runRoutines   run_routine[]               @relation("run_routine_schedule")
+    subscriptions notification_subscription[]
 }
 
 model schedule_labels {
@@ -1796,17 +1799,6 @@ model schedule_labels {
     label      label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
     @@unique([labelledId, labelId], name: "schedule_labels_labelledid_labelid_unique")
-}
-
-model schedule_translation {
-    id          String   @id @default(uuid()) @db.Uuid
-    description String?  @db.VarChar(2048)
-    name        String   @db.VarChar(128)
-    language    String   @db.VarChar(3)
-    scheduleId  String   @db.Uuid
-    schedule    schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-
-    @@unique([scheduleId, language])
 }
 
 model schedule_exception {

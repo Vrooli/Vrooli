@@ -1,12 +1,12 @@
 export const Label_full = `fragment Label_full on Label {
 apisCount
+focusModesCount
 issuesCount
 meetingsCount
 notesCount
 projectsCount
 routinesCount
-runProjectSchedulesCount
-runRoutineSchedulesCount
+schedulesCount
 smartContractsCount
 standardsCount
 id

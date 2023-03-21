@@ -8,13 +8,13 @@ ${User_nav}
 mutation labelUpdate($input: LabelUpdateInput!) {
   labelUpdate(input: $input) {
     apisCount
+    focusModesCount
     issuesCount
     meetingsCount
     notesCount
     projectsCount
     routinesCount
-    runProjectSchedulesCount
-    runRoutineSchedulesCount
+    schedulesCount
     smartContractsCount
     standardsCount
     id

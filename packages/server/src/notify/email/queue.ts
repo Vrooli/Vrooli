@@ -1,21 +1,21 @@
-import Bull from 'bull';
-import { emailProcess } from './process.js';
 import { APP_URL, BUSINESS_NAME } from '@shared/consts';
+import Bull from 'bull';
 import fs from 'fs';
-import { PORT, HOST } from '../../redisConn.js';
+import { HOST, PORT } from '../../redisConn.js';
+import { emailProcess } from './process.js';
 
 const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/notify/email/templates/welcome.html`).toString();
 
 const emailQueue = new Bull('email', { redis: { port: PORT, host: HOST } });
 emailQueue.process(emailProcess);
 
-export function sendMail(to: string[] = [], subject='', text='', html='') {
+export function sendMail(to: string[] = [], subject = '', text = '', html = '', delay: number = 0) {
     emailQueue.add({
         to: to,
         subject: subject,
         text: text,
-        html: html
-    });
+        html: html.length > 0 ? html : undefined,
+    }, { delay });
 }
 
 export function sendResetPasswordLink(email: string, userId: string | number, code: string) {

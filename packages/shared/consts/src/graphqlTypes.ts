@@ -881,8 +881,8 @@ export enum FocusModeSortBy {
     RecurrEndDesc = 'RecurrEndDesc',
     RecurrStartAsc = 'RecurrStartAsc',
     RecurrStartDesc = 'RecurrStartDesc',
-    TitleAsc = 'TitleAsc',
-    TitleDesc = 'TitleDesc'
+    NameAsc = 'NameAsc',
+    NameDesc = 'NameDesc'
 }
 
 export type FocusModeUpdateInput = {
@@ -1024,9 +1024,9 @@ export type HistoryResult = {
 };
 
 export type HomeInput = {
+    focusModeId?: InputMaybe<Scalars['ID']>;
     searchString: Scalars['String'];
     take?: InputMaybe<Scalars['Int']>;
-    focusModeId?: InputMaybe<Scalars['ID']>;
 };
 
 export type HomeResult = {
@@ -6098,6 +6098,7 @@ export type ResourceListSearchInput = {
     after?: InputMaybe<Scalars['String']>;
     apiVersionId?: InputMaybe<Scalars['ID']>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
+    focusModeId?: InputMaybe<Scalars['ID']>;
     ids?: InputMaybe<Array<Scalars['ID']>>;
     organizationId?: InputMaybe<Scalars['ID']>;
     postId?: InputMaybe<Scalars['ID']>;
@@ -6110,7 +6111,6 @@ export type ResourceListSearchInput = {
     take?: InputMaybe<Scalars['Int']>;
     translationLanguages?: InputMaybe<Array<Scalars['String']>>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
-    focusModeId?: InputMaybe<Scalars['ID']>;
 };
 
 export type ResourceListSearchResult = {
@@ -7272,24 +7272,22 @@ export type Schedule = {
     runRoutines: Array<RunRoutine>;
     startTime: Scalars['Date'];
     timezone: Scalars['String'];
-    translations: Array<ScheduleTranslation>;
     updated_at: Scalars['Date'];
 };
 
 export type ScheduleCreateInput = {
     endTime?: InputMaybe<Scalars['Date']>;
     exceptionsCreate?: InputMaybe<Array<ScheduleExceptionCreateInput>>;
-    focusModesConnect?: InputMaybe<Array<Scalars['ID']>>;
+    focusModeConnect?: InputMaybe<Scalars['ID']>;
     id: Scalars['ID'];
     labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
     labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    meetingsConnect?: InputMaybe<Array<Scalars['ID']>>;
+    meetingConnect?: InputMaybe<Scalars['ID']>;
     recurrencesCreate?: InputMaybe<Array<ScheduleRecurrenceCreateInput>>;
-    runProjectsConnect?: InputMaybe<Array<Scalars['ID']>>;
-    runRoutinesConnect?: InputMaybe<Array<Scalars['ID']>>;
+    runProjectConnect?: InputMaybe<Scalars['ID']>;
+    runRoutineConnect?: InputMaybe<Scalars['ID']>;
     startTime?: InputMaybe<Scalars['Date']>;
     timezone: Scalars['String'];
-    translationsCreate?: InputMaybe<Array<ScheduleTranslationCreateInput>>;
 };
 
 export type ScheduleEdge = {
@@ -7463,53 +7461,20 @@ export enum ScheduleSortBy {
     StartTimeDesc = 'StartTimeDesc'
 }
 
-export type ScheduleTranslation = {
-    __typename: 'ScheduleTranslation';
-    description?: Maybe<Scalars['String']>;
-    id: Scalars['ID'];
-    language: Scalars['String'];
-    name: Scalars['String'];
-};
-
-export type ScheduleTranslationCreateInput = {
-    description?: InputMaybe<Scalars['String']>;
-    id: Scalars['ID'];
-    language: Scalars['String'];
-    name: Scalars['String'];
-};
-
-export type ScheduleTranslationUpdateInput = {
-    description?: InputMaybe<Scalars['String']>;
-    id: Scalars['ID'];
-    language?: InputMaybe<Scalars['String']>;
-    name?: InputMaybe<Scalars['String']>;
-};
-
 export type ScheduleUpdateInput = {
     endTime?: InputMaybe<Scalars['Date']>;
     exceptionsCreate?: InputMaybe<Array<ScheduleExceptionCreateInput>>;
     exceptionsDelete?: InputMaybe<Array<Scalars['ID']>>;
     exceptionsUpdate?: InputMaybe<Array<ScheduleExceptionUpdateInput>>;
-    focusModesConnect?: InputMaybe<Array<Scalars['ID']>>;
-    focusModesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
     id: Scalars['ID'];
     labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
     labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-    meetingsConnect?: InputMaybe<Array<Scalars['ID']>>;
-    meetingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
     recurrencesCreate?: InputMaybe<Array<ScheduleRecurrenceCreateInput>>;
     recurrencesDelete?: InputMaybe<Array<Scalars['ID']>>;
     recurrencesUpdate?: InputMaybe<Array<ScheduleRecurrenceUpdateInput>>;
-    runProjectsConnect?: InputMaybe<Array<Scalars['ID']>>;
-    runProjectsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-    runRoutinesConnect?: InputMaybe<Array<Scalars['ID']>>;
-    runRoutinesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
     startTime?: InputMaybe<Scalars['Date']>;
     timezone?: InputMaybe<Scalars['String']>;
-    translationsCreate?: InputMaybe<Array<ScheduleTranslationCreateInput>>;
-    translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-    translationsUpdate?: InputMaybe<Array<ScheduleTranslationUpdateInput>>;
 };
 
 export type SearchException = {
@@ -9733,9 +9698,6 @@ export type ResolversTypes = {
     ScheduleSearchInput: ScheduleSearchInput;
     ScheduleSearchResult: ResolverTypeWrapper<ScheduleSearchResult>;
     ScheduleSortBy: ScheduleSortBy;
-    ScheduleTranslation: ResolverTypeWrapper<ScheduleTranslation>;
-    ScheduleTranslationCreateInput: ScheduleTranslationCreateInput;
-    ScheduleTranslationUpdateInput: ScheduleTranslationUpdateInput;
     ScheduleUpdateInput: ScheduleUpdateInput;
     SearchException: SearchException;
     SendVerificationEmailInput: SendVerificationEmailInput;
@@ -10375,9 +10337,6 @@ export type ResolversParentTypes = {
     ScheduleRecurrenceUpdateInput: ScheduleRecurrenceUpdateInput;
     ScheduleSearchInput: ScheduleSearchInput;
     ScheduleSearchResult: ScheduleSearchResult;
-    ScheduleTranslation: ScheduleTranslation;
-    ScheduleTranslationCreateInput: ScheduleTranslationCreateInput;
-    ScheduleTranslationUpdateInput: ScheduleTranslationUpdateInput;
     ScheduleUpdateInput: ScheduleUpdateInput;
     SearchException: SearchException;
     SendVerificationEmailInput: SendVerificationEmailInput;
@@ -12967,7 +12926,6 @@ export type ScheduleResolvers<ContextType = any, ParentType extends ResolversPar
     runRoutines?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
     startTime?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
     timezone?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-    translations?: Resolver<Array<ResolversTypes['ScheduleTranslation']>, ParentType, ContextType>;
     updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
     __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -13026,14 +12984,6 @@ export type ScheduleRecurrenceSearchResultResolvers<ContextType = any, ParentTyp
 export type ScheduleSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ScheduleSearchResult'] = ResolversParentTypes['ScheduleSearchResult']> = {
     edges?: Resolver<Array<ResolversTypes['ScheduleEdge']>, ParentType, ContextType>;
     pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-    __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ScheduleTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ScheduleTranslation'] = ResolversParentTypes['ScheduleTranslation']> = {
-    description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-    id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-    language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-    name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
     __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14092,7 +14042,6 @@ export type Resolvers<ContextType = any> = {
     ScheduleRecurrenceEdge?: ScheduleRecurrenceEdgeResolvers<ContextType>;
     ScheduleRecurrenceSearchResult?: ScheduleRecurrenceSearchResultResolvers<ContextType>;
     ScheduleSearchResult?: ScheduleSearchResultResolvers<ContextType>;
-    ScheduleTranslation?: ScheduleTranslationResolvers<ContextType>;
     Session?: SessionResolvers<ContextType>;
     SessionUser?: SessionUserResolvers<ContextType>;
     SmartContract?: SmartContractResolvers<ContextType>;

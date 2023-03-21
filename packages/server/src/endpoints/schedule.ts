@@ -22,14 +22,13 @@ export const typeDef = gql`
         endTime: Date
         timezone: String!
         exceptionsCreate: [ScheduleExceptionCreateInput!]
-        focusModesConnect: [ID!]
+        focusModeConnect: ID
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
-        meetingsConnect: [ID!]
+        meetingConnect: ID
         recurrencesCreate: [ScheduleRecurrenceCreateInput!]
-        runProjectsConnect: [ID!]
-        runRoutinesConnect: [ID!]
-        translationsCreate: [ScheduleTranslationCreateInput!]
+        runProjectConnect: ID
+        runRoutineConnect: ID
     }
     input ScheduleUpdateInput {
         id: ID!
@@ -39,23 +38,12 @@ export const typeDef = gql`
         exceptionsCreate: [ScheduleExceptionCreateInput!]
         exceptionsUpdate: [ScheduleExceptionUpdateInput!]
         exceptionsDelete: [ID!]
-        focusModesConnect: [ID!]
-        focusModesDisconnect: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
-        meetingsConnect: [ID!]
-        meetingsDisconnect: [ID!]
         recurrencesCreate: [ScheduleRecurrenceCreateInput!]
         recurrencesUpdate: [ScheduleRecurrenceUpdateInput!]
         recurrencesDelete: [ID!]
-        runProjectsConnect: [ID!]
-        runProjectsDisconnect: [ID!]
-        runRoutinesConnect: [ID!]
-        runRoutinesDisconnect: [ID!]
-        translationsCreate: [ScheduleTranslationCreateInput!]
-        translationsUpdate: [ScheduleTranslationUpdateInput!]
-        translationsDelete: [ID!]
     }
     type Schedule {
         id: ID!
@@ -71,26 +59,6 @@ export const typeDef = gql`
         recurrences: [ScheduleRecurrence!]!
         runProjects: [RunProject!]!
         runRoutines: [RunRoutine!]!
-        translations: [ScheduleTranslation!]!
-    }
-
-    input ScheduleTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input ScheduleTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type ScheduleTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
     }
 
     input ScheduleSearchInput {

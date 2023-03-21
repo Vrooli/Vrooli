@@ -122,7 +122,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { user: { id: userData.id } },
                 info: partial.focusModes as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: FocusModeSortBy.TitleAsc },
+                input: { ...input, take, sortBy: FocusModeSortBy.NameAsc },
                 objectType: 'FocusMode',
             });
             // Add supplemental fields to every result

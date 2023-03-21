@@ -2,6 +2,9 @@ export const Meeting_list = `fragment Meeting_list on Meeting {
 labels {
     ...Label_list
 }
+schedule {
+    ...Schedule_list
+}
 translations {
     id
     language
@@ -12,12 +15,6 @@ translations {
 id
 openToAnyoneWithInvite
 showOnOrganizationProfile
-timeZone
-eventStart
-eventEnd
-recurring
-recurrStart
-recurrEnd
 organization {
     id
     handle

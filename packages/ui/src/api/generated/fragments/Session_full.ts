@@ -2,12 +2,7 @@ export const Session_full = `fragment Session_full on Session {
 isLoggedIn
 timeZone
 users {
-    handle
-    hasPremium
-    id
-    languages
-    name
-    schedules {
+    focusModes {
         filters {
             id
             filterType
@@ -26,19 +21,16 @@ users {
                     isBookmarked
                 }
             }
-            userSchedule {
+            focusMode {
                 labels {
                     ...Label_list
+                }
+                schedule {
+                    ...Schedule_common
                 }
                 id
                 name
                 description
-                timeZone
-                eventStart
-                eventEnd
-                recurring
-                recurrStart
-                recurrEnd
             }
         }
         labels {
@@ -69,16 +61,18 @@ users {
                 }
             }
         }
+        schedule {
+            ...Schedule_common
+        }
         id
         name
         description
-        timeZone
-        eventStart
-        eventEnd
-        recurring
-        recurrStart
-        recurrEnd
     }
+    handle
+    hasPremium
+    id
+    languages
+    name
     theme
 }
 }`;

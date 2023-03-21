@@ -12,7 +12,7 @@ export const focusMode: GqlPartial<FocusMode> = {
     full: {
         __define: {
             0: async () => rel((await import('./label')).label, 'full'),
-            0: async () => rel((await import('./schedule')).schedule, 'common'),
+            1: async () => rel((await import('./schedule')).schedule, 'common'),
         },
         filters: async () => rel((await import('./focusModeFilter')).focusModeFilter, 'full'),
         labels: { __use: 0 },
@@ -22,7 +22,7 @@ export const focusMode: GqlPartial<FocusMode> = {
     list: {
         __define: {
             0: async () => rel((await import('./label')).label, 'list'),
-            0: async () => rel((await import('./schedule')).schedule, 'common'),
+            1: async () => rel((await import('./schedule')).schedule, 'common'),
         },
         labels: { __use: 0 },
         schedule: { __use: 1 },

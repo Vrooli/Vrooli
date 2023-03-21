@@ -8,13 +8,13 @@ ${User_nav}
 mutation labelCreate($input: LabelCreateInput!) {
   labelCreate(input: $input) {
     apisCount
+    focusModesCount
     issuesCount
     meetingsCount
     notesCount
     projectsCount
     routinesCount
-    runProjectSchedulesCount
-    runRoutineSchedulesCount
+    schedulesCount
     smartContractsCount
     standardsCount
     id

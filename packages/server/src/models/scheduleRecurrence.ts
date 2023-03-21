@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { RunRoutineSearchInput, RunRoutineSortBy, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput } from '@shared/consts';
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
+import { ScheduleModel } from "./schedule";
 import { ModelLogic } from "./types";
 
 const __typename = 'ScheduleRecurrence' as const;
@@ -23,8 +24,21 @@ export const ScheduleRecurrenceModel: ModelLogic<{
 }, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.schedule_recurrence,
-    display: {} as any,
-    format: {} as any,
+    display: {
+        select: () => ({ id: true, schedule: { select: ScheduleModel.display.select() } }),
+        label: (select, languages) => ScheduleModel.display.label(select.schedule as any, languages),
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            schedule: 'Schedule',
+        },
+        prismaRelMap: {
+            __typename,
+            schedule: 'Schedule',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     validate: {} as any,
 })

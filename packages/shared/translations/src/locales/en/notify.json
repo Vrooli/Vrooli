@@ -60,8 +60,6 @@
     "RunFailedAutomaticallyBody": "Your run \"{{runName}}\" has failed! Press for details.",
     "RunStartedAutomaticallyTitle": "Run started",
     "RunStartedAutomaticallyBody": "Your run \"{{runName}}\" has started! We'll let you know when it's finished.",
-    "ScheduleOrganizationTitle": "Meeting reminder",
-    "ScheduleOrganizationBody": "{{meetingName}} is starting in {{startLabel}}.",
     "ScheduleUserBody": "{{title}} is starting in {{startLabel}}.",
     "StreakBrokenTitle": "Streak broken",
     "StreakBrokenBody": "Your run streak has been broken. Run a routine to start a new streak!",

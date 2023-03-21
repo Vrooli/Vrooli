@@ -27,6 +27,7 @@ import { Report_list } from '../fragments/Report_list';
 import { Routine_list } from '../fragments/Routine_list';
 import { Routine_nav } from '../fragments/Routine_nav';
 import { RoutineVersion_nav } from '../fragments/RoutineVersion_nav';
+import { Schedule_list } from '../fragments/Schedule_list';
 import { SmartContract_list } from '../fragments/SmartContract_list';
 import { SmartContract_nav } from '../fragments/SmartContract_nav';
 import { SmartContractVersion_nav } from '../fragments/SmartContractVersion_nav';
@@ -64,6 +65,7 @@ ${Report_list}
 ${Routine_list}
 ${Routine_nav}
 ${RoutineVersion_nav}
+${Schedule_list}
 ${SmartContract_list}
 ${SmartContract_nav}
 ${SmartContractVersion_nav}

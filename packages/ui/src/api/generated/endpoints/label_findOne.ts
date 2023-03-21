@@ -8,13 +8,13 @@ ${User_nav}
 query label($input: FindByIdInput!) {
   label(input: $input) {
     apisCount
+    focusModesCount
     issuesCount
     meetingsCount
     notesCount
     projectsCount
     routinesCount
-    runProjectSchedulesCount
-    runRoutineSchedulesCount
+    schedulesCount
     smartContractsCount
     standardsCount
     id

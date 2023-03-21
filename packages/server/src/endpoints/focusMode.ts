@@ -6,8 +6,8 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 
 export const typeDef = gql`
     enum FocusModeSortBy {
-        TitleAsc
-        TitleDesc
+        NameAsc
+        NameDesc
         EventStartAsc
         EventStartDesc
         EventEndAsc
