@@ -2,23 +2,21 @@ import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } fr
 import { RelationshipType } from "../builders/types";
 
 // Types of objects which have labels
-type LabelledObjectType = 'Api' | 'Issue' | 'Meeting' | 'Note' | 'Project' | 'Routine' | 'RunProjectSchedule' | 'RunRoutineSchedule' | 'SmartContract' | 'Standard' | 'UserSchedule';
+type LabelledObjectType = 'Api' | 'FocusMode' | 'Issue' | 'Meeting' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard';
 
 /**
  * Maps type of a label's parent with the unique field
  */
 const parentMapper: { [key in LabelledObjectType]: string } = {
     'Api': 'api_labels_labelledid_labelid_unique',
+    'FocusMode': 'focus_mode_labels_labelledid_labelid_unique',
     'Issue': 'issue_labels_labelledid_labelid_unique',
     'Meeting': 'meeting_labels_labelledid_labelid_unique',
     'Note': 'note_labels_labelledid_labelid_unique',
     'Project': 'project_labels_labelledid_labelid_unique',
     'Routine': 'routine_labels_labelledid_labelid_unique',
-    'RunProjectSchedule': 'run_project_schedule_labels_labelledid_labelid_unique',
-    'RunRoutineSchedule': 'run_routine_schedule_labels_labelledid_labelid_unique',
     'SmartContract': 'smart_contract_labels_labelledid_labelid_unique',
     'Standard': 'standard_labels_labelledid_labelid_unique',
-    'UserSchedule': 'user_schedule_labels_labelledid_labelid_unique',
 }
 
 type LabelShapeHelperProps<

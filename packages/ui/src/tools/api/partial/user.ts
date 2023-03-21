@@ -1,6 +1,6 @@
 import { User, UserTranslation, UserYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const userTranslation: GqlPartial<UserTranslation> = {
     __typename: 'UserTranslation',
@@ -79,12 +79,12 @@ export const profile: GqlPartial<User> = {
         name: true,
         theme: true,
         emails: async () => rel((await import('./email')).email, 'full'),
+        focusModes: async () => rel((await import('./focusMode')).focusMode, 'full'),
         pushDevices: async () => rel((await import('./pushDevice')).pushDevice, 'full'),
         wallets: async () => rel((await import('./wallet')).wallet, 'common'),
         notifications: async () => rel((await import('./notification')).notification, 'full'),
         notificationSettings: true,
         translations: () => rel(userTranslation, 'full'),
-        schedules: async () => rel((await import('./userSchedule')).userSchedule, 'full'),
         stats: async () => rel((await import('./statsUser')).statsUser, 'full'),
     },
     full: {},

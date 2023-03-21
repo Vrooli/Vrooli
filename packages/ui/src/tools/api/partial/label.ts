@@ -1,6 +1,6 @@
 import { Label, LabelYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const labelYou: GqlPartial<LabelYou> = {
     __typename: 'LabelYou',
@@ -31,13 +31,13 @@ export const label: GqlPartial<Label> = {
     },
     full: {
         apisCount: true,
+        focusModesCount: true,
         issuesCount: true,
         meetingsCount: true,
         notesCount: true,
         projectsCount: true,
         routinesCount: true,
-        runProjectSchedulesCount: true,
-        runRoutineSchedulesCount: true,
+        schedulesCount: true,
         smartContractsCount: true,
         standardsCount: true,
     },

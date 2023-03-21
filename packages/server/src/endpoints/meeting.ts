@@ -1,8 +1,8 @@
+import { FindByIdInput, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, MeetingSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, Meeting, MeetingSearchInput, MeetingCreateInput, MeetingUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum MeetingSortBy {
@@ -24,29 +24,18 @@ export const typeDef = gql`
         id: ID!
         openToAnyoneWithInvite: Boolean
         showOnOrganizationProfile: Boolean
-        timeZone: String
-        eventStart: Date
-        eventEnd: Date
-        recurring: Boolean
-        recurrStart: Date
-        recurrEnd: Date
         organizationConnect: ID!
         restrictedToRolesConnect: [ID!]
         invitesCreate: [MeetingInviteCreateInput!]
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        scheduleCreate: ScheduleCreateInput
         translationsCreate: [MeetingTranslationCreateInput!]
     }
     input MeetingUpdateInput {
         id: ID!
         openToAnyoneWithInvite: Boolean
         showOnOrganizationProfile: Boolean
-        timeZone: String
-        eventStart: Date
-        eventEnd: Date
-        recurring: Boolean
-        recurrStart: Date
-        recurrEnd: Date
         restrictedToRolesConnect: [ID!]
         restrictedToRolesDisconnect: [ID!]
         invitesCreate: [MeetingInviteCreateInput!]
@@ -55,6 +44,8 @@ export const typeDef = gql`
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        scheduleCreate: ScheduleCreateInput
+        scheduleUpdate: ScheduleUpdateInput
         translationsCreate: [MeetingTranslationCreateInput!]
         translationsUpdate: [MeetingTranslationUpdateInput!]
         translationsDelete: [ID!]
@@ -63,12 +54,6 @@ export const typeDef = gql`
         id: ID!
         openToAnyoneWithInvite: Boolean!
         showOnOrganizationProfile: Boolean!
-        timeZone: String
-        eventStart: Date
-        eventEnd: Date
-        recurring: Boolean!
-        recurrStart: Date
-        recurrEnd: Date
         organization: Organization!
         restrictedToRoles: [Role!]!
         attendees: [User!]!
@@ -77,6 +62,7 @@ export const typeDef = gql`
         invitesCount: Int!
         labels: [Label!]!
         labelsCount: Int!
+        schedule: Schedule
         translations: [MeetingTranslation!]!
         translationsCount: Int!
         you: MeetingYou!

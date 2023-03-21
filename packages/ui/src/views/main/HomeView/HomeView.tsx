@@ -1,6 +1,6 @@
 import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
-import { HomeInput, HomeResult, LINKS, ResourceList, UserSchedule } from '@shared/consts';
+import { FocusMode, HomeInput, HomeResult, LINKS, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
@@ -34,23 +34,23 @@ export const HomeView = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    // Handle schedules
-    const [selectedSchedule, setSelectedSchedule] = useState<UserSchedule | null>(null);
-    const [schedules, setSchedules] = useState<UserSchedule[]>([
+    // Handle focus modes
+    const [focusMode, setFocusMode] = useState<FocusMode | null>(null);
+    const [focusModes, setFocusModes] = useState<FocusMode[]>([
         { id: uuid(), name: 'Work' } as any,
         { id: uuid(), name: 'Side Project' } as any,
     ]);//Temp values
 
     // Handle tabs
-    const tabs = useMemo<PageTab<UserSchedule>[]>(() => schedules.map((schedule, index) => ({
+    const tabs = useMemo<PageTab<FocusMode>[]>(() => focusModes.map((schedule, index) => ({
         index,
         label: schedule.name,
         value: schedule,
-    })), [schedules]);
+    })), [focusModes]);
     const currTab = useMemo(() => tabs[0], [tabs])
-    const handleTabChange = useCallback((e: any, tab: PageTab<UserSchedule>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode>) => {
         e.preventDefault();
-        setSelectedSchedule(tab.value);
+        setFocusMode(tab.value);
     }, []);
 
     const [searchString, setSearchString] = useState<string>('');
@@ -65,8 +65,8 @@ export const HomeView = ({
 
     // Only show tabs if:
     // 1. The user is logged in 
-    // 2. The user has at least two schedules
-    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && schedules.length > 1, [session, schedules]);
+    // 2. The user has at least two focusModes
+    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && focusModes.length > 1, [session, focusModes]);
 
     // Converts resources to a resource list
     const [resourceList, setResourceList] = useState<ResourceList>({

@@ -50,8 +50,16 @@ export const FindObjectDialog = ({
         console.log('onInputSelect', newValue)
         // If value is not an object, return;
         if (!newValue || newValue.__typename === 'Shortcut' || newValue.__typename === 'Action') return;
-        // If object has versions (and more than one), set selected object so we can choose which version to link to
-        if ((newValue as any).versions && (newValue as any).versions.length > 1) {
+        // If object has versions
+        if ((newValue as any).versions && (newValue as any).versions.length > 0) {
+            // If there is only one version, select it
+            if ((newValue as any).versions.length === 1) {
+                const objectUrl = getObjectUrl(newValue);
+                // Select and close dialog
+                handleClose(`${window.location.origin}${objectUrl}/${(newValue as any).versions[0].id}`);
+                return;
+            }
+            // Otherwise, set selected object so we can choose which version to link to
             setSelectedObject(newValue as any);
             return;
         }

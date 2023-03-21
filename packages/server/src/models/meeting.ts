@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
-import { OrganizationModel } from "./organization";
-import { getSingleTypePermissions } from "../validators";
 import { meetingValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, labelShapeHelper, onCommonPlain, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions } from "../validators";
+import { OrganizationModel } from "./organization";
+import { ModelLogic } from "./types";
 
 const __typename = 'Meeting' as const;
 type Permissions = Pick<MeetingYou, 'canDelete' | 'canInvite' | 'canUpdate'>;
@@ -80,42 +80,36 @@ export const MeetingModel: ModelLogic<{
                 id: data.id,
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
-                timeZone: noNull(data.timeZone),
-                eventStart: noNull(data.eventStart),
-                eventEnd: noNull(data.eventEnd),
-                recurring: noNull(data.recurring),
-                recurrStart: noNull(data.recurrStart),
-                recurrEnd: noNull(data.recurrEnd),
                 ...(await shapeHelper({ relation: 'organization', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Organization', parentRelationshipName: 'meetings', data, ...rest })),
-                ...(await shapeHelper({ relation: 'restrictedToRoles', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: '', joinData: {
-                    fieldName: 'role',
-                    uniqueFieldName: 'meeting_roles_meetingid_roleid_unique',
-                    childIdFieldName: 'roleId',
-                    parentIdFieldName: 'meetingId',
-                    parentId: data.id ?? null,
-                }, data, ...rest })),
+                ...(await shapeHelper({
+                    relation: 'restrictedToRoles', relTypes: ['Connect'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: '', joinData: {
+                        fieldName: 'role',
+                        uniqueFieldName: 'meeting_roles_meetingid_roleid_unique',
+                        childIdFieldName: 'roleId',
+                        parentIdFieldName: 'meetingId',
+                        parentId: data.id ?? null,
+                    }, data, ...rest
+                })),
                 ...(await shapeHelper({ relation: 'invites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, ...rest })),
+                ...(await shapeHelper({ relation: 'schedule', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'Schedule', parentRelationshipName: 'meetings', data, ...rest })),
                 ...(await labelShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                 showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
-                timeZone: noNull(data.timeZone),
-                eventStart: noNull(data.eventStart),
-                eventEnd: noNull(data.eventEnd),
-                recurring: noNull(data.recurring),
-                recurrStart: noNull(data.recurrStart),
-                recurrEnd: noNull(data.recurrEnd),
-                ...(await shapeHelper({ relation: 'restrictedToRoles', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: '', joinData: {
-                    fieldName: 'role',
-                    uniqueFieldName: 'meeting_roles_meetingid_roleid_unique',
-                    childIdFieldName: 'roleId',
-                    parentIdFieldName: 'meetingId',
-                    parentId: data.id ?? null,
-                }, data, ...rest })),
+                ...(await shapeHelper({
+                    relation: 'restrictedToRoles', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Role', parentRelationshipName: '', joinData: {
+                        fieldName: 'role',
+                        uniqueFieldName: 'meeting_roles_meetingid_roleid_unique',
+                        childIdFieldName: 'roleId',
+                        parentIdFieldName: 'meetingId',
+                        parentId: data.id ?? null,
+                    }, data, ...rest
+                })),
                 ...(await shapeHelper({ relation: 'invites', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'MeetingInvite', parentRelationshipName: 'meeting', data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ['Connect', 'Disconnect', 'Create'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
+                ...(await shapeHelper({ relation: 'schedule', relTypes: ['Create', 'Connect', 'Update', 'Delete'], isOneToOne: true, isRequired: false, objectType: 'Schedule', parentRelationshipName: 'meetings', data, ...rest })),
+                ...(await labelShapeHelper({ relTypes: ['Create', 'Update'], parentType: 'Meeting', relation: 'labels', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },

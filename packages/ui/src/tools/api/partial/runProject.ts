@@ -1,6 +1,6 @@
 import { RunProject, RunProjectYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const runProjectYou: GqlPartial<RunProjectYou> = {
     __typename: 'RunProjectYou',
@@ -32,7 +32,7 @@ export const runProject: GqlPartial<RunProject> = {
         stepsCount: true,
         organization: { __use: 0 },
         projectVersion: async () => rel((await import('./projectVersion')).projectVersion, 'nav', { omit: 'you' }),
-        runProjectSchedule: async () => rel((await import('./runProjectSchedule')).runProjectSchedule, 'full', { omit: 'runProject' }),
+        schedule: async () => rel((await import('./schedule')).schedule, 'full', { omit: 'runProject' }),
         user: { __use: 1 },
         you: () => rel(runProjectYou, 'full'),
     },

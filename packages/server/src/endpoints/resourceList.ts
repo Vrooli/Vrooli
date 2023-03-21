@@ -1,8 +1,8 @@
+import { FindByIdInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, ResourceList, ResourceListCreateInput, ResourceListUpdateInput, ResourceListSortBy, ResourceListSearchInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum ResourceListSortBy {
@@ -17,13 +17,13 @@ export const typeDef = gql`
     input ResourceListCreateInput {
         id: ID!
         apiVersionConnect: ID
+        focusModeConnect: ID
         organizationConnect: ID
         postConnect: ID
         projectVersionConnect: ID
         routineVersionConnect: ID
         smartContractVersionConnect: ID
         standardVersionConnect: ID
-        userScheduleConnect: ID
         resourcesCreate: [ResourceCreateInput!]
         translationsCreate: [ResourceListTranslationCreateInput!]
     }
@@ -47,7 +47,7 @@ export const typeDef = gql`
         routineVersion: RoutineVersion
         smartContractVersion: SmartContractVersion
         standardVersion: StandardVersion
-        userSchedule: UserSchedule
+        focusMode: FocusMode
         translations: [ResourceListTranslation!]!
         resources: [Resource!]!
     }
@@ -87,7 +87,7 @@ export const typeDef = gql`
         smartContractVersionId: ID
         standardVersionId: ID
         translationLanguages: [String!]
-        userScheduleId: ID
+        focusModeId: ID
     }
 
     type ResourceListSearchResult {

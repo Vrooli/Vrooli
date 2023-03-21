@@ -17,12 +17,12 @@ export const resourceListValidation: YupModel = {
         id: req(id),
     }, [
         ['apiVersion', ['Connect'], 'one', 'opt'],
+        ['focusMode', ['Connect'], 'one', 'opt'],
         ['organization', ['Connect'], 'one', 'opt'],
         ['post', ['Connect'], 'one', 'opt'],
         ['projectVersion', ['Connect'], 'one', 'opt'],
         ['routineVersion', ['Connect'], 'one', 'opt'],
         ['smartContractVersion', ['Connect'], 'one', 'opt'],
-        ['userSchedule', ['Connect'], 'one', 'opt'],
         ['translations', ['Create'], 'many', 'opt', resourceListTranslationValidation],
         ['resources', ['Create'], 'many', 'opt', resourceValidation],
     ], [], o),

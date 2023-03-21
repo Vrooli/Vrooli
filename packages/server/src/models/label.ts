@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
-import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, MaxObjects, PrependString } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
-import { OrganizationModel } from "./organization";
+import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, MaxObjects } from '@shared/consts';
 import { labelValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions } from "../validators";
+import { OrganizationModel } from "./organization";
+import { ModelLogic } from "./types";
 
 const __typename = 'Label' as const;
 type Permissions = Pick<LabelYou, 'canDelete' | 'canUpdate'>;
@@ -37,6 +37,7 @@ export const LabelModel: ModelLogic<{
         gqlRelMap: {
             __typename,
             apis: 'Api',
+            focusModes: 'FocusMode',
             issues: 'Issue',
             meetings: 'Meeting',
             notes: 'Note',
@@ -46,13 +47,12 @@ export const LabelModel: ModelLogic<{
             },
             projects: 'Project',
             routines: 'Routine',
-            runProjectSchedules: 'RunProjectSchedule',
-            runRoutineSchedules: 'RunRoutineSchedule',
-            userSchedules: 'UserSchedule',
+            schedules: 'Schedule',
         },
         prismaRelMap: {
             __typename,
             apis: 'Api',
+            focusModes: 'FocusMode',
             issues: 'Issue',
             meetings: 'Meeting',
             notes: 'Note',
@@ -60,23 +60,21 @@ export const LabelModel: ModelLogic<{
             ownedByOrganization: 'Organization',
             projects: 'Project',
             routines: 'Routine',
-            runProjectSchedules: 'RunProjectSchedule',
-            runRoutineSchedules: 'RunRoutineSchedule',
-            userSchedules: 'UserSchedule',
+            schedules: 'Schedule',
         },
         joinMap: {
             apis: 'labelled',
+            focusModes: 'labelled',
             issues: 'labelled',
             meetings: 'labelled',
             notes: 'labelled',
             projects: 'labelled',
             routines: 'labelled',
-            runProjectSchedules: 'labelled',
-            runRoutineSchedules: 'labelled',
-            userSchedules: 'labelled',
+            schedules: 'labelled',
         },
         countFields: {
             apisCount: true,
+            focusModesCount: true,
             issuesCount: true,
             meetingsCount: true,
             notesCount: true,
@@ -84,10 +82,8 @@ export const LabelModel: ModelLogic<{
             smartContractsCount: true,
             standardsCount: true,
             routinesCount: true,
-            runProjectSchedulesCount: true,
-            runRoutineSchedulesCount: true,
+            schedulesCount: true,
             translationsCount: true,
-            userSchedulesCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,
@@ -114,17 +110,16 @@ export const LabelModel: ModelLogic<{
                 id: data.id,
                 label: noNull(data.label),
                 color: noNull(data.color),
-                ...(await shapeHelper({ relation: 'apis', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Api', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'issues', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Issue', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'meetings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Meeting', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'notes', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Note', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'projects', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Project', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'routines', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Routine', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'runProjectSchedules', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RunProjectSchedule', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'runRoutineSchedules', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'RunRoutineSchedule', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'smartContracts', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'SmartContract', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'standards', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Standard', parentRelationshipName: 'issues', data, ...rest })),
-                ...(await shapeHelper({ relation: 'userSchedules', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'issues', data, ...rest })),
+                ...(await shapeHelper({ relation: 'apis', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Api', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'focusModes', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'FocusMode', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'issues', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Issue', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'meetings', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Meeting', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'notes', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Note', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'projects', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Project', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'routines', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Routine', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'schedules', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Schedule', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'smartContracts', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'SmartContract', parentRelationshipName: 'label', data, ...rest })),
+                ...(await shapeHelper({ relation: 'standards', relTypes: ['Connect', 'Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Standard', parentRelationshipName: 'label', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             })
         },

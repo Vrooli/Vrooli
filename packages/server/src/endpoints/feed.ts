@@ -1,4 +1,4 @@
-import { ApiSortBy, HomeInput, HomeResult, MeetingSortBy, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, RunProjectScheduleSortBy, RunRoutineScheduleSortBy, SmartContractSortBy, StandardSortBy, UserScheduleSortBy, UserSortBy } from '@shared/consts';
+import { ApiSortBy, FocusModeSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { readManyAsFeedHelper } from '../actions';
 import { assertRequestFrom, getUser } from '../auth/request';
@@ -28,17 +28,15 @@ export const typeDef = gql`
     input HomeInput {
         searchString: String!
         take: Int
-        userScheduleId: ID
+        focusModeId: ID
     }
 
     type HomeResult {
-        meetings: [Meeting!]!
         notes: [Note!]!
         reminders: [Reminder!]!
+        schedules: [Schedule!]!
         resources: [Resource!]!
-        runProjectSchedules: [RunProjectSchedule!]!
-        runRoutineSchedules: [RunRoutineSchedule!]!
-        userSchedules: [UserSchedule!]!
+        focusModes: [FocusMode!]!
     }
 
     type Query {
@@ -57,30 +55,21 @@ export const resolvers: {
         home: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
-            // If no schedule specified, try to find the user's active schedule
-            //TODO
+            // If no focus mode specified, try to find the user's active focus modes
+            const allFocusModes = await prisma.focus_mode.findMany({
+                where: { userId: userData.id },
+            });
             const partial = toPartialGraphQLInfo(info, {
                 __typename: 'HomeResult',
-                meetings: 'Meeting',
+                focusModes: 'FocusMode',
                 notes: 'Note',
                 reminders: 'Reminder',
                 resources: 'Resource',
-                runProjectSchedules: 'RunProjectSchedule',
-                runRoutineSchedules: 'RunRoutineSchedule',
-                userSchedules: 'UserSchedule',
+                schedules: 'Schedule',
             }, req.languages, true);
             const take = 5;
             const commonReadParams = { prisma, req }
             const activeScheduleIds = [];//TODO
-            // Query meetings
-            const { nodes: meetings } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                // TODO Find meetings that have not ended yet, and you are invited to (or you are the owner)
-                additionalQueries: {},
-                info: partial.meetings as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: MeetingSortBy.EventEndAsc },
-                objectType: 'Meeting',
-            });
             // Query notes
             const { nodes: notes } = await readManyAsFeedHelper({
                 ...commonReadParams,
@@ -117,50 +106,41 @@ export const resolvers: {
                 input: { ...input, take, sortBy: ResourceSortBy.IndexAsc },
                 objectType: 'Resource',
             });
-            // Query runProjectSchedules
-            const { nodes: runProjectSchedules } = await readManyAsFeedHelper({
+            // Query schedules
+            const { nodes: schedules } = await readManyAsFeedHelper({
                 ...commonReadParams,
+                // TODO Find meetings that have not ended yet, and you are invited to (or you are the owner)
                 // TODO Find all of your runProjectSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
-                additionalQueries: {},
-                info: partial.runProjectSchedules as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: RunProjectScheduleSortBy.WindowStartAsc },
-                objectType: 'RunProjectSchedule',
-            });
-            // Query runRoutineSchedules
-            const { nodes: runRoutineSchedules } = await readManyAsFeedHelper({
-                ...commonReadParams,
                 // TODO Find all of your runRoutineSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
                 additionalQueries: {},
-                info: partial.runRoutineSchedules as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: RunRoutineScheduleSortBy.WindowStartAsc },
-                objectType: 'RunRoutineSchedule',
+                info: partial.schedules as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: ScheduleSortBy.EndTimeAsc },
+                objectType: 'Schedule',
             });
-            // Query userSchedules
-            const { nodes: userSchedules } = await readManyAsFeedHelper({
+            // Query focusModes
+            const { nodes: focusModes } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { user: { id: userData.id } },
-                info: partial.userSchedules as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: UserScheduleSortBy.TitleAsc },
-                objectType: 'UserSchedule',
+                info: partial.focusModes as PartialGraphQLInfo,
+                input: { ...input, take, sortBy: FocusModeSortBy.TitleAsc },
+                objectType: 'FocusMode',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [meetings, notes, reminders, resources, runProjectSchedules, runRoutineSchedules, userSchedules],
-                [partial.meetings, partial.notes, partial.reminders, partial.resources, partial.runProjectSchedules, partial.runRoutineSchedules, partial.userSchedules] as PartialGraphQLInfo[],
-                ['m', 'n', 'rem', 'res', 'rps', 'rrs', 'us'],
+                [focusModes, notes, reminders, resources, schedules],
+                [partial.focusModes, partial.notes, partial.reminders, partial.resources, partial.schedules] as PartialGraphQLInfo[],
+                ['f', 'n', 'rem', 'res', 's'],
                 getUser(req),
                 prisma,
             )
             // Return results
             return {
                 __typename: 'HomeResult' as const,
-                meetings: withSupplemental['m'],
+                focusModes: withSupplemental['f'],
                 notes: withSupplemental['n'],
                 reminders: withSupplemental['rem'],
                 resources: withSupplemental['res'],
-                runProjectSchedules: withSupplemental['rps'],
-                runRoutineSchedules: withSupplemental['rrs'],
-                userSchedules: withSupplemental['us'],
+                schedules: withSupplemental['s'],
             }
         },
         popular: async (_, { input }, { prisma, req }, info) => {

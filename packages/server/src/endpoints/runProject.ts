@@ -1,10 +1,10 @@
+import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunStatus } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
-import { FindByIdInput, RunProjectSearchInput, RunProjectSortBy, RunProjectCreateInput, RunProjectUpdateInput, RunStatus, Count, RunProject, RunProjectCompleteInput, RunProjectCancelInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { assertRequestFrom } from '../auth';
+import { rateLimit } from '../middleware';
 import { RunProjectModel } from '../models';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum RunProjectSortBy {
@@ -32,8 +32,7 @@ export const typeDef = gql`
         completedComplexity: Int
         contextSwitches: Int
         stepsCreate: [RunProjectStepCreateInput!]
-        runProjectScheduleConnect: ID
-        runProjectScheduleCreate: RunProjectScheduleCreateInput
+        scheduleCreate: ScheduleCreateInput
         projectVersionConnect: ID!
         organizationId: ID
     }
@@ -47,8 +46,8 @@ export const typeDef = gql`
         stepsDelete: [ID!]
         stepsCreate: [RunProjectStepCreateInput!]
         stepsUpdate: [RunProjectStepUpdateInput!]
-        runProjectScheduleConnect: ID
-        runProjectScheduleCreate: RunProjectScheduleCreateInput
+        scheduleCreate: ScheduleCreateInput
+        scheduleUpdate: ScheduleUpdateInput
     }
     type RunProject {
         id: ID!
@@ -61,7 +60,7 @@ export const typeDef = gql`
         name: String!
         status: RunStatus!
         projectVersion: ProjectVersion
-        runProjectSchedule: RunProjectSchedule
+        schedule: Schedule
         steps: [RunProjectStep!]!
         stepsCount: Int!
         user: User

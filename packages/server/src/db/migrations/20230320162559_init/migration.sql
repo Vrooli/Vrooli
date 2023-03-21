@@ -45,6 +45,9 @@ CREATE TYPE "RunStatus" AS ENUM ('Scheduled', 'InProgress', 'Completed', 'Failed
 CREATE TYPE "RunStepStatus" AS ENUM ('InProgress', 'Completed', 'Skipped');
 
 -- CreateEnum
+CREATE TYPE "ScheduleRecurrenceType" AS ENUM ('Daily', 'Weekly', 'Monthly', 'Yearly');
+
+-- CreateEnum
 CREATE TYPE "TransferStatus" AS ENUM ('Accepted', 'Denied', 'Pending');
 
 -- CreateEnum
@@ -152,6 +155,43 @@ CREATE TABLE "api_key" (
 );
 
 -- CreateTable
+CREATE TABLE "bookmark" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "listId" UUID,
+    "apiId" UUID,
+    "commentId" UUID,
+    "issueId" UUID,
+    "noteId" UUID,
+    "organizationId" UUID,
+    "postId" UUID,
+    "projectId" UUID,
+    "questionId" UUID,
+    "questionAnswerId" UUID,
+    "quizId" UUID,
+    "routineId" UUID,
+    "smartContractId" UUID,
+    "standardId" UUID,
+    "tagId" UUID,
+    "userId" UUID,
+
+    CONSTRAINT "bookmark_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "bookmark_list" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "index" INTEGER NOT NULL,
+    "label" VARCHAR(128) NOT NULL,
+    "userId" UUID NOT NULL,
+
+    CONSTRAINT "bookmark_list_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "comment" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -200,6 +240,40 @@ CREATE TABLE "email" (
     "userId" UUID,
 
     CONSTRAINT "email_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "focus_mode" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "name" VARCHAR(128) NOT NULL,
+    "description" VARCHAR(2048),
+    "reminderListId" UUID,
+    "resourceListId" UUID,
+    "scheduleId" UUID,
+    "userId" UUID NOT NULL,
+
+    CONSTRAINT "focus_mode_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "focus_mode_labels" (
+    "id" UUID NOT NULL,
+    "labelledId" UUID NOT NULL,
+    "labelId" UUID NOT NULL,
+
+    CONSTRAINT "focus_mode_labels_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "focus_mode_filters" (
+    "id" UUID NOT NULL,
+    "filterType" "UserScheduleFilterType" NOT NULL,
+    "focusModeId" UUID NOT NULL,
+    "tagId" UUID NOT NULL,
+
+    CONSTRAINT "focus_mode_filters_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -577,14 +651,9 @@ CREATE TABLE "meeting" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "inviteId" UUID,
+    "scheduleId" UUID,
     "openToAnyoneWithInvite" BOOLEAN NOT NULL DEFAULT false,
     "showOnOrganizationProfile" BOOLEAN NOT NULL DEFAULT false,
-    "timeZone" VARCHAR(128),
-    "eventStart" TIMESTAMPTZ(6),
-    "eventEnd" TIMESTAMPTZ(6),
-    "recurring" BOOLEAN NOT NULL DEFAULT false,
-    "recurrStart" TIMESTAMPTZ(6),
-    "recurrEnd" TIMESTAMPTZ(6),
     "organizationId" UUID NOT NULL,
 
     CONSTRAINT "meeting_pkey" PRIMARY KEY ("id")
@@ -1397,41 +1466,6 @@ CREATE TABLE "run_project_step" (
 );
 
 -- CreateTable
-CREATE TABLE "run_project_schedule" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "timeZone" VARCHAR(128),
-    "windowStart" TIMESTAMPTZ(6),
-    "windowEnd" TIMESTAMPTZ(6),
-    "recurring" BOOLEAN NOT NULL DEFAULT false,
-    "recurrStart" TIMESTAMPTZ(6),
-    "recurrEnd" TIMESTAMPTZ(6),
-
-    CONSTRAINT "run_project_schedule_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "run_project_schedule_labels" (
-    "id" UUID NOT NULL,
-    "labelledId" UUID NOT NULL,
-    "labelId" UUID NOT NULL,
-
-    CONSTRAINT "run_project_schedule_labels_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "run_project_schedule_translation" (
-    "id" UUID NOT NULL,
-    "description" VARCHAR(2048),
-    "name" VARCHAR(128) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "runProjectScheduleId" UUID NOT NULL,
-
-    CONSTRAINT "run_project_schedule_translation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "run_routine" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1485,40 +1519,63 @@ CREATE TABLE "run_routine_step" (
 );
 
 -- CreateTable
-CREATE TABLE "run_routine_schedule" (
+CREATE TABLE "schedule" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "attemptAutomatic" BOOLEAN NOT NULL DEFAULT true,
-    "maxAutomaticAttempts" INTEGER NOT NULL DEFAULT 2,
-    "timeZone" VARCHAR(128),
-    "windowStart" TIMESTAMPTZ(6),
-    "windowEnd" TIMESTAMPTZ(6),
-    "recurring" BOOLEAN NOT NULL DEFAULT false,
-    "recurrStart" TIMESTAMPTZ(6),
-    "recurrEnd" TIMESTAMPTZ(6),
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "location" TEXT,
+    "startTime" TIMESTAMP(3) NOT NULL,
+    "endTime" TIMESTAMP(3) NOT NULL,
+    "timezone" TEXT NOT NULL,
 
-    CONSTRAINT "run_routine_schedule_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "schedule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "run_routine_schedule_labels" (
+CREATE TABLE "schedule_labels" (
     "id" UUID NOT NULL,
     "labelledId" UUID NOT NULL,
     "labelId" UUID NOT NULL,
 
-    CONSTRAINT "run_routine_schedule_labels_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "schedule_labels_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "run_routine_schedule_translation" (
+CREATE TABLE "schedule_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
     "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
-    "runRoutineScheduleId" UUID NOT NULL,
+    "scheduleId" UUID NOT NULL,
 
-    CONSTRAINT "run_routine_schedule_translation_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "schedule_translation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "schedule_recurrence" (
+    "id" UUID NOT NULL,
+    "scheduleId" UUID NOT NULL,
+    "recurrenceType" "ScheduleRecurrenceType" NOT NULL,
+    "interval" INTEGER NOT NULL DEFAULT 1,
+    "dayOfWeek" INTEGER,
+    "dayOfMonth" INTEGER,
+    "month" INTEGER,
+    "endDate" TIMESTAMP(3),
+
+    CONSTRAINT "schedule_recurrence_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "schedule_exception" (
+    "id" UUID NOT NULL,
+    "scheduleId" UUID NOT NULL,
+    "originalStartTime" TIMESTAMP(3) NOT NULL,
+    "newStartTime" TIMESTAMP(3),
+    "newEndTime" TIMESTAMP(3),
+
+    CONSTRAINT "schedule_exception_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1674,43 +1731,6 @@ CREATE TABLE "standard_labels" (
     "labelId" UUID NOT NULL,
 
     CONSTRAINT "standard_labels_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "bookmark" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "listId" UUID,
-    "apiId" UUID,
-    "commentId" UUID,
-    "issueId" UUID,
-    "noteId" UUID,
-    "organizationId" UUID,
-    "postId" UUID,
-    "projectId" UUID,
-    "questionId" UUID,
-    "questionAnswerId" UUID,
-    "quizId" UUID,
-    "routineId" UUID,
-    "smartContractId" UUID,
-    "standardId" UUID,
-    "tagId" UUID,
-    "userId" UUID,
-
-    CONSTRAINT "bookmark_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "bookmark_list" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "index" INTEGER NOT NULL,
-    "label" VARCHAR(128) NOT NULL,
-    "userId" UUID NOT NULL,
-
-    CONSTRAINT "bookmark_list_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2023,45 +2043,6 @@ CREATE TABLE "user_language" (
 );
 
 -- CreateTable
-CREATE TABLE "user_schedule" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "name" VARCHAR(128) NOT NULL,
-    "description" VARCHAR(2048),
-    "timeZone" VARCHAR(128),
-    "eventStart" TIMESTAMPTZ(6),
-    "eventEnd" TIMESTAMPTZ(6),
-    "recurring" BOOLEAN NOT NULL DEFAULT false,
-    "recurrStart" TIMESTAMPTZ(6),
-    "recurrEnd" TIMESTAMPTZ(6),
-    "reminderListId" UUID,
-    "resourceListId" UUID,
-    "userId" UUID NOT NULL,
-
-    CONSTRAINT "user_schedule_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "user_schedule_labels" (
-    "id" UUID NOT NULL,
-    "labelledId" UUID NOT NULL,
-    "labelId" UUID NOT NULL,
-
-    CONSTRAINT "user_schedule_labels_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "user_schedule_filter" (
-    "id" UUID NOT NULL,
-    "filterType" "UserScheduleFilterType" NOT NULL,
-    "userScheduleId" UUID NOT NULL,
-    "tagId" UUID NOT NULL,
-
-    CONSTRAINT "user_schedule_filter_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "view" (
     "id" UUID NOT NULL,
     "lastViewedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2197,6 +2178,9 @@ CREATE UNIQUE INDEX "api_tags_taggedId_tagTag_key" ON "api_tags"("taggedId", "ta
 CREATE UNIQUE INDEX "api_key_key_key" ON "api_key"("key");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "bookmark_list_label_key" ON "bookmark_list"("label");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "comment_translation_commentId_language_key" ON "comment_translation"("commentId", "language");
 
 -- CreateIndex
@@ -2204,6 +2188,18 @@ CREATE UNIQUE INDEX "email_emailAddress_key" ON "email"("emailAddress");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "email_verificationCode_key" ON "email"("verificationCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "focus_mode_reminderListId_key" ON "focus_mode"("reminderListId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "focus_mode_resourceListId_key" ON "focus_mode"("resourceListId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "focus_mode_labels_labelledId_labelId_key" ON "focus_mode_labels"("labelledId", "labelId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "focus_mode_filters_focusModeId_tagId_key" ON "focus_mode_filters"("focusModeId", "tagId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "handle_handle_key" ON "handle"("handle");
@@ -2410,16 +2406,10 @@ CREATE UNIQUE INDEX "routine_tags_taggedId_tagTag_key" ON "routine_tags"("tagged
 CREATE UNIQUE INDEX "routine_labels_labelledId_labelId_key" ON "routine_labels"("labelledId", "labelId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "run_project_schedule_labels_labelledId_labelId_key" ON "run_project_schedule_labels"("labelledId", "labelId");
+CREATE UNIQUE INDEX "schedule_labels_labelledId_labelId_key" ON "schedule_labels"("labelledId", "labelId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "run_project_schedule_translation_runProjectScheduleId_langu_key" ON "run_project_schedule_translation"("runProjectScheduleId", "language");
-
--- CreateIndex
-CREATE UNIQUE INDEX "run_routine_schedule_labels_labelledId_labelId_key" ON "run_routine_schedule_labels"("labelledId", "labelId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "run_routine_schedule_translation_runRoutineScheduleId_langu_key" ON "run_routine_schedule_translation"("runRoutineScheduleId", "language");
+CREATE UNIQUE INDEX "schedule_translation_scheduleId_language_key" ON "schedule_translation"("scheduleId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "smart_contract_version_resourceListId_key" ON "smart_contract_version"("resourceListId");
@@ -2458,9 +2448,6 @@ CREATE UNIQUE INDEX "standard_tags_taggedId_tagTag_key" ON "standard_tags"("tagg
 CREATE UNIQUE INDEX "standard_labels_labelledId_labelId_key" ON "standard_labels"("labelledId", "labelId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "bookmark_list_label_key" ON "bookmark_list"("label");
-
--- CreateIndex
 CREATE UNIQUE INDEX "tag_tag_key" ON "tag"("tag");
 
 -- CreateIndex
@@ -2483,18 +2470,6 @@ CREATE UNIQUE INDEX "user_translation_userId_language_key" ON "user_translation"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_language_userId_language_key" ON "user_language"("userId", "language");
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_schedule_reminderListId_key" ON "user_schedule"("reminderListId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_schedule_resourceListId_key" ON "user_schedule"("resourceListId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_schedule_labels_labelledId_labelId_key" ON "user_schedule_labels"("labelledId", "labelId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_schedule_filter_userScheduleId_tagId_key" ON "user_schedule_filter"("userScheduleId", "tagId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "wallet_stakingAddress_key" ON "wallet"("stakingAddress");
@@ -2596,6 +2571,57 @@ ALTER TABLE "api_key" ADD CONSTRAINT "api_key_organizationId_fkey" FOREIGN KEY (
 ALTER TABLE "api_key" ADD CONSTRAINT "api_key_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_listId_fkey" FOREIGN KEY ("listId") REFERENCES "bookmark_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookmark_list" ADD CONSTRAINT "bookmark_list_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "comment" ADD CONSTRAINT "comment_apiVersionId_fkey" FOREIGN KEY ("apiVersionId") REFERENCES "api_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2645,6 +2671,30 @@ ALTER TABLE "email" ADD CONSTRAINT "email_organizationId_fkey" FOREIGN KEY ("org
 
 -- AddForeignKey
 ALTER TABLE "email" ADD CONSTRAINT "email_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_reminderListId_fkey" FOREIGN KEY ("reminderListId") REFERENCES "reminder_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_resourceListId_fkey" FOREIGN KEY ("resourceListId") REFERENCES "resource_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode_labels" ADD CONSTRAINT "focus_mode_labels_labelledId_fkey" FOREIGN KEY ("labelledId") REFERENCES "focus_mode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode_labels" ADD CONSTRAINT "focus_mode_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode_filters" ADD CONSTRAINT "focus_mode_filters_focusModeId_fkey" FOREIGN KEY ("focusModeId") REFERENCES "focus_mode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "focus_mode_filters" ADD CONSTRAINT "focus_mode_filters_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "handle" ADD CONSTRAINT "handle_walletId_fkey" FOREIGN KEY ("walletId") REFERENCES "wallet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2846,6 +2896,9 @@ ALTER TABLE "organization_language" ADD CONSTRAINT "organization_language_organi
 
 -- AddForeignKey
 ALTER TABLE "meeting" ADD CONSTRAINT "meeting_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "meeting" ADD CONSTRAINT "meeting_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3220,6 +3273,9 @@ ALTER TABLE "routine_labels" ADD CONSTRAINT "routine_labels_labelId_fkey" FOREIG
 ALTER TABLE "run_project" ADD CONSTRAINT "run_project_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "run_project" ADD CONSTRAINT "run_project_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "run_project" ADD CONSTRAINT "run_project_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3232,19 +3288,10 @@ ALTER TABLE "run_project_step" ADD CONSTRAINT "run_project_step_directoryId_fkey
 ALTER TABLE "run_project_step" ADD CONSTRAINT "run_project_step_runProjectId_fkey" FOREIGN KEY ("runProjectId") REFERENCES "run_project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "run_project_schedule" ADD CONSTRAINT "run_project_schedule_id_fkey" FOREIGN KEY ("id") REFERENCES "run_project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "run_project_schedule_labels" ADD CONSTRAINT "run_project_schedule_labels_labelledId_fkey" FOREIGN KEY ("labelledId") REFERENCES "run_project_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "run_project_schedule_labels" ADD CONSTRAINT "run_project_schedule_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "run_project_schedule_translation" ADD CONSTRAINT "run_project_schedule_translation_runProjectScheduleId_fkey" FOREIGN KEY ("runProjectScheduleId") REFERENCES "run_project_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "run_routine" ADD CONSTRAINT "run_routine_routineVersionId_fkey" FOREIGN KEY ("routineVersionId") REFERENCES "routine_version"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "run_routine" ADD CONSTRAINT "run_routine_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "run_routine" ADD CONSTRAINT "run_routine_runProjectId_fkey" FOREIGN KEY ("runProjectId") REFERENCES "run_project"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -3271,16 +3318,19 @@ ALTER TABLE "run_routine_step" ADD CONSTRAINT "run_routine_step_runRoutineId_fke
 ALTER TABLE "run_routine_step" ADD CONSTRAINT "run_routine_step_subroutineVersionId_fkey" FOREIGN KEY ("subroutineVersionId") REFERENCES "routine_version"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "run_routine_schedule" ADD CONSTRAINT "run_routine_schedule_id_fkey" FOREIGN KEY ("id") REFERENCES "run_routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "schedule_labels" ADD CONSTRAINT "schedule_labels_labelledId_fkey" FOREIGN KEY ("labelledId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "run_routine_schedule_labels" ADD CONSTRAINT "run_routine_schedule_labels_labelledId_fkey" FOREIGN KEY ("labelledId") REFERENCES "run_routine_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "schedule_labels" ADD CONSTRAINT "schedule_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "run_routine_schedule_labels" ADD CONSTRAINT "run_routine_schedule_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "schedule_translation" ADD CONSTRAINT "schedule_translation_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "run_routine_schedule_translation" ADD CONSTRAINT "run_routine_schedule_translation_runRoutineScheduleId_fkey" FOREIGN KEY ("runRoutineScheduleId") REFERENCES "run_routine_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "schedule_recurrence" ADD CONSTRAINT "schedule_recurrence_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "schedule_exception" ADD CONSTRAINT "schedule_exception_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "smart_contract" ADD CONSTRAINT "smart_contract_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -3355,57 +3405,6 @@ ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelledId_fkey" F
 ALTER TABLE "standard_labels" ADD CONSTRAINT "standard_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_listId_fkey" FOREIGN KEY ("listId") REFERENCES "bookmark_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark_list" ADD CONSTRAINT "bookmark_list_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "stats_api" ADD CONSTRAINT "stats_api_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3476,27 +3475,6 @@ ALTER TABLE "user_translation" ADD CONSTRAINT "user_translation_userId_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "user_language" ADD CONSTRAINT "user_language_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_schedule" ADD CONSTRAINT "user_schedule_reminderListId_fkey" FOREIGN KEY ("reminderListId") REFERENCES "reminder_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_schedule" ADD CONSTRAINT "user_schedule_resourceListId_fkey" FOREIGN KEY ("resourceListId") REFERENCES "resource_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_schedule" ADD CONSTRAINT "user_schedule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_schedule_labels" ADD CONSTRAINT "user_schedule_labels_labelledId_fkey" FOREIGN KEY ("labelledId") REFERENCES "user_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_schedule_labels" ADD CONSTRAINT "user_schedule_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_schedule_filter" ADD CONSTRAINT "user_schedule_filter_userScheduleId_fkey" FOREIGN KEY ("userScheduleId") REFERENCES "user_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_schedule_filter" ADD CONSTRAINT "user_schedule_filter_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "view" ADD CONSTRAINT "view_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;

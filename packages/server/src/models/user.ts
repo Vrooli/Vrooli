@@ -1,15 +1,14 @@
-import { BookmarkModel } from "./bookmark";
-import { ViewModel } from "./view";
-import { MaxObjects, UserSortBy, UserYou } from "@shared/consts";
-import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
+import { MaxObjects, ProfileUpdateInput, User, UserSearchInput, UserSortBy, UserYou } from "@shared/consts";
 import { userValidation } from "@shared/validation";
-import { SelectWrap } from "../builders/types";
-import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions, translationShapeHelper } from "../utils";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { defaultPermissions, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { ModelLogic } from "./types";
+import { ViewModel } from "./view";
 
 const __typename = 'User' as const;
 type Permissions = Pick<UserYou, 'canDelete' | 'canUpdate' | 'canReport'>
@@ -40,6 +39,7 @@ export const UserModel: ModelLogic<{
             __typename,
             comments: 'Comment',
             emails: 'Email',
+            focusModes: 'FocusMode',
             labels: 'Label',
             // phones: 'Phone',
             projects: 'Project',
@@ -48,7 +48,6 @@ export const UserModel: ModelLogic<{
             reportsCreated: 'Report',
             reportsReceived: 'Report',
             routines: 'Routine',
-            schedules: 'UserSchedule',
         },
         prismaRelMap: {
             __typename,
@@ -59,6 +58,7 @@ export const UserModel: ModelLogic<{
             organizationsCreated: 'Organization',
             phones: 'Phone',
             posts: 'Post',
+            focusModes: 'FocusMode',
             invitedByUser: 'User',
             invitedUsers: 'User',
             issuesCreated: 'Issue',
@@ -83,7 +83,6 @@ export const UserModel: ModelLogic<{
             routines: 'Routine',
             runProjects: 'RunProject',
             runRoutines: 'RunRoutine',
-            schedules: 'UserSchedule',
             smartContractsCreated: 'SmartContract',
             smartContracts: 'SmartContract',
             standardsCreated: 'Standard',
@@ -144,7 +143,7 @@ export const UserModel: ModelLogic<{
                 isPrivateVotes: noNull(data.isPrivateVotes),
                 notificationSettings: data.notificationSettings ?? null,
                 // languages: TODO!!!
-                ...(await shapeHelper({ relation: 'schedules', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'user', data, ...rest })),
+                ...(await shapeHelper({ relation: 'focusModes', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'FocusMode', parentRelationshipName: 'user', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
             }),
         },

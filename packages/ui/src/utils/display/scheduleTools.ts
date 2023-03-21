@@ -1,20 +1,18 @@
-import { Session, UserSchedule } from "@shared/consts";
+import { FocusMode, Session } from "@shared/consts";
 import { getCurrentUser } from "utils/authentication/session";
 
 /**
- * Finds all schedules which are occuring right now
+ * Finds all focus modes which are occuring right now
  * @param session Current session data
- * @returns Schedules occuring right now
+ * @returns Focus modes occuring right now
  */
-export const currentSchedules = (session: Session | null | undefined): UserSchedule[] => {
+export const currentFocusMode = (session: Session | null | undefined): FocusMode[] => {
     if (!session) return [];
     // Find current user
     const user = getCurrentUser(session);
     if (!user) return [];
-    // Find schedules occuring right now. More explicitly, schedules which:
-    // - Event start is in the past, and event end is in the future, 
-    // - OR recurring start is in the past, and recurring end is in the future
-    return user.schedules?.filter((s) => {
+    // Find focus modes occuring right now
+    return user.focusModes?.filter((s) => {
         const now = new Date();
         return (
             (s.eventStart <= now && s.eventEnd >= now) ||

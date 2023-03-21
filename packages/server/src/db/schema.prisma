@@ -128,6 +128,57 @@ model api_key {
     user                   user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model bookmark {
+    id               String           @id @default(uuid()) @db.Uuid
+    created_at       DateTime         @default(now()) @db.Timestamptz(6)
+    updated_at       DateTime         @default(now()) @db.Timestamptz(6)
+    listId           String?          @db.Uuid
+    apiId            String?          @db.Uuid
+    commentId        String?          @db.Uuid
+    issueId          String?          @db.Uuid
+    noteId           String?          @db.Uuid
+    organizationId   String?          @db.Uuid
+    postId           String?          @db.Uuid
+    projectId        String?          @db.Uuid
+    questionId       String?          @db.Uuid
+    questionAnswerId String?          @db.Uuid
+    quizId           String?          @db.Uuid
+    routineId        String?          @db.Uuid
+    smartContractId  String?          @db.Uuid
+    standardId       String?          @db.Uuid
+    tagId            String?          @db.Uuid
+    userId           String?          @db.Uuid
+    list             bookmark_list?   @relation("bookmark_list", fields: [listId], references: [id], onDelete: Cascade)
+    api              api?             @relation("bookmark_api", fields: [apiId], references: [id], onDelete: Cascade)
+    comment          comment?         @relation("bookmark_comment", fields: [commentId], references: [id], onDelete: Cascade)
+    issue            issue?           @relation("bookmark_issue", fields: [issueId], references: [id], onDelete: Cascade)
+    note             note?            @relation("bookmark_note", fields: [noteId], references: [id], onDelete: Cascade)
+    organization     organization?    @relation("bookmark_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    post             post?            @relation("bookmark_post", fields: [postId], references: [id], onDelete: Cascade)
+    project          project?         @relation("bookmark_project", fields: [projectId], references: [id], onDelete: Cascade)
+    question         question?        @relation("bookmark_question", fields: [questionId], references: [id], onDelete: Cascade)
+    questionAnswer   question_answer? @relation("bookmark_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)
+    quiz             quiz?            @relation("bookmark_quiz", fields: [quizId], references: [id], onDelete: Cascade)
+    routine          routine?         @relation("bookmark_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract    smart_contract?  @relation("bookmark_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard         standard?        @relation("bookmark_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    tag              tag?             @relation("bookmark_tag", fields: [tagId], references: [id], onDelete: Cascade)
+    user             user?            @relation("bookmark_user", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model bookmark_list {
+    id         String     @id @default(uuid()) @db.Uuid
+    created_at DateTime   @default(now()) @db.Timestamptz(6)
+    updated_at DateTime   @default(now()) @db.Timestamptz(6)
+    index      Int
+    label      String     @db.VarChar(128)
+    userId     String     @db.Uuid
+    bookmarks  bookmark[] @relation("bookmark_list")
+    user       user       @relation("bookmark_list_user", fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([label], name: "bookmark_list_label_unique")
+}
+
 model comment {
     id                     String                      @id @default(uuid()) @db.Uuid
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
@@ -193,6 +244,45 @@ model email {
     userId                             String?       @db.Uuid
     organization                       organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     user                               user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model focus_mode {
+    id             String              @id @default(uuid()) @db.Uuid
+    created_at     DateTime            @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime            @default(now()) @db.Timestamptz(6)
+    name           String              @db.VarChar(128)
+    description    String?             @db.VarChar(2048)
+    reminderListId String?             @unique @db.Uuid
+    resourceListId String?             @unique @db.Uuid
+    scheduleId     String?             @db.Uuid
+    userId         String              @db.Uuid
+    reminderList   reminder_list?      @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
+    resourceList   resource_list?      @relation("resource_list_focus_mode", fields: [resourceListId], references: [id], onDelete: SetNull)
+    schedule       schedule?           @relation("focus_mode_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    user           user                @relation(fields: [userId], references: [id], onDelete: Cascade)
+    labels         focus_mode_labels[]
+    filters        focus_mode_filter[]
+}
+
+model focus_mode_labels {
+    id         String     @id @default(uuid()) @db.Uuid
+    labelledId String     @db.Uuid
+    labelId    String     @db.Uuid
+    labelled   focus_mode @relation(fields: [labelledId], references: [id], onDelete: Cascade)
+    label      label      @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+    @@unique([labelledId, labelId], name: "focus_mode_labels_labelledid_labelid_unique")
+}
+
+model focus_mode_filter {
+    id          String              @id @default(uuid()) @db.Uuid
+    filterType  FocusModeFilterType
+    focusModeId String              @db.Uuid
+    tagId       String              @db.Uuid
+    focusMode   focus_mode          @relation(fields: [focusModeId], references: [id], onDelete: Cascade)
+    tag         tag                 @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([focusModeId, tagId], name: "focus_mode_filter_focusModeId_tagid_unique")
 }
 
 model handle {
@@ -263,26 +353,25 @@ model issue_translation {
 }
 
 model label {
-    id                    String                        @id @default(uuid()) @db.Uuid
-    created_at            DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime                      @default(now()) @db.Timestamptz(6)
-    label                 String                        @unique @db.VarChar(128)
-    color                 String?                       @db.VarChar(7)
-    ownedByUserId         String?                       @db.Uuid
-    ownedByOrganizationId String?                       @db.Uuid
+    id                    String                  @id @default(uuid()) @db.Uuid
+    created_at            DateTime                @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+    label                 String                  @unique @db.VarChar(128)
+    color                 String?                 @db.VarChar(7)
+    ownedByUserId         String?                 @db.Uuid
+    ownedByOrganizationId String?                 @db.Uuid
     apis                  api_labels[]
     issues                issue_labels[]
     meetings              meeting_labels[]
     notes                 note_labels[]
     projects              project_labels[]
     routines              routine_labels[]
-    runProjectSchedules   run_project_schedule_labels[]
-    runRoutineSchedules   run_routine_schedule_labels[]
+    schedules             schedule_labels[]
     smartContracts        smart_contract_labels[]
     standards             standard_labels[]
-    userSchedules         user_schedule_labels[]
-    ownedByUser           user?                         @relation(fields: [ownedByUserId], references: [id], onDelete: Cascade)
-    ownedByOrganization   organization?                 @relation(fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
+    focusModes            focus_mode_labels[]
+    ownedByUser           user?                   @relation(fields: [ownedByUserId], references: [id], onDelete: Cascade)
+    ownedByOrganization   organization?           @relation(fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
     translations          label_translation[]
 
     @@unique([label, ownedByUserId, ownedByOrganizationId])
@@ -658,14 +747,9 @@ model meeting {
     created_at                DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
     inviteId                  String?                     @db.Uuid
+    scheduleId                String?                     @db.Uuid
     openToAnyoneWithInvite    Boolean                     @default(false)
     showOnOrganizationProfile Boolean                     @default(false)
-    timeZone                  String?                     @db.VarChar(128)
-    eventStart                DateTime?                   @db.Timestamptz(6)
-    eventEnd                  DateTime?                   @db.Timestamptz(6)
-    recurring                 Boolean                     @default(false)
-    recurrStart               DateTime?                   @db.Timestamptz(6)
-    recurrEnd                 DateTime?                   @db.Timestamptz(6)
     organizationId            String                      @db.Uuid
     organization              organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     restrictedToRoles         meeting_roles[]
@@ -673,6 +757,7 @@ model meeting {
     invites                   meeting_invite[]
     labels                    meeting_labels[]
     translations              meeting_translation[]
+    schedule                  schedule?                   @relation("meeting_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
     subscriptions             notification_subscription[]
 }
 
@@ -1242,11 +1327,11 @@ model quiz_question_translation {
 }
 
 model reminder_list {
-    id           String         @id @default(uuid()) @db.Uuid
-    created_at   DateTime       @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime       @default(now()) @db.Timestamptz(6)
-    userSchedule user_schedule?
-    reminders    reminder[]
+    id         String      @id @default(uuid()) @db.Uuid
+    created_at DateTime    @default(now()) @db.Timestamptz(6)
+    updated_at DateTime    @default(now()) @db.Timestamptz(6)
+    focusMode  focus_mode?
+    reminders  reminder[]
 }
 
 model reminder {
@@ -1374,7 +1459,7 @@ model resource_list {
     routineVersion       routine_version?            @relation("resource_list_routine_version")
     smartContractVersion smart_contract_version?     @relation("resource_list_smart_contract_version")
     standardVersion      standard_version?           @relation("resource_list_standard_version")
-    userSchedule         user_schedule?              @relation("resource_list_user_schedule")
+    focusMode            focus_mode?                 @relation("resource_list_focus_mode")
     resources            resource[]
     translations         resource_list_translation[]
 }
@@ -1591,27 +1676,27 @@ model routine_labels {
 }
 
 model run_project {
-    id                  String                @id @default(uuid()) @db.Uuid
-    created_at          DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
-    completedComplexity Int                   @default(0)
-    contextSwitches     Int                   @default(0)
-    isPrivate           Boolean               @default(false)
-    scheduleId          String?               @db.Uuid
-    startedAt           DateTime?             @db.Timestamptz(6)
+    id                  String             @id @default(uuid()) @db.Uuid
+    created_at          DateTime           @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime           @default(now()) @db.Timestamptz(6)
+    completedComplexity Int                @default(0)
+    contextSwitches     Int                @default(0)
+    isPrivate           Boolean            @default(false)
+    scheduleId          String?            @db.Uuid
+    startedAt           DateTime?          @db.Timestamptz(6)
     timeElapsed         Int?
-    completedAt         DateTime?             @db.Timestamptz(6)
-    name                String                @db.VarChar(128)
-    status              RunStatus             @default(Scheduled)
-    projectVersionId    String?               @db.Uuid
-    userId              String?               @db.Uuid
-    organizationId      String?               @db.Uuid
-    projectVersion      project_version?      @relation("run_project_version", fields: [projectVersionId], references: [id])
-    runProjectSchedule  run_project_schedule?
-    user                user?                 @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
-    organization        organization?         @relation("run_project_organization", fields: [organizationId], references: [id], onDelete: Cascade)
-    steps               run_project_step[]    @relation("run_project_step_run")
-    runRoutines         run_routine[]         @relation("run_routine_run_project")
+    completedAt         DateTime?          @db.Timestamptz(6)
+    name                String             @db.VarChar(128)
+    status              RunStatus          @default(Scheduled)
+    projectVersionId    String?            @db.Uuid
+    userId              String?            @db.Uuid
+    organizationId      String?            @db.Uuid
+    projectVersion      project_version?   @relation("run_project_version", fields: [projectVersionId], references: [id])
+    schedule            schedule?          @relation("run_project_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    user                user?              @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization        organization?      @relation("run_project_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    steps               run_project_step[] @relation("run_project_step_run")
+    runRoutines         run_routine[]      @relation("run_routine_run_project")
 }
 
 model run_project_step {
@@ -1630,67 +1715,31 @@ model run_project_step {
     runProject      run_project                @relation("run_project_step_run", fields: [runProjectId], references: [id], onDelete: Cascade)
 }
 
-model run_project_schedule {
-    id           String                             @id @default(uuid()) @db.Uuid
-    created_at   DateTime                           @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime                           @default(now()) @db.Timestamptz(6)
-    timeZone     String?                            @db.VarChar(128)
-    windowStart  DateTime?                          @db.Timestamptz(6)
-    windowEnd    DateTime?                          @db.Timestamptz(6)
-    recurring    Boolean                            @default(false)
-    recurrStart  DateTime?                          @db.Timestamptz(6)
-    recurrEnd    DateTime?                          @db.Timestamptz(6)
-    runProject   run_project                        @relation(fields: [id], references: [id], onDelete: Cascade)
-    labels       run_project_schedule_labels[]
-    translations run_project_schedule_translation[]
-}
-
-model run_project_schedule_labels {
-    id         String               @id @default(uuid()) @db.Uuid
-    labelledId String               @db.Uuid
-    labelId    String               @db.Uuid
-    labelled   run_project_schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label                @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "run_project_schedule_labels_labelledid_labelid_unique")
-}
-
-model run_project_schedule_translation {
-    id                   String               @id @default(uuid()) @db.Uuid
-    description          String?              @db.VarChar(2048)
-    name                 String               @db.VarChar(128)
-    language             String               @db.VarChar(3)
-    runProjectScheduleId String               @db.Uuid
-    runProjectSchedule   run_project_schedule @relation(fields: [runProjectScheduleId], references: [id], onDelete: Cascade)
-
-    @@unique([runProjectScheduleId, language])
-}
-
 model run_routine {
-    id                  String                @id @default(uuid()) @db.Uuid
-    created_at          DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
-    completedComplexity Int                   @default(0)
-    contextSwitches     Int                   @default(0)
-    isPrivate           Boolean               @default(false)
-    scheduleId          String?               @db.Uuid
-    wasRunAutomatically Boolean               @default(false)
-    startedAt           DateTime?             @db.Timestamptz(6)
+    id                  String              @id @default(uuid()) @db.Uuid
+    created_at          DateTime            @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime            @default(now()) @db.Timestamptz(6)
+    completedComplexity Int                 @default(0)
+    contextSwitches     Int                 @default(0)
+    isPrivate           Boolean             @default(false)
+    scheduleId          String?             @db.Uuid
+    wasRunAutomatically Boolean             @default(false)
+    startedAt           DateTime?           @db.Timestamptz(6)
     timeElapsed         Int?
-    completedAt         DateTime?             @db.Timestamptz(6)
-    name                String                @db.VarChar(128)
-    status              RunStatus             @default(Scheduled)
-    routineVersionId    String?               @db.Uuid
-    userId              String?               @db.Uuid
-    organizationId      String?               @db.Uuid
-    runProjectId        String?               @db.Uuid
-    routineVersion      routine_version?      @relation("run_routine_version", fields: [routineVersionId], references: [id])
-    runRoutineSchedule  run_routine_schedule?
-    runProject          run_project?          @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
-    user                user?                 @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
-    organization        organization?         @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
-    steps               run_routine_step[]    @relation("run_routine_step_run")
-    inputs              run_routine_input[]   @relation("run_routine_input_run")
+    completedAt         DateTime?           @db.Timestamptz(6)
+    name                String              @db.VarChar(128)
+    status              RunStatus           @default(Scheduled)
+    routineVersionId    String?             @db.Uuid
+    userId              String?             @db.Uuid
+    organizationId      String?             @db.Uuid
+    runProjectId        String?             @db.Uuid
+    routineVersion      routine_version?    @relation("run_routine_version", fields: [routineVersionId], references: [id])
+    schedule            schedule?           @relation("run_routine_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    runProject          run_project?        @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
+    user                user?               @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization        organization?       @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
+    steps               run_routine_step[]  @relation("run_routine_step_run")
+    inputs              run_routine_input[] @relation("run_routine_input_run")
 }
 
 model run_routine_input {
@@ -1722,42 +1771,63 @@ model run_routine_step {
     subroutine          routine_version? @relation("run_routine_step_subroutine", fields: [subroutineVersionId], references: [id])
 }
 
-model run_routine_schedule {
-    id                   String                             @id @default(uuid()) @db.Uuid
-    created_at           DateTime                           @default(now()) @db.Timestamptz(6)
-    updated_at           DateTime                           @default(now()) @db.Timestamptz(6)
-    attemptAutomatic     Boolean                            @default(true)
-    maxAutomaticAttempts Int                                @default(2)
-    timeZone             String?                            @db.VarChar(128)
-    windowStart          DateTime?                          @db.Timestamptz(6)
-    windowEnd            DateTime?                          @db.Timestamptz(6)
-    recurring            Boolean                            @default(false)
-    recurrStart          DateTime?                          @db.Timestamptz(6)
-    recurrEnd            DateTime?                          @db.Timestamptz(6)
-    runRoutine           run_routine                        @relation(fields: [id], references: [id], onDelete: Cascade)
-    labels               run_routine_schedule_labels[]
-    translations         run_routine_schedule_translation[]
+model schedule {
+    id           String                 @id @default(uuid()) @db.Uuid
+    created_at   DateTime               @default(now()) @db.Timestamptz(6)
+    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
+    startTime    DateTime
+    endTime      DateTime
+    timezone     String
+    exceptions   schedule_exception[]
+    labels       schedule_labels[]
+    recurrences  schedule_recurrence[]
+    translations schedule_translation[]
+    runProjects  run_project[]          @relation("run_project_schedule")
+    runRoutines  run_routine[]          @relation("run_routine_schedule")
+    focusModes   focus_mode[]           @relation("focus_mode_schedule")
+    meetings     meeting[]              @relation("meeting_schedule")
 }
 
-model run_routine_schedule_labels {
-    id         String               @id @default(uuid()) @db.Uuid
-    labelledId String               @db.Uuid
-    labelId    String               @db.Uuid
-    labelled   run_routine_schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label                @relation(fields: [labelId], references: [id], onDelete: Cascade)
+model schedule_labels {
+    id         String   @id @default(uuid()) @db.Uuid
+    labelledId String   @db.Uuid
+    labelId    String   @db.Uuid
+    labelled   schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
+    label      label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
-    @@unique([labelledId, labelId], name: "run_routine_schedule_labels_labelledid_labelid_unique")
+    @@unique([labelledId, labelId], name: "schedule_labels_labelledid_labelid_unique")
 }
 
-model run_routine_schedule_translation {
-    id                   String               @id @default(uuid()) @db.Uuid
-    description          String?              @db.VarChar(2048)
-    name                 String               @db.VarChar(128)
-    language             String               @db.VarChar(3)
-    runRoutineScheduleId String               @db.Uuid
-    runRoutineSchedule   run_routine_schedule @relation(fields: [runRoutineScheduleId], references: [id], onDelete: Cascade)
+model schedule_translation {
+    id          String   @id @default(uuid()) @db.Uuid
+    description String?  @db.VarChar(2048)
+    name        String   @db.VarChar(128)
+    language    String   @db.VarChar(3)
+    scheduleId  String   @db.Uuid
+    schedule    schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
-    @@unique([runRoutineScheduleId, language])
+    @@unique([scheduleId, language])
+}
+
+model schedule_exception {
+    id                String    @id @default(uuid()) @db.Uuid
+    scheduleId        String    @db.Uuid
+    schedule          schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    originalStartTime DateTime
+    newStartTime      DateTime?
+    newEndTime        DateTime?
+}
+
+model schedule_recurrence {
+    id             String                 @id @default(uuid()) @db.Uuid
+    scheduleId     String                 @db.Uuid
+    schedule       schedule               @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    recurrenceType ScheduleRecurrenceType
+    interval       Int                    @default(1)
+    dayOfWeek      Int?
+    dayOfMonth     Int?
+    month          Int?
+    endDate        DateTime?
 }
 
 model smart_contract {
@@ -1963,57 +2033,6 @@ model standard_labels {
     @@unique([labelledId, labelId], name: "standard_labels_labelledid_labelid_unique")
 }
 
-model bookmark {
-    id               String           @id @default(uuid()) @db.Uuid
-    created_at       DateTime         @default(now()) @db.Timestamptz(6)
-    updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    listId           String?          @db.Uuid
-    apiId            String?          @db.Uuid
-    commentId        String?          @db.Uuid
-    issueId          String?          @db.Uuid
-    noteId           String?          @db.Uuid
-    organizationId   String?          @db.Uuid
-    postId           String?          @db.Uuid
-    projectId        String?          @db.Uuid
-    questionId       String?          @db.Uuid
-    questionAnswerId String?          @db.Uuid
-    quizId           String?          @db.Uuid
-    routineId        String?          @db.Uuid
-    smartContractId  String?          @db.Uuid
-    standardId       String?          @db.Uuid
-    tagId            String?          @db.Uuid
-    userId           String?          @db.Uuid
-    list             bookmark_list?   @relation("bookmark_list", fields: [listId], references: [id], onDelete: Cascade)
-    api              api?             @relation("bookmark_api", fields: [apiId], references: [id], onDelete: Cascade)
-    comment          comment?         @relation("bookmark_comment", fields: [commentId], references: [id], onDelete: Cascade)
-    issue            issue?           @relation("bookmark_issue", fields: [issueId], references: [id], onDelete: Cascade)
-    note             note?            @relation("bookmark_note", fields: [noteId], references: [id], onDelete: Cascade)
-    organization     organization?    @relation("bookmark_organization", fields: [organizationId], references: [id], onDelete: Cascade)
-    post             post?            @relation("bookmark_post", fields: [postId], references: [id], onDelete: Cascade)
-    project          project?         @relation("bookmark_project", fields: [projectId], references: [id], onDelete: Cascade)
-    question         question?        @relation("bookmark_question", fields: [questionId], references: [id], onDelete: Cascade)
-    questionAnswer   question_answer? @relation("bookmark_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)
-    quiz             quiz?            @relation("bookmark_quiz", fields: [quizId], references: [id], onDelete: Cascade)
-    routine          routine?         @relation("bookmark_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract    smart_contract?  @relation("bookmark_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard         standard?        @relation("bookmark_standard", fields: [standardId], references: [id], onDelete: Cascade)
-    tag              tag?             @relation("bookmark_tag", fields: [tagId], references: [id], onDelete: Cascade)
-    user             user?            @relation("bookmark_user", fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model bookmark_list {
-    id         String     @id @default(uuid()) @db.Uuid
-    created_at DateTime   @default(now()) @db.Timestamptz(6)
-    updated_at DateTime   @default(now()) @db.Timestamptz(6)
-    index      Int
-    label      String     @db.VarChar(128)
-    userId     String     @db.Uuid
-    bookmarks  bookmark[] @relation("bookmark_list")
-    user       user       @relation("bookmark_list_user", fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([label], name: "bookmark_list_label_unique")
-}
-
 model stats_site {
     id                                 String     @id @default(uuid()) @db.Uuid
     periodStart                        DateTime   @db.Timestamptz(6)
@@ -2187,26 +2206,26 @@ model stats_user {
 }
 
 model tag {
-    id              String                 @id @default(uuid()) @db.Uuid
-    created_at      DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime               @default(now()) @db.Timestamptz(6)
-    tag             String                 @unique @db.VarChar(128)
-    bookmarks       Int                    @default(0)
-    createdById     String?                @db.Uuid
-    createdBy       user?                  @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    apis            api_tags[]
-    notes           note_tags[]
-    organizations   organization_tags[]
-    posts           post_tags[]
-    projects        project_tags[]
-    questions       question_tags[]
-    reports         report[]
-    routines        routine_tags[]
-    smartContracts  smart_contract_tags[]
-    standards       standard_tags[]
-    bookmarkedBy    bookmark[]             @relation("bookmark_tag")
-    translations    tag_translation[]
-    scheduleFilters user_schedule_filter[]
+    id               String                @id @default(uuid()) @db.Uuid
+    created_at       DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at       DateTime              @default(now()) @db.Timestamptz(6)
+    tag              String                @unique @db.VarChar(128)
+    bookmarks        Int                   @default(0)
+    createdById      String?               @db.Uuid
+    createdBy        user?                 @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    apis             api_tags[]
+    notes            note_tags[]
+    organizations    organization_tags[]
+    posts            post_tags[]
+    projects         project_tags[]
+    questions        question_tags[]
+    reports          report[]
+    routines         routine_tags[]
+    smartContracts   smart_contract_tags[]
+    standards        standard_tags[]
+    bookmarkedBy     bookmark[]            @relation("bookmark_tag")
+    translations     tag_translation[]
+    focusModeFilters focus_mode_filter[]
 }
 
 model tag_translation {
@@ -2337,7 +2356,7 @@ model user {
     routines                       routine[]                   @relation("routine_ownedByUser")
     runProjects                    run_project[]               @relation("run_project_user")
     runRoutines                    run_routine[]               @relation("run_routine_user")
-    schedules                      user_schedule[]
+    focusModes                     focus_mode[]
     smartContractsCreated          smart_contract[]            @relation("smart_contract_createdBy")
     smartContracts                 smart_contract[]            @relation("smart_contract_ownedByUser")
     standardsCreated               standard[]                  @relation("standard_createdBy")
@@ -2374,49 +2393,6 @@ model user_language {
     user     user   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, language])
-}
-
-model user_schedule {
-    id             String                 @id @default(uuid()) @db.Uuid
-    created_at     DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime               @default(now()) @db.Timestamptz(6)
-    name           String                 @db.VarChar(128)
-    description    String?                @db.VarChar(2048)
-    timeZone       String?                @db.VarChar(128)
-    eventStart     DateTime?              @db.Timestamptz(6)
-    eventEnd       DateTime?              @db.Timestamptz(6)
-    recurring      Boolean                @default(false)
-    recurrStart    DateTime?              @db.Timestamptz(6)
-    recurrEnd      DateTime?              @db.Timestamptz(6)
-    reminderListId String?                @unique @db.Uuid
-    resourceListId String?                @unique @db.Uuid
-    userId         String                 @db.Uuid
-    reminderList   reminder_list?         @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
-    resourceList   resource_list?         @relation("resource_list_user_schedule", fields: [resourceListId], references: [id], onDelete: SetNull)
-    user           user                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-    labels         user_schedule_labels[]
-    filters        user_schedule_filter[]
-}
-
-model user_schedule_labels {
-    id         String        @id @default(uuid()) @db.Uuid
-    labelledId String        @db.Uuid
-    labelId    String        @db.Uuid
-    labelled   user_schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label         @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "user_schedule_labels_labelledid_labelid_unique")
-}
-
-model user_schedule_filter {
-    id             String                 @id @default(uuid()) @db.Uuid
-    filterType     UserScheduleFilterType
-    userScheduleId String                 @db.Uuid
-    tagId          String                 @db.Uuid
-    userSchedule   user_schedule          @relation(fields: [userScheduleId], references: [id], onDelete: Cascade)
-    tag            tag                    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-    @@unique([userScheduleId, tagId], name: "user_schedule_filter_userScheduleId_tagid_unique")
 }
 
 model view {
@@ -2538,6 +2514,12 @@ enum AwardCategory {
     UserInvite
 }
 
+enum FocusModeFilterType {
+    Blur
+    Hide
+    ShowMore
+}
+
 enum IssueStatus {
     Open
     ClosedResolved
@@ -2641,14 +2623,15 @@ enum RunStepStatus {
     Skipped
 }
 
+enum ScheduleRecurrenceType {
+    Daily
+    Weekly
+    Monthly
+    Yearly
+}
+
 enum TransferStatus {
     Accepted
     Denied
     Pending
-}
-
-enum UserScheduleFilterType {
-    Blur
-    Hide
-    ShowMore
 }

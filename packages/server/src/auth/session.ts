@@ -26,52 +26,13 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             name: true,
             theme: true,
             premium: { select: { id: true, expiresAt: true } },
-            schedules: {
+            focusModes: {
                 // Schedules have an event start/end and recurring start/end.
                 // Select all schedules which are occuring now or in the near future (7 days)
-                where: {
-                    OR: [
-                        // Event start is in the past (or in the near future), and event end is in the future
-                        { eventStart: { lte: new Date(in7Days).toISOString() }, eventEnd: { gte: new Date().toISOString() } },
-                        // Recurring start is in the past (or in the near future), and recurring end is in the future
-                        { recurring: true, recurrStart: { lte: new Date(in7Days).toISOString() }, recurrEnd: { gte: new Date().toISOString() } },
-                    ]
-                },
+                where: {}, //TODO
                 select: {
                     id: true,
-                    name: true,
-                    description: true,
-                    timeZone: true,
-                    eventStart: true,
-                    eventEnd: true,
-                    recurring: true,
-                    recurrStart: true,
-                    recurrEnd: true,
-                    filters: {
-                        select: {
-                            id: true,
-                            filterType: true,
-                            tag: {
-                                select: {
-                                    id: true,
-                                    tag: true,
-                                }
-                            }
-                        }
-                    },
-                    resourceList: {
-                        select: {
-                            id: true,
-                            // TODO
-                        }
-                    },
-                    reminderList: { 
-                        select: {
-                            id: true,
-                            // TODO
-                        }
-                    }
-                }
+                } //TODO
             }
         }
     })
@@ -83,12 +44,12 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     // Return shaped SessionUser object
     return {
         __typename: 'SessionUser' as const,
+        focusModes: [] as any[], //TODO
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,
         languages,
         name: userData.name,
-        schedules: userData.schedules as any[], //TODO
         theme: userData.theme,
     }
 }

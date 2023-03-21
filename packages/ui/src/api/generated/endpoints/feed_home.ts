@@ -23,20 +23,17 @@ ${User_nav}
 
 query home($input: HomeInput!) {
   home(input: $input) {
-    meetings {
-        ...Meeting_list
-    }
     notes {
         ...Note_list
     }
     reminders {
         ...Reminder_full
     }
+    schedules {
+        ...RunProjectSchedule_list
+    }
     resources {
         ...Resource_list
-    }
-    runProjectSchedules {
-        ...RunProjectSchedule_list
     }
     runRoutineSchedules {
         ...RunRoutineSchedule_list

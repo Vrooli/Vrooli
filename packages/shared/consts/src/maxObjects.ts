@@ -90,6 +90,23 @@ export const MaxObjects = {
             public: 1,
         },
     },
+    FocusMode: {
+        User: {
+            noPremium: 2,
+            premium: 15,
+        },
+        Organization: 0,
+    },
+    FocusModeFilter: {
+        User: {
+            private: {
+                noPremium: 25,
+                premium: 100,
+            },
+            public: 0,
+        },
+        Organization: 0,
+    },
     Issue: {
         User: {
             private: 0,
@@ -304,23 +321,6 @@ export const MaxObjects = {
         Organization: 5000,
     },
     User: 0,
-    UserSchedule: {
-        User: {
-            noPremium: 2,
-            premium: 15,
-        },
-        Organization: 0,
-    },
-    UserScheduleFilter: {
-        User: {
-            private: {
-                noPremium: 25,
-                premium: 100,
-            },
-            public: 0,
-        },
-        Organization: 0,
-    },
     Wallet: {
         User: {
             private: 5,

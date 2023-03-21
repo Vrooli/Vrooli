@@ -5,14 +5,14 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type ReminderListShape = Pick<ReminderList, 'id'> & {
     __typename?: 'ReminderList';
-    userSchedule?: { id: string } | null,
+    focusMode?: { id: string } | null,
     reminders?: ReminderShape[] | null,
 }
 
 export const shapeReminderList: ShapeModel<ReminderListShape, ReminderListCreateInput, ReminderListUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, 'id'),
-        ...createRel(d, 'userSchedule', ['Connect'], 'one'),
+        ...createRel(d, 'focusMode', ['Connect'], 'one'),
         ...createRel(d, 'reminders', ['Create'], 'many', shapeReminder, (r) => ({ ...r, reminderList: { id: d.id } })),
     }),
     update: (o, u, a) => shapeUpdate(u, {

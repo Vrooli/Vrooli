@@ -1,5 +1,5 @@
 import { Box, Grid, Stack, Typography, useTheme } from "@mui/material";
-import { LINKS, ProfileUpdateInput, User, UserScheduleFilterType } from '@shared/consts';
+import { FocusModeFilterType, LINKS, ProfileUpdateInput, User } from '@shared/consts';
 import { HeartFilledIcon, InvisibleIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
 import { userValidation } from "@shared/validation";
@@ -12,13 +12,13 @@ import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { t } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { currentSchedules } from "utils/display/scheduleTools";
+import { currentFocusMode } from "utils/display/scheduleTools";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { FocusModeFilterShape } from "utils/shape/models/focusModeFilter";
 import { TagShape } from "utils/shape/models/tag";
-import { UserScheduleFilterShape } from "utils/shape/models/userScheduleFilter";
 import { SettingsSchedulesViewProps } from "../types";
 
 const interestsHelpText =
@@ -27,7 +27,7 @@ const interestsHelpText =
 const hiddenHelpText =
     `Specify tags which should be hidden from your feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`
 
-export const SettingsSchedulesView = ({
+export const SettingsFocusModesView = ({
     display = 'page',
 }: SettingsSchedulesViewProps) => {
     const session = useContext(SessionContext);
@@ -70,8 +70,8 @@ export const SettingsSchedulesView = ({
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     // Handle filters
-    const [filters, setFilters] = useState<UserScheduleFilterShape[]>([]);
-    const handleFiltersUpdate = useCallback((updatedList: UserScheduleFilterShape[], filterType: UserScheduleFilterType) => {
+    const [filters, setFilters] = useState<FocusModeFilterShape[]>([]);
+    const handleFiltersUpdate = useCallback((updatedList: FocusModeFilterShape[], filterType: FocusModeFilterType) => {
         // Hidden tags are wrapped in a shape that includes an isBlur flag. 
         // Because of this, we must loop through the updatedList to see which tags have been added or removed.
         // const updatedFilters = updatedList.map((tag) => {
@@ -89,11 +89,11 @@ export const SettingsSchedulesView = ({
         const hides: TagShape[] = [];
         const showMores: TagShape[] = [];
         filters.forEach((filter) => {
-            if (filter.filterType === UserScheduleFilterType.Blur) {
+            if (filter.filterType === FocusModeFilterType.Blur) {
                 blurs.push(filter.tag);
-            } else if (filter.filterType === UserScheduleFilterType.Hide) {
+            } else if (filter.filterType === FocusModeFilterType.Hide) {
                 hides.push(filter.tag);
-            } else if (filter.filterType === UserScheduleFilterType.ShowMore) {
+            } else if (filter.filterType === FocusModeFilterType.ShowMore) {
                 showMores.push(filter.tag);
             }
         });
@@ -101,7 +101,7 @@ export const SettingsSchedulesView = ({
     }, [filters]);
 
     useEffect(() => {
-        const currSchedules = currentSchedules(session);
+        const currFocusModes = currentFocusMode(session);
         // setFilters(currSchedule?.filters ?? []);
     }, [profile, session]);
 

@@ -23,7 +23,7 @@ const {
     SettingsNotificationsView,
     SettingsProfileView,
     SettingsPrivacyView,
-    SettingsSchedulesView,
+    SettingsFocusModesView: SettingsSchedulesView,
 } = lazily(() => import('./views/settings'));
 const {
     PrivacyPolicyView,

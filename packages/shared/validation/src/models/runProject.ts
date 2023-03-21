@@ -1,7 +1,7 @@
-import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 import { RunStatus } from "@shared/consts";
+import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 import { runProjectStepValidation } from "./runProjectStep";
-import { runProjectScheduleValidation } from "./runProjectSchedule";
+import { scheduleValidation } from "./schedule";
 
 const runStatus = enumToYup(RunStatus);
 
@@ -16,9 +16,9 @@ export const runProjectValidation: YupModel = {
     }, [
         ['organization', ['Connect'], 'one', 'opt'],
         ['projectVersion', ['Connect'], 'one', 'req'],
-        ['runProjectSchedule', ['Connect', 'Create'], 'many', 'opt', runProjectScheduleValidation],
+        ['schedule', ['Create'], 'one', 'opt', scheduleValidation],
         ['steps', ['Create'], 'many', 'opt', runProjectStepValidation],
-    ], [['runProjectScheduleConnect', 'runProjectScheduleCreate']], o),
+    ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         completedComplexity: opt(intPositiveOrZero),
@@ -27,7 +27,7 @@ export const runProjectValidation: YupModel = {
         isStarted: opt(bool),
         timeElapsed: opt(intPositiveOrZero),
     }, [
-        ['runProjectSchedule', ['Connect', 'Create'], 'many', 'opt', runProjectScheduleValidation],
+        ['schedule', ['Create', 'Update'], 'one', 'opt', scheduleValidation],
         ['steps', ['Create', 'Update', 'Delete'], 'many', 'opt', runProjectStepValidation],
-    ], [['runProjectScheduleConnect', 'runProjectScheduleCreate']], o),
+    ], [], o),
 }

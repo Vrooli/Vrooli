@@ -1,10 +1,10 @@
+import { FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput, UserSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CustomError } from '../events/error';
-import { UserDeleteInput, Success, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, User, ProfileEmailUpdateInput, UserSortBy } from '@shared/consts';
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { rateLimit } from '../middleware';
-import { assertRequestFrom } from '../auth/request';
 import { readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { assertRequestFrom } from '../auth/request';
+import { CustomError } from '../events/error';
+import { rateLimit } from '../middleware';
+import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 import { parseICalFile } from '../utils';
 
 export const typeDef = gql`
@@ -89,7 +89,7 @@ export const typeDef = gql`
         routinesCreated: [Routine!]
         runProjects: [RunProject!]
         runRoutines: [RunRoutine!]
-        schedules: [UserSchedule!]
+        focusModes: [FocusMode!]
         smartContractsCreated: [SmartContract!]
         smartContracts: [SmartContract!]
         standardsCreated: [Standard!]
@@ -157,9 +157,9 @@ export const typeDef = gql`
         isPrivateVotes: Boolean
         notificationSettings: String
         languages: [String!]
-        schedulesDelete: [ID!]
-        schedulesCreate: [UserScheduleCreateInput!]
-        schedulesUpdate: [UserScheduleUpdateInput!]
+        focusModesDelete: [ID!]
+        focusModesCreate: [FocusModeCreateInput!]
+        focusModesUpdate: [FocusModeUpdateInput!]
         translationsDelete: [ID!]
         translationsCreate: [UserTranslationCreateInput!]
         translationsUpdate: [UserTranslationUpdateInput!]

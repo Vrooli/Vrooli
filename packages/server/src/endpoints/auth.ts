@@ -2,19 +2,18 @@
 // 1. Wallet login
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
-import { gql } from 'apollo-server-express';
-import { emailLogInFormValidation, emailSignUpFormValidation, emailRequestPasswordChangeSchema, password as passwordValidation } from '@shared/validation';
-import { COOKIE, GqlModelType } from "@shared/consts";
-import { CustomError } from '../events/error';
-import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
-import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
-import { GQLEndpoint, RecursivePartial } from '../types';
-import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, LogOutInput, SwitchCurrentAccountInput, ValidateSessionInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
-import { Trigger } from '../events';
+import { COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LogOutInput, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@shared/consts";
+import { emailLogInFormValidation, emailRequestPasswordChangeSchema, emailSignUpFormValidation, password as passwordValidation } from '@shared/validation';
+import { gql } from 'apollo-server-express';
 import { getUser, hashPassword, logIn, setupPasswordReset, toSession, validateCode, validateVerificationCode } from '../auth';
+import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
+import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
+import { Trigger } from '../events';
+import { CustomError } from '../events/error';
+import { rateLimit } from '../middleware';
+import { GQLEndpoint, RecursivePartial } from '../types';
+import { hasProfanity } from '../utils/censor';
 const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -81,12 +80,12 @@ export const typeDef = gql`
     }
 
     type SessionUser {
+        focusModes: [FocusMode!]!
         handle: String
         hasPremium: Boolean!
         id: String!
         languages: [String!]!
         name: String
-        schedules: [UserSchedule!]!
         theme: String
     }
 
@@ -308,10 +307,10 @@ export const resolvers: {
             }
             // Otherwise, remove the specified user from the session
             else {
-                const session = { 
+                const session = {
                     __typename: 'Session' as const,
-                    isLoggedIn: true, 
-                    users: req.users.filter(u => u.id !== input.id) 
+                    isLoggedIn: true,
+                    users: req.users.filter(u => u.id !== input.id)
                 };
                 await generateSessionJwt(res, session);
                 return session;

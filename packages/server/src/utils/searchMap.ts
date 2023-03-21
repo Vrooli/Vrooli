@@ -1,6 +1,6 @@
-import { timeFrameToPrisma, visibilityBuilder } from "../builders";
-import { GqlModelType, InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
 import { PeriodType } from "@prisma/client";
+import { GqlModelType, InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
+import { timeFrameToPrisma, visibilityBuilder } from "../builders";
 
 type Maybe<T> = InputMaybe<T> | undefined
 
@@ -64,6 +64,8 @@ export const SearchMap = {
     eventStartTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('startTime', time),
     excludeIds: (ids: Maybe<string[]>) => ({ NOT: { id: { in: ids } } }),
     excludeLinkedToTag: (exclude: Maybe<boolean>) => exclude === true ? { tagId: null } : {},
+    focusModeId: (id: Maybe<string>) => oneToOneId(id, 'focusMode'),
+    focusModesId: (id: Maybe<string>) => oneToManyId(id, 'focusModes'),
     fromId: (id: Maybe<string>) => oneToOneId(id, 'from'),
     hasAcceptedAnswer: (hasAcceptedAnswer: Maybe<boolean>) => ({ hasAcceptedAnswer }),
     hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
@@ -266,8 +268,6 @@ export const SearchMap = {
     updatedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('updated_at', time),
     userId: (id: Maybe<string>) => oneToOneId(id, 'user'),
     usersId: (id: Maybe<string>) => oneToManyId(id, 'users'),
-    userScheduleId: (id: Maybe<string>) => oneToOneId(id, 'userSchedule'),
-    userSchedulesId: (id: Maybe<string>) => oneToManyId(id, 'userSchedules'),
     visibility: (
         visibility: InputMaybe<VisibilityType> | undefined,
         userData: SessionUser | null | undefined,

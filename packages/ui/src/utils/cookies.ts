@@ -1,4 +1,4 @@
-import { COOKIE, UserSchedule, ValueOf } from "@shared/consts";
+import { COOKIE, FocusMode, ValueOf } from "@shared/consts";
 import { getDeviceInfo } from "./display/device";
 
 /**
@@ -131,7 +131,7 @@ type ScheduleCookie = {
 }
 
 export const getCookieSchedule = (): ScheduleCookie | null =>
-    onlyIfCookieAllowed('functional', () => getCookie(Cookies.Schedule, (value: any): value is UserSchedule => typeof value === 'object'));
+    onlyIfCookieAllowed('functional', () => getCookie(Cookies.Schedule, (value: any): value is FocusMode => typeof value === 'object'));
 
 export const setCookieSchedule = (schedule: ScheduleCookie) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.Schedule, schedule));

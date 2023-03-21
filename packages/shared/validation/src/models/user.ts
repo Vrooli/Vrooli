@@ -1,7 +1,7 @@
 import * as yup from 'yup';
 import { bio, blankToUndefined, bool, email, handle, maxStrErr, name, opt, password, req, theme, transRel, YupModel, yupObj } from '../utils';
 import { emailValidation } from './email';
-import { userScheduleValidation } from './userSchedule';
+import { focusModeValidation } from './focusMode';
 
 /**
  * Schema for traditional email/password log in. NOT the form
@@ -47,7 +47,7 @@ export const userValidation: YupModel<false, true> = {
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
     }, [
-        ['schedules', ['Create', 'Update', 'Delete'], 'many', 'opt', userScheduleValidation],
+        ['focusModes', ['Create', 'Update', 'Delete'], 'many', 'opt', focusModeValidation],
         ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', userTranslationValidation],
     ], [], o),
 }

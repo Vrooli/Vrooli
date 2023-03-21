@@ -1,33 +1,33 @@
 import { Prisma } from "@prisma/client";
+import { FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, MaxObjects } from '@shared/consts';
+import { focusModeFilterValidation } from "@shared/validation";
+import { shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, UserScheduleFilter, UserScheduleFilterCreateInput, UserScheduleSearchInput, UserScheduleSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
+import { FocusModeModel } from "./focusMode";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
-import { UserScheduleModel } from "./userSchedule";
-import { defaultPermissions, tagShapeHelper } from "../utils";
-import { userScheduleFilterValidation } from "@shared/validation";
-import { shapeHelper } from "../builders";
 
-const __typename = 'UserScheduleFilter' as const;
+const __typename = 'FocusModeFilter' as const;
 const suppFields = [] as const;
-export const UserScheduleFilterModel: ModelLogic<{
+export const FocusModeFilterModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: UserScheduleFilterCreateInput,
+    GqlCreate: FocusModeFilterCreateInput,
     GqlUpdate: undefined,
-    GqlModel: UserScheduleFilter,
+    GqlModel: FocusModeFilter,
     GqlPermission: {},
-    GqlSearch: UserScheduleSearchInput,
-    GqlSort: UserScheduleSortBy,
-    PrismaCreate: Prisma.user_schedule_filterUpsertArgs['create'],
-    PrismaUpdate: Prisma.user_schedule_filterUpsertArgs['update'],
-    PrismaModel: Prisma.user_schedule_filterGetPayload<SelectWrap<Prisma.user_schedule_filterSelect>>,
-    PrismaSelect: Prisma.user_schedule_filterSelect,
-    PrismaWhere: Prisma.user_schedule_filterWhereInput,
+    GqlSearch: FocusModeSearchInput,
+    GqlSort: FocusModeSortBy,
+    PrismaCreate: Prisma.focus_mode_filterUpsertArgs['create'],
+    PrismaUpdate: Prisma.focus_mode_filterUpsertArgs['update'],
+    PrismaModel: Prisma.focus_mode_filterGetPayload<SelectWrap<Prisma.focus_mode_filterSelect>>,
+    PrismaSelect: Prisma.focus_mode_filterSelect,
+    PrismaWhere: Prisma.focus_mode_filterWhereInput,
 }, typeof suppFields> = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.user_schedule_filter,
+    delegate: (prisma: PrismaType) => prisma.focus_mode_filter,
     display: {
         select: () => ({ id: true, tag: { select: TagModel.display.select() } }),
         label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : '',
@@ -35,12 +35,12 @@ export const UserScheduleFilterModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            userSchedule: 'UserSchedule',
+            focusMode: 'FocusMode',
             tag: 'Tag',
         },
         prismaRelMap: {
             __typename,
-            userSchedule: 'UserSchedule',
+            focusMode: 'FocusMode',
             tag: 'Tag',
         },
         countFields: {},
@@ -50,29 +50,29 @@ export const UserScheduleFilterModel: ModelLogic<{
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 filterType: data.filterType,
-                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'UserSchedule', parentRelationshipName: 'filters', data, ...rest })),
+                // ...(await shapeHelper({ relation: 'focusMode', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'FocusMode', parentRelationshipName: 'filters', data, ...rest })),
                 // Can't use tagShapeHelper because in this case there isn't a join table between them
                 ...(await shapeHelper({ relation: 'tag', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'Tag', parentRelationshipName: 'scheduleFilters', data, ...rest })),
-            }),
+            }) as any,
         },
-        yup: userScheduleFilterValidation,
+        yup: focusModeFilterValidation,
     },
     validate: {
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => UserScheduleModel.validate!.owner(data.userSchedule as any),
+        owner: (data) => FocusModeModel.validate!.owner(data.focusMode as any),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            userSchedule: 'UserSchedule',
+            focusMode: 'FocusMode',
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                userSchedule: UserScheduleModel.validate!.visibility.owner(userId),
+                focusMode: FocusModeModel.validate!.visibility.owner(userId),
             }),
         },
     },

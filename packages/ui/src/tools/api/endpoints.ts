@@ -116,6 +116,15 @@ export const endpoints = {
             close: toMutation('issueClose', 'IssueCloseInput', issuePartial, 'full'),
         }
     },
+    focusMode: async () => {
+        const { focusMode: focusModePartial } = await import('./partial/focusMode');
+        return {
+            findOne: toQuery('focusMode', 'FindByIdInput', focusModePartial, 'full'),
+            findMany: toQuery('focusModes', 'FocusModeSearchInput', ...(await toSearch(focusModePartial))),
+            create: toMutation('focusModeCreate', 'FocusModeCreateInput', focusModePartial, 'full'),
+            update: toMutation('focusModeUpdate', 'FocusModeUpdateInput', focusModePartial, 'full'),
+        }
+    },
     label: async () => {
         const { label: labelPartial } = await import('./partial/label');
         return {
@@ -446,15 +455,6 @@ export const endpoints = {
             findMany: toQuery('runProjectOrRunRoutines', 'RunProjectOrRunRoutineSearchInput', ...(await toSearch(runProjectOrRunRoutinePartial))),
         }
     },
-    runProjectSchedule: async () => {
-        const { runProjectSchedule: runProjectSchedulePartial } = await import('./partial/runProjectSchedule');
-        return {
-            findOne: toQuery('runProjectSchedule', 'FindByIdInput', runProjectSchedulePartial, 'full'),
-            findMany: toQuery('runProjectSchedules', 'RunProjectScheduleSearchInput', ...(await toSearch(runProjectSchedulePartial))),
-            create: toMutation('runProjectScheduleCreate', 'RunProjectScheduleCreateInput', runProjectSchedulePartial, 'full'),
-            update: toMutation('runProjectScheduleUpdate', 'RunProjectScheduleUpdateInput', runProjectSchedulePartial, 'full'),
-        }
-    },
     runRoutine: async () => {
         const { runRoutine: runRoutinePartial } = await import('./partial/runRoutine');
         const { count: countPartial } = await import('./partial/count');
@@ -474,13 +474,31 @@ export const endpoints = {
             findMany: toQuery('runRoutineInputs', 'RunRoutineInputSearchInput', ...(await toSearch(runRoutineInputPartial))),
         }
     },
-    runRoutineSchedule: async () => {
-        const { runRoutineSchedule: runRoutineSchedulePartial } = await import('./partial/runRoutineSchedule');
+    schedule: async () => {
+        const { schedule: schedulePartial } = await import('./partial/schedule');
         return {
-            findOne: toQuery('runRoutineSchedule', 'FindByIdInput', runRoutineSchedulePartial, 'full'),
-            findMany: toQuery('runRoutineSchedules', 'RunRoutineScheduleSearchInput', ...(await toSearch(runRoutineSchedulePartial))),
-            create: toMutation('runRoutineScheduleCreate', 'RunRoutineScheduleCreateInput', runRoutineSchedulePartial, 'full'),
-            update: toMutation('runRoutineScheduleUpdate', 'RunRoutineScheduleUpdateInput', runRoutineSchedulePartial, 'full'),
+            findOne: toQuery('schedule', 'FindByIdInput', schedulePartial, 'full'),
+            findMany: toQuery('schedules', 'ScheduleSearchInput', ...(await toSearch(schedulePartial))),
+            create: toMutation('scheduleCreate', 'ScheduleCreateInput', schedulePartial, 'full'),
+            update: toMutation('scheduleUpdate', 'ScheduleUpdateInput', schedulePartial, 'full'),
+        }
+    },
+    scheduleException: async () => {
+        const { scheduleException: scheduleExceptionPartial } = await import('./partial/scheduleException');
+        return {
+            findOne: toQuery('scheduleException', 'FindByIdInput', scheduleExceptionPartial, 'full'),
+            findMany: toQuery('scheduleExceptions', 'ScheduleExceptionSearchInput', ...(await toSearch(scheduleExceptionPartial))),
+            create: toMutation('scheduleExceptionCreate', 'ScheduleExceptionCreateInput', scheduleExceptionPartial, 'full'),
+            update: toMutation('scheduleExceptionUpdate', 'ScheduleExceptionUpdateInput', scheduleExceptionPartial, 'full'),
+        }
+    },
+    scheduleRecurrence: async () => {
+        const { scheduleRecurrence: scheduleRecurrencePartial } = await import('./partial/scheduleRecurrence');
+        return {
+            findOne: toQuery('scheduleRecurrence', 'FindByIdInput', scheduleRecurrencePartial, 'full'),
+            findMany: toQuery('scheduleRecurrences', 'ScheduleRecurrenceSearchInput', ...(await toSearch(scheduleRecurrencePartial))),
+            create: toMutation('scheduleRecurrenceCreate', 'ScheduleRecurrenceCreateInput', scheduleRecurrencePartial, 'full'),
+            update: toMutation('scheduleRecurrenceUpdate', 'ScheduleRecurrenceUpdateInput', scheduleRecurrencePartial, 'full'),
         }
     },
     smartContract: async () => {
@@ -612,15 +630,6 @@ export const endpoints = {
             profileEmailUpdate: toMutation('profileEmailUpdate', 'ProfileEmailUpdateInput', profilePartial, 'full'),
             deleteOne: toMutation('userDeleteOne', 'UserDeleteInput', successPartial, 'full'),
             exportData: toMutation('exportData', null),
-        }
-    },
-    userSchedule: async () => {
-        const { userSchedule: userSchedulePartial } = await import('./partial/userSchedule');
-        return {
-            findOne: toQuery('userSchedule', 'FindByIdInput', userSchedulePartial, 'full'),
-            findMany: toQuery('userSchedules', 'UserScheduleSearchInput', ...(await toSearch(userSchedulePartial))),
-            create: toMutation('userScheduleCreate', 'UserScheduleCreateInput', userSchedulePartial, 'full'),
-            update: toMutation('userScheduleUpdate', 'UserScheduleUpdateInput', userSchedulePartial, 'full'),
         }
     },
     view: async () => {
