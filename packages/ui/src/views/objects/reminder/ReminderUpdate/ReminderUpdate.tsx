@@ -1,56 +1,36 @@
-import { Grid } from "@mui/material";
 import { FindByIdInput, Reminder, ReminderUpdateInput } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { reminderValidation } from '@shared/validation';
+import { mutationWrapper } from "api";
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 import { reminderUpdate } from "api/generated/endpoints/reminder_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useFormik } from 'formik';
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useEffect, useMemo } from "react";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
+import { Formik } from "formik";
+import { BaseFormRef } from "forms/BaseForm/BaseForm";
+import { ReminderForm } from "forms/ReminderForm.tsx/ReminderForm";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
+import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderUpdateProps } from "../types";
 
 export const ReminderUpdate = ({
     display = 'page',
     zIndex = 200,
 }: ReminderUpdateProps) => {
-    const { onCancel, onUpdated } = useUpdateActions<Reminder>();
+    const session = useContext(SessionContext);
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data: reminder, loading }] = useCustomLazyQuery<Reminder, FindByIdInput>(reminderFindOne);
+    const [getData, { data: reminder, loading: isReadLoading }] = useCustomLazyQuery<Reminder, FindByIdInput>(reminderFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
-    // Handle update
-    const [mutation] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
-    const formik = useFormik({
-        initialValues: {
-            id: reminder?.id ?? uuid(),
-        },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: reminderValidation.update({}),
-        onSubmit: (values) => {
-            if (!reminder) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadReminder', severity: 'Error' });
-                return;
-            }
-            // mutationWrapper<Reminder, ReminderUpdateInput>({
-            //     mutation,
-            //     input: shapeReminder.update(reminder, {
-            //         id: reminder.id,
-            //     }),
-            //     onSuccess: (data) => { onUpdated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+    const formRef = useRef<BaseFormRef>();
+    const { onCancel, onUpdated } = useUpdateActions<Reminder>();
+    const [mutation, { loading: isUpdateLoading }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
 
     return (
         <>
@@ -61,20 +41,37 @@ export const ReminderUpdate = ({
                     titleKey: 'UpdateReminder',
                 }}
             />
-            <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
-                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                    {/* TODO */}
-                    <GridSubmitButtons
-                        display={display}
-                        errors={formik.errors}
-                        isCreate={false}
-                        loading={formik.isSubmitting}
-                        onCancel={onCancel}
-                        onSetSubmitting={formik.setSubmitting}
-                        onSubmit={formik.handleSubmit}
-                    />
-                </Grid>
-            </BaseForm>
+            <Formik
+                enableReinitialize={true}
+                initialValues={{
+                    __typename: 'Reminder' as const,
+                    id: uuid(),
+                }}
+                onSubmit={(values, helpers) => {
+                    if (!reminder) {
+                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadReminder', severity: 'Error' });
+                        return;
+                    }
+                    mutationWrapper<Reminder, ReminderUpdateInput>({
+                        mutation,
+                        input: shapeReminder.update(reminder, values),
+                        onSuccess: (data) => { onUpdated(data) },
+                        onError: () => { helpers.setSubmitting(false) },
+                    })
+                }}
+                validationSchema={reminderValidation.update({})}
+            >
+                {(formik) => <ReminderForm
+                    display={display}
+                    isCreate={false}
+                    isLoading={isReadLoading || isUpdateLoading}
+                    isOpen={true}
+                    onCancel={onCancel}
+                    ref={formRef}
+                    zIndex={zIndex}
+                    {...formik}
+                />}
+            </Formik>
         </>
     )
 }

@@ -1,6 +1,6 @@
 import { Count, GqlModelType } from '@shared/consts';
 import { reqArr } from '@shared/validation';
-import { modelToGraphQL, selectHelper } from "../builders";
+import { modelToGql, selectHelper } from "../builders";
 import { CustomError } from '../events';
 import { getLogic } from "../getters";
 import { cudInputsToMaps, getAuthenticatedData } from "../utils";
@@ -117,7 +117,7 @@ export async function cudHelper<
             // Convert
             console.log('cudhelper j.0 select', JSON.stringify(select), '\n\n');
             console.log('cudhelper j.1', JSON.stringify(createResult), '\n\n');
-            const converted = modelToGraphQL<GqlModel>(createResult, partialInfo);
+            const converted = modelToGql<GqlModel>(createResult, partialInfo);
             console.log('cudhelper j.2', JSON.stringify(converted), '\n\n');
             created.push(converted as any);
         }
@@ -151,7 +151,7 @@ export async function cudHelper<
                 throw new CustomError('0416', 'InternalError', userData.languages, { error, update, select, objectType });
             }
             // Convert
-            const converted = modelToGraphQL<GqlModel>(updateResult, partialInfo);
+            const converted = modelToGql<GqlModel>(updateResult, partialInfo);
             updated.push(converted as any);
         }
         // Filter authDataById to only include objects which were updated

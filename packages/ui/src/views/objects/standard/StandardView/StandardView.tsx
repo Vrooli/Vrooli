@@ -11,7 +11,6 @@ import { GeneratedInputComponent } from "components/inputs/generated";
 import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { BaseStandardInput } from "components/inputs/standards";
-import { RelationshipsObject } from "components/inputs/types";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { smallHorizontalScrollbar } from "components/lists/styles";
@@ -24,7 +23,6 @@ import { useFormik } from "formik";
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -107,10 +105,6 @@ export const StandardView = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
-
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
 
@@ -182,8 +176,6 @@ export const StandardView = ({
                 <RelationshipButtons
                     isEditing={false}
                     objectType={'Routine'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
                     zIndex={zIndex}
                 />
                 {/* Resources */}

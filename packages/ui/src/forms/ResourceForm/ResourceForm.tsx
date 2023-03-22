@@ -8,33 +8,23 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { Selector } from "components/inputs/Selector/Selector";
-import { Field, FormikProps } from "formik";
+import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { ResourceFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
-import { ViewDisplayType } from "views/types";
-
-interface ResourceFormProps extends FormikProps<any> {
-    display: ViewDisplayType;
-    index: number;
-    isLoading: boolean;
-    onCancel: () => void;
-    open: boolean;
-    ref: React.RefObject<any>;
-    zIndex: number;
-}
 
 export const ResourceForm = forwardRef<any, ResourceFormProps>(({
     display,
     dirty,
-    index,
+    isCreate,
     isLoading,
+    isOpen,
     onCancel,
-    open,
     values,
     zIndex,
     ...props
@@ -56,8 +46,6 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
         fields: ['bio'],
         validationSchema: userTranslationValidation.update({}),
     });
-
-    console.log('form errors', props.errors, translationErrors);
 
     // Search dialog to find routines, organizations, etc. to link to
     const [searchOpen, setSearchOpen] = useState(false);
@@ -154,7 +142,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                         ...props.errors,
                         ...translationErrors,
                     }}
-                    isCreate={index < 0}
+                    isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}
                     onSetSubmitting={props.setSubmitting}

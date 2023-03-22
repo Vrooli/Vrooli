@@ -1,5 +1,5 @@
 import { getUser } from "../auth";
-import { addSupplementalFields, combineQueries, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
@@ -31,7 +31,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
-    let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
+    let partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
@@ -124,7 +124,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     console.log('readmanyhelper yeeeee 2', JSON.stringify(formattedNodes), '\n');
-    formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
+    formattedNodes = formattedNodes.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
     console.log('readmanyhelper yeeeee 3', JSON.stringify(formattedNodes), '\n');
     formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
     console.log('readmanyhelper yeeeee 4', JSON.stringify(formattedNodes), '\n');

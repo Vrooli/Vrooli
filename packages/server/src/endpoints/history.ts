@@ -1,11 +1,11 @@
+import { HistoryInput, HistoryResult, RunRoutineSortBy, RunStatus, UserSortBy, ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { UserSortBy, ViewSortBy, HistoryResult, HistoryInput, RunRoutineSortBy, RunStatus } from '@shared/consts';
-import { GQLEndpoint } from '../types';
-import { rateLimit } from '../middleware';
-import { assertRequestFrom, getUser } from '../auth/request';
-import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
-import { PartialGraphQLInfo } from '../builders/types';
 import { readManyAsFeedHelper } from '../actions';
+import { assertRequestFrom, getUser } from '../auth/request';
+import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from '../builders';
+import { PartialGraphQLInfo } from '../builders/types';
+import { rateLimit } from '../middleware';
+import { GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     input HistoryInput {
@@ -36,7 +36,7 @@ export const resolvers: {
         history: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
-            const partial = toPartialGraphQLInfo(info, {
+            const partial = toPartialGqlInfo(info, {
                 __typename: 'HistoryResult',
                 activeRuns: {
                     RunProject: 'RunProject',

@@ -97,9 +97,9 @@ export const ResourceListVertical = ({
     const dialog = useMemo(() => (
         list ? <ResourceDialog
             index={editingIndex}
+            isOpen={isDialogOpen}
             partialData={(editingIndex >= 0) ? list.resources[editingIndex as number] as any : undefined}
             listId={list.id}
-            open={isDialogOpen}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}

@@ -25,7 +25,7 @@ const titleId = "resource-dialog-title";
 
 export const ResourceDialog = ({
     mutate,
-    open,
+    isOpen,
     onClose,
     onCreated,
     onUpdated,
@@ -52,7 +52,7 @@ export const ResourceDialog = ({
             <LargeDialog
                 id="resource-dialog"
                 onClose={handleClose}
-                isOpen={open}
+                isOpen={isOpen}
                 titleId={titleId}
                 zIndex={zIndex}
             >
@@ -134,10 +134,10 @@ export const ResourceDialog = ({
                     >
                         {(formik) => <ResourceForm
                             display="dialog"
-                            index={index}
+                            isCreate={index < 0}
                             isLoading={addLoading || updateLoading}
+                            isOpen={isOpen}
                             onCancel={handleClose}
-                            open={open}
                             ref={formRef}
                             zIndex={zIndex}
                             {...formik}

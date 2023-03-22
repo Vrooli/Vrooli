@@ -10,13 +10,11 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { RelationshipsObject } from "components/inputs/types";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
@@ -44,10 +42,6 @@ export const StandardUpdate = ({
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
     }, [getData, urlData])
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
@@ -151,8 +145,6 @@ export const StandardUpdate = ({
                         <RelationshipButtons
                             isEditing={true}
                             objectType={'Standard'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
                             zIndex={zIndex}
                         />
                     </Grid>

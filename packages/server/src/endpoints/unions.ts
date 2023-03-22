@@ -1,16 +1,16 @@
 /**
  * Endpoints optimized for specific pages
  */
+import { OrganizationSortBy, ProjectOrOrganization, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrOrganizationSortBy, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutine, ProjectOrOrganization, ProjectOrRoutineSortBy, ProjectOrOrganizationSortBy, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutine, RunProjectSortBy, RunProjectOrRunRoutineSearchResult } from '@shared/consts';
-import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
-import { rateLimit } from '../middleware';
-import { resolveUnion } from './resolvers';
-import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
-import { PartialGraphQLInfo } from '../builders/types';
 import { readManyAsFeedHelper } from '../actions';
 import { getUser } from '../auth';
+import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from '../builders';
+import { PartialGraphQLInfo } from '../builders/types';
+import { rateLimit } from '../middleware';
+import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
 import { SearchMap } from '../utils';
+import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
@@ -217,7 +217,7 @@ export const resolvers: {
     Query: {
         projectOrRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
-            const partial = toPartialGraphQLInfo(info, {
+            const partial = toPartialGqlInfo(info, {
                 __typename: 'ProjectOrRoutineSearchResult',
                 Project: 'Project',
                 Routine: 'Routine',
@@ -237,7 +237,7 @@ export const resolvers: {
                         hasCompleteVersion: input.hasCompleteVersion,
                         hasCompleteExceptions: input.hasCompleteVersionExceptions,
                         ids: input.ids,
-                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                        languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
                         maxBookmarks: input.maxBookmarks,
                         maxScore: input.maxScore,
                         minBookmarks: input.minBookmarks,
@@ -272,7 +272,7 @@ export const resolvers: {
                         isInternal: false,
                         hasCompleteVersion: input.hasCompleteVersion,
                         hasCompleteExceptions: input.hasCompleteVersionExceptions,
-                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                        languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
                         minComplexity: input.routineMinComplexity,
                         maxComplexity: input.routineMaxComplexity,
                         maxBookmarks: input.maxBookmarks,
@@ -332,7 +332,7 @@ export const resolvers: {
         },
         projectOrOrganizations: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
-            const partial = toPartialGraphQLInfo(info, {
+            const partial = toPartialGqlInfo(info, {
                 __typename: 'ProjectOrOrganizationSearchResult',
                 Project: 'Project',
                 Organization: 'Organization',
@@ -352,7 +352,7 @@ export const resolvers: {
                         ids: input.ids,
                         isComplete: input.projectIsComplete,
                         isCompleteExceptions: input.projectIsCompleteExceptions,
-                        languages: input.translationLanguagesLatestVersion? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                        languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
                         maxBookmarks: input.maxBookmarks,
                         maxScore: input.projectMaxScore,
                         maxViews: input.maxViews,
@@ -386,7 +386,7 @@ export const resolvers: {
                         excludeIds: input.excludeIds,
                         ids: input.ids,
                         languages: input.translationLanguagesLatestVersion,
-                        maxBookmarks: input.maxBookmarks,   
+                        maxBookmarks: input.maxBookmarks,
                         minBookmarks: input.minBookmarks,
                         maxViews: input.maxViews,
                         minViews: input.minViews,
@@ -439,7 +439,7 @@ export const resolvers: {
         },
         runProjectOrRunRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
-            const partial = toPartialGraphQLInfo(info, {
+            const partial = toPartialGqlInfo(info, {
                 __typename: 'RunProjectOrRunRoutineSearchResult',
                 RunProject: 'RunProject',
                 RunRoutine: 'RunRoutine',

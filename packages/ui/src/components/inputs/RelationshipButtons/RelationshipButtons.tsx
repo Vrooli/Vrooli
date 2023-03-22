@@ -13,6 +13,7 @@ import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
 import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
+import { useField } from 'formik';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { noSelect } from 'styles';
 import { getCurrentUser } from 'utils/authentication/session';
@@ -70,14 +71,23 @@ export function RelationshipButtons({
     isEditing,
     isFormDirty = false,
     objectType,
-    onRelationshipsChange,
-    relationships,
     zIndex,
+    sx,
 }: RelationshipButtonsProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session])
+
+    // Formik fields. Some may be undefined if not relevant to object type
+    const [isCompleteField, , isCompleteHelpers] = useField('isComplete');
+    const [isPrivateField, , isPrivateHelpers] = useField('isPrivate');
+    const [ownerField, , ownerHelpers] = useField('owner');
+    const [ownerRootField, , ownerRootHelpers] = useField('root.owner');
+    const [parentField, , parentHelpers] = useField('parent');
+    const [parentRootField, , parentRootHelpers] = useField('root.parent');
+    const [projectField, , projectHelpers] = useField('project');
+    const [projectRootField, , projectRootHelpers] = useField('root.project');
 
     // Determine which relationship buttons are available on this object type
     // when in edit mode
@@ -107,42 +117,54 @@ export function RelationshipButtons({
     const openAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(true) }, [setAnotherUserDialogOpen]);
     const closeAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(false); }, [setAnotherUserDialogOpen]);
     const handleOwnerSelect = useCallback((owner: RelationshipOwner) => {
-        if (owner?.id === relationships.owner?.id) return;
-        onRelationshipsChange({ owner });
-    }, [onRelationshipsChange, relationships.owner?.id]);
+        const ownerId = ownerField?.value?.id ?? ownerRootField?.value?.id;
+        if (owner?.id === ownerId) return;
+        //TODO determine which to use
+        ownerHelpers.setValue(owner);
+    }, [ownerField?.value?.id, ownerHelpers, ownerRootField?.value?.id]);
     // Project dialog
     const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
     const handleProjectClick = useCallback((ev: React.MouseEvent<any>) => {
         if (!isProjectAvailable) return;
         ev.stopPropagation();
+        const project = projectField?.value ?? projectRootField?.value;
         // If not editing, navigate to project
         if (!isEditing) {
-            if (relationships.project) openObject(relationships.project, setLocation);
+            if (project) openObject(project, setLocation);
         }
         else {
             // If project was set, remove
-            if (relationships.project) onRelationshipsChange({ project: null });
+            if (project) {
+                //TODO determine which to use
+                projectHelpers.setValue(null);
+            }
             // Otherwise, open project select dialog
             else setProjectDialogOpen(true);
         }
-    }, [isEditing, isProjectAvailable, onRelationshipsChange, relationships.project, setLocation]);
+    }, [isEditing, isProjectAvailable, projectField?.value, projectHelpers, projectRootField?.value, setLocation]);
     const closeProjectDialog = useCallback(() => { setProjectDialogOpen(false); }, [setProjectDialogOpen]);
     const handleProjectSelect = useCallback((project: RelationshipItemProjectVersion) => {
-        if (project?.id === relationships.project?.id) return;
-        onRelationshipsChange({ project });
-    }, [onRelationshipsChange, relationships.project?.id]);
+        const projectId = projectField?.value?.id ?? projectRootField?.value?.id;
+        if (project?.id === projectId) return;
+        //TODO determine which to use
+        projectHelpers.setValue(project);
+    }, [projectField?.value?.id, projectHelpers, projectRootField?.value?.id]);
     // Parent dialog
     const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
     const handleParentClick = useCallback((ev: React.MouseEvent<any>) => {
         if (!isParentAvailable) return;
         ev.stopPropagation();
+        const parent = parentField?.value ?? parentRootField?.value;
         // If not editing, navigate to parent
         if (!isEditing) {
-            if (relationships.parent) openObject(relationships.parent, setLocation);
+            if (parent) openObject(parent, setLocation);
         }
         else {
             // If parent was set, remove
-            if (relationships.parent) onRelationshipsChange({ parent: null });
+            if (parent) {
+                //TODO determine which to use
+                parentHelpers.setValue(null);
+            }
             else {
                 // If form is dirty, prompt to confirm (since data will be lost)
                 if (isFormDirty) {
@@ -158,12 +180,14 @@ export function RelationshipButtons({
                 else setParentDialogOpen(true);
             }
         }
-    }, [isEditing, isFormDirty, isParentAvailable, onRelationshipsChange, relationships.parent, setLocation]);
+    }, [isEditing, isFormDirty, isParentAvailable, parentField?.value, parentHelpers, parentRootField?.value, setLocation]);
     const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
     const handleParentSelect = useCallback((parent: any) => {
-        if (parent?.id === relationships.parent?.id) return;
-        onRelationshipsChange({ parent });
-    }, [onRelationshipsChange, relationships.parent?.id]);
+        const parentId = parentField?.value?.id ?? parentRootField?.value?.id;
+        if (parent?.id === parentId) return;
+        //TODO determine which to use
+        parentHelpers.setValue(parent);
+    }, [parentField?.value?.id, parentHelpers, parentRootField?.value?.id]);
     // SelectOrCreateDialog
     const [selectOrCreateType, selectOrCreateHandleAdd, selectOrCreateHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
         if (isOrganizationDialogOpen) return ['Organization', handleOwnerSelect, closeOrganizationDialog];
@@ -178,13 +202,14 @@ export function RelationshipButtons({
     const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
         if (!isOwnerAvailable) return;
         ev.stopPropagation();
+        const owner = ownerField?.value ?? ownerRootField?.value;
         // If not editing, navigate to owner
         if (!isEditing) {
-            if (relationships.owner) openObject(relationships.owner, setLocation);
+            if (owner) openObject(owner, setLocation);
         }
         // Otherwise, open dialog
         else setOwnerDialogAnchor(ev.currentTarget)
-    }, [isEditing, isOwnerAvailable, relationships.owner, setLocation]);
+    }, [isEditing, isOwnerAvailable, ownerField?.value, ownerRootField?.value, setLocation]);
     const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
         if (ownerType === OwnerTypesEnum.Organization) {
@@ -192,34 +217,36 @@ export function RelationshipButtons({
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
-            onRelationshipsChange({ owner: session ? userFromSession(session) : undefined });
+            //TODO determine which to use
+            ownerHelpers.setValue(session ? userFromSession(session) : undefined);
         }
         closeOwnerDialog();
-    }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);
+    }, [closeOwnerDialog, openAnotherUserDialog, openOrganizationDialog, ownerHelpers, session]);
 
     // Handle private click
     const handlePrivateClick = useCallback((ev: React.MouseEvent<any>) => {
         if (!isEditing || !isPrivateAvailable) return;
-        onRelationshipsChange({ isPrivate: !relationships.isPrivate });
-    }, [isEditing, relationships.isPrivate, isPrivateAvailable, onRelationshipsChange]);
+        isPrivateHelpers.setValue(!isPrivateField?.value);
+    }, [isEditing, isPrivateAvailable, isPrivateHelpers, isPrivateField?.value]);
 
     // Handle complete click
     const handleCompleteClick = useCallback((ev: React.MouseEvent<any>) => {
         if (!isEditing || !isCompleteAvailable) return;
-        onRelationshipsChange({ isComplete: !relationships.isComplete });
-    }, [isEditing, relationships.isComplete, isCompleteAvailable, onRelationshipsChange]);
+        isCompleteHelpers.setValue(!isCompleteField?.value);
+    }, [isEditing, isCompleteAvailable, isCompleteHelpers, isCompleteField?.value]);
 
     // Current owner icon
     const { OwnerIcon, ownerTooltip } = useMemo(() => {
+        const owner = ownerField?.value ?? ownerRootField?.value;
         // If no owner data, marked as anonymous
-        if (!relationships.owner) return {
+        if (!owner) return {
             OwnerIcon: null,
             ownerTooltip: `Marked as anonymous${isEditing ? '' : '. Press to set owner'}`
         };
         // If owner is organization, use organization icon
-        if (relationships.owner.__typename === 'Organization') {
+        if (owner.__typename === 'Organization') {
             const OwnerIcon = OrganizationIcon;
-            const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, languages, true).name, 'organization');
+            const ownerName = firstString(getTranslation(owner as RelationshipItemOrganization, languages, true).name, 'organization');
             return {
                 OwnerIcon,
                 ownerTooltip: `Owner: ${ownerName}`
@@ -227,39 +254,41 @@ export function RelationshipButtons({
         }
         // If owner is user, use self icon
         const OwnerIcon = SelfIcon;
-        const isSelf = relationships.owner.id === getCurrentUser(session).id;
-        const ownerName = (relationships.owner as RelationshipItemUser).name;
+        const isSelf = owner.id === getCurrentUser(session).id;
+        const ownerName = (owner as RelationshipItemUser).name;
         return {
             OwnerIcon,
             ownerTooltip: `Owner: ${isSelf ? 'Self' : ownerName}`
         };
-    }, [isEditing, languages, relationships.owner, session]);
+    }, [isEditing, languages, ownerField?.value, ownerRootField?.value, session]);
 
     // Current project icon
     const { ProjectIcon, projectTooltip } = useMemo(() => {
+        const project = projectField?.value ?? projectRootField?.value;
         // If no project data, marked as unset
-        if (!relationships.project) return {
+        if (!project) return {
             ProjectIcon: null,
             projectTooltip: isEditing ? '' : 'Press to assign to a project'
         };
-        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProjectVersion, languages, true).name, 'project');
+        const projectName = firstString(getTranslation(project as RelationshipItemProjectVersion, languages, true).name, 'project');
         return {
             ProjectIcon: ProjIcon,
             projectTooltip: `Project: ${projectName}`
         };
-    }, [isEditing, languages, relationships.project]);
+    }, [isEditing, languages, projectField?.value, projectRootField?.value]);
 
     // Current parent icon
     const { ParentIcon, parentTooltip } = useMemo(() => {
         // If no parent data, marked as unset
-        if (!relationships.parent) return {
+        const parent = parentField?.value ?? parentRootField?.value;
+        if (!parent) return {
             ParentIcon: null,
             parentTooltip: isEditing ? '' : 'Press to copy from a parent (will override entered data)'
         };
         // If parent is project, use project icon
-        if (relationships.parent.__typename === 'ProjectVersion') {
+        if (parent.__typename === 'ProjectVersion') {
             const ParentIcon = ProjIcon;
-            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProjectVersion, languages, true).name, 'project');
+            const parentName = firstString(getTranslation(parent as RelationshipItemProjectVersion, languages, true).name, 'project');
             return {
                 ParentIcon,
                 parentTooltip: `Parent: ${parentName}`
@@ -267,28 +296,30 @@ export function RelationshipButtons({
         }
         // If parent is routine, use routine icon
         const ParentIcon = RoutineIcon;
-        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutineVersion, languages, true).name, 'routine');
+        const parentName = firstString(getTranslation(parent as RelationshipItemRoutineVersion, languages, true).name, 'routine');
         return {
             ParentIcon,
             parentTooltip: `Parent: ${parentName}`
         };
-    }, [isEditing, languages, relationships.parent]);
+    }, [isEditing, languages, parentField?.value, parentRootField?.value]);
 
     // Current privacy icon (public or private)
     const { PrivacyIcon, privacyTooltip } = useMemo(() => {
+        const isPrivate = isPrivateField?.value;
         return {
-            PrivacyIcon: relationships.isPrivate ? InvisibleIcon : VisibleIcon,
-            privacyTooltip: relationships.isPrivate ? `Only you or your organization can see this${isEditing ? '' : '. Press to make public'}` : `Anyone can see this${isEditing ? '' : '. Press to make private'}`
+            PrivacyIcon: isPrivate ? InvisibleIcon : VisibleIcon,
+            privacyTooltip: isPrivate ? `Only you or your organization can see this${isEditing ? '' : '. Press to make public'}` : `Anyone can see this${isEditing ? '' : '. Press to make private'}`
         }
-    }, [isEditing, relationships.isPrivate]);
+    }, [isEditing, isPrivateField?.value]);
 
     // Current complete icon (complete or incomplete)
     const { CompleteIcon, completeTooltip } = useMemo(() => {
+        const isComplete = isCompleteField?.value;
         return {
-            CompleteIcon: relationships.isComplete ? CompletedIcon : null,
-            completeTooltip: relationships.isComplete ? `This is complete${isEditing ? '' : '. Press to mark incomplete'}` : `This is incomplete${isEditing ? '' : '. Press to mark complete'}`
+            CompleteIcon: isComplete ? CompletedIcon : null,
+            completeTooltip: isComplete ? `This is complete${isEditing ? '' : '. Press to mark incomplete'}` : `This is incomplete${isEditing ? '' : '. Press to mark complete'}`
         }
-    }, [isEditing, relationships.isComplete]);
+    }, [isCompleteField?.value, isEditing]);
 
     return (
         <Box
@@ -299,6 +330,7 @@ export function RelationshipButtons({
                 background: palette.mode === 'dark' ? palette.background.paper : palette.background.default,
                 overflowX: 'auto',
                 ...noSelect,
+                ...(sx ?? {}),
             }}
         >
             {/* Popup for selecting type of owner */}

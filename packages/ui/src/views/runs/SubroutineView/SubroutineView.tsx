@@ -8,7 +8,6 @@ import { ContentCollapse } from "components/containers/ContentCollapse/ContentCo
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
-import { RelationshipsObject } from "components/inputs/types";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { smallHorizontalScrollbar } from "components/lists/styles";
@@ -21,7 +20,6 @@ import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -191,10 +189,6 @@ export const SubroutineView = ({
         setObject: setInternalRoutineVersion,
     });
 
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
-
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
 
@@ -269,8 +263,6 @@ export const SubroutineView = ({
                         <RelationshipButtons
                             isEditing={false}
                             objectType={'Routine'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
                             zIndex={zIndex}
                         />
                         {/* Tags */}

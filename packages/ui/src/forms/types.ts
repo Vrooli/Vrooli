@@ -1,7 +1,9 @@
 import { InputType } from "@shared/consts";
 import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
+import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
 import { TagShape } from "utils/shape/models/tag";
+import { ViewDisplayType } from "views/types";
 
 //==============================================================
 /* #region Specific Form Props */
@@ -18,6 +20,16 @@ export interface BaseFormProps {
     validationSchema?: any;
 }
 
+export interface BaseObjectFormProps extends FormikProps<any> {
+    display: ViewDisplayType;
+    isCreate: boolean;
+    isLoading: boolean;
+    isOpen: boolean;
+    onCancel: () => void;
+    ref: React.RefObject<any>;
+    zIndex: number;
+}
+
 export interface BaseGeneratedFormProps {
     schema: FormSchema;
     onSubmit: (values: any) => any;
@@ -28,8 +40,20 @@ export interface FormProps {
     onFormChange?: (form: Forms) => any;
 }
 
-export interface LogInFormProps extends FormProps {
-}
+export interface LogInFormProps extends FormProps { }
+
+export interface ApiFormProps extends BaseObjectFormProps { }
+export interface NoteFormProps extends BaseObjectFormProps { }
+export interface OrganizationFormProps extends BaseObjectFormProps { }
+export interface ProjectFormProps extends BaseObjectFormProps { }
+export interface QuestionFormProps extends BaseObjectFormProps { }
+export interface ReminderFormProps extends BaseObjectFormProps { }
+export interface ReportFormProps extends BaseObjectFormProps { }
+export interface ResourceFormProps extends BaseObjectFormProps { }
+export interface RoutineFormProps extends BaseObjectFormProps { }
+export interface SmartContractFormProps extends BaseObjectFormProps { }
+export interface StandardFormProps extends BaseObjectFormProps { }
+export interface UserFormProps extends BaseObjectFormProps { }
 
 //==============================================================
 /* #endregion Specific Form Props */

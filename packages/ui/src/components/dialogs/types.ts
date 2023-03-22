@@ -149,6 +149,7 @@ export interface ResourceDialogProps extends DialogProps {
      * Index in resource list. -1 if new
      */
     index: number;
+    isOpen: boolean;
     listId: string;
     /**
      * Determines if add resource should be called by this dialog, or is handled later
@@ -156,7 +157,6 @@ export interface ResourceDialogProps extends DialogProps {
     mutate: boolean;
     onClose: () => any;
     onCreated: (resource: Resource) => any;
-    open: boolean;
     onUpdated: (index: number, resource: Resource) => any;
     partialData?: Partial<Resource>;
     zIndex: number;

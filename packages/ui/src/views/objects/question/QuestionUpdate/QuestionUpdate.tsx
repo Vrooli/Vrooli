@@ -9,12 +9,10 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
@@ -38,10 +36,6 @@ export const QuestionUpdate = ({
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const [getData, { data: question, loading }] = useCustomLazyQuery<Question, FindByIdInput>(questionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
@@ -132,8 +126,6 @@ export const QuestionUpdate = ({
                         <RelationshipButtons
                             isEditing={true}
                             objectType={'Question'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
                             zIndex={zIndex}
                         />
                     </Grid>

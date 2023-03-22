@@ -1,9 +1,10 @@
-import { ApiSortBy, FocusModeSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from '@shared/consts';
+import { ApiSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { readManyAsFeedHelper } from '../actions';
 import { assertRequestFrom, getUser } from '../auth/request';
-import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
+import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from '../builders';
 import { PartialGraphQLInfo } from '../builders/types';
+import { schedulesWhereInTimeframe } from '../events';
 import { rateLimit } from '../middleware';
 import { GQLEndpoint } from '../types';
 
@@ -28,14 +29,13 @@ export const typeDef = gql`
     input HomeInput {
         searchString: String!
         take: Int
-        focusModeId: ID
     }
 
     type HomeResult {
         notes: [Note!]!
         reminders: [Reminder!]!
-        schedules: [Schedule!]!
         resources: [Resource!]!
+        schedules: [Schedule!]!
     }
 
     type Query {
@@ -54,13 +54,9 @@ export const resolvers: {
         home: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
-            // If no focus mode specified, try to find the user's active focus modes
-            const allFocusModes = await prisma.focus_mode.findMany({
-                where: { userId: userData.id },
-            });
-            const partial = toPartialGraphQLInfo(info, {
+            const activeFocusMode = userData.activeFocusMode;
+            const partial = toPartialGqlInfo(info, {
                 __typename: 'HomeResult',
-                focusModes: 'FocusMode',
                 notes: 'Note',
                 reminders: 'Reminder',
                 resources: 'Resource',
@@ -68,12 +64,10 @@ export const resolvers: {
             }, req.languages, true);
             const take = 5;
             const commonReadParams = { prisma, req }
-            const activeScheduleIds = [];//TODO
             // Query notes
             const { nodes: notes } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                // TODO Find your own notes only
-                additionalQueries: {},
+                additionalQueries: { ownedByUser: { id: userData.id } },
                 info: partial.notes as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: NoteSortBy.DateUpdatedDesc },
                 objectType: 'Note',
@@ -81,8 +75,13 @@ export const resolvers: {
             // Query reminders
             const { nodes: reminders } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                // TODO Find all of your reminders if "showOnlyRelevantToSchedule" is false, otherwise find reminders associated with your active schedule(s)
-                additionalQueries: {},
+                additionalQueries: {
+                    reminderList: {
+                        focusMode: {
+                            ...(activeFocusMode ? { id: activeFocusMode.mode.id } : { user: { id: userData.id } })
+                        }
+                    }
+                },
                 info: partial.reminders as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false },
                 objectType: 'Reminder',
@@ -91,44 +90,68 @@ export const resolvers: {
             const { nodes: resources } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: {
-                    // list: {
-                    //     userSchedule: input.showOnlyRelevantToSchedule ? {
-                    //         id: { in: activeScheduleIds }
-                    //     } : {
-                    //         user: {
-                    //             id: userData.id
-                    //         }
-                    //     }
-                    // }
+                    list: {
+                        focusMode: {
+                            ...(activeFocusMode ? { id: activeFocusMode.mode.id } : { user: { id: userData.id } })
+                        }
+                    }
                 },
                 info: partial.resources as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ResourceSortBy.IndexAsc },
                 objectType: 'Resource',
             });
-            // Query schedules
+            // Query schedules that might occur in the next 7 days. 
+            // Need to perform calculations on the client side to determine which ones are actually relevant.
+            const now = new Date();
+            const startDate = now;
+            const endDate = new Date(now.setDate(now.getDate() + 7));
             const { nodes: schedules } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                // TODO Find meetings that have not ended yet, and you are invited to (or you are the owner)
-                // TODO Find all of your runProjectSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
-                // TODO Find all of your runRoutineSchedules that have not ended yet, or which are recurring and the recurr period has not ended yet
-                additionalQueries: {},
+                additionalQueries: {
+                    ...schedulesWhereInTimeframe(startDate, endDate),
+                    OR: [
+                        {
+                            meetings: {
+                                some: {
+                                    attendees: {
+                                        some: {
+                                            user: {
+                                                id: userData.id
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            runProjects: {
+                                some: {
+                                    user: {
+                                        id: userData.id
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            runRoutines: {
+                                some: {
+                                    user: {
+                                        id: userData.id
+                                    }
+                                }
+                            }
+                        },
+                    ]
+                },
                 info: partial.schedules as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ScheduleSortBy.EndTimeAsc },
                 objectType: 'Schedule',
             });
-            // Query focusModes
-            const { nodes: focusModes } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                additionalQueries: { user: { id: userData.id } },
-                info: partial.focusModes as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: FocusModeSortBy.NameAsc },
-                objectType: 'FocusMode',
-            });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [focusModes, notes, reminders, resources, schedules],
-                [partial.focusModes, partial.notes, partial.reminders, partial.resources, partial.schedules] as PartialGraphQLInfo[],
-                ['f', 'n', 'rem', 'res', 's'],
+                [notes, reminders, resources, schedules],
+                [partial.notes, partial.reminders, partial.resources, partial.schedules] as PartialGraphQLInfo[],
+                ['n', 'rem', 'res', 's'],
                 getUser(req),
                 prisma,
             )
@@ -143,7 +166,7 @@ export const resolvers: {
         },
         popular: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
-            const partial = toPartialGraphQLInfo(info, {
+            const partial = toPartialGqlInfo(info, {
                 __typename: 'PopularResult',
                 apis: 'Api',
                 notes: 'Note',

@@ -1,9 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from '@shared/consts';
+import { MaxObjects, ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from '@shared/consts';
 import { reminderListValidation } from "@shared/validation";
 import { shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
 import { FocusModeModel } from "./focusMode";
 import { ModelLogic } from "./types";
 
@@ -58,5 +59,23 @@ export const ReminderListModel: ModelLogic<{
         },
         yup: reminderListValidation,
     },
-    validate: {} as any,
+    validate: {
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        permissionsSelect: () => ({
+            id: true,
+            focusMode: 'FocusMode',
+        }),
+        permissionResolvers: defaultPermissions,
+        owner: (data) => FocusModeModel.validate!.owner(data.focusMode as any),
+        isDeleted: () => false,
+        isPublic: () => false,
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                focusMode: FocusModeModel.validate!.visibility.owner(userId),
+            }),
+        }
+    },
 })

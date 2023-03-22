@@ -83,7 +83,7 @@ export function Selector<T extends string | number | { [x: string]: any }>({
                 name={name}
                 onChange={(e) => {
                     const valueAsT = findOption(e.target.value as string) as T;
-                    helpers.setValue(valueAsT);
+                    field.onChange(valueAsT);
                     if (onChange) onChange(valueAsT);
                 }}
                 onBlur={field.onBlur}

@@ -1,18 +1,17 @@
-import { Grid } from "@mui/material";
 import { Reminder, ReminderCreateInput } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { reminderValidation } from '@shared/validation';
+import { mutationWrapper } from "api";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
 import { useCustomMutation } from "api/hooks";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useFormik } from 'formik';
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useContext, useMemo } from "react";
-import { checkIfLoggedIn } from "utils/authentication/session";
+import { Formik } from "formik";
+import { BaseFormRef } from "forms/BaseForm/BaseForm";
+import { ReminderForm } from "forms/ReminderForm.tsx/ReminderForm";
+import { useContext, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { SessionContext } from "utils/SessionContext";
+import { shapeReminder } from "utils/shape/models/reminder";
 import { ReminderCreateProps } from "../types";
 
 export const ReminderCreate = ({
@@ -21,30 +20,9 @@ export const ReminderCreate = ({
 }: ReminderCreateProps) => {
     const session = useContext(SessionContext);
 
+    const formRef = useRef<BaseFormRef>();
     const { onCancel, onCreated } = useCreateActions<Reminder>();
-
-    // Handle create
-    const [mutation] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
-    const formik = useFormik({
-        initialValues: {
-            id: uuid(),
-        },
-        validationSchema: reminderValidation.create({}),
-        onSubmit: (values) => {
-            // mutationWrapper<Reminder, ReminderCreateInput>({
-            //     mutation,
-            //     input: shapeReminder.create({
-            //         id: values.id,
-
-            //     }),
-            //     onSuccess: (data) => { onCreated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
-
-    const isLoggedIn = useMemo(() => checkIfLoggedIn(session), [session]);
+    const [mutation, { loading: isLoading }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
 
     return (
         <>
@@ -55,21 +33,33 @@ export const ReminderCreate = ({
                     titleKey: 'CreateReminder',
                 }}
             />
-            <BaseForm onSubmit={formik.handleSubmit}>
-                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                    {/* TODO */}
-                    <GridSubmitButtons
-                        disabledSubmit={!isLoggedIn}
-                        display={display}
-                        errors={formik.errors}
-                        isCreate={true}
-                        loading={formik.isSubmitting}
-                        onCancel={onCancel}
-                        onSetSubmitting={formik.setSubmitting}
-                        onSubmit={formik.handleSubmit}
-                    />
-                </Grid>
-            </BaseForm>
+            <Formik
+                enableReinitialize={true}
+                initialValues={{
+                    __typename: 'Reminder' as const,
+                    id: uuid(),
+                }}
+                onSubmit={(values, helpers) => {
+                    mutationWrapper<Reminder, ReminderCreateInput>({
+                        mutation,
+                        input: shapeReminder.create(values),
+                        onSuccess: (data) => { onCreated(data) },
+                        onError: () => { helpers.setSubmitting(false) },
+                    })
+                }}
+                validationSchema={reminderValidation.create({})}
+            >
+                {(formik) => <ReminderForm
+                    display={display}
+                    isCreate={true}
+                    isLoading={isLoading}
+                    isOpen={true}
+                    onCancel={onCancel}
+                    ref={formRef}
+                    zIndex={zIndex}
+                    {...formik}
+                />}
+            </Formik>
         </>
     )
 }

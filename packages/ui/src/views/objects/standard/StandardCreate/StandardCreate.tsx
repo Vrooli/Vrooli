@@ -14,7 +14,6 @@ import { RelationshipButtons } from "components/inputs/RelationshipButtons/Relat
 import { Selector } from "components/inputs/Selector/Selector";
 import { BaseStandardInput } from "components/inputs/standards";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { RelationshipsObject } from "components/inputs/types";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
@@ -24,7 +23,6 @@ import { FieldData } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { InputTypeOption, InputTypeOptions } from "utils/consts";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
@@ -42,10 +40,6 @@ export const StandardCreate = ({
     const session = useContext(SessionContext);
 
     const { onCancel, onCreated } = useCreateActions<StandardVersion>();
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
@@ -174,8 +168,6 @@ export const StandardCreate = ({
                         <RelationshipButtons
                             isEditing={true}
                             objectType={'Standard'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
                             zIndex={zIndex}
                         />
                     </Grid>

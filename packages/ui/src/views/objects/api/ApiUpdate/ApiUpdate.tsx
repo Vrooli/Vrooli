@@ -1,28 +1,19 @@
-import { Grid } from "@mui/material";
-import { ApiVersion, ApiVersionUpdateInput, FindByIdInput, ResourceList } from "@shared/consts";
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { apiVersionTranslationValidation, apiVersionValidation } from '@shared/validation';
+import { ApiVersion, ApiVersionUpdateInput, FindByIdInput } from "@shared/consts";
+import { uuid } from '@shared/uuid';
+import { apiVersionValidation } from '@shared/validation';
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
-import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useFormik } from 'formik';
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { defaultRelationships } from "utils/defaults/relationships";
-import { defaultResourceList } from "utils/defaults/resourceList";
-import { getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { Formik } from 'formik';
+import { ApiForm } from "forms/ApiForm/ApiForm";
+import { BaseFormRef } from "forms/BaseForm/BaseForm";
+import { useContext, useEffect, useMemo, useRef } from "react";
+import { getUserLanguages } from "utils/display/translationTools";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { TagShape } from "utils/shape/models/tag";
 import { ApiUpdateProps } from "../types";
 
 export const ApiUpdate = ({
@@ -31,92 +22,14 @@ export const ApiUpdate = ({
 }: ApiUpdateProps) => {
     const session = useContext(SessionContext);
 
-    const { onCancel, onUpdated } = useUpdateActions<ApiVersion>();
-
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data: apiVersion, loading }] = useCustomLazyQuery<ApiVersion, FindByIdInput>(apiVersionFindOne);
+    const [getData, { data: apiVersion, loading: isReadLoading }] = useCustomLazyQuery<ApiVersion, FindByIdInput>(apiVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
-
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
-
-    // Handle tags
-    const [tags, setTags] = useState<TagShape[]>([]);
-    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
-
-    // Handle update
-    const [mutation] = useCustomMutation<ApiVersion, ApiVersionUpdateInput>(apiVersionUpdate);
-    const formik = useFormik({
-        initialValues: {
-            id: apiVersion?.id ?? uuid(),
-            translationsUpdate: apiVersion?.translations ?? [{
-                id: DUMMY_ID,
-                language: getUserLanguages(session)[0],
-                details: '',
-                name: '',
-                summary: '',
-            }],
-        },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: apiVersionValidation.update({}),
-        onSubmit: (values) => {
-            if (!apiVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadApi', severity: 'Error' });
-                return;
-            }
-            // mutationWrapper<ApiVersion, ApiVersionUpdateInput>({
-            //     mutation,
-            //     input: shapeApiVersion.update(apiVersion, {
-            //         id: apiVersion.id,
-            //         isOpenToNewMembers: values.isOpenToNewMembers,
-            //         isPrivate: relationships.isPrivate,
-            //         resourceList: resourceList,
-            //         tags: tags,
-            //         translations: values.translationsUpdate,
-            //     }),
-            //     onSuccess: (data) => { onUpdated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
-
-    const {
-        handleAddLanguage,
-        handleDeleteLanguage,
-        language,
-        onTranslationBlur,
-        onTranslationChange,
-        setLanguage,
-        translations,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        fields: ['details', 'name', 'summary'],
-        formik,
-        formikField: 'translationsUpdate',
-        validationSchema: apiVersionTranslationValidation.update({}),
-    });
-
-    useEffect(() => {
-        setRelationships({
-            isComplete: false,
-            isPrivate: apiVersion?.isPrivate ?? false,
-            owner: null,
-            parent: null,
-            project: null,
-        });
-        setResourceList(apiVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(apiVersion?.root?.tags ?? []);
-        if (apiVersion?.translations?.length) {
-            setLanguage(getPreferredLanguage(apiVersion.translations.map(t => t.language), getUserLanguages(session)));
-        }
-    }, [apiVersion, session, setLanguage]);
+    const formRef = useRef<BaseFormRef>();
+    const { onCancel, onUpdated } = useUpdateActions<ApiVersion>();
+    const [mutation, { loading: isUpdateLoading }] = useCustomMutation<ApiVersion, ApiVersionUpdateInput>(apiVersionUpdate);
 
     return (
         <>
@@ -127,39 +40,52 @@ export const ApiUpdate = ({
                     titleKey: 'UpdateApi',
                 }}
             />
-            <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
-                <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
-                    <Grid item xs={12} mb={4}>
-                        <RelationshipButtons
-                            isEditing={true}
-                            objectType={'Api'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
-                            zIndex={zIndex}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleDeleteLanguage}
-                            handleCurrent={setLanguage}
-                            translations={formik.values.translationsUpdate}
-                            zIndex={zIndex}
-                        />
-                    </Grid>
-                    {/* TODO */}
-                    <GridSubmitButtons
-                        display={display}
-                        errors={translations.errorsWithTranslations}
-                        isCreate={false}
-                        loading={formik.isSubmitting}
-                        onCancel={onCancel}
-                        onSetSubmitting={formik.setSubmitting}
-                        onSubmit={formik.handleSubmit}
-                    />
-                </Grid>
-            </BaseForm>
+            <Formik
+                enableReinitialize={true}
+                initialValues={{
+                    __typename: 'Api' as const,
+                    id: apiVersion?.id ?? uuid(),
+                    translations: apiVersion?.translations ?? [{
+                        id: uuid(),
+                        language: getUserLanguages(session)[0],
+                        details: '',
+                        name: '',
+                        summary: '',
+                    }]
+                    //TODO
+                }}
+                onSubmit={(values, helpers) => {
+                    if (!apiVersion) {
+                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadApi', severity: 'Error' });
+                        return;
+                    }
+                    // mutationWrapper<ApiVersion, ApiVersionUpdateInput>({
+                    //     mutation,
+                    //     input: shapeApiVersion.update(apiVersion, {
+                    //         id: apiVersion.id,
+                    //         isOpenToNewMembers: values.isOpenToNewMembers,
+                    //         isPrivate: relationships.isPrivate,
+                    //         resourceList: resourceList,
+                    //         tags: tags,
+                    //         translations: values.translationsUpdate,
+                    //     }),
+                    //     onSuccess: (data) => { onUpdated(data) },
+                    //     onError: () => { formik.setSubmitting(false) },
+                    // })
+                }}
+                validationSchema={apiVersionValidation.update({})}
+            >
+                {(formik) => <ApiForm
+                    display={display}
+                    isCreate={false}
+                    isLoading={isReadLoading || isUpdateLoading}
+                    isOpen={true}
+                    onCancel={onCancel}
+                    ref={formRef}
+                    zIndex={zIndex}
+                    {...formik}
+                />}
+            </Formik>
         </>
     )
 }

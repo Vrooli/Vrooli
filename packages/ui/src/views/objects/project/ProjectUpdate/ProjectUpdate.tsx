@@ -10,12 +10,10 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { getUserLanguages } from "utils/display/translationTools";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -39,10 +37,6 @@ export const ProjectUpdate = ({
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const [getData, { data: projectVersion, loading }] = useCustomLazyQuery<ProjectVersion, FindVersionInput>(projectVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -136,8 +130,6 @@ export const ProjectUpdate = ({
                         <RelationshipButtons
                             isEditing={true}
                             objectType={'Project'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
                             zIndex={zIndex}
                         />
                     </Grid>

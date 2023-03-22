@@ -13,7 +13,7 @@ import { PartialGraphQLInfo } from "./types";
  * @param partialInfo PartialGraphQLInfo object
  * @returns Valid GraphQL object
  */
-export function modelToGraphQL<
+export function modelToGql<
     GraphQLModel extends Record<string, any>
 >(
     data: { [x: string]: any },
@@ -28,18 +28,18 @@ export function modelToGraphQL<
         data = removeCountFields(data, format.countFields);
         data = removeHiddenFields(data, format.hiddenFields);
     }
-    // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
+    // Then loop through each key/value pair in data and call modelToGql on each array item/object
     for (const [key, value] of Object.entries(data)) {
         // If key doesn't exist in partialInfo, check if union
         if (!isObject(partialInfo) || !(key in partialInfo)) continue;
-        // If value is an array, call modelToGraphQL on each element
+        // If value is an array, call modelToGql on each element
         if (Array.isArray(value)) {
-            // Pass each element through modelToGraphQL
-            data[key] = data[key].map((v: any) => modelToGraphQL(v, partialInfo[key] as PartialGraphQLInfo));
+            // Pass each element through modelToGql
+            data[key] = data[key].map((v: any) => modelToGql(v, partialInfo[key] as PartialGraphQLInfo));
         }
-        // If value is an object (and not date), call modelToGraphQL on it
+        // If value is an object (and not date), call modelToGql on it
         else if (isRelationshipObject(value)) {
-            data[key] = modelToGraphQL(value, (partialInfo as any)[key]);
+            data[key] = modelToGql(value, (partialInfo as any)[key]);
         }
     }
     return data as any;

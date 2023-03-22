@@ -8,13 +8,11 @@ import { useCustomMutation } from "api/hooks";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
-import { RelationshipsObject } from "components/inputs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
@@ -31,10 +29,6 @@ export const SmartContractCreate = ({
     const session = useContext(SessionContext);
 
     const { onCancel, onCreated } = useCreateActions<SmartContractVersion>();
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
@@ -111,8 +105,6 @@ export const SmartContractCreate = ({
                         <RelationshipButtons
                             isEditing={true}
                             objectType={'SmartContract'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
                             zIndex={zIndex}
                         />
                     </Grid>

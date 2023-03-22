@@ -1,20 +1,18 @@
-import { CommentSortBy, CommentYou, MaxObjects } from "@shared/consts";
-import { commentValidation } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
-import { PrismaType } from "../types";
-import { BookmarkModel } from "./bookmark";
-import { VoteModel } from "./vote";
-import { Trigger } from "../events";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects, SessionUser } from "@shared/consts";
+import { commentValidation } from "@shared/validation";
 import { Request } from "express";
-import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
+import { getUser } from "../auth";
+import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
-import { getUser } from "../auth";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { SortMap } from "../utils/sortMap";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { ModelLogic } from "./types";
+import { VoteModel } from "./vote";
 
 const __typename = 'Comment' as const;
 type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReply' | 'canReport' | 'canVote'>;
@@ -138,7 +136,7 @@ export const CommentModel: ModelLogic<{
             nestLimit: number = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
-            let partialInfo = toPartialGraphQLInfo(info, CommentModel.format.gqlRelMap, userData?.languages ?? ['en'], true);
+            let partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, userData?.languages ?? ['en'], true);
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
@@ -210,7 +208,7 @@ export const CommentModel: ModelLogic<{
             nestLimit: number = 2,
         ): Promise<CommentSearchResult> {
             // Partially convert info type
-            let partialInfo = toPartialGraphQLInfo(info, CommentModel.format.gqlRelMap, req.languages, true);
+            let partialInfo = toPartialGqlInfo(info, CommentModel.format.gqlRelMap, req.languages, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
             // Loop through search fields and add each to the search query, 
@@ -268,7 +266,7 @@ export const CommentModel: ModelLogic<{
             }
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
-            comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
+            comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
             comments = await addSupplementalFields(prisma, getUser(req), comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID

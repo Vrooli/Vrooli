@@ -12,7 +12,7 @@ import { GraphQLInfo, PartialGraphQLInfo } from "./types";
  * @param throwIfNotPartial - Throw error if info is not partial
  * @returns Partial Prisma select. This can be passed into the function again without changing the result.
  */
-export const toPartialGraphQLInfo = <
+export const toPartialGqlInfo = <
     GQLObject extends { [x: string]: any },
     PrismaObject extends { [x: string]: any },
     ThrowErrorIfNotPartial extends boolean

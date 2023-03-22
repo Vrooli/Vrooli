@@ -17,7 +17,6 @@ import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { UpTransition } from "components/dialogs/transitions";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
-import { RelationshipsObject } from "components/inputs/types";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { smallHorizontalScrollbar } from "components/lists/styles";
@@ -32,7 +31,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
@@ -188,10 +186,6 @@ export const RoutineView = ({
         }
     }, [formik]);
 
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
-
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
 
@@ -290,8 +284,6 @@ export const RoutineView = ({
                 <RelationshipButtons
                     isEditing={false}
                     objectType={'Routine'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
                     zIndex={zIndex}
                 />
                 {/* Resources */}

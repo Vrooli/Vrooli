@@ -1,6 +1,6 @@
 import { ViewFor } from "@shared/consts";
 import { getUser } from "../auth";
-import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { CustomError } from "../events";
 import { getIdFromHandle, getLatestVersion } from "../getters";
 import { ObjectMap } from "../models";
@@ -29,7 +29,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
         throw new CustomError('0019', 'IdOrHandleRequired', userData?.languages ?? req.languages);
     // Partially convert info
-    let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
+    let partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
     console.log('readonehelper partialinfo', JSON.stringify(partialInfo), '\n\n');
     // If using idRoot or handleRoot, this means we are requesting a versioned object using data from the root object.
     // To query the version, we must find the latest completed version associated with the root object.
@@ -55,13 +55,13 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     if (!object)
         throw new CustomError('0022', 'NotFound', userData?.languages ?? req.languages, { objectType });
     // Return formatted for GraphQL
-    let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
+    let formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
     console.log('readonehelper formatted', JSON.stringify(formatted), '\n\n');
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
         ViewModel.view(prisma, userData, { forId: object.id, viewFor: objectType as any });
     }
-    const result =  (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+    const result = (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
     console.log('readonehelper result', JSON.stringify(result), '\n\n');
     return result;
 }

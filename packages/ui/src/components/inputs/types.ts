@@ -203,12 +203,20 @@ export interface LanguageInputProps {
     zIndex: number;
 }
 
-export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
-    id: string;
+export interface MarkdownInputProps {
+    disabled?: boolean;
+    minRows?: number;
+    name: string;
+    placeholder?: string;
+    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+}
+
+export type MarkdownInputBaseProps = Omit<TextFieldProps, 'onChange'> & {
     disabled?: boolean;
     error?: boolean;
-    helperText?: string | null | undefined;
+    helperText?: string | boolean | null | undefined;
     minRows?: number;
+    name: string;
     onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
     onChange: (newText: string) => any;
     placeholder?: string;
@@ -268,21 +276,12 @@ export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemU
 export type RelationshipProject = RelationshipItemProjectVersion | null;
 export type RelationshipParent = RelationshipItemProjectVersion | RelationshipItemRoutineVersion | null;
 
-export type RelationshipsObject = {
-    isComplete: boolean;
-    isPrivate: boolean;
-    owner: RelationshipOwner;
-    parent: RelationshipParent;
-    project: RelationshipProject;
-}
-
 export interface RelationshipButtonsProps {
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
-    onRelationshipsChange: (relationships: Partial<RelationshipsObject>) => void;
-    relationships: RelationshipsObject;
     zIndex: number;
+    sx?: { [x: string]: any };
 }
 
 export type SelectorProps<T extends string | number | { [x: string]: any }> = {
@@ -317,6 +316,15 @@ export interface TagSelectorProps {
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
     placeholder?: string;
     tags: (TagShape | Tag)[];
+}
+
+export interface TranslatedMarkdownInputProps {
+    disabled?: boolean;
+    language: string;
+    minRows?: number;
+    name: string;
+    placeholder?: string;
+    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
 }
 
 export interface TranslatedTextFieldProps {

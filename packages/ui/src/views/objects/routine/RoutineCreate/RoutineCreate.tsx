@@ -14,7 +14,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
+import { RelationshipItemRoutineVersion } from "components/inputs/types";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { ResourceListHorizontal } from "components/lists/resource";
@@ -23,7 +23,6 @@ import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { defaultRelationships } from "utils/defaults/relationships";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
@@ -51,10 +50,6 @@ export const RoutineCreate = ({
     const session = useContext(SessionContext);
 
     const { onCancel, onCreated } = useCreateActions<RoutineVersion>();
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);
@@ -228,8 +223,6 @@ export const RoutineCreate = ({
                             isEditing={true}
                             isFormDirty={formik.dirty}
                             objectType={'Routine'}
-                            onRelationshipsChange={onRelationshipsChange}
-                            relationships={relationships}
                             zIndex={zIndex}
                         />
                     </Grid>

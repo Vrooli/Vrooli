@@ -22,7 +22,7 @@ import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
 import { LanguageInput } from 'components/inputs/LanguageInput/LanguageInput';
 import { RelationshipButtons } from 'components/inputs/RelationshipButtons/RelationshipButtons';
 import { TagSelector } from 'components/inputs/TagSelector/TagSelector';
-import { RelationshipItemRoutineVersion, RelationshipsObject } from 'components/inputs/types';
+import { RelationshipItemRoutineVersion } from 'components/inputs/types';
 import { VersionInput } from 'components/inputs/VersionInput/VersionInput';
 import { InputOutputContainer } from 'components/lists/inputOutput';
 import { ResourceListHorizontal } from 'components/lists/resource';
@@ -32,7 +32,6 @@ import { useFormik } from 'formik';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from 'utils/authentication/session';
-import { defaultRelationships } from 'utils/defaults/relationships';
 import { defaultResourceList } from 'utils/defaults/resourceList';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { usePromptBeforeUnload } from 'utils/hooks/usePromptBeforeUnload';
@@ -66,10 +65,6 @@ export const SubroutineInfoDialog = ({
         if (!data?.node || !data?.routineItemId) return undefined;
         return data.node.routineList.items.find(r => r.id === data.routineItemId);
     }, [data]);
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(isEditing, session));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);
@@ -274,8 +269,6 @@ export const SubroutineInfoDialog = ({
                                 isEditing={isEditing}
                                 isFormDirty={formik.dirty}
                                 objectType={'Routine'}
-                                onRelationshipsChange={onRelationshipsChange}
-                                relationships={relationships}
                                 zIndex={zIndex}
                             />
                         </Grid>

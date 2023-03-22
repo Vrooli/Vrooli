@@ -100,8 +100,8 @@ export const ResourceListHorizontal = ({
         list ? <ResourceDialog
             partialData={editingIndex >= 0 ? list.resources[editingIndex as number] : undefined}
             index={editingIndex}
+            isOpen={isDialogOpen}
             listId={list.id}
-            open={isDialogOpen}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}

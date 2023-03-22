@@ -1,15 +1,14 @@
-import { routineVersionValidation } from "@shared/validation";
-import { Trigger } from "../events";
-import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou, MaxObjects } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { RunRoutineModel } from "./runRoutine";
+import { MaxObjects, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou } from '@shared/consts';
+import { routineVersionValidation } from "@shared/validation";
+import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
-import { bestLabel, calculateWeightData, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
+import { PrismaType } from "../types";
+import { bestLabel, calculateWeightData, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { RoutineModel } from "./routine";
+import { RunRoutineModel } from "./runRoutine";
+import { ModelLogic } from "./types";
 
 /**
  * Validates node positions
@@ -115,7 +114,7 @@ export const RoutineVersionModel: ModelLogic<{
                     // Find requested fields of runs. Also add routineVersionId, so we 
                     // can associate runs with their routine
                     const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
+                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
                         routineVersionId: true
                     }
                     // Query runs made by user
@@ -130,7 +129,7 @@ export const RoutineVersionModel: ModelLogic<{
                         ...selectHelper(runPartial)
                     });
                     // Format runs to GraphQL
-                    runs = runs.map(r => modelToGraphQL(r, runPartial));
+                    runs = runs.map(r => modelToGql(r, runPartial));
                     // Add supplemental fields
                     runs = await addSupplementalFields(prisma, userData, runs, runPartial);
                     // Split runs by id
