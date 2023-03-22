@@ -1,4 +1,5 @@
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
 import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
 import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
@@ -31,11 +32,12 @@ export const SettingsDisplayForm = ({
             <Subheader
                 help={t('DisplayAccountHelp')}
                 title={t('DisplayAccount')} />
-            <ThemeSwitch />
             <LanguageSelector />
+            <FocusModeSelector />
             <Subheader
                 help={t('DisplayDeviceHelp')}
                 title={t('DisplayDevice')} />
+            <ThemeSwitch />
             <TextSizeButtons />
             <LeftHandedCheckbox />
             <GridSubmitButtons

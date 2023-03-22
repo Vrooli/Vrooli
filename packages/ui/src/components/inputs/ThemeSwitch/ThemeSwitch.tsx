@@ -25,7 +25,7 @@ export function ThemeSwitch() {
                 ...noSelect,
                 marginRight: 'auto',
             }}>
-                {t(`Theme`)}: {palette.theme === 'light' ? t(`Light`) : t(`Dark`)}
+                {t(`Theme`)}: {palette.mode === 'light' ? t(`Light`) : t(`Dark`)}
             </Typography>
             <Box component="span" sx={{
                 display: 'inline-block',

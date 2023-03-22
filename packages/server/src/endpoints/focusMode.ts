@@ -1,4 +1,4 @@
-import { FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput } from '@shared/consts';
+import { FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeStopCondition, FocusModeUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { rateLimit } from '../middleware';
@@ -16,6 +16,13 @@ export const typeDef = gql`
         RecurrStartDesc
         RecurrEndAsc
         RecurrEndDesc
+    }
+
+    enum FocusModeStopCondition {
+        AfterStopTime
+        Automatic
+        Never
+        NextBegins
     }
 
     input FocusModeCreateInput {
@@ -61,6 +68,12 @@ export const typeDef = gql`
         schedule: Schedule
     }
 
+    type ActiveFocusMode {
+        mode: FocusMode!
+        stopCondition: FocusModeStopCondition!
+        stopTime: Date    
+    }
+
     input FocusModeSearchInput {
         after: String
         createdTimeFrame: TimeFrame
@@ -101,6 +114,7 @@ export const typeDef = gql`
 const objectType = 'FocusMode';
 export const resolvers: {
     FocusModeSortBy: typeof FocusModeSortBy;
+    FocusModeStopCondition: typeof FocusModeStopCondition;
     Query: {
         focusMode: GQLEndpoint<FindByIdInput, FindOneResult<FocusMode>>;
         focusModes: GQLEndpoint<FocusModeSearchInput, FindManyResult<FocusMode>>;
@@ -111,6 +125,7 @@ export const resolvers: {
     }
 } = {
     FocusModeSortBy,
+    FocusModeStopCondition,
     Query: {
         focusMode: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

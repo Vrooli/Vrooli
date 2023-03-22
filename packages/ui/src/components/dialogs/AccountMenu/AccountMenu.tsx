@@ -21,6 +21,7 @@ import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCur
 import { userProfileUpdate } from 'api/generated/endpoints/user_profileUpdate';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
+import { FocusModeSelector } from 'components/inputs/FocusModeSelector/FocusModeSelector';
 import { LanguageSelector } from 'components/inputs/LanguageSelector/LanguageSelector';
 import { LeftHandedCheckbox } from 'components/inputs/LeftHandedCheckbox/LeftHandedCheckbox';
 import { TextSizeButtons } from 'components/inputs/TextSizeButtons/TextSizeButtons';
@@ -275,8 +276,7 @@ export const AccountMenu = ({
                     <TextSizeButtons />
                     <LeftHandedCheckbox />
                     <LanguageSelector />
-                    {/* Focus mode */}
-                    {/* TODO */}
+                    <FocusModeSelector />
                 </Box>
             </Collapse>
             <Divider sx={{ background: palette.background.textSecondary }} />

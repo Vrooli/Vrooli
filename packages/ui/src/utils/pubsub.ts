@@ -8,12 +8,14 @@
 import { Session } from '@shared/consts';
 import { CommonKey, ErrorKey } from '@shared/translations';
 import { SnackSeverity } from 'components/dialogs/snacks';
+import { ActiveFocusMode } from 'types';
 
-export type Pubs = 'Celebration' | 
+export type Pubs = 'Celebration' |
     'CommandPalette' |
     'Cookies' | // For cookie consent dialog
     'FastUpdate' |
     'FindInPage' |
+    'FocusMode' |
     'FontSize' |
     'IsLeftHanded' |
     'Language' |
@@ -24,7 +26,7 @@ export type Pubs = 'Celebration' |
     'Snack' |
     'Theme' |
     'NodeDrag' |
-    'NodeDrop' | 
+    'NodeDrop' |
     'Welcome';
 
 
@@ -77,6 +79,9 @@ export class PubSub {
             this.subscribers[key].forEach(subscriber => subscriber[1](data));
         }
     }
+    publishAlertDialog(data: AlertDialogPub) {
+        this.publish('AlertDialog', data);
+    }
     publishCelebration(duration?: number) {
         this.publish('Celebration', duration);
     }
@@ -86,14 +91,17 @@ export class PubSub {
     publishCookies() {
         this.publish('Cookies');
     }
-    publishFindInPage() {
-        this.publish('FindInPage');
-    }
     /**
      * Notifies graph links to re-render quickly for a period of time
      */
     publishFastUpdate({ on = true, duration = 1000 }: { on?: boolean, duration?: number }) {
         this.publish('FastUpdate', { on, duration });
+    }
+    publishFindInPage() {
+        this.publish('FindInPage');
+    }
+    publishFocusMode(mode: ActiveFocusMode) {
+        this.publish('FocusMode', mode);
     }
     publishFontSize(fontSize: number) {
         this.publish('FontSize', fontSize);
@@ -113,8 +121,11 @@ export class PubSub {
     publishLogOut() {
         this.publish('LogOut');
     }
-    publishAlertDialog(data: AlertDialogPub) {
-        this.publish('AlertDialog', data);
+    publishNodeDrag(data: { nodeId: string }) {
+        this.publish('NodeDrag', data);
+    }
+    publishNodeDrop(data: { nodeId: string, position: { x: number, y: number } }) {
+        this.publish('NodeDrop', data);
     }
     publishSession(session: Session | undefined) {
         // When session is published, also set "isLoggedIn" flag in localStorage
@@ -126,12 +137,6 @@ export class PubSub {
     }
     publishTheme(theme: 'light' | 'dark') {
         this.publish('Theme', theme);
-    }
-    publishNodeDrag(data: { nodeId: string }) {
-        this.publish('NodeDrag', data);
-    }
-    publishNodeDrop(data: { nodeId: string, position: { x: number, y: number } }) {
-        this.publish('NodeDrop', data);
     }
     publishWelcome() {
         this.publish('Welcome');
@@ -146,6 +151,9 @@ export class PubSub {
         this.subscribers[key].push([token, subscriber]);
         return token;
     }
+    subscribeAlertDialog(subscriber: (data: AlertDialogPub) => void) {
+        return this.subscribe('AlertDialog', subscriber);
+    }
     subscribeCelebration(subscriber: (duration?: number) => void) {
         return this.subscribe('Celebration', subscriber);
     }
@@ -155,11 +163,14 @@ export class PubSub {
     subscribeCookies(subscriber: () => void) {
         return this.subscribe('Cookies', subscriber);
     }
+    subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
+        return this.subscribe('FastUpdate', subscriber);
+    }
     subscribeFindInPage(subscriber: () => void) {
         return this.subscribe('FindInPage', subscriber);
     }
-    subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
-        return this.subscribe('FastUpdate', subscriber);
+    subscribeFocusMode(subscriber: (mode: ActiveFocusMode) => void) {
+        return this.subscribe('FocusMode', subscriber);
     }
     subscribeFontSize(subscriber: (fontSize: number) => void) {
         return this.subscribe('FontSize', subscriber);
@@ -176,8 +187,11 @@ export class PubSub {
     subscribeLogOut(subscriber: () => void) {
         return this.subscribe('LogOut', subscriber);
     }
-    subscribeAlertDialog(subscriber: (data: AlertDialogPub) => void) {
-        return this.subscribe('AlertDialog', subscriber);
+    subscribeNodeDrag(subscriber: (data: { nodeId: string }) => void) {
+        return this.subscribe('NodeDrag', subscriber);
+    }
+    subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => void) {
+        return this.subscribe('NodeDrop', subscriber);
     }
     subscribeSession(subscriber: (session: Session | undefined) => void) {
         return this.subscribe('Session', subscriber);
@@ -187,12 +201,6 @@ export class PubSub {
     }
     subscribeTheme(subscriber: (theme: 'light' | 'dark') => void) {
         return this.subscribe('Theme', subscriber);
-    }
-    subscribeNodeDrag(subscriber: (data: { nodeId: string }) => void) {
-        return this.subscribe('NodeDrag', subscriber);
-    }
-    subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => void) {
-        return this.subscribe('NodeDrop', subscriber);
     }
     subscribeWelcome(subscriber: () => void) {
         return this.subscribe('Welcome', subscriber);

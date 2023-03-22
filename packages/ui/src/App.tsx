@@ -17,8 +17,8 @@ import i18next from 'i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Confetti from 'react-confetti';
 import { Routes } from 'Routes';
-import { getSiteLanguage, guestSession } from 'utils/authentication/session';
-import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
+import { getCurrentUser, getSiteLanguage, guestSession } from 'utils/authentication/session';
+import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
 import { getDeviceInfo } from 'utils/display/device';
 import { themes } from 'utils/display/theme';
 import { useReactHash } from 'utils/hooks/useReactHash';
@@ -334,6 +334,9 @@ export function App() {
             else {
                 setSession(s => ({ ...s, ...session }));
             }
+            // Store user's focus modes in local storage
+            setCookieActiveFocusMode(getCurrentUser(session).activeFocusMode ?? null);
+            setCookieAllFocusModes(getCurrentUser(session).focusModes ?? []);
         });
         // Handle theme updates
         let themeSub = PubSub.get().subscribeTheme((data) => {

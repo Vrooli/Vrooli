@@ -36,7 +36,6 @@ export const typeDef = gql`
         reminders: [Reminder!]!
         schedules: [Schedule!]!
         resources: [Resource!]!
-        focusModes: [FocusMode!]!
     }
 
     type Query {
@@ -136,7 +135,6 @@ export const resolvers: {
             // Return results
             return {
                 __typename: 'HomeResult' as const,
-                focusModes: withSupplemental['f'],
                 notes: withSupplemental['n'],
                 reminders: withSupplemental['rem'],
                 resources: withSupplemental['res'],

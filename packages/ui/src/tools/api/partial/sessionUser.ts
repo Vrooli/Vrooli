@@ -5,6 +5,7 @@ import { rel } from '../utils';
 export const sessionUser: GqlPartial<SessionUser> = {
     __typename: 'SessionUser',
     full: {
+        activeFocusMode: async () => rel((await import('./activeFocusMode')).activeFocusMode, 'full'),
         focusModes: async () => rel((await import('./focusMode')).focusMode, 'full'),
         handle: true,
         hasPremium: true,

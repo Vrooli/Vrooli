@@ -10,13 +10,11 @@ export const homeResult: GqlPartial<HomeResult> = {
             2: async () => rel((await import('./reminder')).reminder, 'list'),
             3: async () => rel((await import('./resource')).resource, 'list'),
             4: async () => rel((await import('./schedule')).schedule, 'list'),
-            5: async () => rel((await import('./focusMode')).focusMode, 'list'),
         },
         notes: { __use: 1 },
         reminders: { __use: 2 },
         resources: { __use: 3 },
         schedules: { __use: 4 },
-        focusModes: { __use: 5 },
     }
 }
 

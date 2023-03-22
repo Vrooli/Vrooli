@@ -80,6 +80,7 @@ export const typeDef = gql`
     }
 
     type SessionUser {
+        activeFocusMode: ActiveFocusMode
         focusModes: [FocusMode!]!
         handle: String
         hasPremium: Boolean!

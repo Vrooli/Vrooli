@@ -1,5 +1,4 @@
 import gql from 'graphql-tag';
-import { FocusMode_list } from '../fragments/FocusMode_list';
 import { Label_list } from '../fragments/Label_list';
 import { Note_list } from '../fragments/Note_list';
 import { Organization_nav } from '../fragments/Organization_nav';
@@ -10,8 +9,7 @@ import { Schedule_list } from '../fragments/Schedule_list';
 import { Tag_list } from '../fragments/Tag_list';
 import { User_nav } from '../fragments/User_nav';
 
-export const feedHome = gql`${FocusMode_list}
-${Label_list}
+export const feedHome = gql`${Label_list}
 ${Note_list}
 ${Organization_nav}
 ${Reminder_full}
@@ -34,9 +32,6 @@ query home($input: HomeInput!) {
     }
     schedules {
         ...Schedule_list
-    }
-    focusModes {
-        ...FocusMode_list
     }
   }
 }`;

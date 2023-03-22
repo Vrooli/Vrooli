@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { GqlModelType } from '@shared/consts';
+import { calculateOccurrences } from '@shared/utils';
 import { findFirstRel, uppercaseFirstLetter } from '../../builders';
-import { calculateOccurrences, logger } from '../../events';
+import { logger, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from '../../events';
 import { Notify, parseSubscriptionContext, ScheduleSubscriptionContext } from '../../notify';
 import { initializeRedis } from '../../redisConn';
 import { PrismaType } from '../../types';
@@ -135,37 +136,16 @@ export const scheduleNotify = async () => {
         let currentBatchSize = 0;
         // While there are still schedules to process
         do {
-            // Find all schedules that occur within the window
+            // Find all schedules data that occurs within the window
             const schedules = await prisma.schedule.findMany({
-                where: {
-                    OR: [
-                        {
-                            recurrences: {
-                                some: {
-                                    endDate: {
-                                        gte: new Date(startDate).toISOString(),
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            exceptions: {
-                                some: {
-                                    newStartTime: {
-                                        gte: new Date(startDate).toISOString(),
-                                        lt: new Date(endDate).toISOString(),
-                                    },
-                                },
-                            },
-                        },
-                    ],
-                },
+                where: schedulesWhereInTimeframe(startDate, endDate),
                 select: {
                     id: true,
                     startTime: true,
                     endTime: true,
                     timezone: true,
                     exceptions: {
+                        where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
                         select: {
                             id: true,
                             originalStartTime: true,
@@ -174,6 +154,7 @@ export const scheduleNotify = async () => {
                         }
                     },
                     recurrences: {
+                        where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
                         select: {
                             id: true,
                             recurrenceType: true,
