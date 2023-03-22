@@ -14,7 +14,6 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { RelationshipItemRoutineVersion } from "components/inputs/types";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { ResourceListHorizontal } from "components/lists/resource";
@@ -116,33 +115,15 @@ export const RoutineUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: routineVersionValidation.update({ minVersion: getMinimumVersion(routineVersion?.root?.versions ?? []) }),
         onSubmit: (values) => {
-            if (!routineVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: 'Error' });
+            if (!existing) {
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                 return;
             }
             mutationWrapper<RoutineVersion, RoutineVersionUpdateInput>({
                 mutation,
-                input: shapeRoutineVersion.update(routineVersion, {
-                    id: routineVersion.id,
-                    isComplete: relationships.isComplete,
-                    isPrivate: relationships.isPrivate,
-                    // project: relationships.project,
-                    inputs: inputsList,
-                    outputs: outputsList,
-                    resourceList: resourceList,
-                    root: {
-                        id: routineVersion.root.id,
-                        isPrivate: relationships.isPrivate,
-                        owner: relationships.owner,
-                        parent: relationships.parent as RelationshipItemRoutineVersion | null,
-                        permissions: JSON.stringify({}),
-                        tags: tags,
-                    },
-                    translations: values.translationsUpdate,
-                    ...values.versionInfo,
-                }),
+                input: shapeRoutineVersion.update(existing, values),
                 onSuccess: (data) => { onUpdated(data) },
-                onError: () => { formik.setSubmitting(false) },
+                onError: () => { helpers.setSubmitting(false) },
             })
         },
     });

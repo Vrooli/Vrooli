@@ -1,6 +1,7 @@
 import { ApiVersion, ApiVersionUpdateInput, FindByIdInput } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { apiVersionValidation } from '@shared/validation';
+import { mutationWrapper } from "api";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
@@ -14,6 +15,7 @@ import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { shapeApiVersion } from "utils/shape/models/apiVersion";
 import { ApiUpdateProps } from "../types";
 
 export const ApiUpdate = ({
@@ -24,7 +26,7 @@ export const ApiUpdate = ({
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data: apiVersion, loading: isReadLoading }] = useCustomLazyQuery<ApiVersion, FindByIdInput>(apiVersionFindOne);
+    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ApiVersion, FindByIdInput>(apiVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
@@ -44,8 +46,8 @@ export const ApiUpdate = ({
                 enableReinitialize={true}
                 initialValues={{
                     __typename: 'Api' as const,
-                    id: apiVersion?.id ?? uuid(),
-                    translations: apiVersion?.translations ?? [{
+                    id: existing?.id ?? uuid(),
+                    translations: existing?.translations ?? [{
                         id: uuid(),
                         language: getUserLanguages(session)[0],
                         details: '',
@@ -55,23 +57,16 @@ export const ApiUpdate = ({
                     //TODO
                 }}
                 onSubmit={(values, helpers) => {
-                    if (!apiVersion) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadApi', severity: 'Error' });
+                    if (!existing) {
+                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                         return;
                     }
-                    // mutationWrapper<ApiVersion, ApiVersionUpdateInput>({
-                    //     mutation,
-                    //     input: shapeApiVersion.update(apiVersion, {
-                    //         id: apiVersion.id,
-                    //         isOpenToNewMembers: values.isOpenToNewMembers,
-                    //         isPrivate: relationships.isPrivate,
-                    //         resourceList: resourceList,
-                    //         tags: tags,
-                    //         translations: values.translationsUpdate,
-                    //     }),
-                    //     onSuccess: (data) => { onUpdated(data) },
-                    //     onError: () => { formik.setSubmitting(false) },
-                    // })
+                    mutationWrapper<ApiVersion, ApiVersionUpdateInput>({
+                        mutation,
+                        input: shapeApiVersion.update(existing, values),
+                        onSuccess: (data) => { onUpdated(data) },
+                        onError: () => { helpers.setSubmitting(false) },
+                    })
                 }}
                 validationSchema={apiVersionValidation.update({})}
             >

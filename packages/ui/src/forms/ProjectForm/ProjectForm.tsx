@@ -1,5 +1,5 @@
 import { Stack, useTheme } from "@mui/material";
-import { userTranslationValidation } from "@shared/validation";
+import { projectVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -35,8 +35,8 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['bio'],
-        validationSchema: userTranslationValidation.update({}),
+        fields: ['description', 'name'],
+        validationSchema: projectVersionTranslationValidation.update({}),
     });
 
     return (

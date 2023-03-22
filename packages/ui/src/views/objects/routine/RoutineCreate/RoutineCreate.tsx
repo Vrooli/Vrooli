@@ -14,7 +14,6 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { RelationshipItemRoutineVersion } from "components/inputs/types";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { ResourceListHorizontal } from "components/lists/resource";
@@ -49,7 +48,11 @@ export const RoutineCreate = ({
 }: RoutineCreateProps) => {
     const session = useContext(SessionContext);
 
+    const formRef = useRef<BaseFormRef>();
     const { onCancel, onCreated } = useCreateActions<RoutineVersion>();
+    const [mutation, { loading: isLoading }] = useCustomMutation<RoutineVersion, RoutineVersionCreateInput>(routineVersionCreate);
+
+
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);
@@ -104,30 +107,9 @@ export const RoutineCreate = ({
         onSubmit: (values) => {
             mutationWrapper<RoutineVersion, RoutineVersionCreateInput>({
                 mutation,
-                input: shapeRoutineVersion.create({
-                    id: values.id,
-                    isComplete: relationships.isComplete,
-                    isPrivate: relationships.isPrivate,
-                    nodeLinks: values.nodeLinks,
-                    nodes: values.nodes,
-                    // project: relationships.project,
-                    inputs: inputsList,
-                    outputs: outputsList,
-                    resourceList: resourceList,
-                    root: {
-                        id: values.root.id,
-                        isInternal: values.root.isInternal,
-                        isPrivate: relationships.isPrivate,
-                        owner: relationships.owner,
-                        parent: relationships.parent as RelationshipItemRoutineVersion | null,
-                        permissions: JSON.stringify({}),
-                        tags: tags,
-                    },
-                    translations: values.translationsCreate,
-                    ...values.versionInfo,
-                }),
+                input: shapeRoutineVersion.create(values),
                 onSuccess: (data) => { onCreated(data) },
-                onError: () => { formik.setSubmitting(false) }
+                onError: () => { helpers.setSubmitting(false) },
             })
         },
     });

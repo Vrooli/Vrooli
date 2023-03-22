@@ -51,7 +51,7 @@ export const RunPickerMenu = ({
     const [createRunRoutine] = useCustomMutation<RunRoutine, RunRoutineCreateInput>(runRoutineCreate);
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
             return;
         }
         if (runnableObject.__typename === 'ProjectVersion') {
@@ -125,7 +125,7 @@ export const RunPickerMenu = ({
         const runs = (runnableObject.you?.runs as (RunRoutine | RunProject)[]).filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
             label: `Started: ${displayDate(run.startedAt)} (${getRunPercentComplete(run.completedComplexity, runnableObject.complexity)}%)`,
-            value: run as  RunProject | RunRoutine,
+            value: run as RunProject | RunRoutine,
         }));
     }, [runnableObject]);
 

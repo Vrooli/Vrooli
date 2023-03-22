@@ -64,22 +64,15 @@ export const OrganizationUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: organizationValidation.update({}),
         onSubmit: (values) => {
-            if (!organization) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: 'Error' });
+            if (!existing) {
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                 return;
             }
             mutationWrapper<Organization, OrganizationUpdateInput>({
                 mutation,
-                input: shapeOrganization.update(organization, {
-                    id: organization.id,
-                    isOpenToNewMembers: values.isOpenToNewMembers,
-                    isPrivate: relationships.isPrivate,
-                    resourceList: resourceList,
-                    tags: tags,
-                    translations: values.translationsUpdate,
-                }),
+                input: shapeOrganization.update(existing, values),
                 onSuccess: (data) => { onUpdated(data) },
-                onError: () => { formik.setSubmitting(false) },
+                onError: () => { helpers.setSubmitting(false) },
             })
         },
     });

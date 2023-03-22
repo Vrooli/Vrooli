@@ -60,23 +60,16 @@ export const QuestionUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: questionValidation.update({}),
         onSubmit: (values) => {
-            if (!question) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadQuestion', severity: 'Error' });
+            if (!existing) {
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                 return;
             }
-            // mutationWrapper<Question, QuestionUpdateInput>({
-            //     mutation,
-            //     input: shapeQuestion.update(question, {
-            //         id: question.id,
-            //         isOpenToNewMembers: values.isOpenToNewMembers,
-            //         isPrivate: relationships.isPrivate,
-            //         resourceList: resourceList,
-            //         tags: tags,
-            //         translations: values.translationsUpdate,
-            //     }),
-            //     onSuccess: (data) => { onUpdated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
+            mutationWrapper<Question, QuestionUpdateInput>({
+                mutation,
+                input: shapeQuestion.update(existing, values),
+                onSuccess: (data) => { onUpdated(data) },
+                onError: () => { helpers.setSubmitting(false) },
+            })
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });

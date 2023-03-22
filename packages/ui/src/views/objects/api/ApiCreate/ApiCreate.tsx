@@ -1,6 +1,7 @@
 import { ApiVersion, ApiVersionCreateInput } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { apiVersionValidation } from '@shared/validation';
+import { mutationWrapper } from "api";
 import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -11,6 +12,7 @@ import { useContext, useRef } from "react";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
+import { shapeApiVersion } from "utils/shape/models/apiVersion";
 import { ApiCreateProps } from "../types";
 
 export const ApiCreate = ({
@@ -47,16 +49,12 @@ export const ApiCreate = ({
                     //TODO
                 }}
                 onSubmit={(values, helpers) => {
-                    //TODO
-                    // mutationWrapper<ApiVersion, ApiVersionCreateInput>({
-                    //     mutation,
-                    //     input: shapeApiVersion.create({
-                    //         id: values.id,
-
-                    //     }),
-                    //     onSuccess: (data) => { onCreated(data) },
-                    //     onError: () => { formik.setSubmitting(false) },
-                    // })
+                    mutationWrapper<ApiVersion, ApiVersionCreateInput>({
+                        mutation,
+                        input: shapeApiVersion.create(values),
+                        onSuccess: (data) => { onCreated(data) },
+                        onError: () => { helpers.setSubmitting(false) },
+                    })
                 }}
                 validationSchema={apiVersionValidation.create({})}
             >

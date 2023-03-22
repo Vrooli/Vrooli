@@ -72,28 +72,15 @@ export const ProjectUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: projectValidation.update({}),
         onSubmit: (values) => {
-            if (!projectVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: 'Error' });
+            if (!existing) {
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                 return;
             }
             mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({
                 mutation,
-                input: shapeProjectVersion.update(projectVersion, {
-                    id: projectVersion.id,
-                    isComplete: relationships.isComplete,
-                    isPrivate: relationships.isPrivate,
-                    root: {
-                        id: projectVersion.root.id,
-                        isPrivate: relationships.isPrivate,
-                        owner: relationships.owner,
-                        permissions: JSON.stringify({}),
-                        tags: tags,
-                    },
-                    translations: values.translationsUpdate,
-                    ...values.versionInfo,
-                }),
+                input: shapeProjectVersion.update(existing, values),
                 onSuccess: (data) => { onUpdated(data) },
-                onError: () => { formik.setSubmitting(false) },
+                onError: () => { helpers.setSubmitting(false) },
             })
         },
     });

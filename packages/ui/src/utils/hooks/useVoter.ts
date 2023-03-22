@@ -27,10 +27,10 @@ export const useVoter = ({
     const handleVote = useCallback((isUpvote: boolean | null) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotRead${objectType}`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
             return;
         }
-        if(!hasVotingSupport) {
+        if (!hasVotingSupport) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
             return;
         }

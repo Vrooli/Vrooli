@@ -27,7 +27,7 @@ export const NoteUpdate = ({
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data: noteVersion, loading: isReadLoading }] = useCustomLazyQuery<NoteVersion, FindByIdInput>(noteVersionFindOne);
+    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<NoteVersion, FindByIdInput>(noteVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
@@ -47,30 +47,30 @@ export const NoteUpdate = ({
                 enableReinitialize={true}
                 initialValues={{
                     __typename: 'NoteVersion' as const,
-                    id: noteVersion?.id ?? DUMMY_ID,
-                    isPrivate: noteVersion?.isPrivate ?? false,
-                    root: noteVersion?.root ?? {
+                    id: existing?.id ?? DUMMY_ID,
+                    isPrivate: existing?.isPrivate ?? false,
+                    root: existing?.root ?? {
                         id: DUMMY_ID,
                         isPrivate: false,
                         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
                     },
-                    translations: noteVersion?.translations ?? [{
+                    translations: existing?.translations ?? [{
                         id: DUMMY_ID,
                         language: getUserLanguages(session)[0],
                         description: '',
                         name: '',
                         text: '',
                     }],
-                    versionLabel: noteVersion?.versionLabel ?? '1.0.0',
+                    versionLabel: existing?.versionLabel ?? '1.0.0',
                 }}
                 onSubmit={(values, helpers) => {
-                    if (!noteVersion) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadNote', severity: 'Error' });
+                    if (!existing) {
+                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                         return;
                     }
                     mutationWrapper<NoteVersion, NoteVersionUpdateInput>({
                         mutation,
-                        input: shapeNoteVersion.update(noteVersion, values),
+                        input: shapeNoteVersion.update(existing, values),
                         onSuccess: (data) => { onUpdated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })

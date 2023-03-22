@@ -82,33 +82,15 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: standardVersionValidation.update({}),
         onSubmit: (values) => {
-            if (!standardVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadStandard', severity: 'Error' });
+            if (!existing) {
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                 return;
             }
-            // Update
             mutationWrapper<StandardVersion, StandardVersionUpdateInput>({
                 mutation,
-                input: shapeStandardVersion.update(standardVersion, {
-                    id: standardVersion.id,
-                    isComplete: relationships.isComplete,
-                    isPrivate: relationships.isPrivate,
-                    resourceList: resourceList,
-                    root: {
-                        id: standardVersion.root.id,
-                        isInternal: false,
-                        isPrivate: relationships.isPrivate,
-                        name: standardVersion.root.name,
-                        owner: relationships.owner,
-                        permissions: JSON.stringify({}),
-                        tags: tags,
-                    },
-                    standardType: standardVersion.standardType,
-                    translations: values.translationsUpdate,
-                    ...values.versionInfo,
-                } as any), //TODO
+                input: shapeStandardVersion.update(existing, values),
                 onSuccess: (data) => { onUpdated(data) },
-                onError: () => { formik.setSubmitting(false) },
+                onError: () => { helpers.setSubmitting(false) },
             })
         },
     });

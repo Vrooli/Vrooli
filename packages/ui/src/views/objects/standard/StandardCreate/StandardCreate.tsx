@@ -39,7 +39,12 @@ export const StandardCreate = ({
 }: StandardCreateProps) => {
     const session = useContext(SessionContext);
 
+    const formRef = useRef<BaseFormRef>();
     const { onCancel, onCreated } = useCreateActions<StandardVersion>();
+    const [mutation, { loading: isLoading }] = useCustomMutation<StandardVersion, StandardVersionCreateInput>(standardVersionCreate);
+
+
+
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
@@ -101,32 +106,9 @@ export const StandardCreate = ({
         onSubmit: (values) => {
             mutationWrapper<StandardVersion, StandardVersionCreateInput>({
                 mutation,
-                input: shapeStandardVersion.create({
-                    id: values.id,
-                    default: values.default,
-                    isComplete: relationships.isComplete,
-                    isPrivate: relationships.isPrivate,
-                    props: JSON.stringify(schema?.props),
-                    yup: JSON.stringify(schema?.yup),
-                    resourceList: resourceList,
-                    root: {
-                        id: uuid(),
-                        isInternal: false,
-                        isPrivate: relationships.isPrivate,
-                        name: values.name,
-                        owner: relationships.owner,
-                        parent: relationships.parent,
-                        permissions: JSON.stringify({}),
-                        tags: tags,
-                    },
-                    standardType: inputType.value,
-                    translations: values.translationsCreate,
-                    ...values.versionInfo,
-                }),
-                onSuccess: (data) => {
-                    onCreated(data)
-                },
-                onError: () => { formik.setSubmitting(false) },
+                input: shapeStandardVersion.create(values),
+                onSuccess: (data) => { onCreated(data) },
+                onError: () => { helpers.setSubmitting(false) },
             })
         },
     });

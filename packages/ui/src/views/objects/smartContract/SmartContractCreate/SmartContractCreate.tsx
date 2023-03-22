@@ -3,6 +3,7 @@ import { ResourceList, SmartContractVersion, SmartContractVersionCreateInput } f
 import { parseSearchParams } from "@shared/route";
 import { uuid } from '@shared/uuid';
 import { smartContractVersionTranslationValidation, smartContractVersionValidation } from '@shared/validation';
+import { mutationWrapper } from "api";
 import { smartContractVersionCreate } from "api/generated/endpoints/smartContractVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -19,6 +20,7 @@ import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
+import { shapeSmartContractVersion } from "utils/shape/models/smartContractVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { SmartContractCreateProps } from "../types";
 
@@ -28,7 +30,11 @@ export const SmartContractCreate = ({
 }: SmartContractCreateProps) => {
     const session = useContext(SessionContext);
 
+    const formRef = useRef<BaseFormRef>();
     const { onCancel, onCreated } = useCreateActions<SmartContractVersion>();
+    const [mutation, { loading: isLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionCreateInput>(smartContractVersionCreate);
+
+
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
@@ -59,15 +65,12 @@ export const SmartContractCreate = ({
         },
         validationSchema: smartContractVersionValidation.create({}),
         onSubmit: (values) => {
-            // mutationWrapper<SmartContractVersion, SmartContractVersionCreateInput>({
-            //     mutation,
-            //     input: shapeSmartContractVersion.create({
-            //         id: values.id,
-
-            //     }),
-            //     onSuccess: (data) => { onCreated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
+            mutationWrapper<SmartContractVersion, SmartContractVersionCreateInput>({
+                mutation,
+                input: shapeSmartContractVersion.create(values),
+                onSuccess: (data) => { onCreated(data) },
+                onError: () => { helpers.setSubmitting(false) },
+            })
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });

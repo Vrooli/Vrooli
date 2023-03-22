@@ -1,13 +1,10 @@
 import { Stack, useTheme } from "@mui/material";
-import { userTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReportFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 
 export const ReportForm = forwardRef<any, ReportFormProps>(({
@@ -24,20 +21,6 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
-
-    // Handle translations
-    const {
-        handleAddLanguage,
-        handleDeleteLanguage,
-        language,
-        languages,
-        setLanguage,
-        translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        fields: ['bio'],
-        validationSchema: userTranslationValidation.update({}),
-    });
 
     return (
         <>

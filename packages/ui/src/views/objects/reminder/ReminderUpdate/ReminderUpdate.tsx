@@ -25,7 +25,7 @@ export const ReminderUpdate = ({
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data: reminder, loading: isReadLoading }] = useCustomLazyQuery<Reminder, FindByIdInput>(reminderFindOne);
+    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Reminder, FindByIdInput>(reminderFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
@@ -48,13 +48,13 @@ export const ReminderUpdate = ({
                     id: uuid(),
                 }}
                 onSubmit={(values, helpers) => {
-                    if (!reminder) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadReminder', severity: 'Error' });
+                    if (!existing) {
+                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                         return;
                     }
                     mutationWrapper<Reminder, ReminderUpdateInput>({
                         mutation,
-                        input: shapeReminder.update(reminder, values),
+                        input: shapeReminder.update(existing, values),
                         onSuccess: (data) => { onUpdated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })

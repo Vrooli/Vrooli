@@ -35,10 +35,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                 {/* TODO */}
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={props.errors}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

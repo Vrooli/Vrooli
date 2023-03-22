@@ -29,10 +29,10 @@ export const useCopier = ({
     const handleCopy = useCallback(() => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotRead${objectType}`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
             return;
         }
-        if(!hasCopyingSupport) {
+        if (!hasCopyingSupport) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
             return;
         }

@@ -2,6 +2,7 @@ import { Grid } from "@mui/material";
 import { FindByIdInput, ResourceList, SmartContractVersion, SmartContractVersionUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { smartContractVersionTranslationValidation, smartContractVersionValidation } from '@shared/validation';
+import { mutationWrapper } from "api";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
 import { smartContractVersionUpdate } from "api/generated/endpoints/smartContractVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
@@ -20,6 +21,7 @@ import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
+import { shapeSmartContractVersion } from "utils/shape/models/smartContractVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { SmartContractUpdateProps } from "../types";
 
@@ -60,23 +62,16 @@ export const SmartContractUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: smartContractVersionValidation.update({}),
         onSubmit: (values) => {
-            if (!smartContractVersion) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadSmartContract', severity: 'Error' });
+            if (!existing) {
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                 return;
             }
-            // mutationWrapper<SmartContractVersion, SmartContractVersionUpdateInput>({
-            //     mutation,
-            //     input: shapeSmartContractVersion.update(smartContractVersion, {
-            //         id: smartContractVersion.id,
-            //         isOpenToNewMembers: values.isOpenToNewMembers,
-            //         isPrivate: relationships.isPrivate,
-            //         resourceList: resourceList,
-            //         tags: tags,
-            //         translations: values.translationsUpdate,
-            //     }),
-            //     onSuccess: (data) => { onUpdated(data) },
-            //     onError: () => { formik.setSubmitting(false) },
-            // })
+            mutationWrapper<SmartContractVersion, SmartContractVersionUpdateInput>({
+                mutation,
+                input: shapeSmartContractVersion.update(existing, values),
+                onSuccess: (data) => { onUpdated(data) },
+                onError: () => { helpers.setSubmitting(false) },
+            })
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
