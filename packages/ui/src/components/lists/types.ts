@@ -1,6 +1,6 @@
 import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, Role, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
-import { AwardDisplay, NavigableObject } from 'types';
+import { NavigableObject } from 'types';
 import { ObjectAction } from 'utils/actions/objectActions';
 import { ListObjectType } from 'utils/display/listTools';
 import { UseObjectActionsReturn } from 'utils/hooks/useObjectActions';
@@ -121,8 +121,4 @@ export interface TagListProps {
     parentId: string;
     sx?: { [x: string]: any };
     tags: Partial<Tag>[];
-}
-
-export interface AwardListProps {
-    awards: AwardDisplay[];
 }

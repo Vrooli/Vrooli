@@ -5,6 +5,7 @@ import { AwardDisplay } from "types";
 
 export interface AwardCardProps {
     award: AwardDisplay;
+    isEarned: boolean;
 }
 
 export interface CardGridProps {

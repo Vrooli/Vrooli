@@ -1,14 +1,18 @@
 import { Question, QuestionCreateInput } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { questionValidation } from '@shared/validation';
+import { mutationWrapper } from "api";
 import { questionCreate } from "api/generated/endpoints/question_create";
 import { useCustomMutation } from "api/hooks";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Formik } from "formik";
+import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionForm } from "forms/QuestionForm/QuestionForm";
-import { useContext } from "react";
+import { useContext, useRef } from "react";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
+import { shapeQuestion } from "utils/shape/models/question";
 import { QuestionCreateProps } from "../types";
 
 export const QuestionCreate = ({

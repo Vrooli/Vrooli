@@ -266,7 +266,7 @@ export const AccountMenu = ({
                 <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>{t(`Display`)}</Typography>
                 {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
-            <Collapse in={isDisplaySettingsOpen} sx={{ display: 'inline-block' }}>
+            <Collapse in={isDisplaySettingsOpen} sx={{ display: 'inline-block', minHeight: 'auto!important' }}>
                 <Box sx={{
                     minWidth: 'fit-content',
                     height: 'fit-content',

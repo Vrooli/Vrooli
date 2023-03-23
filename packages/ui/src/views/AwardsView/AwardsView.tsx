@@ -1,11 +1,11 @@
 import { useQuery } from "@apollo/client";
+import { Stack } from "@mui/material";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
 import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award_findMany";
 import { AwardCard } from "components/cards/AwardCard/AwardCard";
 import { CardGrid } from "components/cards/CardGrid/CardGrid";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { AwardList } from "components/lists/AwardList/AwardList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,29 +60,38 @@ export const AwardsView = ({
                     titleVariables: { count: 2 },
                 }}
             />
-            {/* Display earned awards as a list of tags. Press or hover to see description */}
-            <ContentCollapse
-                isOpen={true}
-                titleKey="Earned"
-                sxs={{
-                    root: {
-                        marginBottom: 2,
-                    }
-                }}
-            >
-                <AwardList awards={awards.filter(a => Boolean(a.earnedTier))} />
-            </ContentCollapse>
-            {/* Display progress of awards as cards */}
-            <ContentCollapse
-                isOpen={true}
-                titleKey="InProgress"
-            >
-                <CardGrid minWidth={250} disableMargin={true}>
-                    {awards.map((award) => (
-                        <AwardCard key={award.category} award={award} />
-                    ))}
-                </CardGrid>
-            </ContentCollapse>
+            <Stack direction="column" spacing={2} sx={{ margin: 2 }} >
+                {/* Display earned awards as a list of tags. Press or hover to see description */}
+                <ContentCollapse
+                    isOpen={true}
+                    titleKey="Earned"
+                >
+                    <CardGrid minWidth={200} disableMargin={true}>
+                        {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
+                            <AwardCard
+                                key={award.category}
+                                award={award}
+                                isEarned={true}
+                            />
+                        ))}
+                    </CardGrid>
+                </ContentCollapse>
+                {/* Display progress of awards as cards */}
+                <ContentCollapse
+                    isOpen={true}
+                    titleKey="InProgress"
+                >
+                    <CardGrid minWidth={200} disableMargin={true}>
+                        {awards.map((award) => (
+                            <AwardCard
+                                key={award.category}
+                                award={award}
+                                isEarned={false}
+                            />
+                        ))}
+                    </CardGrid>
+                </ContentCollapse>
+            </Stack>
         </>
     )
 }
