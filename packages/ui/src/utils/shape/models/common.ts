@@ -1,1 +1,0 @@
-export type OwnerShape = { __typename: 'User' | 'Organization', id: string };

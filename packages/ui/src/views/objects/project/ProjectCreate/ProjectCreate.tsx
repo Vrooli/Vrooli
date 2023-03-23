@@ -4,6 +4,7 @@ import { projectVersionValidation } from '@shared/validation';
 import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
+import { userFromSession } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
@@ -39,16 +40,23 @@ export const ProjectCreate = ({
                 initialValues={{
                     __typename: 'ProjectVersion' as const,
                     id: uuid(),
+                    isComplete: false,
+                    isPrivate: false,
+                    root: {
+                        __typename: 'Project' as const,
+                        id: uuid(),
+                        owner: session ? userFromSession(session!) : null,
+                        parent: null,
+                        project: null,
+                    },
                     translations: [{
                         id: uuid(),
                         language: getUserLanguages(session)[0],
                         name: '',
                         description: '',
                     }],
-                    versionInfo: {
-                        versionLabel: '1.0.0',
-                        versionNotes: '',
-                    }
+                    versionLabel: '1.0.0',
+                    versionNotes: '',
                 }}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<ProjectVersion, ProjectVersionCreateInput>({

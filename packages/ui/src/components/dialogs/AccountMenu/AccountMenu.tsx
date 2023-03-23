@@ -76,6 +76,7 @@ export const AccountMenu = ({
         enableReinitialize: true,
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
+            console.log('formik submit')
             // If not logged in, do nothing
             if (!userId) {
                 return;

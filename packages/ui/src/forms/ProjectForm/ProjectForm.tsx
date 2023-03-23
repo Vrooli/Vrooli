@@ -1,7 +1,8 @@
-import { Stack, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { projectVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -50,17 +51,20 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                     paddingBottom: '64px',
                 }}
             >
-                <Stack direction="column" spacing={2} paddingTop={2}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex + 1}
-                    />
-                </Stack>
+                <RelationshipButtons
+                    isEditing={true}
+                    objectType={'Project'}
+                    zIndex={zIndex}
+                    sx={{ marginBottom: 4 }}
+                />
+                <LanguageInput
+                    currentLanguage={language}
+                    handleAdd={handleAddLanguage}
+                    handleDelete={handleDeleteLanguage}
+                    handleCurrent={setLanguage}
+                    languages={languages}
+                    zIndex={zIndex + 1}
+                />
                 {/* TODO */}
                 <GridSubmitButtons
                     display={display}

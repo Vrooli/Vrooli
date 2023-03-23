@@ -1,10 +1,10 @@
 import { Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { OwnerShape } from "./common";
 import { LabelShape, shapeLabel } from "./label";
 import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
 import { shapeTag, TagShape } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
+import { OwnerShape } from "./types";
 
 
 export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPrivate' | 'permissions'> & {

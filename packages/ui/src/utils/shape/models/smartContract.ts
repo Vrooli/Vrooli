@@ -1,10 +1,10 @@
 import { SmartContract, SmartContractCreateInput, SmartContractUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { OwnerShape } from "./common";
 import { LabelShape, shapeLabel } from "./label";
 import { shapeSmartContractVersion, SmartContractVersionShape } from "./smartContractVersion";
 import { shapeTag, TagShape } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
+import { OwnerShape } from "./types";
 
 export type SmartContractShape = Pick<SmartContract, 'id' | 'isPrivate'> & {
     __typename?: 'SmartContract';

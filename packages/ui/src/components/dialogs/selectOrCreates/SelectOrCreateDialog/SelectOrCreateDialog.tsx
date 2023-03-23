@@ -188,7 +188,9 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                 helpText={helpText}
                 onClose={onClose}
             />
-            <Stack direction="column" spacing={2}>
+            <Stack direction="column" spacing={2} sx={{
+                minHeight: '500px',
+            }}>
                 <Stack direction="row" alignItems="center" justifyContent="center">
                     <Typography component="h2" variant="h4">{t(objectType as CommonKey, { count: 2 })}</Typography>
                     <Tooltip title={t(`AddNew`)} placement="top">

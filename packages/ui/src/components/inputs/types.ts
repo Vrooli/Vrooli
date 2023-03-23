@@ -272,10 +272,6 @@ export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
     __typename: 'RoutineVersion';
 };
 
-export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
-export type RelationshipProject = RelationshipItemProjectVersion | null;
-export type RelationshipParent = RelationshipItemProjectVersion | RelationshipItemRoutineVersion | null;
-
 export interface RelationshipButtonsProps {
     isEditing: boolean;
     isFormDirty?: boolean;
