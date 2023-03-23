@@ -1,9 +1,10 @@
-import { ApiVersion, GqlModelType, NoteVersion, Organization, ProjectVersion, Role, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
+import { ApiVersion, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { NavigableObject } from 'types';
 import { ObjectAction } from 'utils/actions/objectActions';
 import { ListObjectType } from 'utils/display/listTools';
 import { UseObjectActionsReturn } from 'utils/hooks/useObjectActions';
+import { ObjectType } from 'utils/navigation/openObject';
 import { SearchType } from 'utils/search/objectToSearch';
 
 export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
@@ -60,6 +61,35 @@ export interface DateRangeMenuProps {
      * matches.
      */
     strictIntervalRange?: number;
+}
+
+export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &
+{
+    translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[];
+    __typename: 'Organization';
+};
+export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
+    __typename: 'User';
+}
+export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
+{
+    root: Pick<Project, '__typename' | 'id' | 'handle' | 'owner'>;
+    translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
+    __typename: 'ProjectVersion';
+};
+export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
+{
+    root: Pick<Routine, '__typename' | 'id' | 'owner'>;
+    translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
+    __typename: 'RoutineVersion';
+};
+
+export interface RelationshipListProps {
+    isEditing: boolean;
+    isFormDirty?: boolean;
+    objectType: ObjectType;
+    zIndex: number;
+    sx?: { [x: string]: any };
 }
 
 export interface RoleListProps {

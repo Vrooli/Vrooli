@@ -47,6 +47,10 @@ export interface CommentsButtonProps {
     object: NavigableObject | null | undefined;
 }
 
+export interface EllipsisActionButtonProps {
+    children: JSX.Element | null | (JSX.Element | null)[]
+}
+
 export interface GridActionButtonsProps {
     children: JSX.Element | JSX.Element[];
     display: ViewDisplayType;

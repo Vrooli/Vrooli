@@ -23,12 +23,12 @@ export const SideActionButtons = ({
             // and left side of screen for left handed users
             left: isLeftHanded ? 0 : 'auto',
             right: isLeftHanded ? 'auto' : 0,
-            // Make sure that spacing accounts for safe area insets and 
-            // the height of the BottomNav
+            // Make sure that spacing accounts for safe area insets, the height of the BottomNav, 
+            // and action buttons that might be displayed above the BottomNav
             marginBottom: {
                 // Only need to account for BottomNav when screen is small AND this is not for a dialog (which has no BottomNav)
-                xs: display === 'page' ? 'calc(56px + 16px + env(safe-area-inset-bottom))' : 'calc(16px + env(safe-area-inset-bottom))',
-                md: 'calc(16px + env(safe-area-inset-bottom))'
+                xs: display === 'page' ? 'calc(56px + 70px + 16px + env(safe-area-inset-bottom))' : 'calc(70px + 16px + env(safe-area-inset-bottom))',
+                md: 'calc(70px + 16px + env(safe-area-inset-bottom))'
             },
             marginLeft: 'calc(16px + env(safe-area-inset-left))',
             marginRight: 'calc(16px + env(safe-area-inset-right))',

@@ -9,9 +9,9 @@ import { CommentContainer } from "components/containers/CommentContainer/Comment
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { BaseStandardInput } from "components/inputs/standards";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
@@ -173,7 +173,7 @@ export const StandardView = ({
                     zIndex={zIndex}
                 />
                 {/* Relationships */}
-                <RelationshipButtons
+                <RelationshipList
                     isEditing={false}
                     objectType={'Routine'}
                     zIndex={zIndex}

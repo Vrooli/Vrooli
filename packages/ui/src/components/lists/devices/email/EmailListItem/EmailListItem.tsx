@@ -1,9 +1,9 @@
 // Used to display popular/search results of a particular object type
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { EmailListItemProps } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useCallback } from 'react';
 import { CompleteIcon, DeleteIcon } from '@shared/icons';
+import { useCallback } from 'react';
+import { multiLineEllipsis } from 'styles';
+import { EmailListItemProps } from '../types';
 
 const Status = {
     NotVerified: '#a71c2d', // Red
@@ -62,7 +62,7 @@ export function EmailListItem({
                     <IconButton
                         onClick={onVerify}
                     >
-                        <CompleteIcon fill={Status.NotVerified } />
+                        <CompleteIcon fill={Status.NotVerified} />
                     </IconButton>
                 </Tooltip>}
                 <Tooltip title="Delete Email">

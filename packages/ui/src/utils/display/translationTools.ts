@@ -689,17 +689,22 @@ export const handleTranslationChange = (
     event: { target: { name: string, value: string } },
     language: string
 ) => {
+    console.log('yeet 0', event)
     // Get field name and value from event
     const { name: changedField } = event.target;
+    console.log('yeet 1', changedField);
     // Get index of translation object
     const { index, value: currentValue } = getTranslationData(field, meta, language);
+    console.log('yeet 2', index, currentValue);
     // Update the value of the translation object
     const newValue = {
         ...currentValue,
         [changedField]: event.target.value
     };
+    console.log('yeet 3', newValue);
     // Update the array with the new translation object
     const newTranslations = field.value.map((translation, idx) => idx === index ? newValue : translation);
+    console.log('yeet 4', newTranslations, helpers);
     // Set the updated translations array
     helpers.setValue(newTranslations);
 }

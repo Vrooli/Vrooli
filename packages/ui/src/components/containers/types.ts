@@ -31,6 +31,7 @@ export interface ListContainerProps {
     children: JSX.Element | JSX.Element[];
     emptyText?: string;
     isEmpty?: boolean;
+    sx?: { [x: string]: any };
 }
 
 export interface ListTitleContainerProps extends TitleContainerProps {

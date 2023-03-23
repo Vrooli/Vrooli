@@ -1,14 +1,10 @@
-/**
- * Horizontal button list for assigning owner, project, and parent 
- * to objects
- */
 import { Stack, useTheme } from '@mui/material';
 import { Session } from '@shared/consts';
 import { IsCompleteButton, IsPrivateButton, OwnerButton, ParentButton, ProjectButton } from 'components/buttons/relationships';
 import { noSelect } from 'styles';
 import { getCurrentUser } from 'utils/authentication/session';
 import { OwnerShape } from 'utils/shape/models/types';
-import { RelationshipButtonsProps } from '../types';
+import { RelationshipListProps } from '../types';
 
 /**
  * Converts session to user object
@@ -22,7 +18,11 @@ export const userFromSession = (session: Session): Exclude<OwnerShape, null> => 
     name: 'Self',
 })
 
-export function RelationshipButtons(props: RelationshipButtonsProps) {
+/**
+ * Horizontal button list for assigning owner, project, and parent 
+ * to objects
+ */
+export function RelationshipList(props: RelationshipListProps) {
     const { palette } = useTheme();
 
     return (

@@ -1,10 +1,9 @@
 import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
-import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Standard, StandardVersion, Tag, User } from '@shared/consts';
+import { Comment, CommentFor, Standard, StandardVersion, Tag } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
 import { FocusEventHandler } from 'react';
 import { VersionInfo } from 'types';
-import { ObjectType } from 'utils/navigation/openObject';
 import { TagShape } from 'utils/shape/models/tag';
 import { StringSchema } from 'yup';
 
@@ -249,35 +248,6 @@ export interface IntegerInputProps extends BoxProps {
     name: string;
     step?: number;
     tooltip?: string;
-}
-
-export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &
-{
-    translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'Organization';
-};
-export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
-    __typename: 'User';
-}
-export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
-{
-    root: Pick<Project, '__typename' | 'id' | 'handle' | 'owner'>;
-    translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'ProjectVersion';
-};
-export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
-{
-    root: Pick<Routine, '__typename' | 'id' | 'owner'>;
-    translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'RoutineVersion';
-};
-
-export interface RelationshipButtonsProps {
-    isEditing: boolean;
-    isFormDirty?: boolean;
-    objectType: ObjectType;
-    zIndex: number;
-    sx?: { [x: string]: any };
 }
 
 export type SelectorProps<T extends string | number | { [x: string]: any }> = {

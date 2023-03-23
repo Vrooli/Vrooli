@@ -8,7 +8,7 @@ import { smartContractVersionUpdate } from "api/generated/endpoints/smartContrac
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -119,7 +119,7 @@ export const SmartContractUpdate = ({
             <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
-                        <RelationshipButtons
+                        <RelationshipList
                             isEditing={true}
                             objectType={'SmartContract'}
                             zIndex={zIndex}

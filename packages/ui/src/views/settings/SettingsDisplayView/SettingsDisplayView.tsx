@@ -39,41 +39,46 @@ export const SettingsDisplayView = ({
             />
             <Stack direction="row">
                 <SettingsList />
-                <Formik
-                    enableReinitialize={true}
-                    initialValues={{
-                        theme: palette.mode === 'dark' ? 'dark' : 'light'
-                    } as ProfileUpdateInput}
-                    onSubmit={(values, helpers) => {
-                        if (!profile) {
-                            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
-                            return;
-                        }
-                        mutationWrapper<User, ProfileUpdateInput>({
-                            mutation,
-                            input: {
-                                ...values,
-                                languages: [getSiteLanguage(session)],
-                            },
-                            onSuccess: (data) => { onProfileUpdate(data) },
-                            onError: () => { helpers.setSubmitting(false) },
-                        })
-                    }}
-                    validationSchema={userValidation.update({})}
-                >
-                    {(formik) => <SettingsDisplayForm
-                        display={display}
-                        isLoading={isProfileLoading || isUpdating}
-                        onCancel={formik.resetForm}
-                        {...formik}
-                    />}
-                </Formik>
-                <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
-                    <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
-                    }}>{t('ClearSearchHistory')}</Button>
-                </Box>
+                <Stack direction="column" sx={{
+                    margin: 'auto',
+                    display: 'block',
+                }}>
+                    <Formik
+                        enableReinitialize={true}
+                        initialValues={{
+                            theme: palette.mode === 'dark' ? 'dark' : 'light'
+                        } as ProfileUpdateInput}
+                        onSubmit={(values, helpers) => {
+                            if (!profile) {
+                                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+                                return;
+                            }
+                            mutationWrapper<User, ProfileUpdateInput>({
+                                mutation,
+                                input: {
+                                    ...values,
+                                    languages: [getSiteLanguage(session)],
+                                },
+                                onSuccess: (data) => { onProfileUpdate(data) },
+                                onError: () => { helpers.setSubmitting(false) },
+                            })
+                        }}
+                        validationSchema={userValidation.update({})}
+                    >
+                        {(formik) => <SettingsDisplayForm
+                            display={display}
+                            isLoading={isProfileLoading || isUpdating}
+                            onCancel={formik.resetForm}
+                            {...formik}
+                        />}
+                    </Formik>
+                    <Box sx={{ margin: 2, marginBottom: 5 }}>
+                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                        }}>{t('ClearSearchHistory')}</Button>
+                    </Box>
+                </Stack>
             </Stack>
         </>
     )

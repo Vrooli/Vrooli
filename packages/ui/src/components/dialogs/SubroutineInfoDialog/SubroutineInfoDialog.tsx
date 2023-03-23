@@ -20,13 +20,13 @@ import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubm
 import { EditableTextCollapse } from 'components/containers/EditableTextCollapse/EditableTextCollapse';
 import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
 import { LanguageInput } from 'components/inputs/LanguageInput/LanguageInput';
-import { RelationshipButtons } from 'components/inputs/RelationshipButtons/RelationshipButtons';
 import { TagSelector } from 'components/inputs/TagSelector/TagSelector';
-import { RelationshipItemRoutineVersion } from 'components/inputs/types';
 import { VersionInput } from 'components/inputs/VersionInput/VersionInput';
 import { InputOutputContainer } from 'components/lists/inputOutput';
+import { RelationshipList } from 'components/lists/RelationshipList/RelationshipList';
 import { ResourceListHorizontal } from 'components/lists/resource';
 import { TagList } from 'components/lists/TagList/TagList';
+import { RelationshipItemRoutineVersion } from 'components/lists/types';
 import { VersionDisplay } from 'components/text/VersionDisplay/VersionDisplay';
 import { useFormik } from 'formik';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -265,7 +265,7 @@ export const SubroutineInfoDialog = ({
                     <Grid container spacing={2}>
                         {/* owner, project, isPrivate, etc. */}
                         <Grid item xs={12}>
-                            <RelationshipButtons
+                            <RelationshipList
                                 isEditing={isEditing}
                                 isFormDirty={formik.dirty}
                                 objectType={'Routine'}

@@ -2,7 +2,7 @@ import { useTheme } from "@mui/material";
 import { projectVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -51,7 +51,7 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                     paddingBottom: '64px',
                 }}
             >
-                <RelationshipButtons
+                <RelationshipList
                     isEditing={true}
                     objectType={'Project'}
                     zIndex={zIndex}

@@ -15,8 +15,8 @@ export const TranslatedMarkdownInput = ({
         field.onBlur(event);
     };
 
-    const handleChange = (event) => {
-        handleTranslationChange(field, meta, helpers, event, language);
+    const handleChange = (newText: string) => {
+        handleTranslationChange(field, meta, helpers, { target: { name, value: newText } }, language);
     };
 
     return (

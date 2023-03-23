@@ -7,8 +7,8 @@ import { CommentContainer } from "components/containers/CommentContainer/Comment
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
@@ -260,7 +260,7 @@ export const SubroutineView = ({
                 <Box sx={containerProps(palette)}>
                     <ContentCollapse isOpen={false} title="Additional Information">
                         {/* Relationships */}
-                        <RelationshipButtons
+                        <RelationshipList
                             isEditing={false}
                             objectType={'Routine'}
                             zIndex={zIndex}

@@ -4,7 +4,7 @@ import { projectVersionValidation } from '@shared/validation';
 import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { userFromSession } from "components/inputs/RelationshipButtons/RelationshipButtons";
+import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";

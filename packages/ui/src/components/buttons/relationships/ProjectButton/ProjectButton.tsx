@@ -5,7 +5,7 @@ import { exists } from '@shared/utils';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
 import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
-import { RelationshipItemProjectVersion } from 'components/inputs/types';
+import { RelationshipItemProjectVersion } from 'components/lists/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { useField } from 'formik';
 import { useCallback, useContext, useMemo, useState } from 'react';

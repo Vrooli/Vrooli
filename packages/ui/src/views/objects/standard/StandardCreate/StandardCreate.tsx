@@ -10,10 +10,10 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { Selector } from "components/inputs/Selector/Selector";
 import { BaseStandardInput } from "components/inputs/standards";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
@@ -146,7 +146,7 @@ export const StandardCreate = ({
             <BaseForm onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
-                        <RelationshipButtons
+                        <RelationshipList
                             isEditing={true}
                             objectType={'Standard'}
                             zIndex={zIndex}

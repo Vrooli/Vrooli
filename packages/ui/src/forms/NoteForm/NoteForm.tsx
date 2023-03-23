@@ -1,9 +1,10 @@
 import { useTheme } from "@mui/material";
 import { noteVersionTranslationValidation } from "@shared/validation";
+import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
 import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { NoteFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -27,13 +28,8 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    // Handle translations
     const {
-        handleAddLanguage,
-        handleDeleteLanguage,
         language,
-        languages,
-        setLanguage,
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
@@ -43,6 +39,15 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
 
     return (
         <>
+            <SideActionButtons display={display} zIndex={zIndex + 1}>
+                <EllipsisActionButton>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={'Note'}
+                        zIndex={zIndex}
+                    />
+                </EllipsisActionButton>
+            </SideActionButtons>
             <BaseForm
                 dirty={dirty}
                 isLoading={isLoading}
@@ -52,20 +57,6 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                     paddingBottom: '64px',
                 }}
             >
-                <RelationshipButtons
-                    isEditing={true}
-                    objectType={'Note'}
-                    zIndex={zIndex}
-                    sx={{ marginBottom: 4 }}
-                />
-                <LanguageInput
-                    currentLanguage={language}
-                    handleAdd={handleAddLanguage}
-                    handleDelete={handleDeleteLanguage}
-                    handleCurrent={setLanguage}
-                    languages={languages}
-                    zIndex={zIndex + 1}
-                />
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"

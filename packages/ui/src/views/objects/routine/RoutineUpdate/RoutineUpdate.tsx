@@ -12,10 +12,10 @@ import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { UpTransition } from "components/dialogs/transitions";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
@@ -214,7 +214,7 @@ export const RoutineUpdate = ({
             <BaseForm isLoading={loading} onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                     <Grid item xs={12} mb={4}>
-                        <RelationshipButtons
+                        <RelationshipList
                             isEditing={true}
                             isFormDirty={formik.dirty}
                             objectType={'Routine'}
