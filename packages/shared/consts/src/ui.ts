@@ -18,7 +18,7 @@ export const LINKS = {
     Notifications: '/notifications',
     Organization: '/org',
     Premium: '/premium',
-    PrivacyPolicy: '/privacy',
+    Privacy: '/privacy', // Privacy policy
     Profile: '/profile',
     Project: '/project',
     Question: '/question',
@@ -40,7 +40,7 @@ export const LINKS = {
     Start: '/start',
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     Tag: '/tag',
-    Terms: '/terms',
+    Terms: '/terms', // Terms and conditions
     Tutorial: '/tutorial',
     User: '/user',
     Welcome: '/welcome', // Displays the first time you enter the application (either as guest or as logged in user)

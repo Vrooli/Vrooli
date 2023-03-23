@@ -196,7 +196,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <PremiumView />
                 </NavRoute>
                 <NavRoute
-                    path={LINKS.PrivacyPolicy}
+                    path={LINKS.Privacy}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"

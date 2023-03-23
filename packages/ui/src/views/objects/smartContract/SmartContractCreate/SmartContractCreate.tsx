@@ -16,7 +16,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -30,9 +29,9 @@ export const SmartContractCreate = ({
 }: SmartContractCreateProps) => {
     const session = useContext(SessionContext);
 
-    const formRef = useRef<BaseFormRef>();
-    const { onCancel, onCreated } = useCreateActions<SmartContractVersion>();
-    const [mutation, { loading: isLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionCreateInput>(smartContractVersionCreate);
+    // const formRef = useRef<BaseFormRef>();
+    // const { onCancel, onCreated } = useCreateActions<SmartContractVersion>();
+    // const [mutation, { loading: isLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionCreateInput>(smartContractVersionCreate);
 
 
 

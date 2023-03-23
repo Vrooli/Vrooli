@@ -25,7 +25,6 @@ import { checkIfLoggedIn } from "utils/authentication/session";
 import { InputTypeOption, InputTypeOptions } from "utils/consts";
 import { defaultResourceList } from "utils/defaults/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
-import { useCreateActions } from "utils/hooks/useCreateActions";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -39,9 +38,9 @@ export const StandardCreate = ({
 }: StandardCreateProps) => {
     const session = useContext(SessionContext);
 
-    const formRef = useRef<BaseFormRef>();
-    const { onCancel, onCreated } = useCreateActions<StandardVersion>();
-    const [mutation, { loading: isLoading }] = useCustomMutation<StandardVersion, StandardVersionCreateInput>(standardVersionCreate);
+    // const formRef = useRef<BaseFormRef>();
+    // const { onCancel, onCreated } = useCreateActions<StandardVersion>();
+    // const [mutation, { loading: isLoading }] = useCustomMutation<StandardVersion, StandardVersionCreateInput>(standardVersionCreate);
 
 
 
