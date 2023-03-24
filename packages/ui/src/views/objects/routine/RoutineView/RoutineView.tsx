@@ -274,10 +274,10 @@ export const RoutineView = ({
                 </Dialog>}
                 <ObjectTitle
                     language={language}
+                    languages={availableLanguages}
                     loading={isLoading}
                     title={name}
                     setLanguage={setLanguage}
-                    translations={routineVersion?.translations ?? partialData?.translations ?? []}
                     zIndex={zIndex}
                 />
                 {/* Relationships */}

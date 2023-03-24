@@ -328,7 +328,7 @@ export const UserView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        translations={user?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>

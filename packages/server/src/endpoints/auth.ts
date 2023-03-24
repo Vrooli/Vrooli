@@ -9,7 +9,7 @@ import { gql } from 'apollo-server-express';
 import { getUser, hashPassword, logIn, setupPasswordReset, toSession, validateCode, validateVerificationCode } from '../auth';
 import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
-import { Trigger } from '../events';
+import { Award, Trigger } from '../events';
 import { CustomError } from '../events/error';
 import { rateLimit } from '../middleware';
 import { GQLEndpoint, RecursivePartial } from '../types';
@@ -222,11 +222,22 @@ export const resolvers: {
                         create: [
                             { emailAddress: input.email },
                         ]
+                    },
+                    focusModes: {
+                        create: [{
+                            name: 'Work',
+                            description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                        }, {
+                            name: 'Study',
+                            description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                        }]
                     }
                 }
             });
             if (!user)
                 throw new CustomError('0142', 'FailedToCreate', req.languages);
+            // Give user award for signing up
+            await Award(prisma, user.id, req.languages).update('AccountNew', 1);
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
@@ -449,11 +460,22 @@ export const resolvers: {
                         name: `user${randomString(8)}`,
                         wallets: {
                             connect: { id: walletData.id }
+                        },
+                        focusModes: {
+                            create: [{
+                                name: 'Work',
+                                description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                            }, {
+                                name: 'Study',
+                                description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                            }]
                         }
                     },
                     select: { id: true }
                 });
                 userId = userData.id;
+                // Give user award for signing up
+                await Award(prisma, userId, req.languages).update('AccountNew', 1);
             }
             // If you are signed in
             else {

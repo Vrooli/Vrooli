@@ -343,6 +343,26 @@ export function App() {
             const newTheme = themes[data] ?? themes.light
             setThemeAndMeta(newTheme);
         });
+        // Handle focus mode updates
+        let focusModeSub = PubSub.get().subscribeFocusMode((data) => {
+            setSession((prevState) => {
+                if (!prevState) return prevState;
+                const updatedUsers = prevState?.users?.map((user, idx) => {
+                    if (idx === 0) {
+                        return {
+                            ...user,
+                            activeFocusMode: data,
+                        };
+                    }
+                    return user;
+                });
+                return {
+                    ...prevState,
+                    users: updatedUsers ?? [],
+                };
+            });
+            setCookieActiveFocusMode(data);
+        });
         // Handle font size updates
         let fontSizeSub = PubSub.get().subscribeFontSize((data) => {
             setFontSize(data);
@@ -368,6 +388,7 @@ export function App() {
             PubSub.get().unsubscribe(celebrationSub);
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
+            PubSub.get().unsubscribe(focusModeSub);
             PubSub.get().unsubscribe(fontSizeSub);
             PubSub.get().unsubscribe(languageSub);
             PubSub.get().unsubscribe(isLeftHandedSub);

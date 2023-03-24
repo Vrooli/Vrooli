@@ -13,6 +13,7 @@ export interface DateDisplayProps extends BoxProps {
 
 export interface ObjectTitleProps extends BoxProps {
     language: string;
+    languages: string[];
     loading: boolean;
     setLanguage: (language: string) => void;
     translations: { language: string }[];

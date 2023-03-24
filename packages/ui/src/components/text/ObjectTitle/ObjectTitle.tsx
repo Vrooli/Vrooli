@@ -8,9 +8,9 @@ import { ObjectTitleProps } from "../types";
  */
 export const ObjectTitle = ({
     language,
+    languages,
     loading,
     setLanguage,
-    translations,
     title,
     zIndex,
 }: ObjectTitleProps) => {
@@ -50,7 +50,7 @@ export const ObjectTitle = ({
             <SelectLanguageMenu
                 currentLanguage={language}
                 handleCurrent={setLanguage}
-                translations={translations}
+                languages={languages}
                 zIndex={zIndex}
             />
         </Stack>

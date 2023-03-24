@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material";
+import { Grid } from "@mui/material";
 import { FindVersionInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
@@ -9,6 +9,7 @@ import { mutationWrapper } from 'api/utils';
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
@@ -131,31 +132,21 @@ export const ProjectUpdate = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <TranslatedTextField
                             fullWidth
-                            id="name"
+                            label={t('Name')}
+                            language={language}
                             name="name"
-                            label="Name"
-                            value={translations.name}
-                            onBlur={onTranslationBlur}
-                            onChange={onTranslationChange}
-                            error={translations.touchedName && Boolean(translations.errorName)}
-                            helperText={translations.touchedName && translations.errorName}
                         />
                     </Grid>
                     <Grid item xs={12} mb={4}>
-                        <TextField
+                        <TranslatedTextField
                             fullWidth
-                            id="description"
-                            name="description"
-                            label="description"
+                            label={t('Description')}
+                            language={language}
                             multiline
                             minRows={4}
-                            value={translations.description}
-                            onBlur={onTranslationBlur}
-                            onChange={onTranslationChange}
-                            error={translations.touchedDescription && Boolean(translations.errorDescription)}
-                            helperText={translations.touchedDescription && translations.errorDescription}
+                            name="name"
                         />
                     </Grid>
                     <Grid item xs={12} mb={4}>

@@ -222,10 +222,10 @@ export const SubroutineView = ({
             }}>
                 <ObjectTitle
                     language={language}
+                    languages={availableLanguages}
                     loading={loading}
                     title={name}
                     setLanguage={setLanguage}
-                    translations={internalRoutineVersion?.translations ?? []}
                     zIndex={zIndex}
                 />
                 {/* Resources */}

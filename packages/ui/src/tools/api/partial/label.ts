@@ -21,6 +21,7 @@ export const label: GqlPartial<Label> = {
         created_at: true,
         updated_at: true,
         color: true,
+        label: true,
         owner: {
             __union: {
                 Organization: 0,

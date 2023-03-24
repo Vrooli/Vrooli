@@ -230,7 +230,7 @@ export const ApiView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        translations={apiVersion?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>

@@ -253,6 +253,7 @@ export interface IntegerInputProps extends BoxProps {
 export type SelectorProps<T extends string | number | { [x: string]: any }> = {
     disabled?: boolean;
     fullWidth?: boolean;
+    getOptionDescription?: (option: T) => string | null | undefined;
     getOptionIcon?: (option: T) => SvgComponent;
     getOptionLabel: (option: T) => string;
     inputAriaLabel?: string;

@@ -6,6 +6,9 @@ CREATE TYPE "AccountStatus" AS ENUM ('Deleted', 'Unlocked', 'SoftLocked', 'HardL
 CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCreate', 'CommentCreate', 'IssueCreate', 'NoteCreate', 'ObjectBookmark', 'ObjectVote', 'OrganizationCreate', 'OrganizationJoin', 'PostCreate', 'ProjectCreate', 'PullRequestCreate', 'PullRequestComplete', 'QuestionAnswer', 'QuestionCreate', 'QuizPass', 'ReportEnd', 'ReportContribute', 'Reputation', 'RunRoutine', 'RunProject', 'RoutineCreate', 'SmartContractCreate', 'StandardCreate', 'Streak', 'UserInvite');
 
 -- CreateEnum
+CREATE TYPE "FocusModeFilterType" AS ENUM ('Blur', 'Hide', 'ShowMore');
+
+-- CreateEnum
 CREATE TYPE "IssueStatus" AS ENUM ('Open', 'ClosedResolved', 'ClosedUnresolved', 'Rejected');
 
 -- CreateEnum
@@ -49,9 +52,6 @@ CREATE TYPE "ScheduleRecurrenceType" AS ENUM ('Daily', 'Weekly', 'Monthly', 'Yea
 
 -- CreateEnum
 CREATE TYPE "TransferStatus" AS ENUM ('Accepted', 'Denied', 'Pending');
-
--- CreateEnum
-CREATE TYPE "UserScheduleFilterType" AS ENUM ('Blur', 'Hide', 'ShowMore');
 
 -- CreateTable
 CREATE TABLE "award" (
@@ -267,13 +267,13 @@ CREATE TABLE "focus_mode_labels" (
 );
 
 -- CreateTable
-CREATE TABLE "focus_mode_filters" (
+CREATE TABLE "focus_mode_filter" (
     "id" UUID NOT NULL,
-    "filterType" "UserScheduleFilterType" NOT NULL,
+    "filterType" "FocusModeFilterType" NOT NULL,
     "focusModeId" UUID NOT NULL,
     "tagId" UUID NOT NULL,
 
-    CONSTRAINT "focus_mode_filters_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "focus_mode_filter_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -597,6 +597,8 @@ CREATE TABLE "push_device" (
 CREATE TABLE "notification_subscription" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "context" VARCHAR(2048),
+    "silent" BOOLEAN NOT NULL DEFAULT false,
     "apiId" UUID,
     "commentId" UUID,
     "issueId" UUID,
@@ -609,10 +611,10 @@ CREATE TABLE "notification_subscription" (
     "quizId" UUID,
     "reportId" UUID,
     "routineId" UUID,
+    "scheduleId" UUID,
     "smartContractId" UUID,
     "standardId" UUID,
     "subscriberId" UUID NOT NULL,
-    "silent" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "notification_subscription_pkey" PRIMARY KEY ("id")
 );
@@ -1523,9 +1525,6 @@ CREATE TABLE "schedule" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "location" TEXT,
     "startTime" TIMESTAMP(3) NOT NULL,
     "endTime" TIMESTAMP(3) NOT NULL,
     "timezone" TEXT NOT NULL,
@@ -1543,14 +1542,14 @@ CREATE TABLE "schedule_labels" (
 );
 
 -- CreateTable
-CREATE TABLE "schedule_translation" (
+CREATE TABLE "schedule_exception" (
     "id" UUID NOT NULL,
-    "description" VARCHAR(2048),
-    "name" VARCHAR(128) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
     "scheduleId" UUID NOT NULL,
+    "originalStartTime" TIMESTAMP(3) NOT NULL,
+    "newStartTime" TIMESTAMP(3),
+    "newEndTime" TIMESTAMP(3),
 
-    CONSTRAINT "schedule_translation_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "schedule_exception_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1565,17 +1564,6 @@ CREATE TABLE "schedule_recurrence" (
     "endDate" TIMESTAMP(3),
 
     CONSTRAINT "schedule_recurrence_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "schedule_exception" (
-    "id" UUID NOT NULL,
-    "scheduleId" UUID NOT NULL,
-    "originalStartTime" TIMESTAMP(3) NOT NULL,
-    "newStartTime" TIMESTAMP(3),
-    "newEndTime" TIMESTAMP(3),
-
-    CONSTRAINT "schedule_exception_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2199,7 +2187,7 @@ CREATE UNIQUE INDEX "focus_mode_resourceListId_key" ON "focus_mode"("resourceLis
 CREATE UNIQUE INDEX "focus_mode_labels_labelledId_labelId_key" ON "focus_mode_labels"("labelledId", "labelId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "focus_mode_filters_focusModeId_tagId_key" ON "focus_mode_filters"("focusModeId", "tagId");
+CREATE UNIQUE INDEX "focus_mode_filter_focusModeId_tagId_key" ON "focus_mode_filter"("focusModeId", "tagId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "handle_handle_key" ON "handle"("handle");
@@ -2407,9 +2395,6 @@ CREATE UNIQUE INDEX "routine_labels_labelledId_labelId_key" ON "routine_labels"(
 
 -- CreateIndex
 CREATE UNIQUE INDEX "schedule_labels_labelledId_labelId_key" ON "schedule_labels"("labelledId", "labelId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "schedule_translation_scheduleId_language_key" ON "schedule_translation"("scheduleId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "smart_contract_version_resourceListId_key" ON "smart_contract_version"("resourceListId");
@@ -2691,10 +2676,10 @@ ALTER TABLE "focus_mode_labels" ADD CONSTRAINT "focus_mode_labels_labelledId_fke
 ALTER TABLE "focus_mode_labels" ADD CONSTRAINT "focus_mode_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "focus_mode_filters" ADD CONSTRAINT "focus_mode_filters_focusModeId_fkey" FOREIGN KEY ("focusModeId") REFERENCES "focus_mode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "focus_mode_filter" ADD CONSTRAINT "focus_mode_filter_focusModeId_fkey" FOREIGN KEY ("focusModeId") REFERENCES "focus_mode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "focus_mode_filters" ADD CONSTRAINT "focus_mode_filters_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "focus_mode_filter" ADD CONSTRAINT "focus_mode_filter_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "handle" ADD CONSTRAINT "handle_walletId_fkey" FOREIGN KEY ("walletId") REFERENCES "wallet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2869,6 +2854,9 @@ ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscriptio
 
 -- AddForeignKey
 ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3324,13 +3312,10 @@ ALTER TABLE "schedule_labels" ADD CONSTRAINT "schedule_labels_labelledId_fkey" F
 ALTER TABLE "schedule_labels" ADD CONSTRAINT "schedule_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "schedule_translation" ADD CONSTRAINT "schedule_translation_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "schedule_exception" ADD CONSTRAINT "schedule_exception_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "schedule_recurrence" ADD CONSTRAINT "schedule_recurrence_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "schedule_exception" ADD CONSTRAINT "schedule_exception_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "smart_contract" ADD CONSTRAINT "smart_contract_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;

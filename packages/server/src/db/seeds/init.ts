@@ -3,10 +3,10 @@
  * This is written so that it can be called multiple times without duplicating data.
  */
 import { InputType } from '@shared/consts';
-import { PrismaType } from '../../types';
-import { logger } from '../../events/logger';
 import { uuid } from '@shared/uuid';
 import { hashPassword } from '../../auth';
+import { logger } from '../../events/logger';
+import { PrismaType } from '../../types';
 
 export async function init(prisma: PrismaType) {
     //==============================================================
@@ -95,6 +95,22 @@ export async function init(prisma: PrismaType) {
             languages: {
                 create: [{ language: EN }],
             },
+            focusModes: {
+                create: [{
+                    name: 'Work',
+                    description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                }, {
+                    name: 'Study',
+                    description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                }]
+            },
+            awards: {
+                create: [{
+                    timeCurrentTierCompleted: new Date(),
+                    category: 'AccountNew',
+                    progress: 1,
+                }]
+            }
         },
     })
     //==============================================================

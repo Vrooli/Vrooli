@@ -166,10 +166,10 @@ export const StandardView = ({
                 </Stack>
                 <ObjectTitle
                     language={language}
+                    languages={availableLanguages}
                     loading={isLoading}
                     title={name}
                     setLanguage={setLanguage}
-                    translations={standardVersion?.translations ?? partialData?.translations ?? []}
                     zIndex={zIndex}
                 />
                 {/* Relationships */}

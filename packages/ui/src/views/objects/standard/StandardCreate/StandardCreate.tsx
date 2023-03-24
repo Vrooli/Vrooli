@@ -1,4 +1,4 @@
-import { Box, Grid, TextField } from "@mui/material";
+import { Box, Grid } from "@mui/material";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
 import { parseSearchParams } from "@shared/route";
 import { uuid } from '@shared/uuid';
@@ -13,6 +13,7 @@ import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
 import { Selector } from "components/inputs/Selector/Selector";
 import { BaseStandardInput } from "components/inputs/standards";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -163,31 +164,19 @@ export const StandardCreate = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <TranslatedTextField
                             fullWidth
-                            id="name"
+                            label={t('Name')}
+                            language={language}
                             name="name"
-                            label="Name"
-                            value={formik.values.name}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.name && Boolean(formik.errors.name)}
-                            helperText={formik.touched.name && formik.errors.name}
                         />
                     </Grid>
                     <Grid item xs={12} mb={4}>
-                        <TextField
+                        <TranslatedTextField
                             fullWidth
-                            id="description"
+                            label={t('Description')}
+                            language={language}
                             name="description"
-                            label="description"
-                            multiline
-                            minRows={4}
-                            value={translations.description}
-                            onBlur={onTranslationBlur}
-                            onChange={onTranslationChange}
-                            error={translations.touchedDescription && Boolean(translations.errorDescription)}
-                            helperText={translations.touchedDescription && translations.errorDescription}
                         />
                     </Grid>
                     {/* <Grid item xs={12}>

@@ -322,7 +322,7 @@ export const OrganizationView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        translations={organization?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>

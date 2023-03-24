@@ -133,11 +133,10 @@ export const ReportDialog = ({
                         <SelectLanguageMenu
                             currentLanguage={language}
                             handleCurrent={setLanguage}
-                            translations={[{ language }]}
+                            languages={[language]}
                             zIndex={zIndex}
                         />
                         <Selector
-                            id="reasonSelector"
                             name="reasonSelector"
                             disabled={loading}
                             options={Object.keys(ReportReasons)}

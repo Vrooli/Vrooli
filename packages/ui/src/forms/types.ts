@@ -40,7 +40,21 @@ export interface FormProps {
     onFormChange?: (form: Forms) => any;
 }
 
-export interface LogInFormProps extends FormProps { }
+export interface ForgotPasswordFormProps extends FormProps {
+    onClose: () => any;
+}
+
+export interface LogInFormProps extends FormProps {
+    onClose: () => any;
+}
+
+export interface ResetPasswordFormProps extends FormProps {
+    onClose: () => any;
+}
+
+export interface SignUpFormProps extends FormProps {
+    onClose: () => any;
+}
 
 export interface ApiFormProps extends BaseObjectFormProps { }
 export interface NoteFormProps extends BaseObjectFormProps { }

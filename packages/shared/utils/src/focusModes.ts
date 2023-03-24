@@ -130,10 +130,11 @@ export const getFocusModesFromOccurrences = (
     startDate: Date,
     endDate: Date
 ): FocusMode[] => {
+    console.log('getFocusModesFromOccurrences START', startDate, endDate);
     // Get the schedules associated with each focus mode
     const schedules = focusModes.map((focusMode) => focusMode.schedule);
     // Get the occurrences for each schedule
-    const occurrences = schedules.map((schedule) => calculateOccurrences(schedule as any, startDate, endDate));
+    const occurrences = schedules.map((schedule) => schedule ? calculateOccurrences(schedule as Schedule, startDate, endDate) : []);
     // Get the focus modes that have occurrences in the time frame
     const activeFocusModes = focusModes.filter((focusMode, index) => occurrences[index].length > 0);
     return activeFocusModes;
@@ -150,6 +151,7 @@ export const getActiveFocusMode = (
     currentlyActive: ActiveFocusMode | null | undefined,
     focusModes: FocusMode[]
 ): ActiveFocusMode | null => {
+    console.log('getActiveFocusMode START', JSON.stringify(focusModes), '\n\n');
     // If there is an active focus mode
     if (currentlyActive) {
         // If the focus mode must be manually switched, then return it

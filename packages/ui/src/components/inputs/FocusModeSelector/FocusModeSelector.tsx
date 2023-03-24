@@ -1,3 +1,4 @@
+import { FocusModeStopCondition } from "@shared/consts";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,15 +26,16 @@ export const FocusModeSelector = () => {
                 name="active"
                 options={all}
                 getOptionLabel={(r) => r.name}
-                // getOptionDescription={(r) => r.description}
+                getOptionDescription={(r) => r.description}
                 fullWidth={true}
                 inputAriaLabel="Focus Mode"
                 label={t('FocusMode', { count: 1, defaultValue: 'Focus Mode' })}
                 onChange={(newMode) => {
-                    newMode && PubSub.get().publishFocusMode(({
-                        ...newMode,
-                        stopWhen: 'automatic',
-                    }))
+                    newMode && PubSub.get().publishFocusMode({
+                        __typename: 'ActiveFocusMode' as const,
+                        mode: newMode,
+                        stopCondition: FocusModeStopCondition.Automatic,
+                    })
                 }}
             />
         </Formik>

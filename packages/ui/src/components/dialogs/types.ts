@@ -144,7 +144,7 @@ export interface ReportDialogProps extends DialogProps {
     zIndex: number;
 }
 
-export interface ResourceDialogProps extends DialogProps {
+export interface ResourceDialogProps extends Omit<DialogProps, 'open'> {
     /**
      * Index in resource list. -1 if new
      */

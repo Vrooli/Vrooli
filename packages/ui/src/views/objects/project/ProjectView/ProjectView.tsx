@@ -230,7 +230,7 @@ export const ProjectView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        translations={projectVersion?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>

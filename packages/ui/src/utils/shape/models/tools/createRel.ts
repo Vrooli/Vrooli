@@ -63,13 +63,16 @@ export const createRel = <
     for (const t of relTypes) {
         // If type is connect, add IDs to result
         if (t === 'Connect') {
-            // Ignore items which have more than just an ID, since they must be creates instead
+            // Ignore items which have more than just an ID (or __typename), since they must be creates instead
+            console.log('createRel connect 1', relationData)
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
-            filteredRelationData = filteredRelationData.filter((x) => Object.values(x).length === 1);
+            console.log('createRel connect 2', filteredRelationData)
+            filteredRelationData = filteredRelationData.filter((x) => Object.keys(x).every((k) => ['id', '__typename'].includes(k)));
+            console.log('createRel connect 3', filteredRelationData, shape?.idField ?? 'id')
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === 'one' ?
-                (relationData as any)[shape!.idField ?? 'id'] :
-                (relationData as any).map((x: any) => x[shape!.idField ?? 'id']);
+                (relationData as any)[shape?.idField ?? 'id'] :
+                (relationData as any).map((x: any) => x[shape?.idField ?? 'id']);
         }
         else if (t === 'Create') {
             // Ignore items which only have an ID, since they must be connects instead

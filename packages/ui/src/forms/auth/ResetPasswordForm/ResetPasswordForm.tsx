@@ -1,7 +1,6 @@
 import {
     Button,
-    Grid,
-    Paper
+    Grid
 } from '@mui/material';
 import { EmailResetPasswordInput, LINKS, Session } from '@shared/consts';
 import { parseSearchParams, useLocation } from '@shared/route';
@@ -11,13 +10,18 @@ import { authEmailResetPassword } from 'api/generated/endpoints/auth_emailResetP
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
-import { useFormik } from 'formik';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { Formik } from 'formik';
+import { BaseForm } from 'forms/BaseForm/BaseForm';
+import { ResetPasswordFormProps } from 'forms/types';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PubSub } from 'utils/pubsub';
 import { formPaper, formSubmit } from '../../styles';
 
-export const ResetPasswordForm = () => {
+export const ResetPasswordForm = ({
+    onClose,
+}: ResetPasswordFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailResetPassword, { loading }] = useCustomMutation<Session, EmailResetPasswordInput>(authEmailResetPassword);
@@ -31,63 +35,77 @@ export const ResetPasswordForm = () => {
         return { userId, code };
     }, []);
 
-    const formik = useFormik({
-        initialValues: {
-            newPassword: '',
-            confirmNewPassword: '',
-        },
-        validationSchema: emailResetPasswordSchema,
-        onSubmit: (values) => {
-            // Check for valid userId and code
-            if (!userId || !code) {
-                PubSub.get().publishSnack({ messageKey: 'InvalidResetPasswordUrl', severity: 'Error' });
-                return;
-            }
-            mutationWrapper<Session, EmailResetPasswordInput>({
-                mutation: emailResetPassword,
-                input: { id: userId, code, newPassword: values.newPassword },
-                onSuccess: (data) => {
-                    PubSub.get().publishSession(data);
-                    setLocation(LINKS.Home)
-                },
-                successMessage: () => ({ key: 'PasswordReset' }),
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-
     return (
-        <Paper sx={{ ...formPaper }}>
-            <form onSubmit={formik.handleSubmit}>
-                <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                        <PasswordTextField
-                            fullWidth
-                            autoFocus
-                            name="newPassword"
-                            autoComplete="new-password"
-                            label={t('PasswordNew')}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <PasswordTextField
-                            fullWidth
-                            name="confirmNewPassword"
-                            autoComplete="new-password"
-                            label={t('PasswordNewConfirm')}
-                        />
-                    </Grid>
-                </Grid>
-                <Button
-                    fullWidth
-                    disabled={loading}
-                    type="submit"
-                    color="secondary"
-                    sx={{ ...formSubmit }}
+        <>
+            <TopBar
+                display="dialog"
+                onClose={onClose}
+                titleData={{
+                    titleKey: 'ResetPassword',
+                }}
+            />
+            <Formik
+                initialValues={{
+                    newPassword: '',
+                    confirmNewPassword: '',
+                }}
+                onSubmit={(values, helpers) => {
+                    // Check for valid userId and code
+                    if (!userId || !code) {
+                        PubSub.get().publishSnack({ messageKey: 'InvalidResetPasswordUrl', severity: 'Error' });
+                        return;
+                    }
+                    mutationWrapper<Session, EmailResetPasswordInput>({
+                        mutation: emailResetPassword,
+                        input: { id: userId, code, newPassword: values.newPassword },
+                        onSuccess: (data) => {
+                            PubSub.get().publishSession(data);
+                            setLocation(LINKS.Home)
+                        },
+                        successMessage: () => ({ key: 'PasswordReset' }),
+                        onError: () => { helpers.setSubmitting(false) },
+                    })
+                }}
+                validationSchema={emailResetPasswordSchema}
+            >
+                {(formik) => <BaseForm
+                    dirty={formik.dirty}
+                    isLoading={loading}
+                    style={{
+                        display: 'block',
+                        ...formPaper,
+                    }}
                 >
-                    {t('Submit')}
-                </Button>
-            </form>
-        </Paper>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                            <PasswordTextField
+                                fullWidth
+                                autoFocus
+                                name="newPassword"
+                                autoComplete="new-password"
+                                label={t('PasswordNew')}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <PasswordTextField
+                                fullWidth
+                                name="confirmNewPassword"
+                                autoComplete="new-password"
+                                label={t('PasswordNewConfirm')}
+                            />
+                        </Grid>
+                    </Grid>
+                    <Button
+                        fullWidth
+                        disabled={loading}
+                        type="submit"
+                        color="secondary"
+                        sx={{ ...formSubmit }}
+                    >
+                        {t('Submit')}
+                    </Button>
+                </BaseForm>}
+            </Formik>
+        </>
     );
 }

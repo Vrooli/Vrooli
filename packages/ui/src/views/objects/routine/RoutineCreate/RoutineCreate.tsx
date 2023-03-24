@@ -1,4 +1,4 @@
-import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, Tooltip, Typography } from "@mui/material";
 import { Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
 import { RoutineIcon } from "@shared/icons";
 import { parseSearchParams } from "@shared/route";
@@ -13,6 +13,7 @@ import { UpTransition } from "components/dialogs/transitions";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -218,31 +219,21 @@ export const RoutineCreate = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <TranslatedTextField
                             fullWidth
-                            id="name"
+                            label={t('Name')}
+                            language={language}
                             name="name"
-                            label="Name"
-                            value={translations.name}
-                            onBlur={onTranslationBlur}
-                            onChange={onTranslationChange}
-                            error={translations.touchedName && Boolean(translations.errorName)}
-                            helperText={translations.touchedName && translations.errorName}
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <TranslatedTextField
                             fullWidth
-                            id="description"
-                            name="description"
-                            label="description"
-                            value={translations.description}
+                            label={t('Description')}
+                            language={language}
                             multiline
-                            maxRows={3}
-                            onBlur={onTranslationBlur}
-                            onChange={onTranslationChange}
-                            error={translations.touchedDescription && Boolean(translations.errorDescription)}
-                            helperText={translations.touchedDescription && translations.errorDescription}
+                            minRows={4}
+                            name="description"
                         />
                     </Grid>
                     <Grid item xs={12} mb={4}>

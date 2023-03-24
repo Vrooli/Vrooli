@@ -4,7 +4,7 @@ import { FocusModeFilterShape, shapeFocusModeFilter } from "./focusModeFilter";
 import { LabelShape, shapeLabel } from "./label";
 import { ReminderListShape, shapeReminderList } from "./reminderList";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
-import { ScheduleShape } from "./schedule";
+import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type FocusModeShape = Pick<FocusMode, 'id' | 'name' | 'description'> & {

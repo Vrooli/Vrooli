@@ -6,9 +6,7 @@
 // be able to utilize the full functionality of the service
 import {
     Box,
-    Button,
-    Dialog,
-    Stack,
+    Button, Stack,
     SxProps,
     Typography
 } from '@mui/material';
@@ -19,7 +17,7 @@ import { authGuestLogIn } from 'api/generated/endpoints/auth_guestLogIn';
 import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
-import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { WalletInstallDialog } from 'components/dialogs/WalletInstallDialog/WalletInstallDialog';
 import { WalletSelectDialog } from 'components/dialogs/WalletSelectDialog/WalletSelectDialog';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
@@ -64,20 +62,20 @@ export const StartView = ({
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);
     const handleFormChange = useCallback((type: Forms = Forms.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
-    const [Form, formTitle] = useMemo(() => {
+    const Form = useMemo(() => {
         switch (popupForm) {
             case Forms.ForgotPassword:
-                return [ForgotPasswordForm, t('ForgotPassword')];
+                return ForgotPasswordForm;
             case Forms.LogIn:
-                return [LogInForm, t('LogIn')];
+                return LogInForm;
             case Forms.ResetPassword:
-                return [ResetPasswordForm, t('ResetPassword')];
+                return ResetPasswordForm;
             case Forms.SignUp:
-                return [SignUpForm, t('SignUp')];
+                return SignUpForm;
             default:
-                return [LogInForm, t('LogIn')];
+                return LogInForm;
         }
-    }, [popupForm, t])
+    }, [popupForm])
 
     /**
      * If verification code supplied
@@ -192,21 +190,18 @@ export const StartView = ({
                 onClose={closeWalletInstallDialog}
                 zIndex={connectOpen ? 201 : 200}
             />
-            <Dialog
-                open={emailPopupOpen}
-                disableScrollLock={true}
+            <LargeDialog
+                id="email-auth-dialog"
+                isOpen={emailPopupOpen}
                 onClose={closeEmailPopup}
-                aria-labelledby={emailTitleId}
+                titleId={emailTitleId}
+                zIndex={201}
             >
-                <DialogTitle
-                    id={emailTitleId}
-                    title={formTitle}
+                <Form
                     onClose={closeEmailPopup}
+                    onFormChange={handleFormChange}
                 />
-                <Box sx={{ padding: 1 }}>
-                    <Form onFormChange={handleFormChange} />
-                </Box>
-            </Dialog>
+            </LargeDialog>
             {/* App bar */}
             <TopBar
                 display={display}

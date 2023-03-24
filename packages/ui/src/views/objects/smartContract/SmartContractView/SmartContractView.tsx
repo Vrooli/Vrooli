@@ -207,7 +207,7 @@ export const SmartContractView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        translations={smartContractVersion?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>

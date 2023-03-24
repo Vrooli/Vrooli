@@ -8,6 +8,7 @@ import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubm
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { Selector } from "components/inputs/Selector/Selector";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
@@ -118,22 +119,20 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                         label={t('Type')}
                     />
                     {/* Enter name */}
-                    <Field
+                    <TranslatedTextField
                         fullWidth
+                        label={t('NameOptional')}
+                        language={language}
                         name="name"
-                        label={t('Name')}
-                        helperText={t('NameOptional')}
-                        as={TextField}
                     />
                     {/* Enter description */}
-                    <Field
+                    <TranslatedTextField
                         fullWidth
-                        name="description"
-                        label={t('Description')}
-                        helperText={t('DescriptionOptional')}
+                        label={t('DescriptionOptional')}
+                        language={language}
                         multiline
                         maxRows={8}
-                        as={TextField}
+                        name="description"
                     />
                 </Stack>
                 <GridSubmitButtons

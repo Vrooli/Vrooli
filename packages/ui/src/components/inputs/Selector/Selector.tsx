@@ -1,10 +1,11 @@
-import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, useTheme } from '@mui/material';
+import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, useTheme } from '@mui/material';
 import { useField } from 'formik';
 import { useCallback, useMemo } from 'react';
 import { SelectorProps } from '../types';
 
 export function Selector<T extends string | number | { [x: string]: any }>({
     options,
+    getOptionDescription,
     getOptionIcon,
     getOptionLabel,
     fullWidth = false,
@@ -30,25 +31,28 @@ export function Selector<T extends string | number | { [x: string]: any }>({
     // Render all labels
     const labels = useMemo(() => options.map((option) => {
         const labelText = getOptionLabel(option);
-        if (getOptionIcon) {
-            const Icon = getOptionIcon(option);
-            return (
-                <MenuItem key={labelText} value={labelText}>
-                    <ListItemIcon sx={{
-                        minWidth: '32px',
-                    }}>
-                        <Icon fill={palette.background.textSecondary} />
-                    </ListItemIcon>
-                    <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
-                </MenuItem>
-            );
-        }
+        const description = getOptionDescription ? getOptionDescription(option) : null;
+        const Icon = getOptionIcon ? getOptionIcon(option) : null;
         return (
-            <MenuItem key={labelText} value={labelText} sx={getOptionStyle(labelText)}>
-                <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
+            <MenuItem key={labelText} value={labelText} sx={{ whiteSpace: 'normal' }}>
+                {Icon && <ListItemIcon sx={{
+                    minWidth: '32px',
+                }}>
+                    <Icon fill={palette.background.textSecondary} />
+                </ListItemIcon>}
+                <Stack direction="column">
+                    <ListItemText sx={{
+                        ...getOptionStyle(labelText),
+                        // fontWeight: description ? 'bold!important' : typography.fontWeightRegular,
+                        '& .MuiTypography-root': {
+                            fontWeight: description ? 'bold' : typography.fontWeightRegular,
+                        },
+                    }}>{labelText}</ListItemText>
+                    {description && <ListItemText sx={getOptionStyle(labelText)}>{description}</ListItemText>}
+                </Stack>
             </MenuItem>
         );
-    }), [options, getOptionLabel, getOptionIcon, getOptionStyle, palette.background.textSecondary]);
+    }), [options, getOptionLabel, getOptionDescription, getOptionIcon, palette.background.textSecondary, getOptionStyle, typography.fontWeightRegular]);
 
     // Find option from label
     const findOption = useCallback((label: string) => options.find((option) => getOptionLabel(option) === label), [options, getOptionLabel]);
@@ -58,7 +62,7 @@ export function Selector<T extends string | number | { [x: string]: any }>({
      */
     const shrinkLabel = useMemo(() => {
         if (!field.value) return false;
-        return getOptionLabel(field.value).length > 0;
+        return getOptionLabel(field.value)?.length > 0;
     }, [field.value, getOptionLabel]);
 
     return (

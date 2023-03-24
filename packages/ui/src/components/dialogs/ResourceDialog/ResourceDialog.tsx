@@ -1,5 +1,5 @@
 import { DialogContent } from '@mui/material';
-import { Resource, ResourceCreateInput, ResourceList, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
+import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { DUMMY_ID } from '@shared/uuid';
 import { resourceValidation } from '@shared/validation';
 import { resourceCreate } from 'api/generated/endpoints/resource_create';
@@ -14,6 +14,7 @@ import { getUserLanguages } from 'utils/display/translationTools';
 import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
 import { ResourceShape, shapeResource } from 'utils/shape/models/resource';
+import { ObjectSchema, ValidationError } from 'yup';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { ResourceDialogProps } from '../types';
@@ -22,6 +23,42 @@ const helpText =
     `## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service`
 
 const titleId = "resource-dialog-title";
+
+const isYupValidationError = (error: any): error is ValidationError => {
+    return error.name === 'ValidationError';
+}
+
+const validateAndGetYupErrors = async (
+    schema: ObjectSchema<any>,
+    values: any
+): Promise<{} | Record<string, string>> => {
+    console.log('vagye a', schema, values)
+    try {
+        await schema.validate(values);
+        console.log('vagye b')
+        return {}; // Return an empty object if validation succeeds
+    } catch (error) {
+        console.log('vagye c', typeof error, (error as any).name);
+        if (isYupValidationError(error)) {
+            // Check if the inner array is not empty
+            if (error.inner.length > 0) {
+                // Convert the Yup error object to a Formik-compatible error object
+                return error.inner.reduce((errors, err) => {
+                    if (err && err.path) {
+                        errors[err.path] = err.message;
+                    }
+                    return errors;
+                }, {});
+            } else if (error.path) {
+                // Handle the case when the inner array is empty
+                return { [error.path]: error.message };
+            }
+        }
+        console.log('vagye e');
+        // If it's not a Yup ValidationError, re-throw the error
+        throw error;
+    }
+};
 
 export const ResourceDialog = ({
     mutate,
@@ -46,6 +83,30 @@ export const ResourceDialog = ({
         formRef.current?.handleClose(onClose, reason !== 'backdropClick');
     }, [onClose]);
 
+    const transformValues = useCallback((values: ResourceShape) => {
+        console.log('transforming', values, index, shapeResource.create(values))
+        return index < 0
+            ? shapeResource.create(values)
+            : shapeResource.update({ ...partialData, list: values.list } as ResourceShape, values)
+
+    }, [index, partialData]);
+
+    const validateFormValues = useCallback(
+        async (values: ResourceShape) => {
+            console.log('validating a', values, resourceValidation.create({}))
+            const transformedValues = transformValues(values);
+            console.log('validating b', transformedValues)
+            const validationSchema = index < 0
+                ? resourceValidation.create({})
+                : resourceValidation.update({});
+            console.log('validating c', validationSchema)
+            const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+            console.log('validating d', result)
+            return result;
+        },
+        [index, transformValues]
+    );
+
     return (
         <>
             {/*  Main content */}
@@ -68,9 +129,12 @@ export const ResourceDialog = ({
                         initialValues={{
                             __typename: 'Resource' as const,
                             id: partialData?.id ?? DUMMY_ID,
-                            index: partialData?.index ?? Math.max(index, 0),
+                            index: partialData?.index ?? 0,
                             link: partialData?.link ?? '',
-                            listConnect: listId,
+                            list: {
+                                __typename: 'ResourceList' as const,
+                                id: listId
+                            },
                             usedFor: partialData?.usedFor ?? ResourceUsedFor.Context,
                             translations: partialData?.translations ?? [{
                                 __typename: 'ResourceTranslation' as const,
@@ -79,58 +143,40 @@ export const ResourceDialog = ({
                                 description: '',
                                 name: '',
                             }],
-                        }}
+                        } as ResourceShape}
                         onSubmit={(values, helpers) => {
-                            const input = {
-                                ...values,
-                                list: {
-                                    __typename: 'ResourceList' as const,
-                                    id: values.listConnect,
-                                } as ResourceList,
-                            };
                             if (mutate) {
                                 const onSuccess = (data: Resource) => {
                                     (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                                     helpers.resetForm();
                                     onClose();
                                 }
+                                console.log('yeeeet', index, values, shapeResource.create(values));
                                 // If index is negative, create
-                                if (index < 0) {
-                                    mutationWrapper<Resource, ResourceCreateInput>({
-                                        mutation: addMutation,
-                                        input: shapeResource.create(input),
-                                        successMessage: () => ({ key: 'ResourceCreated' }),
-                                        successCondition: (data) => data !== null,
-                                        onSuccess,
-                                        onError: () => { helpers.setSubmitting(false) },
-                                    })
+                                const isCreating = index < 0;
+                                if (!isCreating && (!partialData || !partialData.id)) {
+                                    PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: 'Error' });
+                                    return;
                                 }
-                                // Otherwise, update
-                                else {
-                                    if (!partialData || !partialData.id) {
-                                        PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: 'Error' });
-                                        return;
-                                    }
-                                    mutationWrapper<Resource, ResourceUpdateInput>({
-                                        mutation: updateMutation,
-                                        input: shapeResource.update({ ...partialData, list: { id: listId } } as ResourceShape, input),
-                                        successMessage: () => ({ key: 'ResourceUpdated' }),
-                                        successCondition: (data) => data !== null,
-                                        onSuccess,
-                                        onError: () => { helpers.setSubmitting(false) },
-                                    })
-                                }
+                                mutationWrapper<Resource, ResourceCreateInput | ResourceUpdateInput>({
+                                    mutation: isCreating ? addMutation : updateMutation,
+                                    input: transformValues(values),
+                                    successMessage: () => ({ key: isCreating ? 'ResourceCreated' : 'ResourceUpdated' }),
+                                    successCondition: (data) => data !== null,
+                                    onSuccess,
+                                    onError: () => { helpers.setSubmitting(false) },
+                                })
                             } else {
                                 onCreated({
-                                    ...input,
+                                    ...values,
                                     created_at: partialData?.created_at ?? new Date().toISOString(),
                                     updated_at: partialData?.updated_at ?? new Date().toISOString(),
-                                });
+                                } as Resource);
                                 helpers.resetForm();
                                 onClose();
                             }
                         }}
-                        validationSchema={index < 0 ? resourceValidation.create({}) : resourceValidation.update({})}
+                        validate={async (values) => await validateFormValues(values)}
                     >
                         {(formik) => <ResourceForm
                             display="dialog"

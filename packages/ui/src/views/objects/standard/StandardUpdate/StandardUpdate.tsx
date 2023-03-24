@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material";
+import { Grid } from "@mui/material";
 import { FindVersionInput, ResourceList, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
@@ -9,6 +9,7 @@ import { mutationWrapper } from 'api/utils';
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -141,18 +142,11 @@ export const StandardUpdate = ({
                         />
                     </Grid>
                     <Grid item xs={12} mb={4}>
-                        <TextField
+                        <TranslatedTextField
                             fullWidth
-                            id="description"
+                            label={t('Description')}
+                            language={language}
                             name="description"
-                            label="description"
-                            multiline
-                            minRows={4}
-                            value={translations.description}
-                            onBlur={onTranslationBlur}
-                            onChange={onTranslationChange}
-                            error={translations.touchedDescription && Boolean(translations.errorDescription)}
-                            helperText={translations.touchedDescription && translations.errorDescription}
                         />
                     </Grid>
                     {/* TODO versioning */}

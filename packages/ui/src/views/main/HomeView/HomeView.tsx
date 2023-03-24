@@ -1,8 +1,8 @@
 import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
-import { FocusMode, HomeInput, HomeResult, LINKS, ResourceList } from '@shared/consts';
+import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DUMMY_ID, uuid } from '@shared/uuid';
+import { DUMMY_ID } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
 import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
 import { SiteSearchBar } from 'components/inputs/search';
@@ -15,13 +15,14 @@ import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
 import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
-import { getCurrentUser } from 'utils/authentication/session';
+import { getCurrentUser, getFocusModeInfo } from 'utils/authentication/session';
 import { listToAutocomplete } from 'utils/display/listTools';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
 import { openObject } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
+import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
 import { HomeViewProps } from '../types';
 
@@ -35,22 +36,27 @@ export const HomeView = ({
     const [, setLocation] = useLocation();
 
     // Handle focus modes
-    const [focusMode, setFocusMode] = useState<FocusMode | null>(null);
-    const [focusModes, setFocusModes] = useState<FocusMode[]>([
-        { id: uuid(), name: 'Work' } as any,
-        { id: uuid(), name: 'Side Project' } as any,
-    ]);//Temp values
+    const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<FocusMode>[]>(() => focusModes.map((schedule, index) => ({
+    const tabs = useMemo<PageTab<FocusMode>[]>(() => allFocusModes.map((mode, index) => ({
         index,
-        label: schedule.name,
-        value: schedule,
-    })), [focusModes]);
-    const currTab = useMemo(() => tabs[0], [tabs])
+        label: mode.name,
+        value: mode,
+    })), [allFocusModes]);
+    const currTab = useMemo(() => {
+        const match = tabs.find(tab => tab.value.id === activeFocusMode?.mode?.id)
+        if (match) return match;
+        if (tabs.length) return tabs[0];
+        return null;
+    }, [tabs, activeFocusMode]);
     const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode>) => {
         e.preventDefault();
-        setFocusMode(tab.value);
+        PubSub.get().publishFocusMode({
+            __typename: 'ActiveFocusMode' as const,
+            mode: tab.value,
+            stopCondition: FocusModeStopCondition.Automatic,
+        });
     }, []);
 
     const [searchString, setSearchString] = useState<string>('');
@@ -60,13 +66,13 @@ export const HomeView = ({
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading, error } = useQuery<Wrap<HomeResult, 'home'>, Wrap<HomeInput, 'input'>>(feedHome, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
-    useEffect(() => { refetch() }, [refetch, searchString]);
+    useEffect(() => { refetch() }, [refetch, searchString, activeFocusMode]);
     useDisplayApolloError(error);
 
     // Only show tabs if:
     // 1. The user is logged in 
     // 2. The user has at least two focusModes
-    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && focusModes.length > 1, [session, focusModes]);
+    const showTabs = useMemo(() => Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [session, allFocusModes.length, currTab]);
 
     // Converts resources to a resource list
     const [resourceList, setResourceList] = useState<ResourceList>({
@@ -78,17 +84,17 @@ export const HomeView = ({
         translations: [],
     });
     useEffect(() => {
+        console.log('setting resources?', data)
         if (data?.home?.resources) {
-            setResourceList({
-                __typename: 'ResourceList',
-                created_at: 0,
-                updated_at: 0,
-                id: DUMMY_ID,
-                resources: data.home.resources,
-                translations: [],
-            });
+            setResourceList(r => ({ ...r, resources: data.home.resources }));
         }
     }, [data]);
+    useEffect(() => {
+        // Resources are added to the focus mode's resource list
+        if (activeFocusMode?.mode?.reminderList?.id && activeFocusMode.mode?.reminderList.id !== DUMMY_ID) {
+            setResourceList(r => ({ ...r, id: activeFocusMode!.mode?.reminderList!.id }));
+        }
+    }, [activeFocusMode]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -165,7 +171,7 @@ export const HomeView = ({
                 below={showTabs && (
                     <PageTabs
                         ariaLabel="home-tabs"
-                        currTab={currTab}
+                        currTab={currTab!}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
