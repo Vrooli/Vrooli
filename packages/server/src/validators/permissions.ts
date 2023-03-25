@@ -1,10 +1,10 @@
-import { CustomError, logger } from "../events";
-import { getLogic } from "../getters";
 import { GqlModelType, SessionUser } from '@shared/consts';
+import { permissionsSelectHelper } from "../builders";
+import { CustomError } from "../events";
+import { getLogic } from "../getters";
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
-import { permissionsSelectHelper } from "../builders";
 
 /**
  * Handles setting and interpreting permission policies for organizations and their objects. Permissions are stored as stringified JSON 
@@ -227,26 +227,21 @@ export async function getMultiTypePermissions(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     userData: SessionUser | null,
 ): Promise<{ [id: string]: { [x: string]: any } }> {
-    console.log('getMultiTypePermissions start', JSON.stringify(authDataById), '\n\n');
     // Initialize result
     const permissionsById: { [id: string]: { [key in QueryAction]?: boolean } } = {};
     // Loop through each ID and calculate permissions
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
         const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
-        console.log('before isOwnerAdminCheck', JSON.stringify(authDataById[id]));
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
-        console.log('getMultiTypePermissions loop 1', id, isAdmin, isDeleted, isPublic)
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataById[id] });
-        console.log('getMultiTypePermissions loop 2', permissionResolvers)
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
         const permissions = await Promise.all(
             Object.entries(permissionResolvers).map(async ([key, resolver]) => [key, await resolver()])
         ).then(entries => Object.fromEntries(entries));
-        console.log('getMultiTypePermissions loop 3', JSON.stringify(permissions), '\n\n')
         // Add permissions object to result
         permissionsById[id] = permissions;
     }
@@ -272,7 +267,6 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
     const { delegate, validate } = getLogic(['delegate', 'validate'], type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
-    console.log('getsingletypepermissions 1', type);
     // Get auth data for all objects
     let select: any;
     let authData: any = [];
@@ -299,7 +293,6 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
             permissions[key as keyof Permissions] = [...(permissions[key as keyof Permissions] ?? []), permissionsObject[key]];
         }
     }
-    console.log('getsingletypepermissions 11', type, JSON.stringify(permissions), '\n\n')
     return permissions as { [K in keyof Permissions]: Permissions[K][] };
 }
 
@@ -316,10 +309,8 @@ export async function permissionsCheck(
     idsByAction: { [key in QueryAction]?: string[] },
     userData: SessionUser | null,
 ) {
-    console.log('permissisonsCheck start', JSON.stringify(idsByAction), '\n\n')
     // Get permissions
     const permissionsById = await getMultiTypePermissions(authDataById, userData);
-    console.log('permissisonsCheck 2', JSON.stringify(permissionsById), '\n\n');
     // Loop through each action and validate permissions
     for (const action of Object.keys(idsByAction)) {
         // Get IDs for this action

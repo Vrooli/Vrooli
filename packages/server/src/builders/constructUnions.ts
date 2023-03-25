@@ -20,7 +20,7 @@ export const constructUnions = <
 ): { data: { [x: string]: any }, partialInfo: { [x: string]: any } } => {
     // Create result objects
     let resultData: { [x: string]: any } = data;
-    let resultPartialInfo: { [x: string]: any } = partialInfo;
+    let resultPartialInfo: { [x: string]: any } = { ...partialInfo };
     // Any value in the gqlRelMap which is an object is a union.
     // All other values can be ignored.
     const unionFields: [string, { [x: string]: GqlModelType }][] = Object.entries(gqlRelMap).filter(([, value]) => typeof value === 'object') as any[];
@@ -28,7 +28,6 @@ export const constructUnions = <
     for (const [gqlField, unionData] of unionFields) {
         // For each entry in the union
         for (const [dbField, type] of Object.entries(unionData)) {
-            console.log('checking union pair', gqlField, dbField, type, resultData[dbField])
             // If the current field is in the partial info, use it as the union data
             const isInPartialInfo = exists(resultData[dbField]);
             if (isInPartialInfo) {

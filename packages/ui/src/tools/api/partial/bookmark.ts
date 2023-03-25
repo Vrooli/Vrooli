@@ -1,6 +1,6 @@
 import { Bookmark } from "@shared/consts";
-import { rel } from "../utils";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const bookmark: GqlPartial<Bookmark> = {
     __typename: 'Bookmark',

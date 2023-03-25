@@ -41,7 +41,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     }
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
-    console.log('got searchQuery', objectType, JSON.stringify(searchQuery), '\n\n');
     // Loop through search fields and add each to the search query, 
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];
@@ -78,7 +77,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         logger.error('readManyHelper: Failed to find searchResults', { trace: '0383', error, objectType, ...select, where, orderBy });
         throw new CustomError('0383', 'InternalError', req.languages, { objectType });
     }
-    console.log('readmanyhelper after searchResults', JSON.stringify(searchResults), '\n\n')
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {
@@ -117,17 +115,13 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             edges: []
         }
     }
-    console.log('readmanyhelper yeeeee 1', addSupplemental, JSON.stringify(paginatedResults), '\n');
     //TODO validate that the user has permission to read all of the results, including relationships
     // If not adding supplemental fields, return the paginated results
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
-    console.log('readmanyhelper yeeeee 2', JSON.stringify(formattedNodes), '\n');
     formattedNodes = formattedNodes.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
-    console.log('readmanyhelper yeeeee 3', JSON.stringify(formattedNodes), '\n');
     formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
-    console.log('readmanyhelper yeeeee 4', JSON.stringify(formattedNodes), '\n');
     return {
         ...paginatedResults,
         pageInfo: paginatedResults.pageInfo,

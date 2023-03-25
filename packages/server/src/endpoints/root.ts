@@ -26,7 +26,6 @@ export const typeDef = gql`
         Fork
         Handle
         HomeResult
-        HistoryResult
         Issue
         Label
         Meeting

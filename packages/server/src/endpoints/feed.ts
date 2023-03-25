@@ -262,7 +262,6 @@ export const resolvers: {
                 getUser(req),
                 prisma,
             )
-            console.log('feeed made it heere 2', JSON.stringify(withSupplemental), '\n\n')
             // Return results
             return {
                 __typename: 'PopularResult' as const,

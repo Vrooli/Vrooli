@@ -30,7 +30,6 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                     }
                     score
                     bookmarks
-                    views
                     attemptsCount
                     quizQuestionsCount
                     project {

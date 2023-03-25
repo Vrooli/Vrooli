@@ -108,12 +108,6 @@ export const endpoints = {
             popular: toQuery('popular', 'PopularInput', popularResultPartial, 'list'),
         }
     },
-    history: async () => {
-        const { historyResult: historyResultPartial } = await import('./partial/historyResult');
-        return {
-            history: toQuery('history', 'HistoryInput', historyResultPartial, 'list'),
-        }
-    },
     issue: async () => {
         const { issue: issuePartial } = await import('./partial/issue');
         return {

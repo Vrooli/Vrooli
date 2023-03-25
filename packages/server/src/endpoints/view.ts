@@ -61,9 +61,7 @@ export const resolvers: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            const result = await readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { byId: userData.id } });
-            console.log('view resultttt', JSON.stringify(result), '\n\n');
-            return result;
+            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { byId: userData.id } });
         },
     },
 }

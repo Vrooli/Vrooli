@@ -74,9 +74,7 @@ export const ProjectVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                console.log('in projectversion tographql a');
                 const runs = async () => {
-                    console.log('in projectversion tographql b', userData);
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add projectVersionId, so we 
                     // can associate runs with their project
@@ -84,9 +82,7 @@ export const ProjectVersionModel: ModelLogic<{
                         ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
                         projectVersionId: true
                     }
-                    console.log('in projectversion tographql c');
                     // Query runs made by user
-                    console.log('in projectversion tographql before runs', selectHelper(partial));
                     let runs: any[] = await prisma.run_project.findMany({
                         where: {
                             AND: [
@@ -96,7 +92,6 @@ export const ProjectVersionModel: ModelLogic<{
                         },
                         ...selectHelper(runPartial)
                     });
-                    console.log('in projectversion tographql d');
                     // Format runs to GraphQL
                     runs = runs.map(r => modelToGql(r, runPartial));
                     // Add supplemental fields
@@ -105,7 +100,6 @@ export const ProjectVersionModel: ModelLogic<{
                     const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
                     return projectRuns;
                 };
-                console.log('in projectversion tographql e');
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),

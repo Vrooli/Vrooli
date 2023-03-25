@@ -32,13 +32,10 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     const type = partial.__typename;
     const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (type && format) {
-        console.log('going to remove supplemental fields for: ', type);
         result = removeSupplementalFields(type, result);
         result = deconstructUnions(result, format.gqlRelMap);
         result = addJoinTables(result, format.joinMap as any);
-        console.log('COUNT FIELDS', partial.__typename, format.countFields)
         result = addCountFields(result, format.countFields);
-        console.log('result after count fields', JSON.stringify(result), '\n\n');
     }
     return result;
 }

@@ -3938,7 +3938,7 @@ export type ProjectVersion = {
   complexity: Scalars['Int'];
   created_at: Scalars['Date'];
   directories: Array<ProjectVersionDirectory>;
-  directoriesCount?: Maybe<Scalars['Int']>;
+  directoriesCount: Scalars['Int'];
   directoryListings: Array<ProjectVersionDirectory>;
   directoryListingsCount: Scalars['Int'];
   forks: Array<Project>;
@@ -5338,7 +5338,6 @@ export type Quiz = {
   stats: Array<StatsQuiz>;
   translations: Array<QuizTranslation>;
   updated_at: Scalars['Date'];
-  views: Scalars['Int'];
   you: QuizYou;
 };
 
@@ -11805,7 +11804,7 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   complexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directories?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
-  directoriesCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  directoriesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   forks?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
@@ -12217,7 +12216,6 @@ export type QuizResolvers<ContextType = any, ParentType extends ResolversParentT
   stats?: Resolver<Array<ResolversTypes['StatsQuiz']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuizTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

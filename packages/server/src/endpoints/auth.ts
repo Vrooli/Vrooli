@@ -448,7 +448,6 @@ export const resolvers: {
             let firstLogIn: boolean = false;
             // If you are not signed in
             if (!req.isLoggedIn) {
-                console.log('wlalet dta', walletData)
                 // Wallet must be verified
                 if (!walletData.verified) {
                     throw new CustomError('0152', 'NotYourWallet', req.languages);
@@ -479,7 +478,6 @@ export const resolvers: {
             }
             // If you are signed in
             else {
-                console.log('wwwwalet data', walletData)
                 // If wallet is not verified, link it to your account
                 if (!walletData.verified) {
                     await prisma.user.update({

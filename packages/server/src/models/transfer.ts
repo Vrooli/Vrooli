@@ -1,16 +1,16 @@
-import { CustomError } from "../events";
-import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
-import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { selPad, permissionsSelectHelper, noNull } from "../builders";
 import { Prisma } from "@prisma/client";
-import { GraphQLResolveInfo } from "graphql";
-import { getLogic } from "../getters";
-import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
-import { Notify } from "../notify";
+import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
 import { transferValidation } from "@shared/validation";
+import { GraphQLResolveInfo } from "graphql";
+import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
+import { noNull, permissionsSelectHelper, selPad } from "../builders";
+import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { CustomError } from "../events";
+import { getLogic } from "../getters";
+import { Notify } from "../notify";
+import { PrismaType } from "../types";
+import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
+import { ModelLogic } from "./types";
 
 const __typename = 'Transfer' as const;
 type Permissions = Pick<TransferYou, 'canDelete' | 'canUpdate'>;
@@ -54,7 +54,6 @@ export const transfer = (prisma: PrismaType) => ({
         // Check if user is an admin of each organization
         const isAdmins: boolean[] = await OrganizationModel.query.hasRole(prisma, userData.id, orgIds);
         // Create return list
-        console.log('checking transfer requests', orgIds, userData.id, JSON.stringify(owners), '\n\n');
         const requiresTransferRequest: boolean[] = owners.map((o, i) => {
             // If owner is a user, transfer is required if user is not the same as the session user
             if (o.__typename === 'User') return o.id !== userData.id;

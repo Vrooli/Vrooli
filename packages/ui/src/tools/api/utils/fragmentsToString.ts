@@ -9,6 +9,7 @@ import { partialToStringHelper } from "./partialToStringHelper";
 export const fragmentsToString = async (
     fragments: Exclude<DeepPartialBooleanWithFragments<any>['__define'], undefined>,
 ) => {
+    console.log('fragmentsToString start', Object.keys(fragments), '\n\n')
     // Initialize result
     const result: [string, string][] = [];
     // Loop through fragments
@@ -20,5 +21,6 @@ export const fragmentsToString = async (
         fragmentString += `}`;
         result.push([name, fragmentString]);
     }
+    console.log('fragmentsToString result', result.map(([name, tag]) => name), '\n\n')
     return result;
 }

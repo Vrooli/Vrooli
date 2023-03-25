@@ -21,10 +21,8 @@ export const addSupplementalFieldsMultiTypes = async (
     userData: SessionUser | null,
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
-    console.log('addSupplementalFieldsMultiTypes start');
     // Flatten data array
     const combinedData = flatten(data);
-    console.log('addSupplementalFieldsMultiTypes after flatten')
     // Create an array of partials, that match the data array
     let combinedPartialInfo: PartialGraphQLInfo[] = [];
     for (let i = 0; i < data.length; i++) {
@@ -34,10 +32,8 @@ export const addSupplementalFieldsMultiTypes = async (
             combinedPartialInfo.push(currPartial);
         }
     }
-    console.log('addSupplementalFieldsMultiTypes after combinedPartialInfo')
     // Call addSupplementalFields
     const combinedResult = await addSupplementalFields(prisma, userData, combinedData, combinedPartialInfo);
-    console.log('addSupplementalFieldsMultiTypes after combinedResult')
     // Convert combinedResult into object with keys equal to objectTypes, and values equal to arrays of those types
     const formatted: { [y: string]: any[] } = {};
     let start = 0;
@@ -47,6 +43,5 @@ export const addSupplementalFieldsMultiTypes = async (
         formatted[currKey] = combinedResult.slice(start, end);
         start = end;
     }
-    console.log('addSupplementalFieldsMultiTypes end', JSON.stringify(formatted), '\n\n');
     return formatted;
 }

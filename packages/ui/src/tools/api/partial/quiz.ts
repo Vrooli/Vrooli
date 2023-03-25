@@ -1,6 +1,6 @@
 import { Quiz, QuizTranslation, QuizYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const quizTranslation: GqlPartial<QuizTranslation> = {
     __typename: 'QuizTranslation',
@@ -39,7 +39,6 @@ export const quiz: GqlPartial<Quiz> = {
         createdBy: async () => rel((await import('./user')).user, 'nav'),
         score: true,
         bookmarks: true,
-        views: true,
         attemptsCount: true,
         quizQuestionsCount: true,
         project: async () => rel((await import('./project')).project, 'nav'),

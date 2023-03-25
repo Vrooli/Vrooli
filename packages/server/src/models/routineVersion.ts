@@ -118,7 +118,6 @@ export const RoutineVersionModel: ModelLogic<{
                         routineVersionId: true
                     }
                     // Query runs made by user
-                    console.log('in routineVersion tographql before runs', selectHelper(partial));
                     let runs: any[] = await prisma.run_routine.findMany({
                         where: {
                             AND: [

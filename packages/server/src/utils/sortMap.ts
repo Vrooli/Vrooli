@@ -53,6 +53,8 @@ export const SortMap = {
     InvitesDesc: { invites: { _count: Order.Desc } },
     IssuesAsc: { issues: { _count: Order.Asc } },
     IssuesDesc: { issues: { _count: Order.Desc } },
+    LabelAsc: { label: Order.Asc },
+    LabelDesc: { label: Order.Desc },
     LastViewedAsc: { lastViewedAt: Order.Asc },
     LastViewedDesc: { lastViewedAt: Order.Desc },
     MeetingStartAsc: { meeting: { eventStart: Order.Asc } },

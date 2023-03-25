@@ -15,7 +15,6 @@ import * as Email from './email';
 import * as Feed from './feed';
 import * as FocusMode from './focusMode';
 import * as FocusModeFilter from './focusModeFilter';
-import * as History from './history';
 import * as Issue from './issue';
 import * as Label from './label';
 import * as Meeting from './meeting';
@@ -116,7 +115,6 @@ const schemas: SchemaType[] = [
     Feed,
     FocusMode,
     FocusModeFilter,
-    History,
     Issue,
     Label,
     Meeting,

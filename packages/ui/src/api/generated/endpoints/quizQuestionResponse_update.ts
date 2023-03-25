@@ -27,7 +27,6 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
             }
             score
             bookmarks
-            views
             attemptsCount
             quizQuestionsCount
             project {

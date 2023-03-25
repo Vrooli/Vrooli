@@ -281,7 +281,6 @@ export const ViewModel: ModelLogic<{
      * @returns True if view updated correctly
      */
     view: async (prisma: PrismaType, userData: SessionUser, input: ViewInput): Promise<boolean> => {
-        console.log('view 1', input.viewFor, input.forId)
         // Get Prisma delegate for viewed object
         const { delegate } = getLogic(['delegate'], input.viewFor, userData.languages, 'ViewModel.view');
         // Check if object being viewed on exists
@@ -289,7 +288,6 @@ export const ViewModel: ModelLogic<{
             where: { id: input.forId },
             select: selectMapper[input.viewFor]
         });
-        console.log('view 2', JSON.stringify(objectToView, null, 2));
         if (!objectToView)
             throw new CustomError('0173', 'NotFound', userData.languages);
         // Check if view exists
@@ -310,9 +308,7 @@ export const ViewModel: ModelLogic<{
         }
         // If view did not exist, create it
         else {
-            console.log('view 3')
             const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, prisma, userData.languages, 'view');
-            console.log('view 4', labels)
             view = await prisma.view.create({
                 data: {
                     by: { connect: { id: userData.id } },
@@ -321,7 +317,6 @@ export const ViewModel: ModelLogic<{
                 }
             })
         }
-        console.log('view 5', JSON.stringify(view), '\n\n')
         // Check if a view from this user should increment the view count
         let isOwn = false;
         switch (input.viewFor) {
@@ -358,7 +353,6 @@ export const ViewModel: ModelLogic<{
                     }
                 })
                 if (rootObject) isOwn = true;
-                console.log('view 6', isOwn, '\n\n')
                 break;
             case ViewFor.Question:
                 // Check if question was created by this user

@@ -28,7 +28,6 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
                 }
                 score
                 bookmarks
-                views
                 attemptsCount
                 quizQuestionsCount
                 project {
@@ -85,7 +84,6 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
         }
         score
         bookmarks
-        views
         attemptsCount
         quizQuestionsCount
         project {
