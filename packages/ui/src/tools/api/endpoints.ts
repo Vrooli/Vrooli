@@ -59,7 +59,15 @@ export const endpoints = {
             findMany: toQuery('bookmarks', 'BookmarkSearchInput', ...(await toSearch(bookmarkPartial))),
             create: toMutation('bookmarkCreate', 'BookmarkCreateInput', bookmarkPartial, 'full'),
             update: toMutation('bookmarkUpdate', 'BookmarkUpdateInput', bookmarkPartial, 'full'),
-            close: toMutation('bookmarkClose', 'BookmarkCloseInput', bookmarkPartial, 'full'),
+        }
+    },
+    bookmarkList: async () => {
+        const { bookmarkList: bookmarkListPartial } = await import('./partial/bookmarkList');
+        return {
+            findOne: toQuery('bookmarkList', 'FindByIdInput', bookmarkListPartial, 'full'),
+            findMany: toQuery('bookmarkLists', 'BookmarkListSearchInput', ...(await toSearch(bookmarkListPartial))),
+            create: toMutation('bookmarkListCreate', 'BookmarkListCreateInput', bookmarkListPartial, 'full'),
+            update: toMutation('bookmarkListUpdate', 'BookmarkListUpdateInput', bookmarkListPartial, 'full'),
         }
     },
     comment: async () => {

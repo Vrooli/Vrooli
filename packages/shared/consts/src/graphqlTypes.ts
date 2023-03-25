@@ -1038,7 +1038,6 @@ export type HistoryResult = {
 };
 
 export type HomeInput = {
-  focusModeId?: InputMaybe<Scalars['ID']>;
   searchString: Scalars['String'];
   take?: InputMaybe<Scalars['Int']>;
 };
@@ -3939,7 +3938,7 @@ export type ProjectVersion = {
   complexity: Scalars['Int'];
   created_at: Scalars['Date'];
   directories: Array<ProjectVersionDirectory>;
-  directoriesCount: Scalars['Int'];
+  directoriesCount?: Maybe<Scalars['Int']>;
   directoryListings: Array<ProjectVersionDirectory>;
   directoryListingsCount: Scalars['Int'];
   forks: Array<Project>;
@@ -11806,7 +11805,7 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   complexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directories?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
-  directoriesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  directoriesCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   forks?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;

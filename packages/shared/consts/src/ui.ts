@@ -11,7 +11,6 @@ export const LINKS = {
     FAQ: '/#faq', // FAQ section of home page
     ForgotPassword: '/forgot-password',
     History: '/history',
-    HistorySearch: '/history-search',
     Home: '/', // Main dashboard for logged in users
     MyStuff: '/my',
     Note: '/note',

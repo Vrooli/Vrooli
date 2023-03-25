@@ -1,15 +1,7 @@
 import gql from 'graphql-tag';
-import { Label_full } from '../fragments/Label_full';
-import { Label_list } from '../fragments/Label_list';
-import { Organization_nav } from '../fragments/Organization_nav';
 import { Schedule_common } from '../fragments/Schedule_common';
-import { User_nav } from '../fragments/User_nav';
 
-export const focusModeCreate = gql`${Label_full}
-${Label_list}
-${Organization_nav}
-${Schedule_common}
-${User_nav}
+export const focusModeCreate = gql`${Schedule_common}
 
 mutation focusModeCreate($input: FocusModeCreateInput!) {
   focusModeCreate(input: $input) {
@@ -33,7 +25,9 @@ mutation focusModeCreate($input: FocusModeCreateInput!) {
         }
         focusMode {
             labels {
-                ...Label_list
+                id
+                color
+                label
             }
             schedule {
                 ...Schedule_common
@@ -44,7 +38,9 @@ mutation focusModeCreate($input: FocusModeCreateInput!) {
         }
     }
     labels {
-        ...Label_full
+        id
+        color
+        label
     }
     reminderList {
         id

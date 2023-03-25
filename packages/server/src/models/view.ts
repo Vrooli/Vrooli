@@ -1,28 +1,122 @@
-import { ViewFor, ViewSortBy } from "@shared/consts";
+import { Prisma } from "@prisma/client";
+import { Count, GqlModelType, SessionUser, View, ViewFor, ViewSearchInput, ViewSortBy } from "@shared/consts";
+import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
+import { onlyValidIds, selPad } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { CustomError } from "../events";
+import { getLabels, getLogic } from "../getters";
+import { initializeRedis } from "../redisConn";
+import { PrismaType } from "../types";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
-import { UserModel } from "./user";
 import { StandardModel } from "./standard";
-import { CustomError } from "../events";
-import { initializeRedis } from "../redisConn";
-import { ViewSearchInput, Count, SessionUser, View } from '@shared/consts';
-import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
-import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
-import { lowercaseFirstLetter, onlyValidIds, selPad } from "../builders";
-import { getLabels } from "../getters";
-import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
+import { UserModel } from "./user";
 
-const forMapper: { [key in ViewFor]: keyof PrismaType } = {
-    Api: "api",
-    Note: "note",
-    Organization: "organization",
-    Project: "project",
-    Routine: "routine",
-    Standard: "standard",
-    User: "user",
+const toWhere = (key: string, nestedKey: string | null, id: string) => {
+    if (nestedKey) return { [key]: { [nestedKey]: { some: { id } } } };
+    return { [key]: { id } };
+};
+
+const toSelect = (key?: string) => {
+    if (key) return { [key]: { select: { id: true, views: true } } };
+    return { id: true, views: true };
+};
+
+const toData = (object: any, key?: string) => {
+    if (key) return object[key];
+    return object;
+}
+
+const toCreate = (object: any, relName: string, key?: string) => {
+    if (key) return { [relName]: { connect: { id: object[key].id } } };
+    return { [relName]: { connect: { id: object.id } } };
+}
+
+/**
+ * Maps ViewFor types to partial query objects, used to determine 
+ * if a view exists for a given object.
+ */
+const whereMapper = {
+    Api: (id: string) => toWhere('api', null, id),
+    ApiVersion: (id: string) => toWhere('api', 'versions', id),
+    Note: (id: string) => toWhere('note', null, id),
+    NoteVersion: (id: string) => toWhere('note', 'versions', id),
+    Organization: (id: string) => toWhere('organization', null, id),
+    Project: (id: string) => toWhere('project', null, id),
+    ProjectVersion: (id: string) => toWhere('project', 'versions', id),
+    Question: (id: string) => toWhere('question', null, id),
+    Routine: (id: string) => toWhere('routine', null, id),
+    RoutineVersion: (id: string) => toWhere('routine', 'versions', id),
+    SmartContract: (id: string) => toWhere('smartContract', null, id),
+    SmartContractVersion: (id: string) => toWhere('smartContract', 'versions', id),
+    Standard: (id: string) => toWhere('standard', null, id),
+    StandardVersion: (id: string) => toWhere('standard', 'versions', id),
+    User: (id: string) => toWhere('user', null, id),
+} as const;
+
+/**
+ * Maps ViewFor types to partial query objects, used to find data required to create a view.
+ */
+const selectMapper = {
+    Api: toSelect(),
+    ApiVersion: toSelect('root'),
+    Note: toSelect(),
+    NoteVersion: toSelect('root'),
+    Organization: toSelect(),
+    Project: toSelect(),
+    ProjectVersion: toSelect('root'),
+    Question: toSelect(),
+    Routine: toSelect(),
+    RoutineVersion: toSelect('root'),
+    SmartContract: toSelect(),
+    SmartContractVersion: toSelect('root'),
+    Standard: toSelect(),
+    StandardVersion: toSelect('root'),
+    User: toSelect(),
+} as const
+
+/**
+ * Maps object with selectMapper data to its corresponding id
+ */
+const dataMapper = {
+    Api: (object: any) => toData(object),
+    ApiVersion: (object: any) => toData(object, 'root'),
+    Note: (object: any) => toData(object),
+    NoteVersion: (object: any) => toData(object, 'root'),
+    Organization: (object: any) => toData(object),
+    Project: (object: any) => toData(object),
+    ProjectVersion: (object: any) => toData(object, 'root'),
+    Question: (object: any) => toData(object),
+    Routine: (object: any) => toData(object),
+    RoutineVersion: (object: any) => toData(object, 'root'),
+    SmartContract: (object: any) => toData(object),
+    SmartContractVersion: (object: any) => toData(object, 'root'),
+    Standard: (object: any) => toData(object),
+    StandardVersion: (object: any) => toData(object, 'root'),
+    User: (object: any) => toData(object),
+}
+
+/**
+ * Maps object with selectMapper data to a Prisma data object, to create a view.
+ */
+const createMapper = {
+    Api: (object: any) => toCreate(object, 'api'),
+    ApiVersion: (object: any) => toCreate(object, 'api', 'root'),
+    Note: (object: any) => toCreate(object, 'note'),
+    NoteVersion: (object: any) => toCreate(object, 'note', 'root'),
+    Organization: (object: any) => toCreate(object, 'organization'),
+    Project: (object: any) => toCreate(object, 'project'),
+    ProjectVersion: (object: any) => toCreate(object, 'project', 'root'),
+    Question: (object: any) => toCreate(object, 'question'),
+    Routine: (object: any) => toCreate(object, 'routine'),
+    RoutineVersion: (object: any) => toCreate(object, 'routine', 'root'),
+    SmartContract: (object: any) => toCreate(object, 'smartContract'),
+    SmartContractVersion: (object: any) => toCreate(object, 'smartContract', 'root'),
+    Standard: (object: any) => toCreate(object, 'standard'),
+    StandardVersion: (object: any) => toCreate(object, 'standard', 'root'),
+    User: (object: any) => toCreate(object, 'user'),
 }
 
 interface ViewInput {
@@ -187,17 +281,22 @@ export const ViewModel: ModelLogic<{
      * @returns True if view updated correctly
      */
     view: async (prisma: PrismaType, userData: SessionUser, input: ViewInput): Promise<boolean> => {
-        // Define prisma type for viewed object
-        const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
+        console.log('view 1', input.viewFor, input.forId)
+        // Get Prisma delegate for viewed object
+        const { delegate } = getLogic(['delegate'], input.viewFor, userData.languages, 'ViewModel.view');
         // Check if object being viewed on exists
-        const viewFor: null | { id: string, views: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, views: true } });
-        if (!viewFor)
+        const objectToView: { [x: string]: any } | null = await delegate(prisma).findUnique({
+            where: { id: input.forId },
+            select: selectMapper[input.viewFor]
+        });
+        console.log('view 2', JSON.stringify(objectToView, null, 2));
+        if (!objectToView)
             throw new CustomError('0173', 'NotFound', userData.languages);
         // Check if view exists
         let view = await prisma.view.findFirst({
             where: {
-                byId: userData.id,
-                [`${forMapper[input.viewFor]}Id`]: input.forId
+                by: { id: userData.id },
+                ...whereMapper[input.viewFor](input.forId)
             }
         })
         // If view already existed, update view time
@@ -211,15 +310,18 @@ export const ViewModel: ModelLogic<{
         }
         // If view did not exist, create it
         else {
+            console.log('view 3')
             const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, prisma, userData.languages, 'view');
+            console.log('view 4', labels)
             view = await prisma.view.create({
                 data: {
-                    byId: userData.id,
-                    [`${forMapper[input.viewFor]}Id`]: input.forId,
+                    by: { connect: { id: userData.id } },
                     name: labels[0],
+                    ...createMapper[input.viewFor](objectToView),
                 }
             })
         }
+        console.log('view 5', JSON.stringify(view), '\n\n')
         // Check if a view from this user should increment the view count
         let isOwn = false;
         switch (input.viewFor) {
@@ -229,15 +331,23 @@ export const ViewModel: ModelLogic<{
                 isOwn = Boolean(roles[0]);
                 break;
             case ViewFor.Api:
+            case ViewFor.ApiVersion:
             case ViewFor.Note:
+            case ViewFor.NoteVersion:
             case ViewFor.Project:
+            case ViewFor.ProjectVersion:
             case ViewFor.Routine:
+            case ViewFor.RoutineVersion:
+            case ViewFor.SmartContract:
+            case ViewFor.SmartContractVersion:
             case ViewFor.Standard:
-                // Check if project/routine is owned by this user or by an organization they are a member of
-                const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'api' | 'project' | 'routine' | 'standard'] as any).findFirst({
+            case ViewFor.StandardVersion:
+                // Check if ROOT object is owned by this user or by an organization they are a member of
+                const { delegate: rootObjectDelegate } = getLogic(['delegate'], input.viewFor.replace('Version', '') as GqlModelType, userData.languages, 'ViewModel.view2');
+                const rootObject = await rootObjectDelegate(prisma).findFirst({
                     where: {
                         AND: [
-                            { id: input.forId },
+                            { id: dataMapper[input.viewFor](objectToView).id },
                             {
                                 OR: [
                                     OrganizationModel.query.isMemberOfOrganizationQuery(userData.id),
@@ -247,7 +357,13 @@ export const ViewModel: ModelLogic<{
                         ]
                     }
                 })
-                if (object) isOwn = true;
+                if (rootObject) isOwn = true;
+                console.log('view 6', isOwn, '\n\n')
+                break;
+            case ViewFor.Question:
+                // Check if question was created by this user
+                const question = await prisma.question.findFirst({ where: { id: input.forId, createdBy: { id: userData.id } } });
+                if (question) isOwn = true;
                 break;
             case ViewFor.User:
                 isOwn = userData.id === input.forId;
@@ -256,14 +372,16 @@ export const ViewModel: ModelLogic<{
         // If user is owner, don't do anything else
         if (isOwn) return true;
         // Check the last time the user viewed this object
-        const redisKey = `view:${userData.id}_${input.forId}_${input.viewFor}`
+        const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`
         const client = await initializeRedis();
         const lastViewed = await client.get(redisKey);
         // If object viewed more than 1 hour ago, update view count
         if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
-            await prismaFor.update({
+            // View counts don't exist on versioned objects, so we must make sure we are updating the root object
+            const { delegate: rootObjectDelegate } = getLogic(['delegate'], input.viewFor.replace('Version', '') as GqlModelType, userData.languages, 'ViewModel.view3');
+            await rootObjectDelegate(prisma).update({
                 where: { id: input.forId },
-                data: { views: viewFor.views + 1 }
+                data: { views: dataMapper[input.viewFor](objectToView).views + 1 }
             })
         }
         // Update last viewed time

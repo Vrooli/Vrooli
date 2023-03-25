@@ -21,6 +21,7 @@ mutation labelCreate($input: LabelCreateInput!) {
     created_at
     updated_at
     color
+    label
     owner {
         ... on Organization {
             ...Organization_nav

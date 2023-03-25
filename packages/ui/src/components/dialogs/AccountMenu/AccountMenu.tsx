@@ -35,7 +35,7 @@ import { getCurrentUser, guestSession } from 'utils/authentication/session';
 import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { PubSub } from 'utils/pubsub';
-import { HistorySearchPageTabOption } from 'utils/search/objectToSearch';
+import { HistoryPageTabOption } from 'utils/search/objectToSearch';
 import { SessionContext } from 'utils/SessionContext';
 import { shapeProfile } from 'utils/shape/models/profile';
 import { AccountMenuProps } from '../types';
@@ -157,7 +157,7 @@ export const AccountMenu = ({
         handleOpen(event, LINKS.Settings);
     }, [handleOpen]);
     const handleOpenBookmarks = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`);
+        handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`);
     }, [handleOpen]);
     const handleOpenHistory = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleOpen(event, LINKS.History);

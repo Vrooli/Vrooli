@@ -1,6 +1,6 @@
 import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const routineVersionTranslation: GqlPartial<RoutineVersionTranslation> = {
     __typename: 'RoutineVersionTranslation',
@@ -31,9 +31,6 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
     full: {
         runs: async () => rel((await import('./runRoutine')).runRoutine, 'full', { omit: 'routineVersion' }),
     },
-    list: {
-        runs: async () => rel((await import('./runRoutine')).runRoutine, 'full', { omit: 'routineVersion' }),
-    }
 }
 
 export const routineVersion: GqlPartial<RoutineVersion> = {

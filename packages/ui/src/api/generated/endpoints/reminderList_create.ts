@@ -1,13 +1,7 @@
 import gql from 'graphql-tag';
-import { Label_list } from '../fragments/Label_list';
-import { Organization_nav } from '../fragments/Organization_nav';
 import { Schedule_common } from '../fragments/Schedule_common';
-import { User_nav } from '../fragments/User_nav';
 
-export const reminderListCreate = gql`${Label_list}
-${Organization_nav}
-${Schedule_common}
-${User_nav}
+export const reminderListCreate = gql`${Schedule_common}
 
 mutation reminderListCreate($input: ReminderListCreateInput!) {
   reminderListCreate(input: $input) {
@@ -16,7 +10,9 @@ mutation reminderListCreate($input: ReminderListCreateInput!) {
     updated_at
     focusMode {
         labels {
-            ...Label_list
+            id
+            color
+            label
         }
         schedule {
             ...Schedule_common

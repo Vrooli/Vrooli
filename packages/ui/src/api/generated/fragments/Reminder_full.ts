@@ -23,7 +23,9 @@ reminderList {
     updated_at
     focusMode {
         labels {
-            ...Label_list
+            id
+            color
+            label
         }
         schedule {
             ...Schedule_common

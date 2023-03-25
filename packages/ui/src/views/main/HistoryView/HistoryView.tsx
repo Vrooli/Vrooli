@@ -1,31 +1,45 @@
-import { useQuery } from '@apollo/client';
-import { Stack } from '@mui/material';
-import { HistoryInput, HistoryResult, LINKS, RunStatus } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { historyHistory } from 'api/generated/endpoints/history_history';
-import { ListTitleContainer } from 'components/containers/ListTitleContainer/ListTitleContainer';
-import { SiteSearchBar } from 'components/inputs/search';
+import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
+import { CommonKey } from '@shared/translations';
+import { SearchList } from 'components/lists/SearchList/SearchList';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
 import { PageTab } from 'components/types';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { centeredDiv } from 'styles';
-import { AutocompleteOption, Wrap } from 'types';
-import { listToAutocomplete, listToListItems } from 'utils/display/listTools';
-import { getUserLanguages } from 'utils/display/translationTools';
-import { useReactSearch } from 'utils/hooks/useReactSearch';
-import { openObject } from 'utils/navigation/openObject';
-import { HistorySearchPageTabOption } from 'utils/search/objectToSearch';
-import { SessionContext } from 'utils/SessionContext';
+import { HistoryPageTabOption, SearchType } from 'utils/search/objectToSearch';
 import { HistoryViewProps } from '../types';
 
-enum TabOptions {
-    ForYou = "ForYou",
-    History = "History",
+
+// Tab data type
+type BaseParams = {
+    titleKey: CommonKey;
+    searchType: SearchType;
+    tabType: HistoryPageTabOption;
+    where: { [x: string]: any };
 }
 
-const zIndex = 200;
+// Data for each tab
+const tabParams: BaseParams[] = [{
+    titleKey: 'View',
+    searchType: SearchType.View,
+    tabType: HistoryPageTabOption.Viewed,
+    where: {},
+}, {
+    titleKey: 'Bookmark',
+    searchType: SearchType.BookmarkList,
+    tabType: HistoryPageTabOption.Bookmarked,
+    where: {},
+}, {
+    titleKey: 'Active',
+    searchType: SearchType.RunProjectOrRunRoutine,
+    tabType: HistoryPageTabOption.RunsActive,
+    where: {},
+}, {
+    titleKey: 'Complete',
+    searchType: SearchType.RunProjectOrRunRoutine,
+    tabType: HistoryPageTabOption.RunsCompleted,
+    where: {},
+}];
 
 /**
  * Shows items you've bookmarked, viewed, or run recently.
@@ -33,119 +47,42 @@ const zIndex = 200;
 export const HistoryView = ({
     display = 'page',
 }: HistoryViewProps) => {
-    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const [searchString, setSearchString] = useState<string>('');
-    const searchParams = useReactSearch();
-    useEffect(() => {
-        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
-    }, [searchParams]);
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-
-    const { data, refetch, loading } = useQuery<Wrap<HistoryResult, 'history'>, Wrap<HistoryInput, 'input'>>(historyHistory, { variables: { input: { searchString } }, errorPolicy: 'all' });
-    useEffect(() => { refetch() }, [refetch]);
-
-
     // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => ([{
-        index: 0,
-        href: LINKS.Home,
-        label: t('ForYou'),
-        value: TabOptions.ForYou,
-    }, {
-        index: 1,
-        href: LINKS.History,
-        label: t('History'),
-        value: TabOptions.History,
-    }]), [t]);
-    const currTab = useMemo(() => tabs[1], [tabs])
-    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
+    const tabs = useMemo<PageTab<HistoryPageTabOption>[]>(() => {
+        return tabParams.map((tab, i) => ({
+            index: i,
+            label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
+            value: tab.tabType,
+        }));
+    }, [t]);
+    const [currTab, setCurrTab] = useState<PageTab<HistoryPageTabOption>>(() => {
+        const searchParams = parseSearchParams();
+        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
+        // Default to bookmarked tab
+        if (index === -1) return tabs[0];
+        // Return tab
+        return tabs[index];
+    });
+    const handleTabChange = useCallback((e: any, tab: PageTab<HistoryPageTabOption>) => {
         e.preventDefault();
-        setLocation(tab.href!, { replace: true });
+        // Update search params
+        addSearchParams(setLocation, { type: tab.value });
+        // Update curr tab
+        setCurrTab(tab)
     }, [setLocation]);
 
-    const activeRuns = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill('Run'),
-        items: data?.history?.activeRuns,
-        keyPrefix: 'active-runs-list-item',
-        loading,
-        zIndex,
-    }), [data?.history?.activeRuns, loading])
-
-    const completedRuns = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill('Run'),
-        items: data?.history?.completedRuns,
-        keyPrefix: 'completed-runs-list-item',
-        loading,
-        zIndex,
-    }), [data?.history?.completedRuns, loading])
-
-    const recent = useMemo(() => listToListItems({
-        dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
-        items: data?.history?.recentlyViewed,
-        keyPrefix: 'recent-list-item',
-        loading,
-        zIndex,
-    }), [data?.history?.recentlyViewed, loading])
-
-    const bookmarked = useMemo(() => listToListItems({
-        dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
-        items: data?.history?.recentlyBookmarked,
-        keyPrefix: 'bookmarked-list-item',
-        loading,
-        zIndex,
-    }), [data?.history?.recentlyBookmarked, loading])
-
-    const languages = useMemo(() => getUserLanguages(session), [session]);
-
-    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        const flattened = (Object.values(data?.history ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
-        return listToAutocomplete(flattened, languages);
-    }, [data?.history, languages]);
-
-    /**
-     * When an autocomplete item is selected, navigate to object
-     */
-    const onInputSelect = useCallback((newValue: AutocompleteOption) => {
-        if (!newValue) return;
-        // Replace current state with search string, so that search is not lost. 
-        if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
-        else setLocation(LINKS.Home, { replace: true });
-        // Navigate to item page
-        openObject(newValue, setLocation);
-    }, [searchString, setLocation]);
-
-    const toSeeAllActiveRuns = useCallback((event: any) => {
-        event?.stopPropagation();
-        setLocation(LINKS.HistorySearch, {
-            searchParams: {
-                type: HistorySearchPageTabOption.Runs,
-                status: RunStatus.InProgress
-            }
-        });
-    }, [setLocation]);
-
-    const toSeeAllCompletedRuns = useCallback((event: any) => {
-        event?.stopPropagation();
-        setLocation(LINKS.HistorySearch, {
-            searchParams: {
-                type: HistorySearchPageTabOption.Runs,
-                status: RunStatus.Completed
-            }
-        });
-    }, [setLocation]);
-
-    const toSeeAllViewed = useCallback((event: any) => {
-        event?.stopPropagation();
-        setLocation(LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Viewed } });
-    }, [setLocation]);
-
-    const toSeeAllBookmarked = useCallback((event: any) => {
-        event?.stopPropagation();
-        setLocation(LINKS.HistorySearch, { searchParams: { type: HistorySearchPageTabOption.Bookmarked } });
-    }, [setLocation]);
+    // On tab change, update BaseParams, document title, where, and URL
+    const { searchType, title, where } = useMemo(() => {
+        // Update tab title
+        document.title = `${t(`Search`)} | ${currTab.label}`;
+        return {
+            ...tabParams[currTab.index],
+            title: currTab.label,
+        }
+    }, [currTab.index, currTab.label, t]);
 
     return (
         <>
@@ -153,7 +90,8 @@ export const HistoryView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'History',
+                    hideOnDesktop: true,
+                    title,
                 }}
                 below={<PageTabs
                     ariaLabel="history-tabs"
@@ -163,60 +101,18 @@ export const HistoryView = ({
                     tabs={tabs}
                 />}
             />
-            {/* Result feeds (or popular feeds if no search string) */}
-            <Stack spacing={10} direction="column">
-                {/* Prompt stack */}
-                <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
-                    <SiteSearchBar
-                        id="history-search"
-                        placeholder='SearchHistory'
-                        options={autocompleteOptions}
-                        loading={loading}
-                        value={searchString}
-                        onChange={updateSearch}
-                        onInputChange={onInputSelect}
-                        showSecondaryLabel={true}
-                        sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
-                    />
-                </Stack>
-                {/* Search results */}
-                <ListTitleContainer
-                    titleKey="RunsActive"
-                    helpKey="RunsActiveHelp"
-                    isEmpty={activeRuns.length === 0}
-                    onClick={toSeeAllActiveRuns}
-                    options={[['SeeAll', toSeeAllActiveRuns]]}
-                >
-                    {activeRuns}
-                </ListTitleContainer>
-                <ListTitleContainer
-                    titleKey="RunsCompleted"
-                    helpKey="RunsCompletedHelp"
-                    isEmpty={completedRuns.length === 0}
-                    onClick={toSeeAllCompletedRuns}
-                    options={[['SeeAll', toSeeAllCompletedRuns]]}
-                >
-                    {completedRuns}
-                </ListTitleContainer>
-                <ListTitleContainer
-                    titleKey="RecentlyViewed"
-                    helpKey="RecentlyViewedHelp"
-                    isEmpty={recent.length === 0}
-                    onClick={toSeeAllViewed}
-                    options={[['SeeAll', toSeeAllViewed]]}
-                >
-                    {recent}
-                </ListTitleContainer>
-                <ListTitleContainer
-                    titleKey="Bookmarked"
-                    helpKey="BookmarkedHelp"
-                    isEmpty={bookmarked.length === 0}
-                    onClick={toSeeAllBookmarked}
-                    options={[['SeeAll', toSeeAllBookmarked]]}
-                >
-                    {bookmarked}
-                </ListTitleContainer>
-            </Stack>
+            {searchType && <SearchList
+                id="history-page-list"
+                take={20}
+                searchType={searchType}
+                zIndex={200}
+                sxs={{
+                    search: {
+                        marginTop: 2,
+                    }
+                }}
+                where={where}
+            />}
         </>
     )
 }

@@ -65,8 +65,9 @@ export enum SearchType {
     Vote = 'Vote',
 }
 
-export enum HistorySearchPageTabOption {
-    Runs = 'Runs',
+export enum HistoryPageTabOption {
+    RunsActive = 'RunsActive',
+    RunsCompleted = 'RunsCompleted',
     Viewed = 'Viewed',
     Bookmarked = 'Bookmarked',
 }

@@ -24,7 +24,9 @@ users {
                 }
                 focusMode {
                     labels {
-                        ...Label_list
+                        id
+                        color
+                        label
                     }
                     schedule {
                         ...Schedule_common
@@ -35,7 +37,9 @@ users {
                 }
             }
             labels {
-                ...Label_full
+                id
+                color
+                label
             }
             reminderList {
                 id
@@ -93,7 +97,9 @@ users {
             }
             focusMode {
                 labels {
-                    ...Label_list
+                    id
+                    color
+                    label
                 }
                 schedule {
                     ...Schedule_common
@@ -104,7 +110,9 @@ users {
             }
         }
         labels {
-            ...Label_full
+            id
+            color
+            label
         }
         reminderList {
             id

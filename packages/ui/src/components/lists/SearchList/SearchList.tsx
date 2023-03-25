@@ -24,6 +24,7 @@ export function SearchList<DataType extends NavigableObject>({
     searchPlaceholder,
     take = 20,
     searchType,
+    sxs,
     onScrolledFar,
     where,
     zIndex,
@@ -99,7 +100,15 @@ export function SearchList<DataType extends NavigableObject>({
 
     return (
         <>
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 1,
+                    ...(sxs?.search ?? {})
+                }}
+            >
                 <SiteSearchBar
                     id={`search-bar-${id}`}
                     placeholder={searchPlaceholder}

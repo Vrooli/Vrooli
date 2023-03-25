@@ -35,7 +35,6 @@ const { AboutView } = lazily(() => import('./views/AboutView/AboutView'));
 const { AwardsView } = lazily(() => import('./views/AwardsView/AwardsView'));
 const { CalendarView } = lazily(() => import('./views/CalendarView/CalendarView'));
 const { FormView } = lazily(() => import('./views/wrapper/FormView'));
-const { HistorySearchView } = lazily(() => import('./views/HistorySearchView/HistorySearchView'));
 const { NotFoundView } = lazily(() => import('./views/NotFoundView/NotFoundView'));
 const { PremiumView } = lazily(() => import('./views/PremiumView/PremiumView'));
 const { SearchView } = lazily(() => import('./views/SearchView/SearchView'));
@@ -140,14 +139,11 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <FormView title="Forgot Password" maxWidth="700px" {...props}>
-                        <ForgotPasswordForm />
+                        <ForgotPasswordForm onClose={() => { }} />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
                     <HistoryView />
-                </NavRoute>
-                <NavRoute path={`${LINKS.HistorySearch}/:params*`} mustBeLoggedIn={true} {...props}>
-                    <HistorySearchView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Home}
@@ -242,7 +238,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <FormView title="Reset Password" maxWidth="700px" {...props}>
-                        <ResetPasswordForm />
+                        <ResetPasswordForm onClose={() => { }} />
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>

@@ -123,6 +123,9 @@ export interface SearchListProps {
     searchPlaceholder?: CommonKey;
     take?: number; // Number of items to fetch per page
     searchType: SearchType | `${SearchType}`;
+    sxs?: {
+        search?: { [x: string]: any };
+    }
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     zIndex: number;
