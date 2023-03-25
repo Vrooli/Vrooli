@@ -25,7 +25,9 @@ export function modelToGql<
     const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (format) {
         console.log('formatting', type, JSON.stringify(data), '\n\n', JSON.stringify(format), '\n\n');
-        data = constructUnions(data, format.gqlRelMap);
+        const unionData = constructUnions(data, partialInfo, format.gqlRelMap);
+        data = unionData.data;
+        partialInfo = unionData.partialInfo;
         data = removeJoinTables(data, format.joinMap as any);
         data = removeCountFields(data, format.countFields);
         data = removeHiddenFields(data, format.hiddenFields);
@@ -36,6 +38,7 @@ export function modelToGql<
         // If key doesn't exist in partialInfo, check if union
         if (!isObject(partialInfo) || !(key in partialInfo)) {
             console.log('not object or key not in partialInfo', JSON.stringify(partialInfo), '\n\n');
+            continue;
         }
         // If value is an array, call modelToGql on each element
         if (Array.isArray(value)) {
