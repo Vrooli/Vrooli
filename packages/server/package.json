@@ -19,7 +19,7 @@
         "post-build": "yarn post-build-message-signing && yarn post-build-email-templates",
         "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f dist/$WPATH/emurgo_message_signing.js ]",
         "post-build-email-templates": "cp -R src/notify/email/templates dist/notify/email/",
-        "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
+        "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js",
         "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
         "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/consts/src/graphqlTypes.ts"

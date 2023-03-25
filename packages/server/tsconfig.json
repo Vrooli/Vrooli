@@ -20,6 +20,7 @@
         "jsx": "react-jsx",
         "noImplicitAny": false,
         "noImplicitThis": true,
+        "sourceMap": true,
         "strictNullChecks": true,
         "removeComments": true,
     },

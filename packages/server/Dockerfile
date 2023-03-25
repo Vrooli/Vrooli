@@ -69,4 +69,4 @@ RUN apk update
 RUN apk add netcat-openbsd
 
 # Set port
-EXPOSE ${VIRTUAL_PORT}
+EXPOSE ${VIRTUAL_PORT} 9229

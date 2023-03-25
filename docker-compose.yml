@@ -72,6 +72,7 @@ services:
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
       - ${PORT_SERVER}:${PORT_SERVER}
+      - "9229:9229"
     networks:
       - proxy
       - app
@@ -104,7 +105,7 @@ services:
       - ./data/postgres:/var/lib/postgresql/data
       - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
+      test: [ "CMD", "pg_isready", "-U", "${DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -120,7 +121,7 @@ services:
       - ${PORT_REDIS}
     command: /bin/sh -c "mkdir -p ${PROJECT_DIR}/data/redis/appendonlydir && rm -f ${PROJECT_DIR}/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir ${PROJECT_DIR}/data/redis/"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
