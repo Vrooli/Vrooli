@@ -31,8 +31,6 @@ export type ActiveFocusMode = {
   stopTime?: Maybe<Scalars['Date']>;
 };
 
-export type AnyRun = RunProject | RunRoutine;
-
 export type Api = {
   __typename: 'Api';
   bookmarkedBy: Array<User>;
@@ -932,7 +930,6 @@ export enum GqlModelType {
   FocusModeFilter = 'FocusModeFilter',
   Fork = 'Fork',
   Handle = 'Handle',
-  HistoryResult = 'HistoryResult',
   HomeResult = 'HomeResult',
   Issue = 'Issue',
   Label = 'Label',
@@ -1022,19 +1019,6 @@ export type Handle = {
   handle: Scalars['String'];
   id: Scalars['ID'];
   wallet: Wallet;
-};
-
-export type HistoryInput = {
-  searchString: Scalars['String'];
-  take?: InputMaybe<Scalars['Int']>;
-};
-
-export type HistoryResult = {
-  __typename: 'HistoryResult';
-  activeRuns: Array<AnyRun>;
-  completedRuns: Array<AnyRun>;
-  recentlyBookmarked: Array<Bookmark>;
-  recentlyViewed: Array<View>;
 };
 
 export type HomeInput = {
@@ -4371,7 +4355,6 @@ export type Query = {
   findHandles: Array<Scalars['String']>;
   focusMode?: Maybe<FocusMode>;
   focusModes: FocusModeSearchResult;
-  history: HistoryResult;
   home: HomeResult;
   issue?: Maybe<Issue>;
   issues: IssueSearchResult;
@@ -4551,11 +4534,6 @@ export type QueryFocusModeArgs = {
 
 export type QueryFocusModesArgs = {
   input: FocusModeSearchInput;
-};
-
-
-export type QueryHistoryArgs = {
-  input: HistoryInput;
 };
 
 
@@ -7514,6 +7492,7 @@ export type Session = {
 export type SessionUser = {
   __typename: 'SessionUser';
   activeFocusMode?: Maybe<ActiveFocusMode>;
+  bookmarkLists: Array<BookmarkList>;
   focusModes: Array<FocusMode>;
   handle?: Maybe<Scalars['String']>;
   hasPremium: Scalars['Boolean'];
@@ -9160,7 +9139,6 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 export type ResolversTypes = {
   AccountStatus: AccountStatus;
   ActiveFocusMode: ResolverTypeWrapper<ActiveFocusMode>;
-  AnyRun: ResolversTypes['RunProject'] | ResolversTypes['RunRoutine'];
   Api: ResolverTypeWrapper<Omit<Api, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   ApiCreateInput: ApiCreateInput;
   ApiEdge: ResolverTypeWrapper<ApiEdge>;
@@ -9252,8 +9230,6 @@ export type ResolversTypes = {
   FocusModeUpdateInput: FocusModeUpdateInput;
   GqlModelType: GqlModelType;
   Handle: ResolverTypeWrapper<Handle>;
-  HistoryInput: HistoryInput;
-  HistoryResult: ResolverTypeWrapper<Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversTypes['AnyRun']>, completedRuns: Array<ResolversTypes['AnyRun']> }>;
   HomeInput: HomeInput;
   HomeResult: ResolverTypeWrapper<HomeResult>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
@@ -9875,7 +9851,6 @@ export type ResolversTypes = {
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
   ActiveFocusMode: ActiveFocusMode;
-  AnyRun: ResolversParentTypes['RunProject'] | ResolversParentTypes['RunRoutine'];
   Api: Omit<Api, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   ApiCreateInput: ApiCreateInput;
   ApiEdge: ApiEdge;
@@ -9952,8 +9927,6 @@ export type ResolversParentTypes = {
   FocusModeSearchResult: FocusModeSearchResult;
   FocusModeUpdateInput: FocusModeUpdateInput;
   Handle: Handle;
-  HistoryInput: HistoryInput;
-  HistoryResult: Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversParentTypes['AnyRun']>, completedRuns: Array<ResolversParentTypes['AnyRun']> };
   HomeInput: HomeInput;
   HomeResult: HomeResult;
   ID: Scalars['ID'];
@@ -10495,10 +10468,6 @@ export type ActiveFocusModeResolvers<ContextType = any, ParentType extends Resol
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type AnyRunResolvers<ContextType = any, ParentType extends ResolversParentTypes['AnyRun'] = ResolversParentTypes['AnyRun']> = {
-  __resolveType: TypeResolveFn<'RunProject' | 'RunRoutine', ParentType, ContextType>;
-};
-
 export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTypes['Api'] = ResolversParentTypes['Api']> = {
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10808,14 +10777,6 @@ export type HandleResolvers<ContextType = any, ParentType extends ResolversParen
   handle?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   wallet?: Resolver<ResolversTypes['Wallet'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type HistoryResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['HistoryResult'] = ResolversParentTypes['HistoryResult']> = {
-  activeRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
-  completedRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
-  recentlyBookmarked?: Resolver<Array<ResolversTypes['Bookmark']>, ParentType, ContextType>;
-  recentlyViewed?: Resolver<Array<ResolversTypes['View']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11992,7 +11953,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   findHandles?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType, RequireFields<QueryFindHandlesArgs, 'input'>>;
   focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType, RequireFields<QueryFocusModeArgs, 'input'>>;
   focusModes?: Resolver<ResolversTypes['FocusModeSearchResult'], ParentType, ContextType, RequireFields<QueryFocusModesArgs, 'input'>>;
-  history?: Resolver<ResolversTypes['HistoryResult'], ParentType, ContextType, RequireFields<QueryHistoryArgs, 'input'>>;
   home?: Resolver<ResolversTypes['HomeResult'], ParentType, ContextType, RequireFields<QueryHomeArgs, 'input'>>;
   issue?: Resolver<Maybe<ResolversTypes['Issue']>, ParentType, ContextType, RequireFields<QueryIssueArgs, 'input'>>;
   issues?: Resolver<ResolversTypes['IssueSearchResult'], ParentType, ContextType, RequireFields<QueryIssuesArgs, 'input'>>;
@@ -13021,6 +12981,7 @@ export type SessionResolvers<ContextType = any, ParentType extends ResolversPare
 
 export type SessionUserResolvers<ContextType = any, ParentType extends ResolversParentTypes['SessionUser'] = ResolversParentTypes['SessionUser']> = {
   activeFocusMode?: Resolver<Maybe<ResolversTypes['ActiveFocusMode']>, ParentType, ContextType>;
+  bookmarkLists?: Resolver<Array<ResolversTypes['BookmarkList']>, ParentType, ContextType>;
   focusModes?: Resolver<Array<ResolversTypes['FocusMode']>, ParentType, ContextType>;
   handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasPremium?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -13834,7 +13795,6 @@ export type WalletCompleteResolvers<ContextType = any, ParentType extends Resolv
 
 export type Resolvers<ContextType = any> = {
   ActiveFocusMode?: ActiveFocusModeResolvers<ContextType>;
-  AnyRun?: AnyRunResolvers<ContextType>;
   Api?: ApiResolvers<ContextType>;
   ApiEdge?: ApiEdgeResolvers<ContextType>;
   ApiKey?: ApiKeyResolvers<ContextType>;
@@ -13869,7 +13829,6 @@ export type Resolvers<ContextType = any> = {
   FocusModeFilter?: FocusModeFilterResolvers<ContextType>;
   FocusModeSearchResult?: FocusModeSearchResultResolvers<ContextType>;
   Handle?: HandleResolvers<ContextType>;
-  HistoryResult?: HistoryResultResolvers<ContextType>;
   HomeResult?: HomeResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;

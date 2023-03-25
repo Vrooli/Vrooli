@@ -152,6 +152,13 @@ mutation guestLogIn {
             name
             description
         }
+        bookmarkLists {
+            id
+            created_at
+            updated_at
+            label
+            bookmarksCount
+        }
         handle
         hasPremium
         id

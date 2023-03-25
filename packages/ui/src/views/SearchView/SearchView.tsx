@@ -33,26 +33,12 @@ type BaseParams = {
 
 // Data for each tab
 const tabParams: BaseParams[] = [{
-    Icon: ApiIcon,
+    Icon: RoutineIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Api,
-    tabType: SearchPageTabOption.Apis,
-    where: {},
-}, {
-    Icon: NoteIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Note,
-    tabType: SearchPageTabOption.Notes,
-    where: {},
-}, {
-    Icon: OrganizationIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.Organization,
-    tabType: SearchPageTabOption.Organizations,
-    where: {},
+    searchType: SearchType.Routine,
+    tabType: SearchPageTabOption.Routines,
+    where: { isInternal: false },
 }, {
     Icon: ProjectIcon,
     popupTitleKey: 'Add',
@@ -63,23 +49,30 @@ const tabParams: BaseParams[] = [{
 }, {
     Icon: HelpIcon,
     popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
+    popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Question,
     tabType: SearchPageTabOption.Questions,
     where: {},
 }, {
-    Icon: RoutineIcon,
+    Icon: NoteIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Routine,
-    tabType: SearchPageTabOption.Routines,
-    where: { isInternal: false },
+    searchType: SearchType.Note,
+    tabType: SearchPageTabOption.Notes,
+    where: {},
 }, {
-    Icon: SmartContractIcon,
+    Icon: OrganizationIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Organization,
+    tabType: SearchPageTabOption.Organizations,
+    where: {},
+}, {
+    Icon: UserIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.SmartContract,
-    tabType: SearchPageTabOption.SmartContracts,
+    searchType: SearchType.User,
+    tabType: SearchPageTabOption.Users,
     where: {},
 }, {
     Icon: StandardIcon,
@@ -89,11 +82,18 @@ const tabParams: BaseParams[] = [{
     tabType: SearchPageTabOption.Standards,
     where: {},
 }, {
-    Icon: UserIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.User,
-    tabType: SearchPageTabOption.Users,
+    Icon: ApiIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Api,
+    tabType: SearchPageTabOption.Apis,
+    where: {},
+}, {
+    Icon: SmartContractIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.SmartContract,
+    tabType: SearchPageTabOption.SmartContracts,
     where: {},
 }];
 
@@ -124,7 +124,7 @@ export const SearchView = ({
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
         // Default to routine tab
-        if (index === -1) return tabs[3];
+        if (index === -1) return tabs[0];
         // Return tab
         return tabs[index];
     });
@@ -166,7 +166,7 @@ export const SearchView = ({
     }, [searchType, session, setLocation]);
 
     const onPopupButtonClick = useCallback((ev: any) => {
-        if ([SearchPageTabOption.Organizations, SearchPageTabOption.Users].includes(currTab.value)) {
+        if ([SearchPageTabOption.Users].includes(currTab.value)) {
             setShareDialogOpen(true);
         } else {
             onAddClick(ev);

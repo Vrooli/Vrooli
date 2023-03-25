@@ -30,6 +30,19 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             name: true,
             theme: true,
             premium: { select: { id: true, expiresAt: true } },
+            bookmakLists: {
+                select: {
+                    id: true,
+                    created_at: true,
+                    updated_at: true,
+                    label: true,
+                    _count: {
+                        select: {
+                            bookmarks: true,
+                        }
+                    }
+                }
+            },
             focusModes: {
                 select: {
                     id: true,
@@ -137,6 +150,10 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         __typename: 'SessionUser' as const,
         activeFocusMode,
         focusModes: userData.focusModes as any[],
+        bookmarkLists: userData.bookmakLists.map(({ _count, ...rest }) => ({
+            ...rest,
+            bookmarksCount: _count?.bookmarks ?? 0,
+        })) as any[],
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,

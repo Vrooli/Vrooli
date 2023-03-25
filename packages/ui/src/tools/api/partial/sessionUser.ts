@@ -7,6 +7,7 @@ export const sessionUser: GqlPartial<SessionUser> = {
     full: {
         activeFocusMode: async () => rel((await import('./activeFocusMode')).activeFocusMode, 'full'),
         focusModes: async () => rel((await import('./focusMode')).focusMode, 'full'),
+        bookmarkLists: async () => rel((await import('./bookmarkList')).bookmarkList, 'common'),
         handle: true,
         hasPremium: true,
         id: true,

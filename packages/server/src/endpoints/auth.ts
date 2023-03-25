@@ -82,6 +82,7 @@ export const typeDef = gql`
     type SessionUser {
         activeFocusMode: ActiveFocusMode
         focusModes: [FocusMode!]!
+        bookmarkLists: [BookmarkList!]! # Will not include the bookmarks themselves, just info about the lists
         handle: String
         hasPremium: Boolean!
         id: String!
