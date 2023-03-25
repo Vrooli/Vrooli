@@ -14,6 +14,7 @@ const {
     HomeView,
     HistoryView,
     CreateView,
+    MyStuffView,
     NotificationsView,
 } = lazily(() => import('./views/main'));
 const {
@@ -153,6 +154,9 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <HomeView />
+                </NavRoute>
+                <NavRoute path={LINKS.MyStuff} mustBeLoggedIn={true} {...props}>
+                    <MyStuffView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
                     <NoteCreate />
