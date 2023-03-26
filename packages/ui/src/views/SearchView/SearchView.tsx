@@ -1,6 +1,3 @@
-/**
- * Search page for organizations, projects, routines, standards, and users
- */
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { GqlModelType, LINKS } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
@@ -97,6 +94,9 @@ const tabParams: BaseParams[] = [{
     where: {},
 }];
 
+/**
+ * Search page for organizations, projects, routines, standards, users, and other main objects
+ */
 export const SearchView = ({
     display = 'page',
 }: SearchViewProps) => {

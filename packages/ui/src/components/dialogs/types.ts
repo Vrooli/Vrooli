@@ -62,6 +62,7 @@ export interface DeleteDialogProps {
 }
 
 export interface DialogTitleProps {
+    below?: JSX.Element | boolean | undefined;
     helpText?: string;
     id: string;
     onClose: () => void;

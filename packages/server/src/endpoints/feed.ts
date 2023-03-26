@@ -1,4 +1,5 @@
-import { ApiSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from '@shared/consts';
+import { ApiSortBy, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PopularInput, PopularObjectType, PopularResult, PopularSortBy, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy } from '@shared/consts';
+import { exists } from '@shared/utils';
 import { gql } from 'apollo-server-express';
 import { readManyAsFeedHelper } from '../actions';
 import { assertRequestFrom, getUser } from '../auth/request';
@@ -9,8 +10,29 @@ import { rateLimit } from '../middleware';
 import { GQLEndpoint } from '../types';
 
 export const typeDef = gql`
+    enum PopularSortBy {
+        StarsAsc
+        StarsDesc
+        ViewsAsc
+        ViewsDesc
+    }
+
+    enum PopularObjectType {
+        Api
+        Note
+        Organization
+        Project
+        Question
+        Routine
+        SmartContract
+        Standard
+        User
+    }  
+
     input PopularInput {
+        objectType: PopularObjectType # To limit to a specific type
         searchString: String!
+        sortBy: PopularSortBy
         take: Int
     }
  
@@ -45,11 +67,15 @@ export const typeDef = gql`
  `
 
 export const resolvers: {
+    PopularSortBy: typeof PopularSortBy;
+    PopularObjectType: typeof PopularObjectType;
     Query: {
         home: GQLEndpoint<HomeInput, HomeResult>;
         popular: GQLEndpoint<PopularInput, PopularResult>;
     }
 } = {
+    PopularSortBy,
+    PopularObjectType,
     Query: {
         home: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
@@ -148,23 +174,20 @@ export const resolvers: {
                 objectType: 'Schedule',
             });
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [notes, reminders, resources, schedules],
-                [partial.notes, partial.reminders, partial.resources, partial.schedules] as PartialGraphQLInfo[],
-                ['n', 'rem', 'res', 's'],
-                getUser(req),
-                prisma,
-            )
+            const withSupplemental = await addSupplementalFieldsMultiTypes({
+                notes,
+                reminders,
+                resources,
+                schedules,
+            }, partial as any, prisma, getUser(req))
             // Return results
             return {
                 __typename: 'HomeResult' as const,
-                notes: withSupplemental['n'],
-                reminders: withSupplemental['rem'],
-                resources: withSupplemental['res'],
-                schedules: withSupplemental['s'],
-            }
+                ...withSupplemental,
+            };
         },
         popular: async (_, { input }, { prisma, req }, info) => {
+            //TODO implement sorting. Must do in UI too if combining multiple types.
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: 'PopularResult',
@@ -181,100 +204,101 @@ export const resolvers: {
             const bookmarksQuery = { bookmarks: { gte: 0 } };  // Minimum bookmarks required to show up in results. Should increase in the future.
             const take = 5;
             const commonReadParams = { prisma, req }
+            // Checks if object type should be included in results
+            const shouldInclude = (objectType: PopularObjectType | `${PopularObjectType}`) => {
+                if (exists(input.objectType)) return input.objectType === objectType;
+                return true;
+            }
             // Query apis
-            const { nodes: apis } = await readManyAsFeedHelper({
+            const { nodes: apis } = shouldInclude('Api') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.apis as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ApiSortBy.ScoreDesc },
                 objectType: 'Api',
-            });
+            }) : { nodes: [] };
             // Query notes
-            const { nodes: notes } = await readManyAsFeedHelper({
+            const { nodes: notes } = shouldInclude('Note') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.notes as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: NoteSortBy.ScoreDesc },
                 objectType: 'Note',
-            });
+            }) : { nodes: [] };
             // Query organizations
-            const { nodes: organizations } = await readManyAsFeedHelper({
+            const { nodes: organizations } = shouldInclude('Organization') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.organizations as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: OrganizationSortBy.BookmarksDesc },
                 objectType: 'Organization',
-            });
+            }) : { nodes: [] };
             // Query projects
-            const { nodes: projects } = await readManyAsFeedHelper({
+            const { nodes: projects } = shouldInclude('Project') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.projects as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ProjectSortBy.ScoreDesc, isComplete: true },
                 objectType: 'Project',
-            });
+            }) : { nodes: [] };
             // Query questions
-            const { nodes: questions } = await readManyAsFeedHelper({
+            const { nodes: questions } = shouldInclude('Question') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 // Make sure question is not attached to any objects (i.e. standalone)
                 additionalQueries: { ...bookmarksQuery, api: null, note: null, organization: null, project: null, routine: null, smartContract: null, standard: null },
                 info: partial.questions as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: QuestionSortBy.ScoreDesc, isComplete: true },
                 objectType: 'Question',
-            });
+            }) : { nodes: [] };
             // Query routines
-            const { nodes: routines } = await readManyAsFeedHelper({
+            const { nodes: routines } = shouldInclude('Routine') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.routines as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: RoutineSortBy.ScoreDesc, isComplete: true, isInternal: false },
                 objectType: 'Routine',
-            });
+            }) : { nodes: [] };
             // Query smart contracts
-            const { nodes: smartContracts } = await readManyAsFeedHelper({
+            const { nodes: smartContracts } = shouldInclude('SmartContract') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.smartContracts as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: SmartContractSortBy.ScoreDesc, isComplete: true },
                 objectType: 'SmartContract',
-            });
+            }) : { nodes: [] };
             // Query standards
-            const { nodes: standards } = await readManyAsFeedHelper({
+            const { nodes: standards } = shouldInclude('Standard') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery, isPrivate: false },
                 info: partial.standards as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: StandardSortBy.ScoreDesc, type: 'JSON' },
                 objectType: 'Standard',
-            });
+            }) : { nodes: [] };
             // Query users
-            const { nodes: users } = await readManyAsFeedHelper({
+            const { nodes: users } = shouldInclude('User') ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...bookmarksQuery },
                 info: partial.users as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: UserSortBy.BookmarksDesc },
                 objectType: 'User',
-            });
+            }) : { nodes: [] };
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [apis, notes, organizations, projects, questions, routines, smartContracts, standards, users],
-                [partial.apis, partial.notes, partial.organizations, partial.projects, partial.questions, partial.routines, partial.smartContracts, partial.standards, partial.users] as PartialGraphQLInfo[],
-                ['a', 'n', 'o', 'p', 'q', 'r', 'sc', 'st', 'u'],
-                getUser(req),
-                prisma,
-            )
+            const withSupplemental = await addSupplementalFieldsMultiTypes({
+                apis,
+                notes,
+                organizations,
+                projects,
+                questions,
+                routines,
+                smartContracts,
+                standards,
+                users,
+            }, partial as any, prisma, getUser(req))
             // Return results
             return {
                 __typename: 'PopularResult' as const,
-                apis: withSupplemental['a'],
-                notes: withSupplemental['n'],
-                organizations: withSupplemental['o'],
-                projects: withSupplemental['p'],
-                questions: withSupplemental['q'],
-                routines: withSupplemental['r'],
-                smartContracts: withSupplemental['sc'],
-                standards: withSupplemental['st'],
-                users: withSupplemental['u'],
-            }
+                ...withSupplemental,
+            };
         },
     },
 }

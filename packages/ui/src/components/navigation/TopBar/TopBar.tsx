@@ -18,6 +18,7 @@ export const TopBar = ({
 
     if (display === 'dialog') return (
         <DialogTitle
+            below={below}
             id={titleId}
             title={title}
             onClose={onClose}

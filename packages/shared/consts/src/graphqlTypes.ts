@@ -3457,9 +3457,23 @@ export type PhoneCreateInput = {
 };
 
 export type PopularInput = {
+  objectType?: InputMaybe<PopularObjectType>;
   searchString: Scalars['String'];
+  sortBy?: InputMaybe<PopularSortBy>;
   take?: InputMaybe<Scalars['Int']>;
 };
+
+export enum PopularObjectType {
+  Api = 'Api',
+  Note = 'Note',
+  Organization = 'Organization',
+  Project = 'Project',
+  Question = 'Question',
+  Routine = 'Routine',
+  SmartContract = 'SmartContract',
+  Standard = 'Standard',
+  User = 'User'
+}
 
 export type PopularResult = {
   __typename: 'PopularResult';
@@ -3473,6 +3487,13 @@ export type PopularResult = {
   standards: Array<Standard>;
   users: Array<User>;
 };
+
+export enum PopularSortBy {
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  ViewsAsc = 'ViewsAsc',
+  ViewsDesc = 'ViewsDesc'
+}
 
 export type Post = {
   __typename: 'Post';
@@ -9391,7 +9412,9 @@ export type ResolversTypes = {
   Phone: ResolverTypeWrapper<Phone>;
   PhoneCreateInput: PhoneCreateInput;
   PopularInput: PopularInput;
+  PopularObjectType: PopularObjectType;
   PopularResult: ResolverTypeWrapper<PopularResult>;
+  PopularSortBy: PopularSortBy;
   Post: ResolverTypeWrapper<Omit<Post, 'owner'> & { owner: ResolversTypes['Owner'] }>;
   PostCreateInput: PostCreateInput;
   PostEdge: ResolverTypeWrapper<PostEdge>;

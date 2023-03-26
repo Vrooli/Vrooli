@@ -23,6 +23,7 @@ export function SearchList<DataType extends NavigableObject>({
     id,
     searchPlaceholder,
     take = 20,
+    resolve,
     searchType,
     sxs,
     onScrolledFar,
@@ -51,6 +52,7 @@ export function SearchList<DataType extends NavigableObject>({
         timeFrame,
     } = useFindMany<DataType>({
         canSearch,
+        resolve,
         searchType,
         take,
         where,

@@ -1,5 +1,5 @@
 import { Reminder, ReminderCreateInput } from "@shared/consts";
-import { uuid } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { reminderValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
@@ -16,6 +16,8 @@ import { ReminderCreateProps } from "../types";
 
 export const ReminderCreate = ({
     display = 'page',
+    index,
+    reminderListId,
     zIndex = 200,
 }: ReminderCreateProps) => {
     const session = useContext(SessionContext);
@@ -38,6 +40,13 @@ export const ReminderCreate = ({
                 initialValues={{
                     __typename: 'Reminder' as const,
                     id: uuid(),
+                    name: '',
+                    description: '',
+                    index: index ?? 0,//TODO
+                    reminderList: {
+                        __typename: 'ReminderList' as const,
+                        id: reminderListId ?? DUMMY_ID
+                    }, //TODO
                 }}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Reminder, ReminderCreateInput>({

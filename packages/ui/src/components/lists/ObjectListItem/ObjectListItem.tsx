@@ -81,6 +81,7 @@ export function ObjectListItem<T extends ListObjectType>({
         // If beforeNavigation is supplied, call it
         if (beforeNavigation) {
             const shouldContinue = beforeNavigation(data);
+            console.log('before nav should continue', shouldContinue);
             if (shouldContinue === false) return;
         }
         // Navigate to the object's page

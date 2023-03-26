@@ -6,7 +6,6 @@ import { gql } from 'apollo-server-express';
 import { readManyAsFeedHelper } from '../actions';
 import { getUser } from '../auth';
 import { addSupplementalFieldsMultiTypes, toPartialGqlInfo } from '../builders';
-import { PartialGraphQLInfo } from '../builders/types';
 import { rateLimit } from '../middleware';
 import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
 import { SearchMap } from '../utils';
@@ -300,21 +299,21 @@ export const resolvers: {
                 });
             }
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [projects?.nodes ?? [], routines?.nodes ?? []],
-                [{ type: 'Project', ...(partial as any).Project }, { type: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
-                ['p', 'r'],
-                getUser(req),
-                prisma,
-            )
+            const withSupplemental = await addSupplementalFieldsMultiTypes({
+                projects: projects?.nodes ?? [],
+                routines: routines?.nodes ?? [],
+            }, {
+                projects: { type: 'Project', ...(partial as any).Project },
+                routines: { type: 'Routine', ...(partial as any).Routine },
+            }, prisma, getUser(req))
             // Combine nodes, alternating between projects and routines
             const nodes: ProjectOrRoutine[] = [];
-            for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['r'].length); i++) {
-                if (i < withSupplemental['p'].length) {
-                    nodes.push(withSupplemental['p'][i]);
+            for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.routines.length); i++) {
+                if (i < withSupplemental.projects.length) {
+                    nodes.push(withSupplemental.projects[i]);
                 }
-                if (i < withSupplemental['r'].length) {
-                    nodes.push(withSupplemental['r'][i]);
+                if (i < withSupplemental.routines.length) {
+                    nodes.push(withSupplemental.routines[i]);
                 }
             }
             // Combine pageInfo
@@ -407,21 +406,21 @@ export const resolvers: {
                 });
             }
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [projects?.nodes ?? [], organizations?.nodes ?? []],
-                [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
-                ['p', 'o'],
-                getUser(req),
-                prisma,
-            )
+            const withSupplemental = await addSupplementalFieldsMultiTypes({
+                projects: projects?.nodes ?? [],
+                organizations: organizations?.nodes ?? [],
+            }, {
+                projects: { type: 'Project', ...(partial as any).Project },
+                organizations: { type: 'Organization', ...(partial as any).Organization },
+            }, prisma, getUser(req))
             // Combine nodes, alternating between projects and organizations
             const nodes: ProjectOrOrganization[] = [];
-            for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['o'].length); i++) {
-                if (i < withSupplemental['p'].length) {
-                    nodes.push(withSupplemental['p'][i]);
+            for (let i = 0; i < Math.max(withSupplemental.projects.length, withSupplemental.organizations.length); i++) {
+                if (i < withSupplemental.projects.length) {
+                    nodes.push(withSupplemental.projects[i]);
                 }
-                if (i < withSupplemental['o'].length) {
-                    nodes.push(withSupplemental['o'][i]);
+                if (i < withSupplemental.organizations.length) {
+                    nodes.push(withSupplemental.organizations[i]);
                 }
             }
             // Combine pageInfo
@@ -497,21 +496,21 @@ export const resolvers: {
                 });
             }
             // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [runProjects?.nodes ?? [], runRoutines?.nodes ?? []],
-                [{ type: 'RunProject', ...(partial as any).RunProject }, { type: 'RunRoutine', ...(partial as any).RunRoutine }] as PartialGraphQLInfo[],
-                ['p', 'r'],
-                getUser(req),
-                prisma,
-            )
+            const withSupplemental = await addSupplementalFieldsMultiTypes({
+                runProjects: runProjects?.nodes ?? [],
+                runRoutines: runRoutines?.nodes ?? [],
+            }, {
+                runProjects: { type: 'RunProject', ...(partial as any).RunProject },
+                runRoutines: { type: 'RunRoutine', ...(partial as any).RunRoutine },
+            }, prisma, getUser(req))
             // Combine nodes, alternating between runProjects and runRoutines
             const nodes: RunProjectOrRunRoutine[] = [];
-            for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['r'].length); i++) {
-                if (i < withSupplemental['p'].length) {
-                    nodes.push(withSupplemental['p'][i]);
+            for (let i = 0; i < Math.max(withSupplemental.runProjects.length, withSupplemental.runRoutines.length); i++) {
+                if (i < withSupplemental.runProjects.length) {
+                    nodes.push(withSupplemental.runProjects[i]);
                 }
-                if (i < withSupplemental['r'].length) {
-                    nodes.push(withSupplemental['r'][i]);
+                if (i < withSupplemental.runRoutines.length) {
+                    nodes.push(withSupplemental.runRoutines[i]);
                 }
             }
             // Combine pageInfo
