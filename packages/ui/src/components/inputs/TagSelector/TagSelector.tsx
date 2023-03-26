@@ -1,8 +1,10 @@
 import { useQuery } from '@apollo/client';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
+import { exists } from '@shared/utils';
 import { tagFindMany } from 'api/generated/endpoints/tag_findMany';
 import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
+import { useField } from 'formik';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Wrap } from 'types';
 import { PubSub } from 'utils/pubsub';
@@ -11,18 +13,23 @@ import { TagSelectorProps } from '../types';
 
 export const TagSelector = ({
     disabled,
-    handleTagsUpdate,
-    tags,
     placeholder = 'Enter tags, followed by commas...',
 }: TagSelectorProps) => {
     const { palette } = useTheme();
 
+    const [versionField, , versionHelpers] = useField<(TagShape | Tag)[] | undefined>('tags');
+    const [rootField, , rootHelpers] = useField<(TagShape | Tag)[] | undefined>('root.tags');
+
     const handleTagAdd = useCallback((tag: TagShape) => {
-        handleTagsUpdate([...tags, tag]);
-    }, [handleTagsUpdate, tags]);
+        const updatedList = [...(versionField.value ?? rootField.value ?? []), tag];
+        exists(versionHelpers) && versionHelpers.setValue(updatedList);
+        exists(rootHelpers) && rootHelpers.setValue(updatedList);
+    }, [rootField.value, rootHelpers, versionField.value, versionHelpers]);
     const handleTagRemove = useCallback((tag: TagShape) => {
-        handleTagsUpdate(tags.filter(t => t.tag !== tag.tag));
-    }, [handleTagsUpdate, tags]);
+        const updatedList = (versionField.value ?? rootField.value ?? []).filter(t => t.tag !== tag.tag);
+        exists(versionHelpers) && versionHelpers.setValue(updatedList);
+        exists(rootHelpers) && rootHelpers.setValue(updatedList);
+    }, [rootField.value, rootHelpers, versionField.value, versionHelpers]);
 
     const [inputValue, setInputValue] = useState<string>('');
     const clearText = useCallback(() => { setInputValue(''); }, []);
@@ -53,7 +60,7 @@ export const TagSelector = ({
             return;
         }
         // Determine if tag is already selected
-        const isSelected = tags.some(t => t.tag === tagLabel);
+        const isSelected = (versionField.value ?? rootField.value ?? []).some(t => t.tag === tagLabel);
         if (isSelected) {
             PubSub.get().publishSnack({ messageKey: 'TagAlreadySelected', severity: 'Error' });
             return;
@@ -62,15 +69,15 @@ export const TagSelector = ({
         handleTagAdd({ tag: tagLabel });
         // Clear input
         clearText();
-    }, [clearText, handleTagAdd, inputValue, tags]);
+    }, [clearText, handleTagAdd, inputValue, rootField.value, versionField.value]);
 
     const onInputSelect = useCallback((tag: Tag) => {
         setInputValue('');
         // Determine if tag is already selected
-        const isSelected = tags.some(t => t.tag === tag.tag);
+        const isSelected = (versionField.value ?? rootField.value ?? []).some(t => t.tag === tag.tag);
         if (isSelected) handleTagRemove(tag);
         else handleTagAdd(tag);
-    }, [handleTagAdd, handleTagRemove, tags]);
+    }, [handleTagAdd, handleTagRemove, rootField.value, versionField.value]);
     const onChipDelete = useCallback((tag: TagShape | Tag) => {
         handleTagRemove(tag);
     }, [handleTagRemove]);
@@ -81,10 +88,10 @@ export const TagSelector = ({
     // Whenever selected tags change, add unknown tags to the tag map
     useEffect(() => {
         if (!tagsRef.current) return;
-        tags.forEach(tag => {
+        (versionField.value ?? rootField.value ?? []).forEach(tag => {
             if (!(tagsRef.current as TagsRef)[tag.tag]) (tagsRef.current as TagsRef)[tag.tag] = tag;
         });
-    }, [tags]);
+    }, [rootField.value, versionField.value]);
 
     const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<Wrap<TagSearchResult, 'tags'>, Wrap<TagSearchInput, 'input'>>(tagFindMany, {
         variables: {
@@ -148,9 +155,9 @@ export const TagSelector = ({
             noOptionsText={'No suggestions'}
             limitTags={3}
             onClose={clearText}
-            value={tags}
+            value={versionField.value ?? rootField.value ?? []}
             // Filter out what has already been selected
-            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === o.tag))}
+            filterOptions={(options, params) => options.filter(o => !(versionField.value ?? rootField.value ?? []).some(t => t.tag === o.tag))}
             renderTags={(value, getTagProps) =>
                 value.map((option: TagShape | Tag, index) => (
                     <Chip

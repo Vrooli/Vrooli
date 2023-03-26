@@ -18,19 +18,21 @@ import { NoteCreateProps } from "../types";
 
 export const NoteCreate = ({
     display = 'page',
+    onCancel,
+    onCreated,
     zIndex = 200,
 }: NoteCreateProps) => {
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
-    const { onCancel, onCreated } = useCreateActions<NoteVersion>();
+    const { handleCancel, handleCreated } = useCreateActions<NoteVersion>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<NoteVersion, NoteVersionCreateInput>(noteVersionCreate);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'CreateNote',
                 }}
@@ -40,10 +42,10 @@ export const NoteCreate = ({
                 initialValues={{
                     __typename: 'NoteVersion' as const,
                     id: uuid(),
-                    isPrivate: false,
+                    isPrivate: true,
                     root: {
                         id: uuid(),
-                        isPrivate: false,
+                        isPrivate: true,
                         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
                     },
                     translations: [{
@@ -59,7 +61,7 @@ export const NoteCreate = ({
                     mutationWrapper<NoteVersion, NoteVersionCreateInput>({
                         mutation,
                         input: shapeNoteVersion.create(values),
-                        onSuccess: (data) => { onCreated(data) },
+                        onSuccess: (data) => { handleCreated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
@@ -70,7 +72,7 @@ export const NoteCreate = ({
                     isCreate={true}
                     isLoading={isLoading}
                     isOpen={true}
-                    onCancel={onCancel}
+                    onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}

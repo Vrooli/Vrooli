@@ -17,20 +17,22 @@ import { ReminderCreateProps } from "../types";
 export const ReminderCreate = ({
     display = 'page',
     index,
+    onCancel,
+    onCreated,
     reminderListId,
     zIndex = 200,
 }: ReminderCreateProps) => {
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
-    const { onCancel, onCreated } = useCreateActions<Reminder>();
+    const { handleCancel, handleCreated } = useCreateActions<Reminder>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'CreateReminder',
                 }}
@@ -52,7 +54,7 @@ export const ReminderCreate = ({
                     mutationWrapper<Reminder, ReminderCreateInput>({
                         mutation,
                         input: shapeReminder.create(values),
-                        onSuccess: (data) => { onCreated(data) },
+                        onSuccess: (data) => { handleCreated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
@@ -63,7 +65,7 @@ export const ReminderCreate = ({
                     isCreate={true}
                     isLoading={isLoading}
                     isOpen={true}
-                    onCancel={onCancel}
+                    onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}

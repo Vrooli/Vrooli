@@ -2,8 +2,18 @@ import { LINKS } from "@shared/consts";
 import { useLocation } from "@shared/route";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
+import { ViewDisplayType } from "views/types";
 
-export const useUpdateActions = <T extends { __typename: string, id: string }>() => {
+/**
+ * Creates logic for handling cancel and update actions when updating an existing object. 
+ * When done in a page, handles navigation. 
+ * When done in a dialog, triggers the appropriate callback.
+ */
+export const useUpdateActions = <T extends { __typename: string, id: string }>(
+    display: ViewDisplayType,
+    onCancel: () => any, // Only used for dialog display
+    onUpdated: (data: T) => any, // Only used for dialog display
+) => {
     const [location, setLocation] = useLocation();
 
     // Determine if page should be displayed as a dialog or full page
@@ -15,21 +25,29 @@ export const useUpdateActions = <T extends { __typename: string, id: string }>()
         switch (action) {
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
-                if (hasPreviousPage) window.history.back();
-                else setLocation(LINKS.Home);
+                if (display === 'page') {
+                    if (hasPreviousPage) window.history.back();
+                    else setLocation(LINKS.Home);
+                } else {
+                    onCancel();
+                }
                 break;
             case ObjectDialogAction.Save:
-                if (hasPreviousPage) window.history.back();
-                else setLocation(LINKS.Home);
+                if (display === 'page') {
+                    if (hasPreviousPage) window.history.back();
+                    else setLocation(LINKS.Home);
+                } else {
+                    onUpdated(data!);
+                }
                 break;
         }
-    }, [hasPreviousPage, setLocation]);
+    }, [display, hasPreviousPage, onCancel, onUpdated, setLocation]);
 
-    const onCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [])
-    const onUpdated = useCallback((data: T) => onAction(ObjectDialogAction.Save, data), [])
+    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction])
+    const handleUpdated = useCallback((data: T) => onAction(ObjectDialogAction.Save, data), [onAction])
 
     return {
-        onCancel,
-        onUpdated,
+        handleCancel,
+        handleUpdated,
     };
 }

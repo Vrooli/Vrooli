@@ -45,11 +45,13 @@ const helpTextSubroutines = `A routine can be made from scratch (single-step), o
 
 export const RoutineUpdate = ({
     display = 'page',
+    onCancel,
+    onUpdated,
     zIndex = 200,
 }: RoutineUpdateProps) => {
     const session = useContext(SessionContext);
 
-    const { onCancel, onUpdated } = useUpdateActions<RoutineVersion>();
+    const { handleCancel, handleUpdated } = useUpdateActions<RoutineVersion>(display, onCancel, onUpdated);
 
     // Fetch existing data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
@@ -123,7 +125,7 @@ export const RoutineUpdate = ({
             mutationWrapper<RoutineVersion, RoutineVersionUpdateInput>({
                 mutation,
                 input: shapeRoutineVersion.update(existing, values),
-                onSuccess: (data) => { onUpdated(data) },
+                onSuccess: (data) => { handleUpdated(data) },
                 onError: () => { helpers.setSubmitting(false) },
             })
         },
@@ -207,7 +209,7 @@ export const RoutineUpdate = ({
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateRoutine',
                 }}
@@ -386,7 +388,7 @@ export const RoutineUpdate = ({
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={onCancel}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />

@@ -35,12 +35,14 @@ import { StandardCreateProps } from "../types";
 
 export const StandardCreate = ({
     display = 'page',
+    onCancel,
+    onCreated,
     zIndex = 200,
 }: StandardCreateProps) => {
     const session = useContext(SessionContext);
 
     // const formRef = useRef<BaseFormRef>();
-    // const { onCancel, onCreated } = useCreateActions<StandardVersion>();
+    // const { handleCancel, handleCreated } = useCreateActions<StandardVersion>(display, onCancel, onCreated);
     // const [mutation, { loading: isLoading }] = useCustomMutation<StandardVersion, StandardVersionCreateInput>(standardVersionCreate);
 
 

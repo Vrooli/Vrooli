@@ -25,12 +25,14 @@ import { SmartContractCreateProps } from "../types";
 
 export const SmartContractCreate = ({
     display = 'page',
+    onCancel,
+    onCreated,
     zIndex = 200,
 }: SmartContractCreateProps) => {
     const session = useContext(SessionContext);
 
     // const formRef = useRef<BaseFormRef>();
-    // const { onCancel, onCreated } = useCreateActions<SmartContractVersion>();
+    // const { handleCancel, handleCreated } = useCreateActions<SmartContractVersion>(display, onCancel, onCreated);
     // const [mutation, { loading: isLoading }] = useCustomMutation<SmartContractVersion, SmartContractVersionCreateInput>(smartContractVersionCreate);
 
 

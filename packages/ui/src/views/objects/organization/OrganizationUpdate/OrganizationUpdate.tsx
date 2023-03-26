@@ -34,7 +34,7 @@ export const OrganizationUpdate = ({
 }: OrganizationUpdateProps) => {
     const session = useContext(SessionContext);
 
-    const { onCancel, onUpdated } = useUpdateActions<Organization>();
+    const { handleCancel, handleUpdated } = useUpdateActions<Organization>(display, onCancel, onUpdated);
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
@@ -72,7 +72,7 @@ export const OrganizationUpdate = ({
             mutationWrapper<Organization, OrganizationUpdateInput>({
                 mutation,
                 input: shapeOrganization.update(existing, values),
-                onSuccess: (data) => { onUpdated(data) },
+                onSuccess: (data) => { handleUpdated(data) },
                 onError: () => { helpers.setSubmitting(false) },
             })
         },
@@ -114,7 +114,7 @@ export const OrganizationUpdate = ({
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateOrganization',
                 }}
@@ -195,7 +195,7 @@ export const OrganizationUpdate = ({
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={onCancel}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />

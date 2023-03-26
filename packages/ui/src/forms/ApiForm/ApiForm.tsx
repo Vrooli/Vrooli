@@ -1,8 +1,12 @@
-import { useTheme } from "@mui/material";
+import { Stack, TextField, useTheme } from "@mui/material";
 import { apiVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -54,24 +58,66 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    paddingBottom: '64px',
+                    maxWidth: '700px',
+                    margin: 'auto',
                 }}
             >
-                <RelationshipList
-                    isEditing={true}
-                    objectType={'Api'}
-                    zIndex={zIndex}
-                    sx={{ marginBottom: 4 }}
-                />
-                <LanguageInput
-                    currentLanguage={language}
-                    handleAdd={handleAddLanguage}
-                    handleDelete={handleDeleteLanguage}
-                    handleCurrent={setLanguage}
-                    languages={languages}
-                    zIndex={zIndex + 1}
-                />
-                {/* TODO */}
+                <Stack direction="column" spacing={4} sx={{
+                    margin: 2,
+                    marginBottom: 4,
+                }}>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={'Api'}
+                        zIndex={zIndex}
+                    />
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleDelete={handleDeleteLanguage}
+                        handleCurrent={setLanguage}
+                        languages={languages}
+                        zIndex={zIndex + 1}
+                    />
+                    <Field
+                        fullWidth
+                        name="callLink"
+                        label={"Endpoint URL"}
+                        helperText={"The full URL to the endpoint."}
+                        as={TextField}
+                    />
+                    <Stack direction="column" spacing={2}>
+                        <TranslatedTextField
+                            fullWidth
+                            label={t('Name')}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={"Summary"}
+                            language={language}
+                            multiline
+                            minRows={2}
+                            maxRows={2}
+                            name="summary"
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={"Details"}
+                            language={language}
+                            multiline
+                            minRows={4}
+                            maxRows={8}
+                            name="details"
+                        />
+                    </Stack>
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
+                    <TagSelector />
+                </Stack>
                 <GridSubmitButtons
                     display={display}
                     errors={{

@@ -44,12 +44,14 @@ const helpTextSubroutines = `A routine can be made from scratch (single-step), o
 export const RoutineCreate = ({
     display = 'page',
     isSubroutine = false,
+    onCancel,
+    onCreated,
     zIndex = 200,
 }: RoutineCreateProps) => {
     const session = useContext(SessionContext);
 
     // const formRef = useRef<BaseFormRef>();
-    // const { onCancel, onCreated } = useCreateActions<RoutineVersion>();
+    // const { handleCancel, handleCreated } = useCreateActions<RoutineVersion>(display, onCancel, onCreated);
     // const [mutation, { loading: isLoading }] = useCustomMutation<RoutineVersion, RoutineVersionCreateInput>(routineVersionCreate);
 
 

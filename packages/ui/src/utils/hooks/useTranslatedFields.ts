@@ -27,6 +27,7 @@ export function useTranslatedFields({
     // Get the translated fields, touched status, and error messages
     const [field, meta, helpers] = useField('translations');
     const translationErrors = useMemo(() => getFormikErrorsWithTranslations(field, meta, validationSchema) as any, [field, meta, validationSchema]);
+    console.log('got translation errors', translationErrors, field);
 
     // Find languages with translations
     const languages = useMemo(() => field.value.map((t: any) => t.language), [field.value]);

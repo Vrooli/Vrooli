@@ -4,18 +4,33 @@ import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { ViewDisplayType } from "views/types";
 
-export const useCreateActions = <T extends { __typename: string, id: string }>() => {
+/**
+ * Creates logic for handling cancel and create actions when creating a new object. 
+ * When done in a page, handles navigation. 
+ * When done in a dialog, triggers the appropriate callback.
+ * Also handles snack messages.
+ */
+export const useCreateActions = <T extends { __typename: string, id: string }>(
+    display: ViewDisplayType,
+    onCancel: () => any, // Only used for dialog display
+    onCreated: (data: T) => any, // Only used for dialog display
+) => {
     const [, setLocation] = useLocation();
 
     // Determine if page should be displayed as a dialog or full page
     const hasPreviousPage = useMemo(() => Boolean(sessionStorage.getItem('lastPath')), []);
 
     const onAction = useCallback((action: ObjectDialogAction, item?: T) => {
-        // Only navigate back if there is a previous page
         switch (action) {
             case ObjectDialogAction.Add:
-                setLocation(`${uuidToBase36(item?.id ?? '')}`, { replace: !hasPreviousPage });
+                if (display === 'page') {
+                    // Only navigate back if there is a previous page
+                    setLocation(`${uuidToBase36(item?.id ?? '')}`, { replace: !hasPreviousPage });
+                } else {
+                    onCreated(item!);
+                }
                 PubSub.get().publishSnack({
                     message: `${item?.__typename ?? ''} created!`,
                     severity: 'Success',
@@ -25,17 +40,22 @@ export const useCreateActions = <T extends { __typename: string, id: string }>()
                 break;
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
-                if (hasPreviousPage) window.history.back();
-                else setLocation(LINKS.Home);
+                if (display === 'page') {
+                    // Only navigate back if there is a previous page
+                    if (hasPreviousPage) window.history.back();
+                    else setLocation(LINKS.Home);
+                } else {
+                    onCancel();
+                }
                 break;
         }
     }, [hasPreviousPage, setLocation]);
 
-    const onCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction])
-    const onCreated = useCallback((data: T) => onAction(ObjectDialogAction.Add, data), [onAction])
+    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction])
+    const handleCreated = useCallback((data: T) => onAction(ObjectDialogAction.Add, data), [onAction])
 
     return {
-        onCancel,
-        onCreated,
+        handleCancel,
+        handleCreated,
     };
 }

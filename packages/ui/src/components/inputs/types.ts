@@ -1,10 +1,9 @@
 import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
-import { Comment, CommentFor, Standard, StandardVersion, Tag } from '@shared/consts';
+import { Comment, CommentFor, Standard, StandardVersion } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
 import { FocusEventHandler } from 'react';
 import { VersionInfo } from 'types';
-import { TagShape } from 'utils/shape/models/tag';
 import { StringSchema } from 'yup';
 
 export interface CommentCreateInputProps {
@@ -250,6 +249,13 @@ export interface IntegerInputProps extends BoxProps {
     tooltip?: string;
 }
 
+export interface ResourceListHorizontalInputProps {
+    disabled?: boolean;
+    isCreate: boolean;
+    isLoading?: boolean;
+    zIndex: number;
+}
+
 export type SelectorProps<T extends string | number | { [x: string]: any }> = {
     disabled?: boolean;
     fullWidth?: boolean;
@@ -280,9 +286,7 @@ export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
 
 export interface TagSelectorProps {
     disabled?: boolean;
-    handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
     placeholder?: string;
-    tags: (TagShape | Tag)[];
 }
 
 export interface TranslatedMarkdownInputProps {

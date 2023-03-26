@@ -17,19 +17,21 @@ import { OrganizationCreateProps } from "../types";
 
 export const OrganizationCreate = ({
     display = 'page',
+    onCancel,
+    onCreated,
     zIndex = 200,
 }: OrganizationCreateProps) => {
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
-    const { onCancel, onCreated } = useCreateActions<Organization>();
+    const { handleCancel, handleCreated } = useCreateActions<Organization>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<Organization, OrganizationCreateInput>(organizationCreate);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'CreateOrganization',
                 }}
@@ -51,7 +53,7 @@ export const OrganizationCreate = ({
                     mutationWrapper<Organization, OrganizationCreateInput>({
                         mutation,
                         input: shapeOrganization.create(values),
-                        onSuccess: (data) => { onCreated(data) },
+                        onSuccess: (data) => { handleCreated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
@@ -62,7 +64,7 @@ export const OrganizationCreate = ({
                     isCreate={true}
                     isLoading={isLoading}
                     isOpen={true}
-                    onCancel={onCancel}
+                    onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}

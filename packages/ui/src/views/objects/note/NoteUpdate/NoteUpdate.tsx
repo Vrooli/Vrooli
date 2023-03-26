@@ -21,6 +21,8 @@ import { NoteUpdateProps } from "../types";
 
 export const NoteUpdate = ({
     display = 'page',
+    onCancel,
+    onUpdated,
     zIndex = 200,
 }: NoteUpdateProps) => {
     const session = useContext(SessionContext);
@@ -31,14 +33,14 @@ export const NoteUpdate = ({
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
-    const { onCancel, onUpdated } = useUpdateActions<NoteVersion>();
+    const { handleCancel, handleUpdated } = useUpdateActions<NoteVersion>(display, onCancel, onUpdated);
     const [mutation, { loading: isUpdateLoading }] = useCustomMutation<NoteVersion, NoteVersionUpdateInput>(noteVersionUpdate);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateNote',
                 }}
@@ -48,10 +50,10 @@ export const NoteUpdate = ({
                 initialValues={{
                     __typename: 'NoteVersion' as const,
                     id: existing?.id ?? DUMMY_ID,
-                    isPrivate: existing?.isPrivate ?? false,
+                    isPrivate: existing?.isPrivate ?? true,
                     root: existing?.root ?? {
                         id: DUMMY_ID,
-                        isPrivate: false,
+                        isPrivate: true,
                         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
                     },
                     translations: existing?.translations ?? [{
@@ -71,7 +73,7 @@ export const NoteUpdate = ({
                     mutationWrapper<NoteVersion, NoteVersionUpdateInput>({
                         mutation,
                         input: shapeNoteVersion.update(existing, values),
-                        onSuccess: (data) => { onUpdated(data) },
+                        onSuccess: (data) => { handleUpdated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
@@ -82,7 +84,7 @@ export const NoteUpdate = ({
                     isCreate={false}
                     isLoading={isReadLoading || isUpdateLoading}
                     isOpen={true}
-                    onCancel={onCancel}
+                    onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}

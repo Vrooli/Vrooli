@@ -1,9 +1,13 @@
 import { BaseViewProps } from "views/types";
 
 export interface CreateProps<T> extends BaseViewProps {
+    onCancel: () => any;
+    onCreated: (data: T) => any;
     zIndex?: number;
 }
 export interface UpdateProps<T> extends BaseViewProps {
+    onCancel: () => any;
+    onUpdated: (data: T) => any;
     zIndex?: number;
 }
 export interface ViewProps<T> extends BaseViewProps {

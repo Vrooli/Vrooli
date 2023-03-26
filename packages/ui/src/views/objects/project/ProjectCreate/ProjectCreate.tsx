@@ -18,19 +18,21 @@ import { ProjectCreateProps } from "../types";
 
 export const ProjectCreate = ({
     display = 'page',
+    onCancel,
+    onCreated,
     zIndex = 200,
 }: ProjectCreateProps) => {
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
-    const { onCancel, onCreated } = useCreateActions<ProjectVersion>();
+    const { handleCancel, handleCreated } = useCreateActions<ProjectVersion>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<ProjectVersion, ProjectVersionCreateInput>(projectVersionCreate);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'CreateProject',
                 }}
@@ -62,7 +64,7 @@ export const ProjectCreate = ({
                     mutationWrapper<ProjectVersion, ProjectVersionCreateInput>({
                         mutation,
                         input: shapeProjectVersion.create(values),
-                        onSuccess: (data) => { onCreated(data) },
+                        onSuccess: (data) => { handleCreated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
@@ -73,7 +75,7 @@ export const ProjectCreate = ({
                     isCreate={true}
                     isLoading={isLoading}
                     isOpen={true}
-                    onCancel={onCancel}
+                    onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}

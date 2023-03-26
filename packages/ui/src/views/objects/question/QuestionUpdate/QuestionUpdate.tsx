@@ -27,11 +27,13 @@ import { QuestionUpdateProps } from "../types";
 
 export const QuestionUpdate = ({
     display = 'page',
+    onCancel,
+    onUpdated,
     zIndex = 200,
 }: QuestionUpdateProps) => {
     const session = useContext(SessionContext);
 
-    const { onCancel, onUpdated } = useUpdateActions<Question>();
+    const { handleCancel, handleUpdated } = useUpdateActions<Question>(display, onCancel, onUpdated);
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
@@ -68,7 +70,7 @@ export const QuestionUpdate = ({
             mutationWrapper<Question, QuestionUpdateInput>({
                 mutation,
                 input: shapeQuestion.update(existing, values),
-                onSuccess: (data) => { onUpdated(data) },
+                onSuccess: (data) => { handleUpdated(data) },
                 onError: () => { helpers.setSubmitting(false) },
             })
         },
@@ -109,7 +111,7 @@ export const QuestionUpdate = ({
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateQuestion',
                 }}
@@ -162,7 +164,7 @@ export const QuestionUpdate = ({
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={onCancel}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />

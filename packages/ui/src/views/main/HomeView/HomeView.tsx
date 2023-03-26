@@ -1,10 +1,11 @@
 import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
-import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, ResourceList } from '@shared/consts';
+import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DUMMY_ID } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
 import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { SiteSearchBar } from 'components/inputs/search';
 import { ResourceListHorizontal } from 'components/lists/resource';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
@@ -14,7 +15,7 @@ import { PageTab } from 'components/types';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
-import { AutocompleteOption, NavigableObject, ShortcutOption, Wrap } from 'types';
+import { AutocompleteOption, ShortcutOption, Wrap } from 'types';
 import { getCurrentUser, getFocusModeInfo } from 'utils/authentication/session';
 import { listToAutocomplete } from 'utils/display/listTools';
 import { getUserLanguages } from 'utils/display/translationTools';
@@ -24,6 +25,7 @@ import { openObject } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
+import { NoteCreate, ReminderCreate } from 'views/objects';
 import { HomeViewProps } from '../types';
 
 const zIndex = 200;
@@ -150,20 +152,54 @@ export const HomeView = ({
         }
     }, [searchString, setLocation]);
 
-    /**
-     * Replaces current state with search string, so that search is not lost
-     */
-    const beforeNavigation = useCallback((item: NavigableObject) => {
-        // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(LINKS.Home, { replace: true, searchParams: { search: searchString } });
-    }, [searchString, setLocation]);
-
     const openSchedule = useCallback(() => {
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
+    const [isCreateReminderOpen, setIsCreateReminderOpen] = useState(false);
+    const openCreateReminder = useCallback(() => { setIsCreateReminderOpen(true) }, []);
+    const closeCreateReminder = useCallback(() => { setIsCreateReminderOpen(false) }, []);
+    const onReminderCreated = useCallback((reminder: Reminder) => {
+        //TODO - add reminder to reminder list
+    }, []);
+
+    const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
+    const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true) }, []);
+    const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false) }, []);
+    const onNoteCreated = useCallback((note: NoteVersion) => {
+        //TODO - add note to note list
+    }, []);
+
     return (
         <>
+            {/* Create reminder dialog */}
+            <LargeDialog
+                id="add-reminder-dialog"
+                onClose={closeCreateReminder}
+                isOpen={isCreateReminderOpen}
+                zIndex={201}
+            >
+                <ReminderCreate
+                    display="dialog"
+                    onCancel={closeCreateReminder}
+                    onCreated={onReminderCreated}
+                    zIndex={201}
+                />
+            </LargeDialog>
+            {/* Create note dialog */}
+            <LargeDialog
+                id="add-note-dialog"
+                onClose={closeCreateNote}
+                isOpen={isCreateNoteOpen}
+                zIndex={201}
+            >
+                <NoteCreate
+                    display="dialog"
+                    onCancel={closeCreateNote}
+                    onCreated={onNoteCreated}
+                    zIndex={201}
+                />
+            </LargeDialog>
             <TopBar
                 display={display}
                 onClose={() => { }}
@@ -214,6 +250,7 @@ export const HomeView = ({
                 {/* Reminders */}
                 <TitleContainer
                     titleKey="ToDo"
+                    options={[['Create', openCreateReminder]]}
                 >
                     {/* TODO */}
                 </TitleContainer>
@@ -221,6 +258,7 @@ export const HomeView = ({
                 <TitleContainer
                     titleKey="Note"
                     titleVariables={{ count: 2 }}
+                    options={[['Create', openCreateNote]]}
                 >
                     {/* TODO */}
                 </TitleContainer>

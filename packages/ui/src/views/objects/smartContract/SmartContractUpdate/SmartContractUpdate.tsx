@@ -27,11 +27,13 @@ import { SmartContractUpdateProps } from "../types";
 
 export const SmartContractUpdate = ({
     display = 'page',
+    onCancel,
+    onUpdated,
     zIndex = 200,
 }: SmartContractUpdateProps) => {
     const session = useContext(SessionContext);
 
-    const { onCancel, onUpdated } = useUpdateActions<SmartContractVersion>();
+    const { handleCancel, handleUpdated } = useUpdateActions<SmartContractVersion>(display, onCancel, onUpdated);
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
@@ -69,7 +71,7 @@ export const SmartContractUpdate = ({
             mutationWrapper<SmartContractVersion, SmartContractVersionUpdateInput>({
                 mutation,
                 input: shapeSmartContractVersion.update(existing, values),
-                onSuccess: (data) => { onUpdated(data) },
+                onSuccess: (data) => { handleUpdated(data) },
                 onError: () => { helpers.setSubmitting(false) },
             })
         },
@@ -111,7 +113,7 @@ export const SmartContractUpdate = ({
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateSmartContract',
                 }}
@@ -141,7 +143,7 @@ export const SmartContractUpdate = ({
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={onCancel}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />

@@ -19,6 +19,8 @@ import { ReminderUpdateProps } from "../types";
 
 export const ReminderUpdate = ({
     display = 'page',
+    onCancel,
+    onUpdated,
     zIndex = 200,
 }: ReminderUpdateProps) => {
     const session = useContext(SessionContext);
@@ -29,14 +31,14 @@ export const ReminderUpdate = ({
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
-    const { onCancel, onUpdated } = useUpdateActions<Reminder>();
+    const { handleCancel, handleUpdated } = useUpdateActions<Reminder>(display, onCancel, onUpdated);
     const [mutation, { loading: isUpdateLoading }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateReminder',
                 }}
@@ -55,7 +57,7 @@ export const ReminderUpdate = ({
                     mutationWrapper<Reminder, ReminderUpdateInput>({
                         mutation,
                         input: shapeReminder.update(existing, values),
-                        onSuccess: (data) => { onUpdated(data) },
+                        onSuccess: (data) => { handleUpdated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
@@ -66,7 +68,7 @@ export const ReminderUpdate = ({
                     isCreate={false}
                     isLoading={isReadLoading || isUpdateLoading}
                     isOpen={true}
-                    onCancel={onCancel}
+                    onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}

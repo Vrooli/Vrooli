@@ -17,19 +17,21 @@ import { QuestionCreateProps } from "../types";
 
 export const QuestionCreate = ({
     display = 'page',
+    onCancel,
+    onCreated,
     zIndex = 200,
 }: QuestionCreateProps) => {
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
-    const { onCancel, onCreated } = useCreateActions<Question>();
+    const { handleCancel, handleCreated } = useCreateActions<Question>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<Question, QuestionCreateInput>(questionCreate);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'CreateQuestion',
                 }}
@@ -50,7 +52,7 @@ export const QuestionCreate = ({
                     mutationWrapper<Question, QuestionCreateInput>({
                         mutation,
                         input: shapeQuestion.create(values),
-                        onSuccess: (data) => { onCreated(data) },
+                        onSuccess: (data) => { handleCreated(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
@@ -61,7 +63,7 @@ export const QuestionCreate = ({
                     isCreate={true}
                     isLoading={isLoading}
                     isOpen={true}
-                    onCancel={onCancel}
+                    onCancel={handleCancel}
                     ref={formRef}
                     zIndex={zIndex}
                     {...formik}

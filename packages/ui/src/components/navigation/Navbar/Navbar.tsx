@@ -87,7 +87,7 @@ export const Navbar = ({
                         background: palette.primary.dark,
                         minHeight: '64px!important',
                         position: 'fixed', // Allows items to be displayed below the navbar
-                        zIndex: 100,
+                        zIndex: 300,
                     }}>
                     {/* <Toolbar> */}
                     <Stack direction="row" spacing={0} alignItems="center" sx={{

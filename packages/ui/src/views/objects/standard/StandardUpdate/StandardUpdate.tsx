@@ -30,11 +30,13 @@ import { StandardUpdateProps } from "../types";
 
 export const StandardUpdate = ({
     display = 'page',
+    onCancel,
+    onUpdated,
     zIndex = 200,
 }: StandardUpdateProps) => {
     const session = useContext(SessionContext);
 
-    const { onCancel, onUpdated } = useUpdateActions<StandardVersion>();
+    const { handleCancel, handleUpdated } = useUpdateActions<StandardVersion>(display, onCancel, onUpdated);
 
     // Fetch existing data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
@@ -90,7 +92,7 @@ export const StandardUpdate = ({
             mutationWrapper<StandardVersion, StandardVersionUpdateInput>({
                 mutation,
                 input: shapeStandardVersion.update(existing, values),
-                onSuccess: (data) => { onUpdated(data) },
+                onSuccess: (data) => { handleUpdated(data) },
                 onError: () => { helpers.setSubmitting(false) },
             })
         },
@@ -117,7 +119,7 @@ export const StandardUpdate = ({
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateStandard',
                 }}
@@ -172,7 +174,7 @@ export const StandardUpdate = ({
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={onCancel}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />

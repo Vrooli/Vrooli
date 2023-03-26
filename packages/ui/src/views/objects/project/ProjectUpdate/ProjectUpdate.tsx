@@ -14,7 +14,7 @@ import { RelationshipList } from "components/lists/RelationshipList/Relationship
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from 'formik';
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getUserLanguages } from "utils/display/translationTools";
 import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
@@ -28,11 +28,13 @@ import { ProjectUpdateProps } from "../types";
 
 export const ProjectUpdate = ({
     display = 'page',
+    onCancel,
+    onUpdated,
     zIndex = 200,
 }: ProjectUpdateProps) => {
     const session = useContext(SessionContext);
 
-    const { onCancel, onUpdated } = useUpdateActions<ProjectVersion>();
+    const { handleCancel, handleUpdated } = useUpdateActions<ProjectVersion>(display, onCancel, onUpdated);
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
@@ -80,7 +82,7 @@ export const ProjectUpdate = ({
             mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({
                 mutation,
                 input: shapeProjectVersion.update(existing, values),
-                onSuccess: (data) => { onUpdated(data) },
+                onSuccess: (data) => { handleUpdated(data) },
                 onError: () => { helpers.setSubmitting(false) },
             })
         },
@@ -107,7 +109,7 @@ export const ProjectUpdate = ({
         <>
             <TopBar
                 display={display}
-                onClose={onCancel}
+                onClose={handleCancel}
                 titleData={{
                     titleKey: 'UpdateProject',
                 }}
@@ -160,7 +162,7 @@ export const ProjectUpdate = ({
                         errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={onCancel}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />
