@@ -75,7 +75,7 @@ export const ReminderList = ({
         <>
             <ListContainer
                 emptyText={t(`NoEmails`, { ns: 'error' })}
-                isEmpty={!list || list!.length === 0}
+                isEmpty={!list?.reminders || list!.reminders!.length === 0}
                 sx={{ maxWidth: '500px' }}
             >
                 {/* {list?.reminders?.map((reminder, index) => (

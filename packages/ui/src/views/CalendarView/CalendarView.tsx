@@ -13,21 +13,13 @@ import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Calendar, dateFnsLocalizer, DateLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useTranslation } from 'react-i18next';
+import { CalendarEvent } from 'types';
 import { getDisplay } from 'utils/display/listTools';
 import { getUserLanguages, getUserLocale, loadLocale } from 'utils/display/translationTools';
 import { useFindMany } from 'utils/hooks/useFindMany';
 import { CalendarPageTabOption } from 'utils/search/objectToSearch';
 import { SessionContext } from 'utils/SessionContext';
 import { CalendarViewProps } from 'views/types';
-
-type Event = {
-    id: string;
-    title: string;
-    start: Date;
-    end: Date;
-    allDay: boolean;
-    scheduleId: string;
-}
 
 // Tab data type
 type BaseParams = {
@@ -282,11 +274,11 @@ export const CalendarView = ({
 
     // Handle events, which are created from schedule data.
     // Events represent each occurrence of a schedule within a date range
-    const events = useMemo<Event[]>(() => {
+    const events = useMemo<CalendarEvent[]>(() => {
         console.log('calculating events start', dateRange, sampleSchedules)
         if (!dateRange.start || !dateRange.end) return [];
         // Initialize result
-        const result: Event[] = [];
+        const result: CalendarEvent[] = [];
         // Loop through schedules
         sampleSchedules.forEach((schedule: any) => {
             console.log('calculating events schedule', schedule)
@@ -294,13 +286,14 @@ export const CalendarView = ({
             const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
             console.log('calculating events occurrences', occurrences)
             // Create events
-            const events: Event[] = occurrences.map(occurrence => ({
-                id: uuid(),
+            const events: CalendarEvent[] = occurrences.map(occurrence => ({
+                __typename: 'CalendarEvent',
+                id: `${schedule.id}|${occurrence.start.getTime()}|${occurrence.end.getTime()}`,
                 title: getDisplay(schedule, getUserLanguages(session)).title,
                 start: occurrence.start,
                 end: occurrence.end,
                 allDay: false,
-                scheduleId: schedule.id,
+                schedule,
             }));
             console.log('calculating events events', events)
             // Add events to result
@@ -312,7 +305,7 @@ export const CalendarView = ({
 
 
     const openEvent = useCallback((event: any) => {
-        console.log('Event clicked:', event);
+        console.log('CalendarEvent clicked:', event);
     }, []);
 
     if (!localizer) return <FullPageSpinner />
@@ -332,7 +325,7 @@ export const CalendarView = ({
                     tabs={tabs}
                 />}
             />
-            <Box mt={2} p={2} style={{
+            <Box style={{
                 height: '500px',
                 background: palette.background.paper,
             }}>

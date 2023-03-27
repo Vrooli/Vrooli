@@ -2,7 +2,8 @@ import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
 import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DUMMY_ID } from '@shared/uuid';
+import { calculateOccurrences } from '@shared/utils';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
 import { ListTitleContainer } from 'components/containers/ListTitleContainer/ListTitleContainer';
 import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
@@ -16,9 +17,9 @@ import { PageTab } from 'components/types';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
-import { AutocompleteOption, ShortcutOption, Wrap } from 'types';
+import { AutocompleteOption, CalendarEvent, ShortcutOption, Wrap } from 'types';
 import { getCurrentUser, getFocusModeInfo } from 'utils/authentication/session';
-import { listToAutocomplete, listToListItems } from 'utils/display/listTools';
+import { getDisplay, listToAutocomplete, listToListItems } from 'utils/display/listTools';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
@@ -184,6 +185,45 @@ export const HomeView = ({
         zIndex,
     }), [beforeNavigation, data?.home?.notes, loading])
 
+    // Calculate upcoming events using schedules 
+    const upcomingEvents = useMemo(() => {
+        const schedules = data?.home?.schedules ?? [];
+        // Initialize result
+        const result: CalendarEvent[] = [];
+        // Loop through schedules
+        schedules.forEach((schedule: any) => {
+            console.log('calculating events schedule', schedule)
+            // Get occurrences in the upcoming 30 days
+            const occurrences = calculateOccurrences(schedule, new Date(), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+            console.log('calculating events occurrences', occurrences)
+            // Create events
+            const events: CalendarEvent[] = occurrences.map(occurrence => ({
+                __typename: 'CalendarEvent',
+                id: uuid(),
+                title: getDisplay(schedule, getUserLanguages(session)).title,
+                start: occurrence.start,
+                end: occurrence.end,
+                allDay: false,
+                schedule,
+            }));
+            console.log('calculating events events', events)
+            // Add events to result
+            result.push(...events);
+        });
+        // Sort events by start date, and return the first 10
+        result.sort((a, b) => a.start.getTime() - b.start.getTime())
+        console.log('calculating events end', result)
+        const first10 = result.slice(0, 10);
+        // Convert to list items
+        return listToListItems({
+            beforeNavigation,
+            dummyItems: new Array(5).fill('Event'),
+            items: first10,
+            keyPrefix: `event-list-item`,
+            loading,
+            zIndex,
+        })
+    }, [beforeNavigation, data?.home?.schedules, loading, session]);
     return (
         <>
             {/* Create reminder dialog */}
@@ -255,12 +295,13 @@ export const HomeView = ({
                     zIndex={zIndex}
                 />
                 {/* Events */}
-                <TitleContainer
+                <ListTitleContainer
+                    isEmpty={upcomingEvents.length === 0}
                     titleKey="Schedule"
                     options={[['Open', openSchedule]]}
                 >
-                    {/* TODO */}
-                </TitleContainer>
+                    {upcomingEvents}
+                </ListTitleContainer>
                 {/* Reminders */}
                 <TitleContainer
                     titleKey="ToDo"

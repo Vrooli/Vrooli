@@ -12,7 +12,7 @@ import { getTranslation, getUserLanguages } from "./translationTools";
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(
 export type ListObjectType = {
-    __typename: `${GqlModelType}`;
+    __typename: `${GqlModelType}` | 'CalendarEvent';
     completedAt?: number | null;
     startedAt?: number | null;
     name?: string | null;
@@ -371,7 +371,7 @@ export interface ListToListItemProps {
     /**
      * List of dummy items types to display while loading
      */
-    dummyItems?: string[];
+    dummyItems?: (GqlModelType | `${GqlModelType}`)[];
     /**
      * True if update button should be hidden
      */
@@ -415,7 +415,7 @@ export function listToListItems({
                 hideUpdateButton={hideUpdateButton}
                 index={i}
                 loading={true}
-                objectType={'Routine'}
+                objectType={dummyItems[i]}
                 zIndex={zIndex}
             />);
         }

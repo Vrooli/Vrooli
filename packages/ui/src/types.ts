@@ -1,8 +1,18 @@
 // Defines common props
 import { FetchResult } from "@apollo/client";
-import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, SearchException, Session } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { RoutineStepType } from "utils/consts";
+
+export type CalendarEvent = {
+    __typename: 'CalendarEvent',
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    allDay: boolean;
+    schedule: Schedule;
+}
 
 /**
  * Data to display title information for a component, which may not
@@ -32,7 +42,7 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    __typename: `${GqlModelType}` | 'Shortcut' | 'Action',
+    __typename: `${GqlModelType}` | 'Shortcut' | 'Action' | 'CalendarEvent',
     handle?: string | null,
     id: string,
     projectVersion?: {
@@ -167,6 +177,12 @@ export interface ActionOption {
     id: string;
     isFromHistory?: boolean;
     label: string;
+}
+
+export interface CalendarEventOption {
+    __typename: 'CalendarEvent';
+    id: string; // Shape is <scheduleId>|<startDate>|<endDate>
+    title: string;
 }
 
 export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
