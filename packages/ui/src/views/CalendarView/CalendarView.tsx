@@ -1,19 +1,33 @@
 import { Box, useTheme } from '@mui/material';
+import { ScheduleRecurrenceType, ScheduleSearchResult } from '@shared/consts';
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
+import { calculateOccurrences } from '@shared/utils';
+import { uuid } from '@shared/uuid';
 import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
 import { PageTab } from 'components/types';
-import { add, format, getDay, startOfWeek } from 'date-fns';
+import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from 'date-fns';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Calendar, dateFnsLocalizer, DateLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useTranslation } from 'react-i18next';
-import { getUserLocale, loadLocale } from 'utils/display/translationTools';
+import { getDisplay } from 'utils/display/listTools';
+import { getUserLanguages, getUserLocale, loadLocale } from 'utils/display/translationTools';
+import { useFindMany } from 'utils/hooks/useFindMany';
 import { CalendarPageTabOption } from 'utils/search/objectToSearch';
 import { SessionContext } from 'utils/SessionContext';
 import { CalendarViewProps } from 'views/types';
+
+type Event = {
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    allDay: boolean;
+    scheduleId: string;
+}
 
 // Tab data type
 type BaseParams = {
@@ -37,21 +51,135 @@ const tabParams: BaseParams[] = [{
 }];
 
 // Replace this with your own events data
-const sampleEvents = [
+const sampleSchedules = [
     {
-        id: 1,
+        id: uuid(),
         title: 'Meeting',
-        start: new Date(),
-        end: add(new Date(), { hours: 1 }),
+        startTime: new Date(),
+        endTime: add(new Date(), { hours: 1 }),
+        recurrences: [
+            {
+                __typename: 'ScheduleRecurrence' as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Weekly,
+                interval: 1,
+                dayOfWeek: 3,
+            },
+        ],
+        exceptions: [
+            {
+                __typename: 'ScheduleException' as const,
+                id: uuid(),
+                originalStartTime: add(new Date(), { weeks: 1 }),
+                newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
+                newEndTime: add(add(add(new Date(), { weeks: 1 }), { days: 1 }), { hours: 1 }),
+            },
+        ],
+        labels: [
+            {
+                __typename: 'Label' as const,
+                id: uuid(),
+                color: '#4caf50',
+                label: 'Work',
+            },
+            {
+                __typename: 'Label' as const,
+                id: uuid(),
+                label: 'Important',
+            },
+        ],
+        // Dummy data for reminders
+        // reminders: ['10 minutes before', '1 hour before'],
     },
     {
-        id: 2,
-        title: 'Conference',
-        start: add(new Date(), { days: 3 }),
-        end: add(add(new Date(), { days: 3 }), { hours: 2 }),
+        id: uuid(),
+        title: 'Monthly Report',
+        startTime: add(new Date(), { days: 5 }),
+        endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
+        recurrences: [
+            {
+                __typename: 'ScheduleRecurrence' as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Monthly,
+                interval: 1,
+                dayOfMonth: 10,
+            },
+        ],
+        exceptions: [],
+        labels: [
+            {
+                __typename: 'Label' as const,
+                id: uuid(),
+                color: '#2196f3',
+                label: 'Reports',
+            },
+        ],
+    },
+    {
+        id: uuid(),
+        title: 'Bi-weekly Team Lunch',
+        startTime: add(new Date(), { days: 6 }),
+        endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
+        recurrences: [
+            {
+                __typename: 'ScheduleRecurrence' as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Weekly,
+                interval: 2,
+                dayOfWeek: 6,
+            },
+        ],
+        exceptions: [
+            {
+                __typename: 'ScheduleException' as const,
+                id: uuid(),
+                originalStartTime: add(new Date(), { weeks: 2 }),
+                newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
+                newEndTime: add(add(add(new Date(), { weeks: 2 }), { days: 2 }), { hours: 1 }),
+            },
+        ],
+        labels: [
+            {
+                __typename: 'Label' as const,
+                id: uuid(),
+                color: '#ff9800',
+                label: 'Social',
+            },
+        ],
+    },
+    {
+        id: uuid(),
+        title: 'Daily Stand-up',
+        startTime: add(new Date(), { days: 1 }),
+        endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
+        recurrences: [
+            {
+                __typename: 'ScheduleRecurrence' as const,
+                id: uuid(),
+                recurrenceType: ScheduleRecurrenceType.Daily,
+                interval: 1,
+                endDate: add(new Date(), { days: 15 }),
+            },
+        ],
+        exceptions: [
+            {
+                __typename: 'ScheduleException' as const,
+                id: uuid(),
+                originalStartTime: add(new Date(), { days: 2 }),
+                newStartTime: null,
+                newEndTime: null,
+            },
+        ],
+        labels: [
+            {
+                __typename: 'Label' as const,
+                id: uuid(),
+                color: '#f44336',
+                label: 'Stand-up',
+            }
+        ],
     },
 ];
-
 
 export const CalendarView = ({
     display = 'page',
@@ -62,6 +190,11 @@ export const CalendarView = ({
     const { t } = useTranslation();
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
+    // Defaults to current month
+    const [dateRange, setDateRange] = useState<{ start: Date, end: Date }>({
+        start: startOfMonth(new Date()),
+        end: endOfMonth(new Date()),
+    });
 
     useEffect(() => {
         const localeLoader = async () => {
@@ -85,6 +218,14 @@ export const CalendarView = ({
 
         localeLoader();
     }, [locale]);
+
+    const handleDateRangeChange = useCallback((range: Date[] | { start: Date, end: Date }) => {
+        if (Array.isArray(range)) {
+            setDateRange({ start: range[0], end: range[1] });
+        } else {
+            setDateRange(range);
+        }
+    }, []);
 
     // Handle tabs
     const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
@@ -110,23 +251,65 @@ export const CalendarView = ({
         setCurrTab(tab)
     }, [setLocation]);
 
-    const [events, setEvents] = useState(sampleEvents);
+    // Find schedules
+    const {
+        allData: schedules,
+        loading,
+        loadMore,
+    } = useFindMany<ScheduleSearchResult>({
+        canSearch: true,
+        searchType: 'Schedule',
+        where: {
+            // Only find schedules that hav not ended, 
+            // and will start before the date range ends
+            endTimeFrame: (dateRange.start && dateRange.end) ? {
+                after: dateRange.start.toISOString(),
+                before: add(dateRange.end, { years: 1000 }).toISOString(),
+            } : undefined,
+            startTimeFrame: (dateRange.start && dateRange.end) ? {
+                after: add(dateRange.start, { years: -1000 }).toISOString(),
+                before: dateRange.end.toISOString(),
+            } : undefined,
+            // TODO specify your own schedules here
+        },
+    });
+    // Load more schedules when date range changes
+    useEffect(() => {
+        if (!loading && dateRange.start && dateRange.end) {
+            loadMore();
+        }
+    }, [dateRange, loadMore, loading]);
 
-    // const [eventsData, { data: pageData, loading, error }] = useCustomlazyQuery<QueryResult, QueryVariables>(query, {
-    //     variables: ({
-    //         after: after.current,
-    //         take,
-    //         sortBy,
-    //         searchString,
-    //         createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
-    //             after: timeFrame.after?.toISOString(),
-    //             before: timeFrame.before?.toISOString(),
-    //         } : undefined,
-    //         ...where,
-    //         ...advancedSearchParams
-    //     } as any),
-    //     errorPolicy: 'all',
-    // });
+    // Handle events, which are created from schedule data.
+    // Events represent each occurrence of a schedule within a date range
+    const events = useMemo<Event[]>(() => {
+        console.log('calculating events start', dateRange, sampleSchedules)
+        if (!dateRange.start || !dateRange.end) return [];
+        // Initialize result
+        const result: Event[] = [];
+        // Loop through schedules
+        sampleSchedules.forEach((schedule: any) => {
+            console.log('calculating events schedule', schedule)
+            // Get occurrences (i.e. start and end times)
+            const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
+            console.log('calculating events occurrences', occurrences)
+            // Create events
+            const events: Event[] = occurrences.map(occurrence => ({
+                id: uuid(),
+                title: getDisplay(schedule, getUserLanguages(session)).title,
+                start: occurrence.start,
+                end: occurrence.end,
+                allDay: false,
+                scheduleId: schedule.id,
+            }));
+            console.log('calculating events events', events)
+            // Add events to result
+            result.push(...events);
+        });
+        console.log('calculating events end', result)
+        return result;
+    }, [dateRange.end, dateRange.start, schedules, session]);
+
 
     const openEvent = useCallback((event: any) => {
         console.log('Event clicked:', event);
@@ -156,6 +339,7 @@ export const CalendarView = ({
                 <Calendar
                     localizer={localizer}
                     events={events}
+                    onRangeChange={handleDateRangeChange}
                     onSelectEvent={openEvent}
                     startAccessor="start"
                     endAccessor="end"

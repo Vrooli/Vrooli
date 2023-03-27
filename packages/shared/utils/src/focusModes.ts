@@ -29,9 +29,13 @@ export const calculateOccurrences = (
         // Create field to store the start time as we iterate though the recurrence's period
         let currentStartTime = startTime;
 
-        // While the current start time is before the recurrence end date, add occurrences
-        while (currentStartTime <= endTime) {
+        // While the current start time is before the end of the time frame
+        const maxOccurrences = 5000;
+        let occurrenceCount = 0;
+        while (currentStartTime <= timeframeEnd && occurrences.length < maxOccurrences) {
             const currentEndTime = new Date(currentStartTime.getTime() + duration);
+            const prevStartTime = currentStartTime; // Store the previous start time to compare later
+            occurrenceCount++;
             // Check if this occurrence is an exception (i.e. cancelled or rescheduled)
             let isException = false;
             for (const exception of schedule.exceptions) {
@@ -67,7 +71,7 @@ export const calculateOccurrences = (
                     if (recurrence.dayOfWeek) {
                         const dayOfWeek = recurrence.dayOfWeek;
                         const currentDayOfWeek = currentStartTime.getDay();
-                        const daysUntilNextOccurrence = dayOfWeek - currentDayOfWeek;
+                        const daysUntilNextOccurrence = (dayOfWeek - currentDayOfWeek + 7) % 7 || recurrence.interval * 7;
                         currentStartTime = new Date(currentStartTime.getTime() + daysUntilNextOccurrence * 24 * 60 * 60 * 1000);
                     }
                     // Otherwise, weekly recurrences are incremented by the interval in weeks. 
@@ -79,9 +83,15 @@ export const calculateOccurrences = (
                     // If dayOfMonth is set, then the recurrence is only on that day of the month.
                     if (recurrence.dayOfMonth) {
                         const dayOfMonth = recurrence.dayOfMonth;
-                        const currentDayOfMonth = currentStartTime.getDate();
-                        const daysUntilNextOccurrence = dayOfMonth - currentDayOfMonth;
-                        currentStartTime = new Date(currentStartTime.getTime() + daysUntilNextOccurrence * 24 * 60 * 60 * 1000);
+                        const currentMonth = currentStartTime.getMonth();
+                        const nextOccurrence = new Date(currentStartTime);
+                        nextOccurrence.setMonth(currentMonth + recurrence.interval);
+                        nextOccurrence.setDate(dayOfMonth);
+                        // If the next occurrence is in the past, increment by another interval
+                        if (nextOccurrence <= currentStartTime) {
+                            nextOccurrence.setMonth(currentMonth + 2 * recurrence.interval);
+                        }
+                        currentStartTime = nextOccurrence;
                     }
                     // Otherwise, monthly recurrences are incremented by the interval in months.
                     else {
@@ -92,13 +102,16 @@ export const calculateOccurrences = (
                 case 'Yearly':
                     // If month and dayOfMonth are set, then the recurrence is only on that day of the month in that month.
                     if (recurrence.month && recurrence.dayOfMonth) {
-                        const month = recurrence.month;
-                        const dayOfMonth = recurrence.dayOfMonth;
-                        const currentMonth = currentStartTime.getMonth();
-                        const currentDayOfMonth = currentStartTime.getDate();
-                        const monthsUntilNextOccurrence = month - currentMonth;
-                        const daysUntilNextOccurrence = dayOfMonth - currentDayOfMonth;
-                        currentStartTime = new Date(currentStartTime.getTime() + monthsUntilNextOccurrence * 30 * 24 * 60 * 60 * 1000 + daysUntilNextOccurrence * 24 * 60 * 60 * 1000);
+                        const nextOccurrence = new Date(currentStartTime);
+                        nextOccurrence.setFullYear(currentStartTime.getFullYear() + recurrence.interval);
+                        nextOccurrence.setMonth(recurrence.month);
+                        nextOccurrence.setDate(recurrence.dayOfMonth);
+
+                        // If the next occurrence is in the past, increment by another interval
+                        if (nextOccurrence <= currentStartTime) {
+                            nextOccurrence.setFullYear(currentStartTime.getFullYear() + 2 * recurrence.interval);
+                        }
+                        currentStartTime = nextOccurrence;
                     }
                     // Otherwise, yearly recurrences are incremented by the interval in years.
                     else {
@@ -107,8 +120,10 @@ export const calculateOccurrences = (
                     }
                     break;
             }
-            // Break if the recurrence end date is before the current occurrence start time
-            if (recurrence.endDate && new Date(recurrence.endDate).getTime() < currentStartTime.getTime()) {
+            // Break if the recurrence end date is before the current occurrence start time, 
+            // or if the current start time hasn't changed, 
+            if ((recurrence.endDate && new Date(recurrence.endDate).getTime() < currentStartTime.getTime()) ||
+                currentStartTime.getTime() === prevStartTime.getTime()) {
                 break;
             }
         }
