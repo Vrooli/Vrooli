@@ -1,8 +1,8 @@
+import { FindVersionInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { StandardVersionSortBy, StandardVersion, StandardVersionSearchInput, StandardVersionCreateInput, StandardVersionUpdateInput, FindVersionInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum StandardVersionSortBy {
@@ -96,18 +96,21 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
+        name: String!
         jsonVariable: String
     }
     input StandardVersionTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        name: String
         jsonVariable: String
     }
     type StandardVersionTranslation {
         id: ID!
         language: String!
         description: String
+        name: String!
         jsonVariable: String
     }
 

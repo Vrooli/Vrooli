@@ -44,14 +44,21 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     else {
         id = input.id;
     }
+    if (!id)
+        throw new CustomError('0434', 'NotFound', userData?.languages ?? req.languages, { objectType });
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, prisma, userData ?? null);
     // Check permissions
     await permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
     // Get the Prisma object
-    const object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
-    if (!object)
-        throw new CustomError('0022', 'NotFound', userData?.languages ?? req.languages, { objectType });
+    let object: any;
+    try {
+        object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
+        if (!object)
+            throw new CustomError('0022', 'NotFound', userData?.languages ?? req.languages, { objectType });
+    } catch (error) {
+        throw new CustomError('0435', 'NotFound', userData?.languages ?? req.languages, { objectType, error });
+    }
     // Return formatted for GraphQL
     let formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object tracks view counts, add a view

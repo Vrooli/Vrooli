@@ -19,6 +19,7 @@ query runRoutineInputs($input: RunRoutineInputSearchInput!) {
                         language
                         description
                         jsonVariable
+                        name
                     }
                     id
                     created_at

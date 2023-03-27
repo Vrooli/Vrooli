@@ -23,6 +23,7 @@ mutation runRoutineCancel($input: RunRoutineCancelInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
                 id
                 created_at

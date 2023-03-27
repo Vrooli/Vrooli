@@ -130,6 +130,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                                 language
                                 description
                                 jsonVariable
+                                name
                             }
                             id
                             created_at

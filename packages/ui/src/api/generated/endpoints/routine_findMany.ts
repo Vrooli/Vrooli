@@ -65,6 +65,7 @@ query routines($input: RoutineSearchInput!) {
                                         language
                                         description
                                         jsonVariable
+                                        name
                                     }
                                     id
                                     created_at

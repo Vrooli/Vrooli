@@ -1,8 +1,8 @@
+import { FindByIdInput, Standard, StandardSortBy, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { StandardSortBy, FindByIdInput, Standard, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum StandardSortBy {
@@ -30,7 +30,6 @@ export const typeDef = gql`
 
     input StandardCreateInput {
         id: ID!
-        name: String!
         isInternal: Boolean
         isPrivate: Boolean
         permissions: String
@@ -74,7 +73,6 @@ export const typeDef = gql`
         score: Int!
         bookmarks: Int!
         views: Int!
-        name: String!
         createdBy: User
         forks: [Standard!]!
         forksCount: Int!

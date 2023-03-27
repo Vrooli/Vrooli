@@ -23,6 +23,7 @@ mutation runRoutineCreate($input: RunRoutineCreateInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
                 id
                 created_at

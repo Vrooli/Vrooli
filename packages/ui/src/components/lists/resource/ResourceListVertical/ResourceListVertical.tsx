@@ -14,7 +14,6 @@ import { ResourceListItemContextMenu } from '../ResourceListItemContextMenu/Reso
 import { ResourceListVerticalProps } from '../types';
 
 export const ResourceListVertical = ({
-    title = '📌 Resources',
     canUpdate = true,
     handleUpdate,
     mutate,

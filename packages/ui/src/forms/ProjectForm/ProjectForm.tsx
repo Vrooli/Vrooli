@@ -2,6 +2,7 @@ import { useTheme } from "@mui/material";
 import { projectVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
@@ -66,6 +67,10 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                     zIndex={zIndex + 1}
                 />
                 {/* TODO */}
+                <VersionInput
+                    fullWidth
+                    versions={existing?.root?.versions ?? []}
+                />
                 <GridSubmitButtons
                     display={display}
                     errors={{

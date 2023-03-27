@@ -107,6 +107,7 @@ const getSelection = (id: string): { selectionStart: number, selectionEnd: numbe
 }
 
 export const MarkdownInputBase = ({
+    autoFocus = false,
     disabled = false,
     error = false,
     helperText,
@@ -115,6 +116,7 @@ export const MarkdownInputBase = ({
     onBlur,
     onChange,
     placeholder = '',
+    tabIndex,
     value,
     sxs,
 }: MarkdownInputBaseProps) => {
@@ -587,6 +589,7 @@ export const MarkdownInputBase = ({
                     (
                         <textarea
                             id={`markdown-input-${name}`}
+                            autoFocus={autoFocus}
                             disabled={disabled}
                             name={name}
                             placeholder={placeholder}
@@ -594,6 +597,7 @@ export const MarkdownInputBase = ({
                             value={internalValue}
                             onBlur={onBlur}
                             onChange={(e) => { handleChange(e.target.value) }}
+                            tabIndex={tabIndex}
                             style={{
                                 padding: '16.5px 14px',
                                 minWidth: '-webkit-fill-available',

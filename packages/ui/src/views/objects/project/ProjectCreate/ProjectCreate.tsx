@@ -1,19 +1,17 @@
 import { ProjectVersion, ProjectVersionCreateInput } from "@shared/consts";
-import { uuid } from '@shared/uuid';
 import { projectVersionValidation } from '@shared/validation';
 import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ProjectForm } from "forms/ProjectForm/ProjectForm";
-import { useContext, useRef } from "react";
-import { getUserLanguages } from "utils/display/translationTools";
+import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProjectVersion } from "utils/shape/models/projectVersion";
+import { projectInitialValues } from "..";
 import { ProjectCreateProps } from "../types";
 
 export const ProjectCreate = ({
@@ -25,6 +23,7 @@ export const ProjectCreate = ({
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => projectInitialValues(session), [session]);
     const { handleCancel, handleCreated } = useCreateActions<ProjectVersion>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<ProjectVersion, ProjectVersionCreateInput>(projectVersionCreate);
 
@@ -39,27 +38,7 @@ export const ProjectCreate = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={{
-                    __typename: 'ProjectVersion' as const,
-                    id: uuid(),
-                    isComplete: false,
-                    isPrivate: false,
-                    root: {
-                        __typename: 'Project' as const,
-                        id: uuid(),
-                        owner: session ? userFromSession(session!) : null,
-                        parent: null,
-                        project: null,
-                    },
-                    translations: [{
-                        id: uuid(),
-                        language: getUserLanguages(session)[0],
-                        name: '',
-                        description: '',
-                    }],
-                    versionLabel: '1.0.0',
-                    versionNotes: '',
-                }}
+                initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<ProjectVersion, ProjectVersionCreateInput>({
                         mutation,

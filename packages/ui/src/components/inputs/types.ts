@@ -1,8 +1,7 @@
 import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
-import { Comment, CommentFor, Standard, StandardVersion } from '@shared/consts';
+import { Comment, CommentFor, StandardVersion } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
-import { FocusEventHandler } from 'react';
 import { VersionInfo } from 'types';
 import { StringSchema } from 'yup';
 
@@ -118,9 +117,7 @@ export interface JsonFormatInputProps {
 }
 
 export interface JsonInputProps {
-    id: string;
     disabled?: boolean;
-    error?: boolean;
     /**
      * JSON string representing the format that the 
      * input should follow. 
@@ -156,30 +153,26 @@ export interface JsonInputProps {
      * }
      */
     format?: { [x: string]: any }
-    helperText?: string | null | undefined;
+    index?: number;
     minRows?: number;
-    onChange: (newText: string) => any;
+    name: string;
     placeholder?: string;
     /**
-     * JSON string representing the value of the input
-     */
-    value: string | null;
-    /**
-     * Dictionary which describes variables (e.g. <name>, <age>) in
-     * the format JSON. 
-     * Each variable can have a label, helper text, a type, and accepted values.
-     * ex: {
-     *  "policy_id": {
-     *      "label": "Policy ID",
-     *      "helperText": "Human-readable name of the policy.",
-     *  },
-     *  "721": {
-     *      "label": "721",
-     *      "helperText": "The transaction_metadatum_label that describes the type of data. 
-     *      721 is the number for NFTs.",
-     *   }
-     * }
-     */
+      * Dictionary which describes variables (e.g. <name>, <age>) in
+      * the format JSON. 
+      * Each variable can have a label, helper text, a type, and accepted values.
+      * ex: {
+      *  "policy_id": {
+      *      "label": "Policy ID",
+      *      "helperText": "Human-readable name of the policy.",
+      *  },
+      *  "721": {
+      *      "label": "721",
+      *      "helperText": "The transaction_metadatum_label that describes the type of data. 
+      *      721 is the number for NFTs.",
+      *   }
+      * }
+      */
     variables?: { [x: string]: JSONVariable };
 }
 
@@ -202,14 +195,17 @@ export interface LanguageInputProps {
 }
 
 export interface MarkdownInputProps {
+    autoFocus?: boolean;
     disabled?: boolean;
     minRows?: number;
     name: string;
     placeholder?: string;
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    tabIndex?: number;
 }
 
 export type MarkdownInputBaseProps = Omit<TextFieldProps, 'onChange'> & {
+    autoFocus?: boolean;
     disabled?: boolean;
     error?: boolean;
     helperText?: string | boolean | null | undefined;
@@ -218,6 +214,7 @@ export type MarkdownInputBaseProps = Omit<TextFieldProps, 'onChange'> & {
     onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
     onChange: (newText: string) => any;
     placeholder?: string;
+    tabIndex?: number;
     value: string;
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
 }
@@ -275,9 +272,7 @@ export type SelectorProps<T extends string | number | { [x: string]: any }> = {
 
 export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
     selected: {
-        root: {
-            name: Standard['name']
-        }
+        translations: StandardVersion['translations'];
     } | null;
     onChange: (value: StandardVersion | null) => any;
     disabled?: boolean;
@@ -311,22 +306,11 @@ export interface TranslatedTextFieldProps {
 
 export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange' | 'value'> & {
     autoFocus?: boolean;
-    error?: boolean;
-    helperText?: string | null | undefined;
     fullWidth?: boolean;
-    id?: string;
     /**
      * Label for input component, NOT the version label.
      */
     label?: string;
-    name?: string;
-    onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
-    onChange: (newVersion: VersionInfo) => any;
-    /**
-     * Info for the version being created/edited. A change in the versionLabel 
-     * will trigger a new version to be created.
-     */
-    versionInfo: Partial<VersionInfo>;
     /**
      * Existing versions of the object. Used to determine mimum version number.
      */

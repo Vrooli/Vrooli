@@ -25,7 +25,7 @@ type UseFindManyProps = {
  * @param data data returned from a findMany query
  * @param resolve function for resolving the data
  */
-const parseData = (data: any, resolve?: (data: any) => any) => {
+export const parseData = (data: any, resolve?: (data: any) => any) => {
     if (!data) return [];
     // query result is always returned as an object with a single key (the endpoint name), where 
     // the value is the actual data. If this is not the case, then (hopefully) it was already 

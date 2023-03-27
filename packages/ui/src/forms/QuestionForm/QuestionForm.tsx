@@ -2,6 +2,9 @@ import { Stack, useTheme } from "@mui/material";
 import { questionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { QuestionFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -47,21 +50,50 @@ export const QuestionForm = forwardRef<any, QuestionFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    paddingBottom: '64px',
+                    maxWidth: '700px',
+                    margin: 'auto',
                 }}
             >
-                <Stack direction="column" spacing={2} paddingTop={2}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex + 1}
-                    />
+                <Stack direction="column" spacing={4} sx={{
+                    margin: 2,
+                    marginBottom: 4,
+                }}>
+                    <Stack direction="column" spacing={2}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                            zIndex={zIndex + 1}
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t('Name')}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedMarkdownInput
+                            language={language}
+                            name="description"
+                            placeholder={t(`Description`)}
+                            minRows={3}
+                            sxs={{
+                                bar: {
+                                    borderRadius: 0,
+                                    background: palette.primary.main,
+                                },
+                                textArea: {
+                                    borderRadius: 0,
+                                    resize: 'none',
+                                    minHeight: '100vh',
+                                    background: palette.background.paper,
+                                }
+                            }}
+                        />
+                    </Stack>
+                    <TagSelector />
                 </Stack>
-                {/* TODO */}
                 <GridSubmitButtons
                     display={display}
                     errors={{

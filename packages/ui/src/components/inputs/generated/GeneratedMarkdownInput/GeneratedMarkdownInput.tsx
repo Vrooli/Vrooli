@@ -6,7 +6,6 @@ import { GeneratedInputComponentProps } from "../types";
 export const GeneratedMarkdownInput = ({
     disabled,
     fieldData,
-    formik,
     index,
 }: GeneratedInputComponentProps) => {
     console.log('rendering markdown input');
@@ -14,14 +13,10 @@ export const GeneratedMarkdownInput = ({
 
     return (
         <MarkdownInput
-            id={fieldData.fieldName}
             disabled={disabled}
+            name={fieldData.fieldName}
             placeholder={props.placeholder ?? fieldData.label}
-            value={formik.values[fieldData.fieldName]}
             minRows={props.minRows}
-            onChange={(newText: string) => formik.setFieldValue(fieldData.fieldName, newText)}
-            error={formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName])}
-            helperText={formik.touched[fieldData.fieldName] && formik.errors[fieldData.fieldName]}
         />
     )
 }

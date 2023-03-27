@@ -165,6 +165,7 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         parentDirectory {

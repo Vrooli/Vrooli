@@ -10,7 +10,7 @@ import { OwnerShape } from "./types";
 export type RoutineShape = Pick<Routine, 'id' | 'isInternal' | 'isPrivate' | 'permissions'> & {
     __typename?: 'Routine';
     labels?: ({ id: string } | LabelShape)[];
-    owner: OwnerShape | null;
+    owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

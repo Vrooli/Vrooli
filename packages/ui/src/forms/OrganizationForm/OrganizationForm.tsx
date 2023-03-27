@@ -1,7 +1,11 @@
-import { Stack, useTheme } from "@mui/material";
+import { Checkbox, FormControlLabel, Stack, Tooltip, useTheme } from "@mui/material";
 import { organizationTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -47,21 +51,65 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    paddingBottom: '64px',
+                    maxWidth: '700px',
+                    margin: 'auto',
                 }}
             >
-                <Stack direction="column" spacing={2} paddingTop={2}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex + 1}
+                <Stack direction="column" spacing={4} sx={{
+                    margin: 2,
+                    marginBottom: 4,
+                }}>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={'Organization'}
+                        zIndex={zIndex}
                     />
+                    <Stack direction="column" spacing={2}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                            zIndex={zIndex + 1}
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t('Name')}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={"Bio"}
+                            language={language}
+                            multiline
+                            minRows={2}
+                            maxRows={4}
+                            name="bio"
+                        />
+                    </Stack>
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
+                    <TagSelector />
+                    <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
+                        <FormControlLabel
+                            label='Open to new members?'
+                            control={
+                                <Checkbox
+                                    id='organization-is-open-to-new-members'
+                                    size="medium"
+                                    name='isOpenToNewMembers'
+                                    color='secondary'
+                                    checked={formik.values.isOpenToNewMembers}
+                                    onChange={formik.handleChange}
+                                />
+                            }
+                        />
+                    </Tooltip>
                 </Stack>
-                {/* TODO */}
                 <GridSubmitButtons
                     display={display}
                     errors={{

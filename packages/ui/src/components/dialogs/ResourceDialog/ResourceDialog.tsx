@@ -79,7 +79,6 @@ export const ResourceDialog = ({
 
     const handleClose = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
         // Confirm dialog is dirty and closed by clicking outside
-        console.log('ref current', formRef.current)
         formRef.current?.handleClose(onClose, reason !== 'backdropClick');
     }, [onClose]);
 

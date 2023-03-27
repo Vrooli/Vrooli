@@ -1,5 +1,5 @@
-import { isObject } from "@shared/utils";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { useField } from "formik";
 import { GeneratedInputComponentProps } from "../types";
 
 export const GeneratedLanguageInput = ({
@@ -9,25 +9,23 @@ export const GeneratedLanguageInput = ({
     zIndex,
 }: GeneratedInputComponentProps) => {
     console.log('rendering language input');
-    let languages: string[] = [];
-    if (isObject(formik.values) && Array.isArray(formik.values[fieldData.fieldName]) && fieldData.fieldName in formik.values) {
-        languages = formik.values[fieldData.fieldName] as string[];
-    }
+    const [field, , helpers] = useField(fieldData.fieldName);
+
     const addLanguage = (lang: string) => {
-        formik.setFieldValue(fieldData.fieldName, [...languages, lang]);
+        helpers.setValue([...field.value, lang]);
     };
     const deleteLanguage = (lang: string) => {
-        const newLanguages = [...languages.filter(l => l !== lang)]
-        formik.setFieldValue(fieldData.fieldName, newLanguages);
+        const newLanguages = [...field.value.filter(l => l !== lang)];
+        helpers.setValue(newLanguages);
     }
     return (
         <LanguageInput
-            currentLanguage={languages.length > 0 ? languages[0] : ''} //TOOD
+            currentLanguage={field.value.length > 0 ? field.value[0] : ''} //TOOD
             disabled={disabled}
             handleAdd={addLanguage}
             handleDelete={deleteLanguage}
             handleCurrent={() => { }} //TODO
-            translations={languages.map(language => ({ language }))}
+            languages={field.value}
             zIndex={zIndex}
         />
     )

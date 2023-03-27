@@ -9,7 +9,7 @@ import { OwnerShape } from "./types";
 export type ApiShape = Pick<Api, 'id' | 'isPrivate'> & {
     __typename?: 'Api';
     labels?: ({ id: string } | LabelShape)[];
-    owner: OwnerShape | null;
+    owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

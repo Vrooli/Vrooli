@@ -92,6 +92,7 @@ query quizQuestion($input: FindByIdInput!) {
             language
             description
             jsonVariable
+            name
         }
     }
     you {

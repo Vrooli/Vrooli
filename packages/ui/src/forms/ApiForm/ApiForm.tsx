@@ -1,10 +1,11 @@
-import { Stack, TextField, useTheme } from "@mui/material";
+import { Stack, TextField } from "@mui/material";
 import { apiVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -27,7 +28,6 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // useEffect(() => {
@@ -71,14 +71,6 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         objectType={'Api'}
                         zIndex={zIndex}
                     />
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex + 1}
-                    />
                     <Field
                         fullWidth
                         name="callLink"
@@ -87,6 +79,14 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         as={TextField}
                     />
                     <Stack direction="column" spacing={2}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                            zIndex={zIndex + 1}
+                        />
                         <TranslatedTextField
                             fullWidth
                             label={t('Name')}
@@ -117,6 +117,10 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                         zIndex={zIndex}
                     />
                     <TagSelector />
+                    <VersionInput
+                        fullWidth
+                        versions={existing?.root?.versions ?? []}
+                    />
                 </Stack>
                 <GridSubmitButtons
                     display={display}

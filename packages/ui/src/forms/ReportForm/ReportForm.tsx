@@ -1,11 +1,28 @@
-import { Stack, useTheme } from "@mui/material";
+import { TextField } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { Selector } from "components/inputs/Selector/Selector";
+import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReportFormProps } from "forms/types";
-import { forwardRef, useContext } from "react";
+import { forwardRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "utils/SessionContext";
+
+enum ReportOptions {
+    Inappropriate = 'Inappropriate',
+    PII = 'PII',
+    Scam = 'Scam',
+    Spam = 'Spam',
+    Other = 'Other',
+}
+
+const ReportReasons = {
+    [ReportOptions.Inappropriate]: 'Inappropriate Content',
+    [ReportOptions.PII]: 'Includes Personally Identifiable Information (PII)',
+    [ReportOptions.Scam]: 'Scam',
+    [ReportOptions.Spam]: 'Spam',
+    [ReportOptions.Other]: 'Other',
+}
 
 export const ReportForm = forwardRef<any, ReportFormProps>(({
     display,
@@ -18,9 +35,14 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
     zIndex,
     ...props
 }, ref) => {
-    const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
+
+    const [languageField, , languageHelpers] = useField('language');
+    const setLanguage = useCallback((language: string) => {
+        languageHelpers.setValue(language);
+    }, [languageHelpers]);
+
+    const [reasonField] = useField('reason');
 
     return (
         <>
@@ -33,24 +55,40 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                     paddingBottom: '64px',
                 }}
             >
-                <Stack direction="column" spacing={2} paddingTop={2}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                        zIndex={zIndex + 1}
-                    />
-                </Stack>
-                {/* TODO */}
+                <SelectLanguageMenu
+                    currentLanguage={languageField.value}
+                    handleCurrent={setLanguage}
+                    languages={[languageField.value]}
+                    zIndex={zIndex}
+                />
+                <Selector
+                    name="reason"
+                    disabled={isLoading}
+                    options={Object.keys(ReportReasons)}
+                    getOptionLabel={(r) => ReportReasons[r]}
+                    fullWidth
+                    inputAriaLabel="select reason"
+                    label={t('Reason')}
+                />
+                {reasonField.value === ReportOptions.Other && <Field
+                    fullWidth
+                    name="otherReason"
+                    label={t('ReasonCustom')}
+                    helperText={t('ReasonCustomHelp')}
+                    as={TextField}
+                />}
+                <Field
+                    fullWidth
+                    multiline
+                    rows={4}
+                    name="details"
+                    label={t('DetailsOptional')}
+                    helperText={t('ReportDetailsHelp')}
+                    as={TextField}
+                />
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={props.errors}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

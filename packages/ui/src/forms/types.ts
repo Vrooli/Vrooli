@@ -9,7 +9,7 @@ import { ViewDisplayType } from "views/types";
 /* #region Specific Form Props */
 //==============================================================
 export interface BaseFormProps {
-    children: JSX.Element | JSX.Element[];
+    children: (JSX.Element | boolean | null) | (JSX.Element | boolean | null)[];
     dirty?: boolean;
     enableReinitialize?: boolean;
     isLoading?: boolean;

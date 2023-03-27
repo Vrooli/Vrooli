@@ -93,6 +93,7 @@ mutation quizCreate($input: QuizCreateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         you {

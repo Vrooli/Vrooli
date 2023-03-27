@@ -4,6 +4,7 @@ import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVe
 import { useLocation } from '@shared/route';
 import { DUMMY_ID } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
+import { ListTitleContainer } from 'components/containers/ListTitleContainer/ListTitleContainer';
 import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
 import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { SiteSearchBar } from 'components/inputs/search';
@@ -17,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { centeredDiv } from 'styles';
 import { AutocompleteOption, ShortcutOption, Wrap } from 'types';
 import { getCurrentUser, getFocusModeInfo } from 'utils/authentication/session';
-import { listToAutocomplete } from 'utils/display/listTools';
+import { listToAutocomplete, listToListItems } from 'utils/display/listTools';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
@@ -170,6 +171,19 @@ export const HomeView = ({
         //TODO - add note to note list
     }, []);
 
+    const beforeNavigation = useCallback(() => {
+        if (searchString) setLocation(`${LINKS.Home}?search="${searchString}"`, { replace: true });
+    }, [searchString, setLocation]);
+
+    const notes = useMemo(() => listToListItems({
+        beforeNavigation,
+        dummyItems: new Array(5).fill('Note'),
+        items: data?.home?.notes ?? [],
+        keyPrefix: `note-list-item`,
+        loading,
+        zIndex,
+    }), [beforeNavigation, data?.home?.notes, loading])
+
     return (
         <>
             {/* Create reminder dialog */}
@@ -252,16 +266,17 @@ export const HomeView = ({
                     titleKey="ToDo"
                     options={[['Create', openCreateReminder]]}
                 >
-                    {/* TODO */}
+                    {/* <ReminderList /> */}
                 </TitleContainer>
                 {/* Notes */}
-                <TitleContainer
+                <ListTitleContainer
+                    isEmpty={notes.length === 0}
                     titleKey="Note"
                     titleVariables={{ count: 2 }}
                     options={[['Create', openCreateNote]]}
                 >
-                    {/* TODO */}
-                </TitleContainer>
+                    {notes}
+                </ListTitleContainer>
             </Stack>
         </>
     )

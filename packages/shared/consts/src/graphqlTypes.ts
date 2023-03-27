@@ -7831,7 +7831,6 @@ export type Standard = {
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
-  name: Scalars['String'];
   owner?: Maybe<Owner>;
   parent?: Maybe<StandardVersion>;
   permissions: Scalars['String'];
@@ -7858,7 +7857,6 @@ export type StandardCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  name: Scalars['String'];
   ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
@@ -8066,6 +8064,7 @@ export type StandardVersionTranslation = {
   id: Scalars['ID'];
   jsonVariable?: Maybe<Scalars['String']>;
   language: Scalars['String'];
+  name: Scalars['String'];
 };
 
 export type StandardVersionTranslationCreateInput = {
@@ -8073,6 +8072,7 @@ export type StandardVersionTranslationCreateInput = {
   id: Scalars['ID'];
   jsonVariable?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
+  name: Scalars['String'];
 };
 
 export type StandardVersionTranslationUpdateInput = {
@@ -8080,6 +8080,7 @@ export type StandardVersionTranslationUpdateInput = {
   id: Scalars['ID'];
   jsonVariable?: InputMaybe<Scalars['String']>;
   language?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
 };
 
 export type StandardVersionUpdateInput = {
@@ -13143,7 +13144,6 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
-  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -13228,6 +13228,7 @@ export type StandardVersionTranslationResolvers<ContextType = any, ParentType ex
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   jsonVariable?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

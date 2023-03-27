@@ -1,5 +1,5 @@
 import { ApiVersion, Session } from '@shared/consts';
-import { uuid } from '@shared/uuid';
+import { DUMMY_ID } from '@shared/uuid';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { ApiVersionShape } from 'utils/shape/models/apiVersion';
@@ -13,22 +13,24 @@ export const apiInitialValues = (
     existing?: ApiVersion | undefined
 ): ApiVersionShape => ({
     __typename: 'ApiVersion' as const,
-    id: uuid(),
+    id: DUMMY_ID,
     callLink: '',
+    directoryListings: [],
     isComplete: false,
     isPrivate: false,
     resourceList: {
         __typename: 'ResourceList' as const,
-        id: uuid(),
+        id: DUMMY_ID,
     },
     root: {
         __typename: 'Api' as const,
-        id: uuid(),
+        id: DUMMY_ID,
         isPrivate: false,
         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        tags: [],
     },
     translations: [{
-        id: uuid(),
+        id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         details: '',
         name: '',

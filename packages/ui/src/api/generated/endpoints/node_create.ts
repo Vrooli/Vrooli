@@ -157,6 +157,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
                                 language
                                 description
                                 jsonVariable
+                                name
                             }
                             id
                             created_at

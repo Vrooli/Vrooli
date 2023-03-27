@@ -9,7 +9,7 @@ import { OwnerShape } from "./types";
 export type SmartContractShape = Pick<SmartContract, 'id' | 'isPrivate'> & {
     __typename?: 'SmartContract';
     labels?: ({ id: string } | LabelShape)[];
-    owner: OwnerShape | null;
+    owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

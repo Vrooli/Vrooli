@@ -6,7 +6,6 @@ import { GeneratedInputComponentProps } from "../types";
 export const GeneratedJsonInput = ({
     disabled,
     fieldData,
-    formik,
     index,
 }: GeneratedInputComponentProps) => {
     console.log('rendering json input');
@@ -14,16 +13,12 @@ export const GeneratedJsonInput = ({
 
     return (
         <JsonInput
-            id={fieldData.fieldName}
             disabled={disabled}
             format={props.format}
             variables={props.variables}
             placeholder={props.placeholder ?? fieldData.label}
-            value={formik.values[fieldData.fieldName]}
             minRows={props.minRows}
-            onChange={(newText: string) => formik.setFieldValue(fieldData.fieldName, newText)}
-            error={formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName])}
-            helperText={formik.touched[fieldData.fieldName] && formik.errors[fieldData.fieldName]}
+            name={fieldData.fieldName}
         />
     )
 }

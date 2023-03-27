@@ -9,7 +9,7 @@ import { OwnerShape } from "./types";
 export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permissions'> & {
     __typename?: 'Project';
     labels?: ({ id: string } | LabelShape)[];
-    owner: OwnerShape | null;
+    owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

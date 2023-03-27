@@ -1,5 +1,4 @@
 import { Organization, OrganizationCreateInput } from "@shared/consts";
-import { uuid } from '@shared/uuid';
 import { organizationValidation } from '@shared/validation';
 import { organizationCreate } from "api/generated/endpoints/organization_create";
 import { useCustomMutation } from "api/hooks";
@@ -8,11 +7,11 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { OrganizationForm } from "forms/OrganizationForm/OrganizationForm";
-import { useContext, useRef } from "react";
-import { getUserLanguages } from "utils/display/translationTools";
+import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeOrganization } from "utils/shape/models/organization";
+import { organizationInitialValues } from "..";
 import { OrganizationCreateProps } from "../types";
 
 export const OrganizationCreate = ({
@@ -24,6 +23,7 @@ export const OrganizationCreate = ({
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => organizationInitialValues(session), [session]);
     const { handleCancel, handleCreated } = useCreateActions<Organization>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<Organization, OrganizationCreateInput>(organizationCreate);
 
@@ -38,17 +38,7 @@ export const OrganizationCreate = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={{
-                    __typename: 'Organization' as const,
-                    id: uuid(),
-                    isOpenToNewMembers: false,
-                    translationsCreate: [{
-                        id: uuid(),
-                        language: getUserLanguages(session)[0],
-                        name: '',
-                        bio: '',
-                    }]
-                }}
+                initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Organization, OrganizationCreateInput>({
                         mutation,

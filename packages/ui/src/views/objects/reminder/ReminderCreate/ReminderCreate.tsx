@@ -1,5 +1,4 @@
 import { Reminder, ReminderCreateInput } from "@shared/consts";
-import { DUMMY_ID, uuid } from '@shared/uuid';
 import { reminderValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
@@ -8,10 +7,11 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm } from "forms/ReminderForm.tsx/ReminderForm";
-import { useContext, useRef } from "react";
+import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeReminder } from "utils/shape/models/reminder";
+import { reminderInitialValues } from "..";
 import { ReminderCreateProps } from "../types";
 
 export const ReminderCreate = ({
@@ -25,6 +25,7 @@ export const ReminderCreate = ({
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => reminderInitialValues(session, reminderListId), [reminderListId, session]);
     const { handleCancel, handleCreated } = useCreateActions<Reminder>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
 
@@ -39,17 +40,7 @@ export const ReminderCreate = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={{
-                    __typename: 'Reminder' as const,
-                    id: uuid(),
-                    name: '',
-                    description: '',
-                    index: index ?? 0,//TODO
-                    reminderList: {
-                        __typename: 'ReminderList' as const,
-                        id: reminderListId ?? DUMMY_ID
-                    }, //TODO
-                }}
+                initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Reminder, ReminderCreateInput>({
                         mutation,

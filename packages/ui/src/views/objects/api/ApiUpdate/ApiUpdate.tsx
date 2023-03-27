@@ -1,4 +1,4 @@
-import { ApiVersion, ApiVersionUpdateInput, FindByIdInput } from "@shared/consts";
+import { ApiVersion, ApiVersionUpdateInput, FindVersionInput } from "@shared/consts";
 import { apiVersionValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
@@ -14,6 +14,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeApiVersion } from "utils/shape/models/apiVersion";
+import { apiInitialValues } from "..";
 import { ApiUpdateProps } from "../types";
 
 export const ApiUpdate = ({
@@ -26,7 +27,7 @@ export const ApiUpdate = ({
 
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ApiVersion, FindByIdInput>(apiVersionFindOne);
+    const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ApiVersion, FindVersionInput>(apiVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();

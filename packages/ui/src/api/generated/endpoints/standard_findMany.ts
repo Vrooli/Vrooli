@@ -20,6 +20,7 @@ query standards($input: StandardSearchInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
                 id
                 created_at

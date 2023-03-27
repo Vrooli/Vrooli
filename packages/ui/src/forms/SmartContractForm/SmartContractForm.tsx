@@ -2,6 +2,7 @@ import { Stack, useTheme } from "@mui/material";
 import { smartContractVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { SmartContractFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -62,6 +63,10 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
                     />
                 </Stack>
                 {/* TODO */}
+                <VersionInput
+                    fullWidth
+                    versions={routineVersion?.root?.versions ?? []}
+                />
                 <GridSubmitButtons
                     display={display}
                     errors={{

@@ -74,6 +74,7 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         stats {
@@ -126,6 +127,7 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         language
         description
         jsonVariable
+        name
     }
     id
     created_at

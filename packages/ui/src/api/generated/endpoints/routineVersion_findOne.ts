@@ -112,6 +112,7 @@ query routineVersion($input: FindVersionInput!) {
                             language
                             description
                             jsonVariable
+                            name
                         }
                         id
                         created_at

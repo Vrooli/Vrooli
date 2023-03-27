@@ -1,5 +1,4 @@
 import { FindByIdInput, Reminder, ReminderUpdateInput } from "@shared/consts";
-import { uuid } from '@shared/uuid';
 import { reminderValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
@@ -15,6 +14,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeReminder } from "utils/shape/models/reminder";
+import { reminderInitialValues } from "..";
 import { ReminderUpdateProps } from "../types";
 
 export const ReminderUpdate = ({
@@ -31,6 +31,7 @@ export const ReminderUpdate = ({
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => reminderInitialValues(session, undefined, existing), [existing, session]);
     const { handleCancel, handleUpdated } = useUpdateActions<Reminder>(display, onCancel, onUpdated);
     const [mutation, { loading: isUpdateLoading }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
 
@@ -45,10 +46,7 @@ export const ReminderUpdate = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={{
-                    __typename: 'Reminder' as const,
-                    id: uuid(),
-                }}
+                initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!existing) {
                         PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });

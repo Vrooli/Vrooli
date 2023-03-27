@@ -130,6 +130,7 @@ query routine($input: FindByIdInput!) {
                                 language
                                 description
                                 jsonVariable
+                                name
                             }
                             id
                             created_at

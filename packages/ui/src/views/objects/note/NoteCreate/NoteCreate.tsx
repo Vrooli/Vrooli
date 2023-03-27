@@ -1,5 +1,4 @@
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
-import { uuid } from '@shared/uuid';
 import { noteVersionValidation } from '@shared/validation';
 import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { useCustomMutation } from "api/hooks";
@@ -8,12 +7,11 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { NoteForm } from "forms/NoteForm/NoteForm";
-import { useContext, useRef } from "react";
-import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
+import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeNoteVersion } from "utils/shape/models/noteVersion";
+import { noteInitialValues } from "..";
 import { NoteCreateProps } from "../types";
 
 export const NoteCreate = ({
@@ -25,6 +23,7 @@ export const NoteCreate = ({
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => noteInitialValues(session), [session]);
     const { handleCancel, handleCreated } = useCreateActions<NoteVersion>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<NoteVersion, NoteVersionCreateInput>(noteVersionCreate);
 
@@ -39,24 +38,7 @@ export const NoteCreate = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={{
-                    __typename: 'NoteVersion' as const,
-                    id: uuid(),
-                    isPrivate: true,
-                    root: {
-                        id: uuid(),
-                        isPrivate: true,
-                        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
-                    },
-                    translations: [{
-                        id: uuid(),
-                        language: getUserLanguages(session)[0],
-                        description: '',
-                        name: '',
-                        text: '',
-                    }],
-                    versionLabel: '1.0.0',
-                }}
+                initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<NoteVersion, NoteVersionCreateInput>({
                         mutation,

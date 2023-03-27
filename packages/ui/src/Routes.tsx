@@ -108,10 +108,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <AboutView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
-                    <ApiCreate />
+                    <ApiCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ApiUpdate />
+                    <ApiUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/:id`} {...props}>
                     <ApiView />
@@ -159,10 +159,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <MyStuffView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
-                    <NoteCreate />
+                    <NoteCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <NoteUpdate />
+                    <NoteUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/:id`} {...props}>
                     <NoteView />
@@ -178,10 +178,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <NotificationsView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationCreate />
+                    <OrganizationCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpdate />
+                    <OrganizationUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/:id`} sx={noSidePadding} {...props}>
                     <OrganizationView />
@@ -208,28 +208,28 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <UserView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
-                    <ProjectCreate />
+                    <ProjectCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpdate />
+                    <ProjectUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/:id`} {...props}>
                     <ProjectView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
-                    <QuestionCreate />
+                    <QuestionCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <QuestionUpdate />
+                    <QuestionUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/:id`} {...props}>
                     <QuestionView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderCreate />
+                    <ReminderCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpdate />
+                    <ReminderUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderView />
@@ -246,10 +246,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
-                    <RoutineCreate />
+                    <RoutineCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <RoutineUpdate />
+                    <RoutineUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/:id`} {...props}>
                     <RoutineView />
@@ -285,19 +285,19 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <SettingsSchedulesView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractCreate />
+                    <SmartContractCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractUpdate />
+                    <SmartContractUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/:id`} {...props}>
                     <SmartContractView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
-                    <StandardCreate />
+                    <StandardCreate onCancel={() => { }} onCreated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <StandardUpdate />
+                    <StandardUpdate onCancel={() => { }} onUpdated={() => { }} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/:id`} {...props}>
                     <StandardView />

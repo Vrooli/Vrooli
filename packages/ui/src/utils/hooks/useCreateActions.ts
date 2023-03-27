@@ -2,7 +2,7 @@ import { LINKS } from "@shared/consts";
 import { useLocation } from "@shared/route";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
-import { uuidToBase36 } from "utils/navigation/urlTools";
+import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ViewDisplayType } from "views/types";
 
@@ -27,7 +27,8 @@ export const useCreateActions = <T extends { __typename: string, id: string }>(
             case ObjectDialogAction.Add:
                 if (display === 'page') {
                     // Only navigate back if there is a previous page
-                    setLocation(`${uuidToBase36(item?.id ?? '')}`, { replace: !hasPreviousPage });
+                    const url = getObjectUrl(item as any);
+                    setLocation(url, { replace: !hasPreviousPage });
                 } else {
                     onCreated(item!);
                 }
@@ -49,7 +50,7 @@ export const useCreateActions = <T extends { __typename: string, id: string }>(
                 }
                 break;
         }
-    }, [hasPreviousPage, setLocation]);
+    }, [display, hasPreviousPage, onCancel, onCreated, setLocation]);
 
     const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction])
     const handleCreated = useCallback((data: T) => onAction(ObjectDialogAction.Add, data), [onAction])

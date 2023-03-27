@@ -11,7 +11,6 @@ export interface ResourceListHorizontalProps {
 }
 
 export interface ResourceListVerticalProps {
-    title?: string;
     canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null | undefined;

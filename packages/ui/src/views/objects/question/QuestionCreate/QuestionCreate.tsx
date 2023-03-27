@@ -1,5 +1,4 @@
 import { Question, QuestionCreateInput } from "@shared/consts";
-import { uuid } from '@shared/uuid';
 import { questionValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { questionCreate } from "api/generated/endpoints/question_create";
@@ -8,11 +7,11 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { QuestionForm } from "forms/QuestionForm/QuestionForm";
-import { useContext, useRef } from "react";
-import { getUserLanguages } from "utils/display/translationTools";
+import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeQuestion } from "utils/shape/models/question";
+import { questionInitialValues } from "..";
 import { QuestionCreateProps } from "../types";
 
 export const QuestionCreate = ({
@@ -24,6 +23,7 @@ export const QuestionCreate = ({
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => questionInitialValues(session), [session]);
     const { handleCancel, handleCreated } = useCreateActions<Question>(display, onCancel, onCreated);
     const [mutation, { loading: isLoading }] = useCustomMutation<Question, QuestionCreateInput>(questionCreate);
 
@@ -38,16 +38,7 @@ export const QuestionCreate = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={{
-                    __typename: 'Question' as const,
-                    id: uuid(),
-                    translations: [{
-                        id: uuid(),
-                        language: getUserLanguages(session)[0],
-                        description: '',
-                        name: '',
-                    }]
-                }}
+                initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Question, QuestionCreateInput>({
                         mutation,
