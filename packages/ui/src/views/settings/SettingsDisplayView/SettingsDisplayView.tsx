@@ -34,7 +34,7 @@ export const SettingsDisplayView = ({
                 onClose={() => { }}
                 titleData={{
                     titleKey: 'Display',
-                    helpKey: 'DisplayHelp',
+                    helpKey: 'DisplaySettingsDescription',
                 }}
             />
             <Stack direction="row">

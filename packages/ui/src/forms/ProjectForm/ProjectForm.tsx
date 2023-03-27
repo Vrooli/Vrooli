@@ -20,6 +20,7 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
     isOpen,
     onCancel,
     values,
+    versions,
     zIndex,
     ...props
 }, ref) => {
@@ -69,7 +70,7 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                 {/* TODO */}
                 <VersionInput
                     fullWidth
-                    versions={existing?.root?.versions ?? []}
+                    versions={versions}
                 />
                 <GridSubmitButtons
                     display={display}

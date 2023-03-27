@@ -56,6 +56,7 @@ export const ApiCreate = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
+                    versions={[]}
                     zIndex={zIndex}
                     {...formik}
                 />}

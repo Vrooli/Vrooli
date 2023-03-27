@@ -68,6 +68,7 @@ export const ProjectUpdate = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
+                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
                     zIndex={zIndex}
                     {...formik}
                 />}

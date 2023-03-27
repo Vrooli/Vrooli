@@ -1,7 +1,6 @@
 import { BoxProps, TypographyProps } from "@mui/material";
 import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from "@shared/consts";
 import { SvgComponent } from "@shared/icons";
-import { VersionInfo } from "types";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends BoxProps {
@@ -64,10 +63,10 @@ export interface SubheaderProps {
 
 export interface VersionDisplayProps extends BoxProps {
     confirmVersionChange?: (callback: () => void) => void;
-    currentVersion: VersionInfo | null | undefined;
+    currentVersion: { versionLabel: string } | null | undefined;
     loading?: boolean;
     prefix?: string;
-    versions?: VersionInfo[];
+    versions?: { versionLabel: string }[];
 }
 
 export interface ViewsDisplayProps {

@@ -30,6 +30,7 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
     isOpen,
     onCancel,
     values,
+    versions,
     zIndex,
     ...props
 }, ref) => {
@@ -166,7 +167,7 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                     <TagSelector />
                     <VersionInput
                         fullWidth
-                        versions={routineVersion?.root?.versions ?? []}
+                        versions={versions}
                     />
                 </Stack>
                 <GridSubmitButtons

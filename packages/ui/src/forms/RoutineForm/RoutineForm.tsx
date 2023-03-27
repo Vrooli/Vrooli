@@ -17,7 +17,6 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { routineVersion } from "tools/api/partial/routineVersion";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
@@ -35,6 +34,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     isOpen,
     onCancel,
     values,
+    versions,
     zIndex,
     ...props
 }, ref) => {
@@ -171,7 +171,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                     <TagSelector />
                     <VersionInput
                         fullWidth
-                        versions={routineVersion?.root?.versions ?? []}
+                        versions={versions}
                     />
                     {/* Selector for single-step or multi-step routine */}
                     <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>

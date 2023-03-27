@@ -11,12 +11,13 @@ import { runProjectCreate } from "api/generated/endpoints/runProject_create";
 import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from "api/utils";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { displayDate } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { base36ToUuid } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRunPercentComplete } from "utils/runUtils";
+import { SessionContext } from "utils/SessionContext";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 
@@ -29,8 +30,8 @@ export const RunPickerMenu = ({
     onDelete,
     onSelect,
     runnableObject,
-    session
 }: RunPickerMenuProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const open = useMemo(() => Boolean(anchorEl), [anchorEl]);
 

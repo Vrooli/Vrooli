@@ -56,6 +56,7 @@ export const SmartContractCreate = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
+                    versions={[]}
                     zIndex={zIndex}
                     {...formik}
                 />}

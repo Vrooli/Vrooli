@@ -134,7 +134,7 @@ export const RoutineView = ({
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? currInput.standardVersion?.root?.name,
+                name: getTranslation(currInput, getUserLanguages(session), false).name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name,
                 standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });

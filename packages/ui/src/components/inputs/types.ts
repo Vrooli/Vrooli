@@ -2,7 +2,6 @@ import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
 import { Comment, CommentFor, StandardVersion } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
-import { VersionInfo } from 'types';
 import { StringSchema } from 'yup';
 
 export interface CommentCreateInputProps {
@@ -314,5 +313,5 @@ export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | '
     /**
      * Existing versions of the object. Used to determine mimum version number.
      */
-    versions: VersionInfo[];
+    versions: string[];
 }

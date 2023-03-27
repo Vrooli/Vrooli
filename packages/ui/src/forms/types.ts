@@ -56,17 +56,29 @@ export interface SignUpFormProps extends FormProps {
     onClose: () => any;
 }
 
-export interface ApiFormProps extends BaseObjectFormProps { }
-export interface NoteFormProps extends BaseObjectFormProps { }
+export interface ApiFormProps extends BaseObjectFormProps {
+    versions: string[];
+}
+export interface NoteFormProps extends BaseObjectFormProps {
+    versions: string[];
+}
 export interface OrganizationFormProps extends BaseObjectFormProps { }
-export interface ProjectFormProps extends BaseObjectFormProps { }
+export interface ProjectFormProps extends BaseObjectFormProps {
+    versions: string[];
+}
 export interface QuestionFormProps extends BaseObjectFormProps { }
 export interface ReminderFormProps extends BaseObjectFormProps { }
 export interface ReportFormProps extends BaseObjectFormProps { }
 export interface ResourceFormProps extends BaseObjectFormProps { }
-export interface RoutineFormProps extends BaseObjectFormProps { }
-export interface SmartContractFormProps extends BaseObjectFormProps { }
-export interface StandardFormProps extends BaseObjectFormProps { }
+export interface RoutineFormProps extends BaseObjectFormProps {
+    versions: string[];
+}
+export interface SmartContractFormProps extends BaseObjectFormProps {
+    versions: string[];
+}
+export interface StandardFormProps extends BaseObjectFormProps {
+    versions: string[];
+}
 export interface UserFormProps extends BaseObjectFormProps { }
 
 //==============================================================
@@ -113,7 +125,7 @@ export interface JsonProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zInde
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'translations' | 'zIndex'> {
+export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'languages' | 'zIndex'> {
     defaultValue?: string[];
 }
 

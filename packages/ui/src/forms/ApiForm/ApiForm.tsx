@@ -24,6 +24,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
     isOpen,
     onCancel,
     values,
+    versions,
     zIndex,
     ...props
 }, ref) => {
@@ -119,7 +120,7 @@ export const ApiForm = forwardRef<any, ApiFormProps>(({
                     <TagSelector />
                     <VersionInput
                         fullWidth
-                        versions={existing?.root?.versions ?? []}
+                        versions={versions}
                     />
                 </Stack>
                 <GridSubmitButtons

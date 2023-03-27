@@ -365,18 +365,18 @@ export const SubroutineInfoDialog = ({
                                     fullWidth
                                     id="version"
                                     name="version"
-                                    versionInfo={formik.values.versionInfo}
+                                    version={formik.values.versionLabel}
                                     versions={subroutine?.routineVersion?.root?.versions ?? []}
                                     onBlur={formik.handleBlur}
-                                    onChange={(newVersionInfo) => {
-                                        formik.setFieldValue('versionInfo', newVersionInfo);
+                                    onChange={(newVersion) => {
+                                        formik.setFieldValue('versionLabel', newVersion);
                                         setRelationships({
                                             ...relationships,
                                             isComplete: false,
                                         })
                                     }}
-                                    error={formik.touched.versionInfo?.versionLabel && Boolean(formik.errors.versionInfo?.versionLabel)}
-                                    helperText={formik.touched.versionInfo?.versionLabel ? formik.errors.versionInfo?.versionLabel : null}
+                                    error={formik.touched.versionLabel?.versionLabel && Boolean(formik.errors.versionLabel?.versionLabel)}
+                                    helperText={formik.touched.versionLabel?.versionLabel ? formik.errors.versionLabel?.versionLabel : null}
                                 />
                             </Grid>
                         }

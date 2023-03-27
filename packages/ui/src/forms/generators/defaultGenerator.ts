@@ -31,7 +31,7 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
     [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, 'name'>>): Omit<IntegerInputProps, 'name'> => ({
         ...props
     }),
-    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id'> => ({
+    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id' | 'name'> => ({
         defaultValue: '',
         ...props
     }),
@@ -39,7 +39,7 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
         ...props
     }),
-    [InputType.Selector]: (props: Partial<SelectorProps<any>>): SelectorProps<any> => ({
+    [InputType.Selector]: (props: Partial<SelectorProps<any>>): Omit<SelectorProps<any>, 'name'> => ({
         options: [],
         getOptionLabel: (option: any) => option,
         ...props

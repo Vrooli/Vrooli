@@ -19,6 +19,7 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
     isOpen,
     onCancel,
     values,
+    versions,
     zIndex,
     ...props
 }, ref) => {
@@ -65,7 +66,7 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
                 {/* TODO */}
                 <VersionInput
                     fullWidth
-                    versions={routineVersion?.root?.versions ?? []}
+                    versions={versions}
                 />
                 <GridSubmitButtons
                     display={display}

@@ -56,6 +56,7 @@ export const NoteCreate = ({
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
+                    versions={[]}
                     zIndex={zIndex}
                     {...formik}
                 />}
