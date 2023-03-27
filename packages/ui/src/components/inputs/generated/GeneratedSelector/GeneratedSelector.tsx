@@ -6,7 +6,6 @@ import { GeneratedInputComponentProps } from "../types";
 export const GeneratedSelector = ({
     disabled,
     fieldData,
-    formik,
     index,
 }: GeneratedInputComponentProps) => {
     console.log('rendering selector');
@@ -15,17 +14,15 @@ export const GeneratedSelector = ({
     return (
         <Selector
             key={`field-${fieldData.fieldName}-${index}`}
+            autoFocus={index === 0}
             disabled={disabled}
             options={props.options}
             getOptionLabel={props.getOptionLabel}
-            selected={formik.values[fieldData.fieldName]}
-            onBlur={formik.handleBlur}
-            handleChange={formik.handleChange}
+            name={fieldData.fieldName}
             fullWidth
             inputAriaLabel={`select-input-${fieldData.fieldName}`}
             noneOption={props.noneOption}
             label={fieldData.label}
-            color={props.color}
             tabIndex={index}
         />
     );

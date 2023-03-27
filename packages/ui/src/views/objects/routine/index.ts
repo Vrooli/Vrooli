@@ -1,5 +1,5 @@
 import { RoutineVersion, Session } from '@shared/consts';
-import { DUMMY_ID } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { RoutineVersionShape } from 'utils/shape/models/routineVersion';
@@ -13,12 +13,14 @@ export const routineInitialValues = (
     existing?: RoutineVersion | undefined
 ): RoutineVersionShape => ({
     __typename: 'RoutineVersion' as const,
-    id: DUMMY_ID,
+    id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
+    inputs: [],
     isComplete: false,
     isPrivate: false,
     directoryListings: [],
     nodeLinks: [],
     nodes: [],
+    outputs: [],
     resourceList: {
         __typename: 'ResourceList' as const,
         id: DUMMY_ID,

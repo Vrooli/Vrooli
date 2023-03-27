@@ -1,5 +1,4 @@
-import { COOKIE, FocusMode, ValueOf } from "@shared/consts";
-import { ActiveFocusMode } from "types";
+import { ActiveFocusMode, COOKIE, FocusMode, ValueOf } from "@shared/consts";
 import { getDeviceInfo } from "./display/device";
 
 /**

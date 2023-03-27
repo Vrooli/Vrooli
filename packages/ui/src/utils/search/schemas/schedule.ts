@@ -10,4 +10,4 @@ export const scheduleSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 })
 
-export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), scheduleFindMany, ScheduleSortBy, ScheduleSortBy.EventStartAsc)
+export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), scheduleFindMany, ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc)

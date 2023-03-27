@@ -85,6 +85,13 @@ export enum SearchPageTabOption {
     Users = 'Users',
 }
 
+export enum CalendarPageTabOption {
+    Meetings = 'Meetings',
+    Routines = 'Routines',
+    Projects = 'Projects',
+    FocusModes = 'FocusModes',
+}
+
 
 /**
  * Maps search types to values needed to query and display results

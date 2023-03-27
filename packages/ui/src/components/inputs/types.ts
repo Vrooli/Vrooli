@@ -253,6 +253,7 @@ export interface ResourceListHorizontalInputProps {
 }
 
 export type SelectorProps<T extends string | number | { [x: string]: any }> = {
+    autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
     getOptionDescription?: (option: T) => string | null | undefined;
@@ -267,6 +268,7 @@ export type SelectorProps<T extends string | number | { [x: string]: any }> = {
     options: T[];
     required?: boolean;
     sx?: { [x: string]: any };
+    tabIndex?: number;
 }
 
 export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {

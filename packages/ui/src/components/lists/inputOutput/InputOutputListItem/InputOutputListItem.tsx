@@ -38,7 +38,6 @@ const defaultStandardVersion = (
     yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
     root: {
         id: uuid(),
-        name: `${item.name}-schema`,
         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
         permissions: JSON.stringify({}),
         isInternal: true,
@@ -48,6 +47,7 @@ const defaultStandardVersion = (
     translations: [{
         id: uuid(),
         language: getUserLanguages(session)[0],
+        name: `${item.name}-schema`,
     }],
     versionLabel: '1.0.0',
 })
@@ -57,9 +57,9 @@ const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], 
     return standardVersionToFieldData({
         fieldName: schemaKey,
         description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(item.standardVersion, [language]).description,
-        helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText,
+        helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText ?? getTranslation(item.standardVersion, [language], false).helpText,
         props: item.standardVersion.props ?? '',
-        name: item.standardVersion.root.name ?? '',
+        name: item.name ?? getTranslation(item.standardVersion, [language]).name ?? '',
         standardType: item.standardVersion.standardType ?? InputTypeOptions[0].value,
         yup: item.standardVersion.yup ?? null,
     })
@@ -337,9 +337,9 @@ export const InputOutputListItem = ({
                                         standardVersionToFieldData({
                                             fieldName: schemaKey,
                                             description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(standardVersion, [language]).description,
-                                            helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText,
+                                            helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText ?? getTranslation(standardVersion, [language], false).helpText,
                                             props: standardVersion?.props ?? '',
-                                            name: standardVersion?.root?.name ?? '',
+                                            name: item.name ?? getTranslation(standardVersion, [language]).name ?? '',
                                             standardType: standardVersion?.standardType ?? InputTypeOptions[0].value,
                                             yup: standardVersion.yup ?? null,
                                         }) as FieldData :

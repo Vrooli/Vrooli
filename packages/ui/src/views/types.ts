@@ -45,7 +45,7 @@ export interface BuildViewProps extends ViewProps<RoutineVersion> {
         setLanguage: (language: string) => void;
         handleAddLanguage: (language: string) => void;
         handleDeleteLanguage: (language: string) => void;
-        translations: RoutineVersion['translations'];
+        languages: string[];
     };
 }
 

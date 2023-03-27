@@ -1,27 +1,29 @@
 import { FormControlLabel, FormGroup, Switch, SwitchProps } from "@mui/material";
+import { useField } from "formik";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 
 export const GeneratedSwitch = ({
     disabled,
     fieldData,
-    formik,
     index,
 }: GeneratedInputComponentProps) => {
     console.log('rendering switch');
+    const [field] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as SwitchProps, [fieldData.props]);
 
     return (
         <FormGroup key={`field-${fieldData.fieldName}-${index}`}>
-            <FormControlLabel control={(
+            <FormControlLabel tabIndex={index} control={(
                 <Switch
+                    autoFocus={index === 0}
                     disabled={disabled}
                     size={props.size}
                     color={props.color}
                     tabIndex={index}
-                    checked={formik.values[fieldData.fieldName]}
-                    onBlur={formik.handleBlur}
-                    onChange={formik.handleChange}
+                    checked={field.value ?? props.defaultValue}
+                    onBlur={field.onBlur}
+                    onChange={field.onChange}
                     name={fieldData.fieldName}
                     inputProps={{ 'aria-label': fieldData.fieldName }}
                 />

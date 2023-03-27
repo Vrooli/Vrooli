@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { SelectorProps } from '../types';
 
 export function Selector<T extends string | number | { [x: string]: any }>({
+    autoFocus = false,
     options,
     getOptionDescription,
     getOptionIcon,
@@ -17,9 +18,10 @@ export function Selector<T extends string | number | { [x: string]: any }>({
     required = true,
     disabled = false,
     sx,
+    tabIndex,
 }: SelectorProps<T>) {
     const { palette, typography } = useTheme();
-    const [field, meta, helpers] = useField(name);
+    const [field, meta] = useField(name);
 
     const getOptionStyle = useCallback((label: string) => {
         const isSelected = field.value && getOptionLabel(field.value) === label;
@@ -80,6 +82,7 @@ export function Selector<T extends string | number | { [x: string]: any }>({
             </InputLabel>
             <Select
                 aria-describedby={`helper-text-${name}`}
+                autoFocus={autoFocus}
                 disabled={disabled}
                 id={name}
                 label={label}
@@ -104,6 +107,7 @@ export function Selector<T extends string | number | { [x: string]: any }>({
                         alignItems: 'center',
                     }
                 }}
+                tabIndex={tabIndex}
             >
                 {
                     noneOption ? (

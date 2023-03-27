@@ -974,7 +974,7 @@ export const BuildView = ({
                 handleAdd={translationData.handleAddLanguage}
                 handleDelete={translationData.handleDeleteLanguage}
                 handleCurrent={translationData.setLanguage}
-                translations={translationData.translations}
+                languages={translationData.languages}
                 zIndex={zIndex}
             />
         )
@@ -982,7 +982,7 @@ export const BuildView = ({
             <SelectLanguageMenu
                 currentLanguage={translationData.language}
                 handleCurrent={translationData.setLanguage}
-                translations={translationData.translations}
+                languages={translationData.languages}
                 zIndex={zIndex}
             />
         )

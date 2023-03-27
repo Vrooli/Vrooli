@@ -1,5 +1,5 @@
-import { Button, Dialog, Grid, Stack, Typography, useTheme } from "@mui/material";
-import { NodeLink, RoutineVersion } from "@shared/consts";
+import { Button, Dialog, Grid, Stack, Typography } from "@mui/material";
+import { Node, NodeLink, RoutineVersion } from "@shared/consts";
 import { RoutineIcon } from "@shared/icons";
 import { routineVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -13,6 +13,7 @@ import { TranslatedTextField } from "components/inputs/TranslatedTextField/Trans
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
@@ -22,6 +23,10 @@ import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
+import { NodeShape } from "utils/shape/models/node";
+import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
+import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { BuildView } from "views/BuildView/BuildView";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
@@ -39,65 +44,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
-
-    const [isGraphOpen, setIsGraphOpen] = useState(false);
-    const handleGraphOpen = useCallback(() => {
-        // Create initial nodes/links, if not already created
-        if (formik.values.nodes.length === 0 && formik.values.nodeLinks.length === 0) {
-            const { nodes, nodeLinks } = initializeRoutineGraph(language, formik.values.id);
-            formik.setValues({
-                ...formik.values,
-                nodes,
-                nodeLinks,
-            });
-        }
-        setIsGraphOpen(true);
-    }, [formik, language]);
-    const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
-    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: RoutineVersion['nodes'], nodeLinks: RoutineVersion['nodeLinks'] }) => {
-        formik.setFieldValue('nodes', nodes);
-        formik.setFieldValue('nodeLinks', nodeLinks);
-        setIsGraphOpen(false);
-    }, [formik]);
-
-    // You can use this component to create both single-step and multi-step routines.
-    // The beginning of the form is information shared between both types of routines.
-    const [isMultiStep, setIsMultiStep] = useState<boolean | null>(null);
-    useEffect(() => { setIsMultiStep(formik.values.nodes.length > 0); }, [formik.values.nodes]);
-    const handleMultiStepChange = useCallback((isMultiStep: boolean) => {
-        // If setting from true to false, check if any nodes or nodeLinks have been added. 
-        // If so, prompt the user to confirm (these will be lost).
-        if (isMultiStep === false && (formik.values.nodes.length > 0 || formik.values.nodeLinks.length > 0)) {
-            PubSub.get().publishAlertDialog({
-                messageKey: 'SubroutineGraphDeleteConfirm',
-                buttons: [{
-                    labelKey: 'Yes',
-                    onClick: () => { setIsMultiStep(false); handleGraphClose(); }
-                }, {
-                    labelKey: 'Cancel',
-                }]
-            })
-        }
-        // If settings from false to true, check if any inputs or outputs have been added.
-        // If so, prompt the user to confirm (these will be lost).
-        else if (isMultiStep === true && (inputsList.length > 0 || outputsList.length > 0)) {
-            PubSub.get().publishAlertDialog({
-                messageKey: 'RoutineInputsDeleteConfirm',
-                buttons: [{
-                    labelKey: 'Yes',
-                    onClick: () => { setIsMultiStep(true); handleGraphOpen(); }
-                }, {
-                    labelKey: 'Cancel',
-                }]
-            })
-        }
-        // Otherwise, just set the value.
-        else {
-            setIsMultiStep(isMultiStep);
-        }
-    }, [formik.values.nodes.length, formik.values.nodeLinks.length, inputsList.length, outputsList.length, handleGraphClose, handleGraphOpen]);
 
     // Handle translations
     const {
@@ -112,6 +59,66 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         fields: ['description', 'instructions', 'name'],
         validationSchema: routineVersionTranslationValidation.update({}),
     });
+
+    const [idField] = useField<string>('id');
+    const [nodesField, , nodesHelpers] = useField<NodeShape[]>('nodes');
+    const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>('nodeLinks');
+    const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>('inputs');
+    const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>('outputs');
+
+    const [isGraphOpen, setIsGraphOpen] = useState(false);
+    const handleGraphOpen = useCallback(() => {
+        // Create initial nodes/links, if not already created
+        if (nodesField.value.length === 0 && nodeLinksField.value.length === 0) {
+            const { nodes, nodeLinks } = initializeRoutineGraph(language, idField.value);
+            nodesHelpers.setValue(nodes);
+            nodeLinksHelpers.setValue(nodeLinks);
+        }
+        setIsGraphOpen(true);
+    }, [idField.value, language, nodeLinksField.value.length, nodeLinksHelpers, nodesField.value.length, nodesHelpers]);
+    const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
+    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: RoutineVersion['nodes'], nodeLinks: RoutineVersion['nodeLinks'] }) => {
+        nodesHelpers.setValue(nodes);
+        nodeLinksHelpers.setValue(nodeLinks);
+        setIsGraphOpen(false);
+    }, [nodeLinksHelpers, nodesHelpers]);
+
+    // You can use this component to create both single-step and multi-step routines.
+    // The beginning of the form is information shared between both types of routines.
+    const [isMultiStep, setIsMultiStep] = useState<boolean | null>(null);
+    useEffect(() => { setIsMultiStep(nodesField.value.length > 0); }, [nodesField.value.length]);
+    const handleMultiStepChange = useCallback((isMultiStep: boolean) => {
+        // If setting from true to false, check if any nodes or nodeLinks have been added. 
+        // If so, prompt the user to confirm (these will be lost).
+        if (isMultiStep === false && (nodesField.value.length > 0 || nodeLinksField.value.length > 0)) {
+            PubSub.get().publishAlertDialog({
+                messageKey: 'SubroutineGraphDeleteConfirm',
+                buttons: [{
+                    labelKey: 'Yes',
+                    onClick: () => { setIsMultiStep(false); handleGraphClose(); }
+                }, {
+                    labelKey: 'Cancel',
+                }]
+            })
+        }
+        // If settings from false to true, check if any inputs or outputs have been added.
+        // If so, prompt the user to confirm (these will be lost).
+        else if (isMultiStep === true && (inputsField.value.length > 0 || outputsField.value.length > 0)) {
+            PubSub.get().publishAlertDialog({
+                messageKey: 'RoutineInputsDeleteConfirm',
+                buttons: [{
+                    labelKey: 'Yes',
+                    onClick: () => { setIsMultiStep(true); handleGraphOpen(); }
+                }, {
+                    labelKey: 'Cancel',
+                }]
+            })
+        }
+        // Otherwise, just set the value.
+        else {
+            setIsMultiStep(isMultiStep);
+        }
+    }, [nodesField.value.length, nodeLinksField.value.length, inputsField.value.length, outputsField.value.length, handleGraphClose, handleGraphOpen]);
 
     return (
         <>
@@ -207,16 +214,16 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                         loading={false}
                                         owner={relationships.owner}
                                         routineVersion={{
-                                            id: formik.values.id,
-                                            nodeLinks: formik.values.nodeLinks as NodeLink[],
-                                            nodes: formik.values.nodes as Node[],
+                                            id: idField.value,
+                                            nodeLinks: nodeLinksField.value as NodeLink[],
+                                            nodes: nodesField.value as Node[],
                                         }}
                                         translationData={{
                                             language,
                                             setLanguage,
                                             handleAddLanguage,
                                             handleDeleteLanguage,
-                                            translations: formik.values.translationsUpdate as any[],
+                                            languages,
                                         }}
                                         zIndex={zIndex + 1}
                                     />
@@ -237,20 +244,20 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                 <Grid item xs={12}>
                                     <InputOutputContainer
                                         isEditing={true}
-                                        handleUpdate={handleInputsUpdate as any}
+                                        handleUpdate={inputsHelpers.setValue as any}
                                         isInput={true}
                                         language={language}
-                                        list={inputsList}
+                                        list={inputsField.value}
                                         zIndex={zIndex}
                                     />
                                 </Grid>
                                 <Grid item xs={12} mb={4}>
                                     <InputOutputContainer
                                         isEditing={true}
-                                        handleUpdate={handleOutputsUpdate as any}
+                                        handleUpdate={outputsHelpers.setValue as any}
                                         isInput={false}
                                         language={language}
-                                        list={outputsList}
+                                        list={outputsField.value}
                                         zIndex={zIndex}
                                     />
                                 </Grid>
