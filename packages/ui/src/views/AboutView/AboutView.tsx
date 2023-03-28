@@ -1,5 +1,5 @@
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { GitHubIcon, TwitterIcon, WebsiteIcon } from "@shared/icons";
+import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "@shared/icons";
 import { openLink, useLocation } from "@shared/route";
 import MattProfilePic from 'assets/img/profile-matt.jpg';
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -67,6 +67,9 @@ export const AboutView = ({
                     {teamMembers.map((member, key) => (
                         <Box
                             sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 height: '300px',
                                 boxShadow: 12,
                                 backgroundColor: palette.primary.dark,
@@ -80,18 +83,10 @@ export const AboutView = ({
                                 maxWidth: 'min(300px, 40%)',
                                 maxHeight: '200px',
                                 objectFit: 'contain',
-                                bottom: '0',
-                                margin: 'auto',
                                 borderRadius: '100%',
-                                float: 'left',
                             }} />
                             {/* Name, role, and links */}
                             <Box sx={{
-                                position: 'absolute',
-                                right: '0',
-                                top: '0',
-                                bottom: '0',
-                                margin: 'auto',
                                 width: 'min(300px, 50%)',
                                 height: 'fit-content',
                             }}>
@@ -132,7 +127,7 @@ export const AboutView = ({
                                 e.preventDefault();
                                 openLink(setLocation, joinTeamLink);
                             }}
-                            startIcon={<GitHubIcon />}
+                            startIcon={<OrganizationIcon />}
                         >Join the Team</Button>
                     </Stack>
                 </Stack>

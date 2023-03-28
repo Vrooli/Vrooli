@@ -1,4 +1,4 @@
-import { BoxProps, TextFieldProps } from "@mui/material";
+import { TextFieldProps } from "@mui/material";
 import { CommentFor } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
 import { MarkdownInputProps } from "components/inputs/types";
@@ -11,11 +11,6 @@ export interface CommentContainerProps {
     objectType: CommentFor;
     onAddCommentClose?: () => void;
     zIndex: number;
-}
-
-export interface GlossyContainerProps extends BoxProps {
-    children: React.ReactNode;
-    sx?: { [key: string]: any };
 }
 
 export interface TitleContainerProps {

@@ -98,10 +98,14 @@ export async function init(prisma: PrismaType) {
             focusModes: {
                 create: [{
                     name: 'Work',
-                    description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                    description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                    reminderList: { create: {} },
+                    resourceList: { create: {} },
                 }, {
                     name: 'Study',
-                    description: 'This is an auto-generated focus mode. You can edit or delete it.'
+                    description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                    reminderList: { create: {} },
+                    resourceList: { create: {} },
                 }]
             },
             awards: {

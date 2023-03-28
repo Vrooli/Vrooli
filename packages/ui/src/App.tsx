@@ -1,6 +1,7 @@
 import { Box, CircularProgress, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { Session, ValidateSessionInput } from '@shared/consts';
+import { getActiveFocusMode } from '@shared/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
 import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
@@ -329,7 +330,7 @@ export function App() {
         });
         // Handle session updates
         let sessionSub = PubSub.get().subscribeSession((session) => {
-            console.log('action setting session from sub', session)
+            console.log('active in session sub', session)
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -339,8 +340,11 @@ export function App() {
                 setSession(s => ({ ...s, ...session }));
             }
             // Store user's focus modes in local storage
-            setCookieActiveFocusMode(getCurrentUser(session).activeFocusMode ?? null);
-            setCookieAllFocusModes(getCurrentUser(session).focusModes ?? []);
+            const currentlyActiveFocusMode = getCurrentUser(session)?.activeFocusMode ?? null;
+            const focusModes = getCurrentUser(session)?.focusModes ?? [];
+            console.log('setting active focus mode cookie', currentlyActiveFocusMode, focusModes, getActiveFocusMode(currentlyActiveFocusMode, focusModes))
+            setCookieActiveFocusMode(getActiveFocusMode(currentlyActiveFocusMode, focusModes));
+            setCookieAllFocusModes(focusModes);
         });
         // Handle theme updates
         let themeSub = PubSub.get().subscribeTheme((data) => {

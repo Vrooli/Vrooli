@@ -98,6 +98,7 @@ export const DashboardView = ({
         }
     }, [data]);
     useEffect(() => {
+        console.log('ACTIVE FOCUS MODE', activeFocusMode)
         // Resources are added to the focus mode's resource list
         if (activeFocusMode?.mode?.reminderList?.id && activeFocusMode.mode?.reminderList.id !== DUMMY_ID) {
             setResourceList(r => ({ ...r, id: activeFocusMode!.mode?.reminderList!.id }));

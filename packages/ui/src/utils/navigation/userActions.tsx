@@ -6,7 +6,7 @@ import {
     IconButton
 } from '@mui/material';
 import { LINKS, Session } from '@shared/consts';
-import { CreateAccountIcon, CreateIcon, GridIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SvgComponent } from '@shared/icons';
+import { CreateAccountIcon, CreateIcon, GridIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from '@shared/icons';
 import { openLink, SetLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import i18next from 'i18next';
@@ -17,6 +17,7 @@ export enum ACTION_TAGS {
     Search = 'Search',
     Create = 'Create',
     Notifications = 'Notifications',
+    Pricing = 'Pricing',
     LogIn = 'LogIn',
     MyStuff = 'MyStuff',
 }
@@ -56,7 +57,10 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
             ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
             ['MyStuff', ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         )
-    } else {
+    }
+    // Display pricing and login for logged out users 
+    else {
+        actions.push(['Pricing', ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));

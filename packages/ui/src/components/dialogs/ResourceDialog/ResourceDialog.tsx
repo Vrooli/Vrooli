@@ -57,7 +57,7 @@ const validateAndGetYupErrors = async (
         console.log('vagye e');
         // If it's not a Yup ValidationError, re-throw the error
         throw error;
-    }
+    } j
 };
 
 export const ResourceDialog = ({

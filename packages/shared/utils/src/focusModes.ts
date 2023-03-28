@@ -189,9 +189,18 @@ export const getActiveFocusMode = (
     }
     // If there is at least one active focus mode, then return the first one. 
     // Otherwise, return null
-    return activeFocusModes.length > 0 ? {
+    if (activeFocusModes.length > 0) {
+        return {
+            __typename: 'ActiveFocusMode',
+            mode: activeFocusModes[0],
+            stopCondition: FocusModeStopCondition.Automatic,
+        }
+    }
+    // If there is at least one focus mode in the list, then return the first one.
+    // Otherwise, return null
+    return focusModes.length > 0 ? {
         __typename: 'ActiveFocusMode',
-        mode: activeFocusModes[0],
+        mode: focusModes[0],
         stopCondition: FocusModeStopCondition.Automatic,
     } : null;
 }
