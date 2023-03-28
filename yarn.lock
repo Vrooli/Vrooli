@@ -9930,6 +9930,14 @@ react-transition-group@^4.4.5:
     loose-envify "^1.4.0"
     prop-types "^15.6.2"
 
+react-tsparticles@^1.39.1:
+  version "1.43.1"
+  resolved "https://registry.yarnpkg.com/react-tsparticles/-/react-tsparticles-1.43.1.tgz#495c47814d79f512e222a138cab613fe2d5bff72"
+  integrity sha512-IWa33DP6CjcO+/upUqPhYpxduCFQvWXqCHV6rgvIPvmaqPqs8BkNbeBgBqcEPJRPzTluaD/+r9d7tDp2Uhd0uA==
+  dependencies:
+    fast-deep-equal "^3.1.3"
+    tsparticles "^1.43.1"
+
 react-window@^1.8.6:
   version "1.8.8"
   resolved "https://registry.yarnpkg.com/react-window/-/react-window-1.8.8.tgz#1b52919f009ddf91970cbdb2050a6c7be44df243"
@@ -11149,6 +11157,11 @@ tslib@~2.4.0:
   version "2.4.1"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.4.1.tgz#0d0bfbaac2880b91e22df0768e55be9753a5b17e"
   integrity sha512-tGyy4dAjRIEwI7BzsB0lynWgOpfqjUdq91XXAlIWD2OwKBH7oCl/GZG/HT4BOHrTlPMOASlMQ7veyTqpmRcrNA==
+
+tsparticles@^1.43.1:
+  version "1.43.1"
+  resolved "https://registry.yarnpkg.com/tsparticles/-/tsparticles-1.43.1.tgz#1f6b37ee41b6ab043d66a0e20bfe0855a1aea006"
+  integrity sha512-6EuHncwqzoyTlUxc11YH8LVlwVUgpYaZD0yMOeA2OvRqFZ9VQV8EjjQ6ZfXt6pfGA1ObPwU929jveFatxwTQkg==
 
 tsutils@^3.21.0:
   version "3.21.0"

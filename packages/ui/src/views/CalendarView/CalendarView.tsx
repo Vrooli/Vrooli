@@ -1,4 +1,4 @@
-import { Box, useTheme } from '@mui/material';
+import { useTheme } from '@mui/material';
 import { ScheduleRecurrenceType, ScheduleSearchResult } from '@shared/consts';
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
@@ -211,6 +211,29 @@ export const CalendarView = ({
         localeLoader();
     }, [locale]);
 
+    // Track heights used to calculate calendar height
+    const [heights, setHeights] = useState<{
+        topBar: number;
+        bottomNav: number;
+    }>({
+        topBar: document.getElementById('navbar')?.clientHeight ?? 0,
+        bottomNav: document.getElementById('bottom-nav')?.clientHeight ?? 0,
+    });
+    useEffect(() => {
+        const handleResize = () => {
+            const topBarHeight = document.getElementById('navbar')?.clientHeight ?? 0;
+            const bottomNavHeight = document.getElementById('bottom-nav')?.clientHeight ?? 0;
+            console.log('topBarHeight', document.getElementById('navbar'));
+            console.log('bottomNavHeight', document.getElementById('bottom-nav'));
+            setHeights({ topBar: topBarHeight, bottomNav: bottomNavHeight });
+        };
+        window.addEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
+    console.log('heights', heights);
+
     const handleDateRangeChange = useCallback((range: Date[] | { start: Date, end: Date }) => {
         if (Array.isArray(range)) {
             setDateRange({ start: range[0], end: range[1] });
@@ -325,21 +348,19 @@ export const CalendarView = ({
                     tabs={tabs}
                 />}
             />
-            <Box style={{
-                height: '500px',
-                background: palette.background.paper,
-            }}>
-                <Calendar
-                    localizer={localizer}
-                    events={events}
-                    onRangeChange={handleDateRangeChange}
-                    onSelectEvent={openEvent}
-                    startAccessor="start"
-                    endAccessor="end"
-                    views={['month', 'week', 'day']}
-                    style={{ height: '100%' }}
-                />
-            </Box>
+            <Calendar
+                localizer={localizer}
+                events={events}
+                onRangeChange={handleDateRangeChange}
+                onSelectEvent={openEvent}
+                startAccessor="start"
+                endAccessor="end"
+                views={['month', 'week', 'day']}
+                style={{
+                    height: `calc(100vh - ${heights.topBar}px - ${heights.bottomNav}px - env(safe-area-inset-bottom))`,
+                    background: palette.background.paper,
+                }}
+            />
         </>
     )
 }

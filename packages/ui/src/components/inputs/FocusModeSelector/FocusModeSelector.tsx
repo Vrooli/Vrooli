@@ -15,6 +15,7 @@ export const FocusModeSelector = () => {
     const { t } = useTranslation();
 
     const { active, all } = useMemo(() => getFocusModeInfo(session), [session]);
+    console.log('focus mode selector', active, all);
 
     return (
         <Formik

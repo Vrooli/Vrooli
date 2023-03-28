@@ -8,6 +8,7 @@ import { PageProps } from '../../views/wrapper/types';
 
 export const Page = ({
     children,
+    excludePageContainer = false,
     mustBeLoggedIn = false,
     redirect = LINKS.Start,
     sessionChecked,
@@ -26,6 +27,7 @@ export const Page = ({
         return null;
     }
 
+    if (excludePageContainer) return <>{children}</>;
     return (
         <PageContainer sx={sx}>
             {children}

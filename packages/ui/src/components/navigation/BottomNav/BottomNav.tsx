@@ -23,11 +23,12 @@ export const BottomNav = () => {
     if (invisible) return null;
     return (
         <BottomNavigation
+            id="bottom-nav"
             showLabels
             sx={{
                 background: palette.primary.dark,
                 position: 'fixed',
-                zIndex: 5,
+                zIndex: 6,
                 bottom: 0,
                 // env variables are used to account for iOS nav bar, notches, etc.
                 paddingBottom: 'env(safe-area-inset-bottom)',

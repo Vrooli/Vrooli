@@ -46,7 +46,7 @@ export const Footer = () => {
             sx={{
                 backgroundColor: palette.primary.dark,
                 color: palette.primary.contrastText,
-                zIndex: 2,
+                zIndex: 5,
             }}
         >
             <Grid container justifyContent='center' spacing={1}>

@@ -119,7 +119,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.Awards} {...props}>
                     <AwardsView />
                 </NavRoute>
-                <NavRoute path={LINKS.Calendar} {...props}>
+                <NavRoute path={LINKS.Calendar} excludePageContainer {...props}>
                     <CalendarView />
                 </NavRoute>
                 <NavRoute
@@ -151,6 +151,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={1.0}
                     changeFreq="weekly"
+                    excludePageContainer
                     {...props}
                 >
                     <HomeView />

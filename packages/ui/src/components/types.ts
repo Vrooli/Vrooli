@@ -19,3 +19,11 @@ export interface PageTabsProps<T extends any> {
     onChange: (event: React.ChangeEvent<{}>, value: any) => void,
     tabs: PageTab<T>[],
 }
+
+export interface TwinklingStarsProps {
+    amount?: number;
+    size?: number;
+    color?: string;
+    speed?: number;
+    sx?: { [key: string]: any };
+}

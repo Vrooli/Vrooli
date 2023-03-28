@@ -77,7 +77,7 @@ export const Navbar = ({
     ), [isLeftHanded, isMobile, logoState, toHome]);
 
     return (
-        <Box sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
+        <Box id='navbar' sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
             <HideOnScroll>
                 <AppBar
                     onClick={scrollToTop}

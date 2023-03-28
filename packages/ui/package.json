@@ -36,6 +36,7 @@
         "react-i18next": "^12.2.0",
         "react-lazily": "^0.9.0",
         "react-qr-code": "^2.0.7",
+        "react-tsparticles": "^1.39.1",
         "react-window": "^1.8.6",
         "schema-to-yup": "^1.11.11",
         "typescript": "4.9.5",

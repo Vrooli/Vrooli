@@ -268,7 +268,7 @@ export const AccountMenu = ({
                 {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
             <Collapse in={isDisplaySettingsOpen} sx={{ display: 'inline-block', minHeight: 'auto!important' }}>
-                <Box sx={{
+                <Stack direction="column" spacing={2} sx={{
                     minWidth: 'fit-content',
                     height: 'fit-content',
                     padding: 1,
@@ -278,7 +278,7 @@ export const AccountMenu = ({
                     <LeftHandedCheckbox />
                     <LanguageSelector />
                     <FocusModeSelector />
-                </Box>
+                </Stack>
             </Collapse>
             <Divider sx={{ background: palette.background.textSecondary }} />
             {/* List of quick links */}
