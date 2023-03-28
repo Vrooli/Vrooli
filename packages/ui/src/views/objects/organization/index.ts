@@ -9,7 +9,7 @@ export * from './OrganizationView/OrganizationView';
 
 export const organizationInitialValues = (
     session: Session | undefined,
-    existing?: Organization | undefined
+    existing?: Organization | null | undefined
 ): OrganizationShape => ({
     __typename: 'Organization' as const,
     id: DUMMY_ID,

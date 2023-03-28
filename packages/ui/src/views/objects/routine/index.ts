@@ -10,7 +10,7 @@ export * from './RoutineView/RoutineView';
 
 export const routineInitialValues = (
     session: Session | undefined,
-    existing?: RoutineVersion | undefined
+    existing?: RoutineVersion | null | undefined
 ): RoutineVersionShape => ({
     __typename: 'RoutineVersion' as const,
     id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID

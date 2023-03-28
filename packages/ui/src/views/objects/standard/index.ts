@@ -10,7 +10,7 @@ export * from './StandardView/StandardView';
 
 export const standardInitialValues = (
     session: Session | undefined,
-    existing?: StandardVersion | undefined
+    existing?: StandardVersion | null | undefined
 ): StandardVersionShape => ({
     __typename: 'StandardVersion' as const,
     id: DUMMY_ID,

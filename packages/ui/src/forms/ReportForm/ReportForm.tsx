@@ -88,7 +88,7 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                 />
                 <GridSubmitButtons
                     display={display}
-                    errors={props.errors}
+                    errors={props.errors as any}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

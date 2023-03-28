@@ -11,7 +11,7 @@ export * from './NoteView/NoteView';
 
 export const noteInitialValues = (
     session: Session | undefined,
-    existing?: NoteVersion | undefined
+    existing?: NoteVersion | null | undefined
 ): NoteVersionShape => ({
     __typename: 'NoteVersion' as const,
     id: DUMMY_ID,

@@ -10,7 +10,7 @@ export * from './ProjectView/ProjectView';
 
 export const projectInitialValues = (
     session: Session | undefined,
-    existing?: ProjectVersion | undefined
+    existing?: ProjectVersion | null | undefined
 ): ProjectVersionShape => ({
     __typename: 'ProjectVersion' as const,
     id: DUMMY_ID,

@@ -10,7 +10,7 @@ export * from './ApiView/ApiView';
 
 export const apiInitialValues = (
     session: Session | undefined,
-    existing?: ApiVersion | undefined
+    existing?: ApiVersion | null | undefined
 ): ApiVersionShape => ({
     __typename: 'ApiVersion' as const,
     id: DUMMY_ID,

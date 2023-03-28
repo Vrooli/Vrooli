@@ -9,7 +9,7 @@ export * from './ReminderView/ReminderView';
 export const reminderInitialValues = (
     session: Session | undefined,
     reminderListId: string | undefined,
-    existing?: Reminder | undefined
+    existing?: Reminder | null | undefined
 ): ReminderShape => ({
     __typename: 'Reminder' as const,
     id: DUMMY_ID,

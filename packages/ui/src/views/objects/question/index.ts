@@ -9,7 +9,7 @@ export * from './QuestionView/QuestionView';
 
 export const questionInitialValues = (
     session: Session | undefined,
-    existing?: Question | undefined
+    existing?: Question | null | undefined
 ): QuestionShape => ({
     __typename: 'Question' as const,
     isPrivate: false,

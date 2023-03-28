@@ -1,7 +1,7 @@
 import { Meeting, MeetingCreateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { MeetingInviteShape, shapeMeetingInvite } from "./meetingInvite";
-import { ScheduleShape } from "./schedule";
+import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type MeetingTranslationShape = Pick<MeetingTranslation, 'id' | 'language' | 'description' | 'link' | 'name'> & {
@@ -38,7 +38,7 @@ export const shapeMeeting: ShapeModel<MeetingShape, MeetingCreateInput, MeetingU
         ...updateRel(o, u, 'restrictedToRoles', ['Connect', 'Disconnect'], 'many'),
         ...updateRel(o, u, 'invites', ['Create', 'Update', 'Delete'], 'many', shapeMeetingInvite, (i) => ({ ...i, meeting: { id: o.id } })),
         ...updateRel(o, u, 'labels', ['Connect', 'Disconnect'], 'many'),
-        ...createRel(d, 'schedule', ['Create', 'Update'], 'one', shapeSchedule),
+        ...updateRel(o, u, 'schedule', ['Create', 'Update'], 'one', shapeSchedule),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeMeetingTranslation),
     }, a)
 }
