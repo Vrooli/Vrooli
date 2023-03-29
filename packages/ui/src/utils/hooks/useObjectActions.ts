@@ -118,6 +118,7 @@ export const useObjectActions = ({
         objectType: objectType as VoteFor,
         onActionComplete,
     });
+    console.log('objectName', getDisplay(object))
 
     // Determine which actions are available    
     const hasDeletingSupport = exists(DeleteType[objectType]);
@@ -147,6 +148,7 @@ export const useObjectActions = ({
 
     // Callback when an action is started
     const onActionStart = useCallback((action: ObjectAction | `${ObjectAction}`) => {
+        console.log('onActionStart', action);
         if (!exists(object)) {
             PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
             return;

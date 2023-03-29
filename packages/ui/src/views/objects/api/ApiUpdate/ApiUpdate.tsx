@@ -58,7 +58,7 @@ export const ApiUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateApiValues(values, false)}
+                validate={async (values) => await validateApiValues(values, false)}
             >
                 {(formik) => <ApiForm
                     display={display}

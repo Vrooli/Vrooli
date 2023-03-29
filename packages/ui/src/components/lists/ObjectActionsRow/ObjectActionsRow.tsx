@@ -1,5 +1,6 @@
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { EllipsisIcon } from "@shared/icons";
+import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, ObjectAction } from "utils/actions/objectActions";
@@ -98,6 +99,12 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 justifyContent: 'space-between',
             }}
         >
+            {/* Action dialogs */}
+            <ObjectActionDialogs
+                {...actionData}
+                object={object}
+                zIndex={zIndex + 1}
+            />
             {/* Displayed actions */}
             {actions}
             {/* Overflow menu */}

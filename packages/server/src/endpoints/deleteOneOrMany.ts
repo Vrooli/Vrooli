@@ -16,6 +16,8 @@ export const typeDef = gql`
         Meeting
         MeetingInvite
         Node
+        Note
+        NoteVersion
         Organization
         Post
         Project

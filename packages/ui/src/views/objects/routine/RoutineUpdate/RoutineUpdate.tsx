@@ -58,7 +58,7 @@ export const RoutineUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateRoutineValues(values, false)}
+                validate={async (values) => await validateRoutineValues(values, false)}
             >
                 {(formik) => <RoutineForm
                     display={display}

@@ -32,11 +32,11 @@ export async function getLabels(
     let labelsData: any[];
     try {
         where = { id: { in: objectsWithLanguages.map(x => x.id) } };
-        select = typeof model.display.select === 'function' ? model.display.select() : model.display.select,
-            labelsData = await model.delegate(prisma).findMany({
-                where,
-                select,
-            })
+        select = typeof model.display.select === 'function' ? model.display.select() : model.display.select;
+        labelsData = await model.delegate(prisma).findMany({
+            where,
+            select,
+        })
     } catch (error) {
         logger.error('readManyHelper: Failed to find searchResults', { trace: '0385', error, objectType, where, select });
         throw new CustomError('0387', 'InternalError', languages, { objectType });

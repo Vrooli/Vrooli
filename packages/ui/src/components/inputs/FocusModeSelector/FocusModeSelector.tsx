@@ -1,6 +1,6 @@
 import { FocusModeStopCondition } from "@shared/consts";
 import { Formik } from "formik";
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFocusModeInfo } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
@@ -16,6 +16,15 @@ export const FocusModeSelector = () => {
 
     const { active, all } = useMemo(() => getFocusModeInfo(session), [session]);
     console.log('focus mode selector', active, all);
+
+    // Handle dialog for adding new focus mode
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const handleAddNewFocusMode = () => {
+        setIsDialogOpen(true);
+    };
+    const handleCloseDialog = () => {
+        setIsDialogOpen(false);
+    };
 
     return (
         <Formik
@@ -37,6 +46,10 @@ export const FocusModeSelector = () => {
                         mode: newMode,
                         stopCondition: FocusModeStopCondition.Automatic,
                     })
+                }}
+                addOption={{
+                    label: t("AddFocusMode"),
+                    onSelect: handleAddNewFocusMode,
                 }}
             />
         </Formik>

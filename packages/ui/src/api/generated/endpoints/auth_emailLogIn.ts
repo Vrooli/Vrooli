@@ -104,6 +104,14 @@ mutation emailLogIn($input: EmailLogInInput!) {
             stopCondition
             stopTime
         }
+        apisCount
+        bookmarkLists {
+            id
+            created_at
+            updated_at
+            label
+            bookmarksCount
+        }
         focusModes {
             filters {
                 id
@@ -196,18 +204,18 @@ mutation emailLogIn($input: EmailLogInInput!) {
             name
             description
         }
-        bookmarkLists {
-            id
-            created_at
-            updated_at
-            label
-            bookmarksCount
-        }
         handle
         hasPremium
         id
         languages
+        membershipsCount
         name
+        notesCount
+        projectsCount
+        questionsAskedCount
+        routinesCount
+        smartContractsCount
+        standardsCount
         theme
     }
   }

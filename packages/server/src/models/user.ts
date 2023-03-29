@@ -101,7 +101,15 @@ export const UserModel: ModelLogic<{
             bookmarkedBy: 'user',
         },
         countFields: {
+            apisCount: true,
+            membershipsCount: true,
+            notesCount: true,
+            projectsCount: true,
+            questionsAskedCount: true,
             reportsReceivedCount: true,
+            routinesCount: true,
+            smartContractsCount: true,
+            standardsCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,

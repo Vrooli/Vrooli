@@ -254,6 +254,10 @@ export interface ResourceListHorizontalInputProps {
 }
 
 export type SelectorProps<T extends string | number | { [x: string]: any }> = {
+    addOption?: {
+        label: string;
+        onSelect: () => void;
+    };
     autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;

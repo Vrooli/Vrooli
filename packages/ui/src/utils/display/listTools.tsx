@@ -267,6 +267,7 @@ export const getDisplay = (
     object: ListObjectType | null | undefined,
     languages?: readonly string[]
 ): { title: string, subtitle: string } => {
+    console.log('getDisplay start', object)
     if (!object) return { title: '', subtitle: '' };
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);

@@ -39,6 +39,7 @@ export const NoteCreate = ({
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
+                    console.log('onsubmit values', values, shapeNoteVersion.create(values))
                     mutationWrapper<NoteVersion, NoteVersionCreateInput>({
                         mutation,
                         input: shapeNoteVersion.create(values),
@@ -46,7 +47,7 @@ export const NoteCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateNoteValues(values, true)}
+                validate={async (values) => await validateNoteValues(values, true)}
             >
                 {(formik) => <NoteForm
                     display={display}

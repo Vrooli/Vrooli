@@ -58,7 +58,7 @@ export const SmartContractUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateSmartContractValues(values, false)}
+                validate={async (values) => await validateSmartContractValues(values, false)}
             >
                 {(formik) => <SmartContractForm
                     display={display}

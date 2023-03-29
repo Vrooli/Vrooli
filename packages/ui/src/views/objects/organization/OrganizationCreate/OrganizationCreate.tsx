@@ -46,7 +46,7 @@ export const OrganizationCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateOrganizationValues(values, true)}
+                validate={async (values) => await validateOrganizationValues(values, true)}
             >
                 {(formik) => <OrganizationForm
                     display={display}

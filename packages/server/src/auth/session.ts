@@ -168,6 +168,18 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
                         }
                     }
                 }
+            },
+            _count: {
+                select: {
+                    apis: true,
+                    notes: true,
+                    memberships: true,
+                    projects: true,
+                    questionsAsked: true,
+                    routines: true,
+                    smartContracts: true,
+                    standards: true,
+                }
             }
         }
     })
@@ -182,16 +194,24 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     const result = {
         __typename: 'SessionUser' as const,
         activeFocusMode,
-        focusModes: userData.focusModes as any[],
+        apisCount: userData._count?.apis ?? 0,
         bookmarkLists: userData.bookmakLists.map(({ _count, ...rest }) => ({
             ...rest,
             bookmarksCount: _count?.bookmarks ?? 0,
         })) as any[],
+        focusModes: userData.focusModes as any[],
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,
         languages,
+        membershipsCount: userData._count?.memberships ?? 0,
         name: userData.name,
+        notesCount: userData._count?.notes ?? 0,
+        projectsCount: userData._count?.projects ?? 0,
+        questionsAskedCount: userData._count?.questionsAsked ?? 0,
+        routinesCount: userData._count?.routines ?? 0,
+        smartContractsCount: userData._count?.smartContracts ?? 0,
+        standardsCount: userData._count?.standards ?? 0,
         theme: userData.theme,
     }
     return result;

@@ -720,6 +720,8 @@ export enum DeleteType {
   Meeting = 'Meeting',
   MeetingInvite = 'MeetingInvite',
   Node = 'Node',
+  Note = 'Note',
+  NoteVersion = 'NoteVersion',
   Organization = 'Organization',
   Post = 'Post',
   Project = 'Project',
@@ -7514,13 +7516,21 @@ export type Session = {
 export type SessionUser = {
   __typename: 'SessionUser';
   activeFocusMode?: Maybe<ActiveFocusMode>;
+  apisCount: Scalars['Int'];
   bookmarkLists: Array<BookmarkList>;
   focusModes: Array<FocusMode>;
   handle?: Maybe<Scalars['String']>;
   hasPremium: Scalars['Boolean'];
   id: Scalars['String'];
   languages: Array<Scalars['String']>;
+  membershipsCount: Scalars['Int'];
   name?: Maybe<Scalars['String']>;
+  notesCount: Scalars['Int'];
+  projectsCount: Scalars['Int'];
+  questionsAskedCount: Scalars['Int'];
+  routinesCount: Scalars['Int'];
+  smartContractsCount: Scalars['Int'];
+  standardsCount: Scalars['Int'];
   theme?: Maybe<Scalars['String']>;
 };
 
@@ -8781,6 +8791,7 @@ export type User = {
   __typename: 'User';
   apiKeys?: Maybe<Array<ApiKey>>;
   apis: Array<Api>;
+  apisCount: Scalars['Int'];
   apisCreated?: Maybe<Array<Api>>;
   awards?: Maybe<Array<Award>>;
   bookmarked?: Maybe<Array<Bookmark>>;
@@ -8819,9 +8830,11 @@ export type User = {
   meetingsAttending?: Maybe<Array<Meeting>>;
   meetingsInvited?: Maybe<Array<MeetingInvite>>;
   memberships?: Maybe<Array<Member>>;
+  membershipsCount: Scalars['Int'];
   membershipsInvited?: Maybe<Array<MemberInvite>>;
   name: Scalars['String'];
   notes?: Maybe<Array<Note>>;
+  notesCount: Scalars['Int'];
   notesCreated?: Maybe<Array<Note>>;
   notificationSettings?: Maybe<Scalars['String']>;
   notificationSubscriptions?: Maybe<Array<NotificationSubscription>>;
@@ -8830,11 +8843,13 @@ export type User = {
   paymentHistory?: Maybe<Array<Payment>>;
   premium?: Maybe<Premium>;
   projects?: Maybe<Array<Project>>;
+  projectsCount: Scalars['Int'];
   projectsCreated?: Maybe<Array<Project>>;
   pullRequests?: Maybe<Array<PullRequest>>;
   pushDevices?: Maybe<Array<PushDevice>>;
   questionsAnswered?: Maybe<Array<QuestionAnswer>>;
   questionsAsked?: Maybe<Array<Question>>;
+  questionsAskedCount: Scalars['Int'];
   quizzesCreated?: Maybe<Array<Quiz>>;
   quizzesTaken?: Maybe<Array<Quiz>>;
   reportResponses?: Maybe<Array<ReportResponse>>;
@@ -8844,13 +8859,16 @@ export type User = {
   reputationHistory?: Maybe<Array<ReputationHistory>>;
   roles?: Maybe<Array<Role>>;
   routines?: Maybe<Array<Routine>>;
+  routinesCount: Scalars['Int'];
   routinesCreated?: Maybe<Array<Routine>>;
   runProjects?: Maybe<Array<RunProject>>;
   runRoutines?: Maybe<Array<RunRoutine>>;
   sentReports?: Maybe<Array<Report>>;
   smartContracts?: Maybe<Array<SmartContract>>;
+  smartContractsCount: Scalars['Int'];
   smartContractsCreated?: Maybe<Array<SmartContract>>;
   standards?: Maybe<Array<Standard>>;
+  standardsCount: Scalars['Int'];
   standardsCreated?: Maybe<Array<Standard>>;
   stats?: Maybe<StatsUser>;
   status?: Maybe<AccountStatus>;
@@ -13006,13 +13024,21 @@ export type SessionResolvers<ContextType = any, ParentType extends ResolversPare
 
 export type SessionUserResolvers<ContextType = any, ParentType extends ResolversParentTypes['SessionUser'] = ResolversParentTypes['SessionUser']> = {
   activeFocusMode?: Resolver<Maybe<ResolversTypes['ActiveFocusMode']>, ParentType, ContextType>;
+  apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   bookmarkLists?: Resolver<Array<ResolversTypes['BookmarkList']>, ParentType, ContextType>;
   focusModes?: Resolver<Array<ResolversTypes['FocusMode']>, ParentType, ContextType>;
   handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasPremium?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   languages?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  membershipsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  questionsAskedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -13622,6 +13648,7 @@ export interface UploadScalarConfig extends GraphQLScalarTypeConfig<ResolversTyp
 export type UserResolvers<ContextType = any, ParentType extends ResolversParentTypes['User'] = ResolversParentTypes['User']> = {
   apiKeys?: Resolver<Maybe<Array<ResolversTypes['ApiKey']>>, ParentType, ContextType>;
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
+  apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   apisCreated?: Resolver<Maybe<Array<ResolversTypes['Api']>>, ParentType, ContextType>;
   awards?: Resolver<Maybe<Array<ResolversTypes['Award']>>, ParentType, ContextType>;
   bookmarked?: Resolver<Maybe<Array<ResolversTypes['Bookmark']>>, ParentType, ContextType>;
@@ -13660,9 +13687,11 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   meetingsAttending?: Resolver<Maybe<Array<ResolversTypes['Meeting']>>, ParentType, ContextType>;
   meetingsInvited?: Resolver<Maybe<Array<ResolversTypes['MeetingInvite']>>, ParentType, ContextType>;
   memberships?: Resolver<Maybe<Array<ResolversTypes['Member']>>, ParentType, ContextType>;
+  membershipsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   membershipsInvited?: Resolver<Maybe<Array<ResolversTypes['MemberInvite']>>, ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   notes?: Resolver<Maybe<Array<ResolversTypes['Note']>>, ParentType, ContextType>;
+  notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   notesCreated?: Resolver<Maybe<Array<ResolversTypes['Note']>>, ParentType, ContextType>;
   notificationSettings?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   notificationSubscriptions?: Resolver<Maybe<Array<ResolversTypes['NotificationSubscription']>>, ParentType, ContextType>;
@@ -13671,11 +13700,13 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   paymentHistory?: Resolver<Maybe<Array<ResolversTypes['Payment']>>, ParentType, ContextType>;
   premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
   projects?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;
+  projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   projectsCreated?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;
   pullRequests?: Resolver<Maybe<Array<ResolversTypes['PullRequest']>>, ParentType, ContextType>;
   pushDevices?: Resolver<Maybe<Array<ResolversTypes['PushDevice']>>, ParentType, ContextType>;
   questionsAnswered?: Resolver<Maybe<Array<ResolversTypes['QuestionAnswer']>>, ParentType, ContextType>;
   questionsAsked?: Resolver<Maybe<Array<ResolversTypes['Question']>>, ParentType, ContextType>;
+  questionsAskedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   quizzesCreated?: Resolver<Maybe<Array<ResolversTypes['Quiz']>>, ParentType, ContextType>;
   quizzesTaken?: Resolver<Maybe<Array<ResolversTypes['Quiz']>>, ParentType, ContextType>;
   reportResponses?: Resolver<Maybe<Array<ResolversTypes['ReportResponse']>>, ParentType, ContextType>;
@@ -13685,13 +13716,16 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   reputationHistory?: Resolver<Maybe<Array<ResolversTypes['ReputationHistory']>>, ParentType, ContextType>;
   roles?: Resolver<Maybe<Array<ResolversTypes['Role']>>, ParentType, ContextType>;
   routines?: Resolver<Maybe<Array<ResolversTypes['Routine']>>, ParentType, ContextType>;
+  routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routinesCreated?: Resolver<Maybe<Array<ResolversTypes['Routine']>>, ParentType, ContextType>;
   runProjects?: Resolver<Maybe<Array<ResolversTypes['RunProject']>>, ParentType, ContextType>;
   runRoutines?: Resolver<Maybe<Array<ResolversTypes['RunRoutine']>>, ParentType, ContextType>;
   sentReports?: Resolver<Maybe<Array<ResolversTypes['Report']>>, ParentType, ContextType>;
   smartContracts?: Resolver<Maybe<Array<ResolversTypes['SmartContract']>>, ParentType, ContextType>;
+  smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   smartContractsCreated?: Resolver<Maybe<Array<ResolversTypes['SmartContract']>>, ParentType, ContextType>;
   standards?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
+  standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCreated?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
   stats?: Resolver<Maybe<ResolversTypes['StatsUser']>, ParentType, ContextType>;
   status?: Resolver<Maybe<ResolversTypes['AccountStatus']>, ParentType, ContextType>;

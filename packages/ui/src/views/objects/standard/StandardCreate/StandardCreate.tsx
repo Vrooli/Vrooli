@@ -46,7 +46,7 @@ export const StandardCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateStandardValues(values, true)}
+                validate={async (values) => await validateStandardValues(values, true)}
             >
                 {(formik) => <StandardForm
                     display={display}

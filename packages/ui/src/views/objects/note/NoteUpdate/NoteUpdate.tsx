@@ -58,7 +58,7 @@ export const NoteUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateNoteValues(values, false)}
+                validate={async (values) => await validateNoteValues(values, false)}
             >
                 {(formik) => <NoteForm
                     display={display}

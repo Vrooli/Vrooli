@@ -58,7 +58,7 @@ export const ProjectUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={async (values) => await validateProjectValues(values, false)}
+                validate={async (values) => await validateProjectValues(values, false)}
             >
                 {(formik) => <ProjectForm
                     display={display}

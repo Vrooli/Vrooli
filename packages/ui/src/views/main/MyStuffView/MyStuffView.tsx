@@ -78,23 +78,52 @@ export const MyStuffView = ({
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    const {
+        id: userId,
+        apisCount,
+        membershipsCount,
+        questionsAskedCount,
+        smartContractsCount,
+        standardsCount,
+    } = useMemo(() => getCurrentUser(session), [session]);
 
     // Popup button, which opens either an add or invite dialog
     const [popupButton, setPopupButton] = useState<boolean>(false);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<SearchPageTabOption>[]>(() => {
-        return tabParams.map((tab, i) => ({
+    const tabs = useMemo<(PageTab<SearchPageTabOption> & { where: any, searchType: any, tabType: any })[]>(() => {
+        // Filter out certain tabs that we don't have any data for, 
+        // so user isn't overwhelmed with tabs for objects they never worked with. 
+        // Always keeps routines, projects, and notes
+        const filteredTabParams = tabParams.filter(tab => {
+            switch (tab.tabType) {
+                case SearchPageTabOption.Apis:
+                    return Boolean(apisCount);
+                case SearchPageTabOption.Organizations:
+                    return Boolean(membershipsCount);
+                case SearchPageTabOption.Questions:
+                    return Boolean(questionsAskedCount);
+                case SearchPageTabOption.SmartContracts:
+                    return Boolean(smartContractsCount);
+                case SearchPageTabOption.Standards:
+                    return Boolean(standardsCount);
+            }
+            return true;
+        });
+        console.log('filtered tabs', filteredTabParams)
+        return filteredTabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
+            searchType: tab.searchType,
+            tabType: tab.tabType,
             value: tab.tabType,
+            where: tab.where,
         }));
-    }, [t]);
+    }, [apisCount, membershipsCount, questionsAskedCount, smartContractsCount, standardsCount, t]);
     const [currTab, setCurrTab] = useState<PageTab<SearchPageTabOption>>(() => {
         const searchParams = parseSearchParams();
-        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
+        const index = tabs.findIndex(tab => tab.tabType === searchParams.type);
         // Default to routine tab
         if (index === -1) return tabs[0];
         // Return tab
@@ -112,12 +141,12 @@ export const MyStuffView = ({
     const { searchType, where } = useMemo<Omit<BaseParams, 'where'> & { where: { [x: string]: any } }>(() => {
         // Update tab title
         document.title = `${t(`Search`)} | ${currTab.label}`;
-        const params = tabParams[currTab.index];
+        const params = tabs[currTab.index];
         return {
             ...params,
             where: params.where(userId!),
-        }
-    }, [currTab.index, currTab.label, t, userId]);
+        } as any;
+    }, [currTab.index, currTab.label, t, tabs, userId]);
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`

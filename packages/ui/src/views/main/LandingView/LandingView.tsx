@@ -161,7 +161,7 @@ export const LandingView = ({
                         <Grid container spacing={2}>
                             <Grid item xs={12} margin="auto" sx={{ marginTop: 4, marginBottom: 4 }}>
                                 <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: 'center' }}>
-                                    We're building the tools to prototype and automate the future of work
+                                    We're building the tools to automate the future of work
                                 </Typography>
                             </Grid>
                         </Grid>

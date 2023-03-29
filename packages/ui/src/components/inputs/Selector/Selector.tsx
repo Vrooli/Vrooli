@@ -1,9 +1,11 @@
 import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, useTheme } from '@mui/material';
+import { AddIcon } from '@shared/icons';
 import { useField } from 'formik';
 import { useCallback, useMemo } from 'react';
 import { SelectorProps } from '../types';
 
 export function Selector<T extends string | number | { [x: string]: any }>({
+    addOption,
     autoFocus = false,
     options,
     getOptionDescription,
@@ -118,6 +120,14 @@ export function Selector<T extends string | number | { [x: string]: any }>({
                 }
                 {
                     labels
+                }
+                {
+                    addOption ? (
+                        <MenuItem value="addOption" onClick={addOption.onSelect}>
+                            <AddIcon fill={palette.background.textPrimary} style={{ marginRight: '8px' }} />
+                            <em>{addOption.label}</em>
+                        </MenuItem>
+                    ) : null
                 }
             </Select>
             {meta.touched && meta.error && <FormHelperText id={`helper-text-${name}`}>{meta.error}</FormHelperText>}

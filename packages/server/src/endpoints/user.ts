@@ -48,6 +48,7 @@ export const typeDef = gql`
         views: Int!
         apiKeys: [ApiKey!]
         apis: [Api!]!
+        apisCount: Int!
         apisCreated: [Api!]
         awards: [Award!]
         comments: [Comment!]
@@ -62,20 +63,24 @@ export const typeDef = gql`
         meetingsAttending: [Meeting!]
         meetingsInvited: [MeetingInvite!]
         memberships: [Member!]
+        membershipsCount: Int!
         membershipsInvited: [MemberInvite!]
         notesCreated: [Note!]
         notes: [Note!]
+        notesCount: Int!
         notifications: [Notification!]
         notificationSubscriptions: [NotificationSubscription!]
         notificationSettings: String
         paymentHistory: [Payment!]
         premium: Premium
         projects: [Project!]
+        projectsCount: Int!
         projectsCreated: [Project!]
         pullRequests: [PullRequest!]
         pushDevices: [PushDevice!]
         questionsAnswered: [QuestionAnswer!]
         questionsAsked: [Question!]
+        questionsAskedCount: Int!
         quizzesCreated: [Quiz!]
         quizzesTaken: [Quiz!]
         sentReports: [Report!]
@@ -86,14 +91,17 @@ export const typeDef = gql`
         reputationHistory: [ReputationHistory!]
         roles: [Role!]
         routines: [Routine!]
+        routinesCount: Int!
         routinesCreated: [Routine!]
         runProjects: [RunProject!]
         runRoutines: [RunRoutine!]
         focusModes: [FocusMode!]
-        smartContractsCreated: [SmartContract!]
         smartContracts: [SmartContract!]
-        standardsCreated: [Standard!]
+        smartContractsCount: Int!
+        smartContractsCreated: [SmartContract!]
         standards: [Standard!]
+        standardsCount: Int!
+        standardsCreated: [Standard!]
         bookmarkedBy: [User!]!
         bookmarked: [Bookmark!]
         stats: StatsUser

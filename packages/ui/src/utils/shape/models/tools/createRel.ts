@@ -55,6 +55,10 @@ export const createRel = <
     const relationData = item[relation];
     // If relation data is undefined, return empty object
     if (relationData === undefined) return {} as any;
+    // If relation data is null, this is only valid for 
+    // disconnects, so return empty object (since we don't deal
+    // with disconnects here)
+    if (relationData === null) return {} as any;
     // Initialize result
     const result: { [x: string]: any } = {};
     // Make preShape a function, if not provided 

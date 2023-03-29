@@ -81,13 +81,21 @@ export const typeDef = gql`
 
     type SessionUser {
         activeFocusMode: ActiveFocusMode
-        focusModes: [FocusMode!]!
+        apisCount: Int!
         bookmarkLists: [BookmarkList!]! # Will not include the bookmarks themselves, just info about the lists
+        focusModes: [FocusMode!]!
         handle: String
         hasPremium: Boolean!
         id: String!
         languages: [String!]!
+        membershipsCount: Int!
         name: String
+        notesCount: Int!
+        projectsCount: Int!
+        questionsAskedCount: Int!
+        routinesCount: Int!
+        smartContractsCount: Int!
+        standardsCount: Int!
         theme: String
     }
 
