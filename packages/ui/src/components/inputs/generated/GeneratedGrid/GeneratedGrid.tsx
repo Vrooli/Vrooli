@@ -47,7 +47,7 @@ export const GeneratedGrid = ({
     theme,
     zIndex,
 }: GeneratedGridProps) => {
-    console.log('rendering grid');
+    console.log('rendering grid', fields, childContainers);
     const { containers, splitFields } = useMemo(() => {
         console.log('rendering grid.containers, grid.splitfields')
         // Split fields into which containers they belong to.
@@ -105,6 +105,7 @@ export const GeneratedGrid = ({
                 {gridItems}
             </Grid>
             // Each container is represented as a fieldset
+            console.log('generatedGrid: item ifo:', currLayout)
             grids.push(
                 <fieldset
                     key={`grid-container-${i}`}

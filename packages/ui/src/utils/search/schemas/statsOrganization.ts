@@ -10,4 +10,4 @@ export const statsOrganizationSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 })
 
-export const statsOrganizationSearchParams = () => toParams(statsOrganizationSearchSchema(), statsOrganizationFindMany, StatsOrganizationSortBy, StatsOrganizationSortBy.DateUpdatedDesc);
+export const statsOrganizationSearchParams = () => toParams(statsOrganizationSearchSchema(), statsOrganizationFindMany, StatsOrganizationSortBy, StatsOrganizationSortBy.PeriodStartAsc);

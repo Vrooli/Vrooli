@@ -10,4 +10,4 @@ export const statsSmartContractSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 })
 
-export const statsSmartContractSearchParams = () => toParams(statsSmartContractSearchSchema(), statsSmartContractFindMany, StatsSmartContractSortBy, StatsSmartContractSortBy.DateUpdatedDesc);
+export const statsSmartContractSearchParams = () => toParams(statsSmartContractSearchSchema(), statsSmartContractFindMany, StatsSmartContractSortBy, StatsSmartContractSortBy.PeriodStartAsc);

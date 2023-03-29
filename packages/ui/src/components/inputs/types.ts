@@ -1,7 +1,8 @@
 import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
-import { Comment, CommentFor, StandardVersion } from '@shared/consts';
+import { Comment, CommentFor, StandardVersion, Tag } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
+import { TagShape } from 'utils/shape/models/tag';
 import { StringSchema } from 'yup';
 
 export interface CommentCreateInputProps {
@@ -283,6 +284,13 @@ export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
 export interface TagSelectorProps {
     disabled?: boolean;
     placeholder?: string;
+}
+
+export interface TagSelectorBaseProps {
+    disabled?: boolean;
+    handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
+    placeholder?: string;
+    tags: (TagShape | Tag)[];
 }
 
 export interface TranslatedMarkdownInputProps {

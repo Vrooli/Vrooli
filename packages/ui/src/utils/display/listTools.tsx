@@ -345,7 +345,7 @@ export function listToAutocomplete(
     languages: readonly string[]
 ): AutocompleteOption[] {
     return objects.map(o => ({
-        __typename: o.__typename,
+        __typename: o.__typename as any,
         id: o.id,
         isBookmarked: getYou(o).isBookmarked,
         label: getDisplay(o, languages).title,
@@ -432,7 +432,7 @@ export function listToListItems({
             hideUpdateButton={hideUpdateButton}
             index={i}
             loading={false}
-            objectType={curr.__typename}
+            objectType={curr.__typename as any}
             zIndex={zIndex}
         />);
     }

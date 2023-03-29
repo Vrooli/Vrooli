@@ -2,10 +2,10 @@ import { InputType } from "@shared/consts";
 import { useMemo } from "react";
 import { GeneratedCheckbox } from "../GeneratedCheckbox/GeneratedCheckbox";
 import { GeneratedDropzone } from "../GeneratedDropzone/GeneratedDropzone";
+import { GeneratedIntegerInput } from "../GeneratedIntegerInput/GeneratedIntegerInput";
 import { GeneratedJsonInput } from "../GeneratedJsonInput/GeneratedJsonInput";
 import { GeneratedLanguageInput } from "../GeneratedLanguageInput/GeneratedLanguageInput";
 import { GeneratedMarkdownInput } from "../GeneratedMarkdownInput/GeneratedMarkdownInput";
-import { GeneratedIntegerInput } from "../GeneratedIntegerInput/GeneratedIntegerInput";
 import { GeneratedRadio } from "../GeneratedRadio/GeneratedRadio";
 import { GeneratedSelector } from "../GeneratedSelector/GeneratedSelector";
 import { GeneratedSlider } from "../GeneratedSlider/GeneratedSlider";
@@ -33,7 +33,7 @@ const typeMap: { [key in InputType]: (props: GeneratedInputComponentProps) => JS
 }
 
 export const GeneratedInputComponent = (props: GeneratedInputComponentProps) => {
-    console.log('rendering input component');
+    console.log('rendering input component', props.fieldData.fieldName, props.fieldData.type);
     const InputComponent = useMemo(() => typeMap[props.fieldData.type], [props.fieldData.type]);
     return <InputComponent {...props} />
 }

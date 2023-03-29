@@ -1,5 +1,6 @@
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { useCallback, useMemo } from "react";
+import { Tag } from "@shared/consts";
+import { TagSelectorBase } from "components/inputs/TagSelectorBase/TagSelectorBase";
+import { useField } from "formik";
 import { TagShape } from "utils/shape/models/tag";
 import { GeneratedInputComponentProps } from "../types";
 
@@ -9,14 +10,14 @@ export const GeneratedTagSelector = ({
     index,
 }: GeneratedInputComponentProps) => {
     console.log('rendering tag selector');
-    const tags = useMemo(() => formik.values[fieldData.fieldName] as TagShape[], [formik.values, fieldData.fieldName]);
-    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { formik.setFieldValue(fieldData.fieldName, updatedList) }, [formik, fieldData.fieldName]);
+
+    const [field, , helpers] = useField<(Tag | TagShape)[]>(fieldData.fieldName);
 
     return (
-        <TagSelector
+        <TagSelectorBase
             disabled={disabled}
-            handleTagsUpdate={handleTagsUpdate}
-            tags={tags}
+            handleTagsUpdate={helpers.setValue}
+            tags={field.value}
         />
     );
 }
