@@ -45,7 +45,7 @@ export const StatsUserModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsUserSortBy.DateUpdatedDesc,
+        defaultSort: StatsUserSortBy.PeriodStartAsc,
         sortBy: StatsUserSortBy,
         searchFields: {
             periodTimeFrame: true,

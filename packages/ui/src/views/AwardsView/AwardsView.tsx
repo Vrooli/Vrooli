@@ -60,7 +60,7 @@ export const AwardsView = ({
                     titleVariables: { count: 2 },
                 }}
             />
-            <Stack direction="column" spacing={2} sx={{ margin: 2 }} >
+            <Stack direction="column" spacing={2} sx={{ margin: 2, padding: 1 }} >
                 {/* Display earned awards as a list of tags. Press or hover to see description */}
                 <ContentCollapse
                     isOpen={true}

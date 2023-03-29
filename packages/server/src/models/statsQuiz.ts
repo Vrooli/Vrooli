@@ -45,7 +45,7 @@ export const StatsQuizModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsQuizSortBy.DateUpdatedDesc,
+        defaultSort: StatsQuizSortBy.PeriodStartAsc,
         sortBy: StatsQuizSortBy,
         searchFields: {
             periodTimeFrame: true,

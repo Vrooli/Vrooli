@@ -8159,8 +8159,8 @@ export type StatsApiSearchResult = {
 };
 
 export enum StatsApiSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsOrganization = {
@@ -8205,8 +8205,8 @@ export type StatsOrganizationSearchResult = {
 };
 
 export enum StatsOrganizationSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsProject = {
@@ -8252,8 +8252,8 @@ export type StatsProjectSearchResult = {
 };
 
 export enum StatsProjectSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsQuiz = {
@@ -8292,8 +8292,8 @@ export type StatsQuizSearchResult = {
 };
 
 export enum StatsQuizSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsRoutine = {
@@ -8331,8 +8331,8 @@ export type StatsRoutineSearchResult = {
 };
 
 export enum StatsRoutineSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsSite = {
@@ -8397,8 +8397,8 @@ export type StatsSiteSearchResult = {
 };
 
 export enum StatsSiteSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsSmartContract = {
@@ -8434,8 +8434,8 @@ export type StatsSmartContractSearchResult = {
 };
 
 export enum StatsSmartContractSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsStandard = {
@@ -8471,8 +8471,8 @@ export type StatsStandardSearchResult = {
 };
 
 export enum StatsStandardSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export type StatsUser = {
@@ -8530,8 +8530,8 @@ export type StatsUserSearchResult = {
 };
 
 export enum StatsUserSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
 }
 
 export enum SubscribableObject {

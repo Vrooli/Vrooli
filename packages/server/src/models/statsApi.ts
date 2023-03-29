@@ -45,7 +45,7 @@ export const StatsApiModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsApiSortBy.DateUpdatedDesc,
+        defaultSort: StatsApiSortBy.PeriodStartAsc,
         sortBy: StatsApiSortBy,
         searchFields: {
             periodTimeFrame: true,

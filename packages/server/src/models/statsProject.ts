@@ -45,7 +45,7 @@ export const StatsProjectModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsProjectSortBy.DateUpdatedDesc,
+        defaultSort: StatsProjectSortBy.PeriodStartAsc,
         sortBy: StatsProjectSortBy,
         searchFields: {
             periodTimeFrame: true,

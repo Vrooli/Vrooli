@@ -1,9 +1,10 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Card, CardContent, Grid, Typography, useTheme } from '@mui/material';
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useCustomLazyQuery } from 'api';
 import { statsSiteFindMany } from 'api/generated/endpoints/statsSite_findMany';
 import { CardGrid } from 'components/cards/CardGrid/CardGrid';
 import { LineGraphCard } from 'components/cards/LineGraphCard/LineGraphCard';
+import { ContentCollapse } from 'components/containers/ContentCollapse/ContentCollapse';
 import { DateRangeMenu } from 'components/lists/DateRangeMenu/DateRangeMenu';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
@@ -58,6 +59,7 @@ const MIN_DATE = new Date(2023, 1, 1);
 export const StatsView = ({
     display = 'page',
 }: StatsViewProps) => {
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Period time frame. Defaults to past 24 hours.
@@ -128,6 +130,9 @@ export const StatsView = ({
     const cards = useMemo(() => (
         Object.entries(visual).map(([field, data], index) => {
             if (data.length === 0) return null;
+            // Uppercase first letter of field name
+            const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+            const title = t(fieldName, { count: 2, ns: 'common', defaultValue: field });
             return (
                 <Box
                     key={index}
@@ -142,12 +147,12 @@ export const StatsView = ({
                         data={data}
                         index={index}
                         lineColor='white'
-                        title={field}
+                        title={title}
                     />
                 </Box>
             )
         })
-    ), [visual]);
+    ), [t, visual]);
 
     return (
         <>
@@ -183,12 +188,50 @@ export const StatsView = ({
                 sx={{ cursor: 'pointer' }}
             >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
             {/* Aggregate stats for the time period */}
-            <Typography component="h1" variant="h4" textAlign="center">{t(`Overview`)}</Typography>
+            <ContentCollapse
+                isOpen={true}
+                titleKey="Overview"
+                sxs={{
+                    root: {
+                        marginBottom: 4
+                    }
+                }}
+            >
+                <Grid container spacing={2}>
+                    {Object.entries(aggregate).map(([field, value], index) => {
+                        // Uppercase first letter of field name
+                        const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+                        const title = t(fieldName, { count: 2, ns: "common", defaultValue: field });
+                        return (
+                            <Grid key={index} item xs={12} sm={6} md={4} lg={3}>
+                                <Card sx={{
+                                    background: palette.primary.light,
+                                    color: palette.primary.contrastText,
+                                    height: '100%'
+                                }}>
+                                    <CardContent>
+                                        <Typography variant="h6" textAlign="center" gutterBottom>
+                                            {title}
+                                        </Typography>
+                                        <Typography variant="body1" textAlign="center">
+                                            {value}
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </ContentCollapse>
             {/* Line graph cards */}
-            <Typography component="h1" variant="h4" textAlign="center">Visual</Typography>
-            <CardGrid minWidth={275}>
-                {cards}
-            </CardGrid>
+            <ContentCollapse
+                isOpen={true}
+                titleKey="Visual"
+            >
+                <CardGrid minWidth={275}>
+                    {cards}
+                </CardGrid>
+            </ContentCollapse>
         </>
     )
 };

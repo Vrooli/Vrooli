@@ -41,28 +41,28 @@ export const StatsSiteModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsSiteSortBy.DateUpdatedDesc,
+        defaultSort: StatsSiteSortBy.PeriodStartAsc,
         sortBy: StatsSiteSortBy,
         searchFields: {
             periodTimeFrame: true,
             periodType: true,
         },
-        searchStringQuery: () => ({ })
+        searchStringQuery: () => ({})
     },
     validate: {
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
         maxObjects: 10000000,
-        owner: () => ({ }),
+        owner: () => ({}),
         permissionResolvers: ({ isDeleted, isPublic }) => defaultPermissions({ isAdmin: false, isDeleted, isPublic }), // Force isAdmin false, since there is no "visibility.owner" query
         permissionsSelect: () => ({
-            id: true, 
+            id: true,
         }),
         visibility: {
             private: {},
             public: {},
-            owner: () => ({ }),
+            owner: () => ({}),
         },
     },
 })

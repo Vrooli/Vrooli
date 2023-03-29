@@ -67,6 +67,8 @@ export const SortMap = {
     NameDesc: { name: Order.Desc },
     OrderAsc: { order: Order.Asc },
     OrderDesc: { order: Order.Desc },
+    PeriodStartAsc: { periodStart: Order.Asc },
+    PeriodStartDesc: { periodStart: Order.Desc },
     PointsEarnedAsc: { pointsEarned: Order.Asc },
     PointsEarnedDesc: { pointsEarned: Order.Desc },
     ProgressAsc: { progress: Order.Asc },

@@ -1,5 +1,5 @@
 import { Dimensions } from "components/graphs/types";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type UseDimensionsReturn = {
     dimensions: Dimensions;
@@ -38,9 +38,16 @@ export const useDimensions = (): UseDimensionsReturn => {
 
     // Update on screen resize
     useEffect(() => {
-        window.addEventListener('resize', refreshDimensions);
-        return () => window.removeEventListener('resize', refreshDimensions);
+        const handleResize = () => {
+            if (ref.current) {
+                refreshDimensions();
+            } else {
+                console.warn('No ref found for useDimensions hook.');
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, [refreshDimensions]);
 
-  return { dimensions, ref, refreshDimensions };
+    return { dimensions, ref, refreshDimensions };
 }

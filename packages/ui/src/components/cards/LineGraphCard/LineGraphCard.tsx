@@ -36,11 +36,15 @@ export const LineGraphCard = ({
                     component="h2"
                     textAlign="center"
                     sx={{
-                        marginBottom: '10px'
+                        marginBottom: 2,
+                        marginTop: 1,
                     }}
                 >{title}</Typography>
                 <LineGraph
-                    dims={dimensions}
+                    dims={{
+                        width: dimensions.width,
+                        height: 250,
+                    }}
                     {...lineGraphProps}
                 />
             </CardContent>

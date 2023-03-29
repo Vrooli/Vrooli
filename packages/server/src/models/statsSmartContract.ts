@@ -45,7 +45,7 @@ export const StatsSmartContractModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsSmartContractSortBy.DateUpdatedDesc,
+        defaultSort: StatsSmartContractSortBy.PeriodStartAsc,
         sortBy: StatsSmartContractSortBy,
         searchFields: {
             periodTimeFrame: true,

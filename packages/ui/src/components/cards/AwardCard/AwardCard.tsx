@@ -40,8 +40,7 @@ export const AwardCard = ({
         <Card sx={{
             width: '100%',
             height: '100%',
-            boxShadow: 6,
-            background: palette.primary.light,
+            background: isEarned ? palette.secondary.main : palette.primary.light,
             color: palette.primary.contrastText,
             borderRadius: '16px',
             margin: 0,

@@ -45,7 +45,7 @@ export const StatsRoutineModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsRoutineSortBy.DateUpdatedDesc,
+        defaultSort: StatsRoutineSortBy.PeriodStartAsc,
         sortBy: StatsRoutineSortBy,
         searchFields: {
             periodTimeFrame: true,
