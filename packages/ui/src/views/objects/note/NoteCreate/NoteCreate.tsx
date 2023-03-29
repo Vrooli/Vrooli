@@ -1,5 +1,4 @@
 import { NoteVersion, NoteVersionCreateInput } from "@shared/consts";
-import { noteVersionValidation } from '@shared/validation';
 import { noteVersionCreate } from "api/generated/endpoints/noteVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
@@ -11,7 +10,7 @@ import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeNoteVersion } from "utils/shape/models/noteVersion";
-import { noteInitialValues } from "..";
+import { noteInitialValues, validateNoteValues } from "..";
 import { NoteCreateProps } from "../types";
 
 export const NoteCreate = ({
@@ -47,7 +46,7 @@ export const NoteCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={noteVersionValidation.create({})}
+                validationSchema={async (values) => await validateNoteValues(values, true)}
             >
                 {(formik) => <NoteForm
                     display={display}

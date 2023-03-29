@@ -732,6 +732,7 @@ export enum DeleteType {
   Reminder = 'Reminder',
   ReminderList = 'ReminderList',
   Report = 'Report',
+  Resource = 'Resource',
   Routine = 'Routine',
   RoutineVersion = 'RoutineVersion',
   RunProject = 'RunProject',

@@ -1,8 +1,10 @@
 import { ProjectVersion, Session } from '@shared/consts';
 import { DUMMY_ID } from '@shared/uuid';
+import { projectVersionValidation } from '@shared/validation';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
-import { ProjectVersionShape } from 'utils/shape/models/projectVersion';
+import { validateAndGetYupErrors } from 'utils/shape/general';
+import { ProjectVersionShape, shapeProjectVersion } from 'utils/shape/models/projectVersion';
 
 export * from './ProjectCreate/ProjectCreate';
 export * from './ProjectUpdate/ProjectUpdate';
@@ -38,3 +40,18 @@ export const projectInitialValues = (
     versionLabel: '1.0.0',
     ...existing,
 });
+
+export const transformProjectValues = (o: ProjectVersionShape, u?: ProjectVersionShape) => {
+    return u === undefined
+        ? shapeProjectVersion.create(o)
+        : shapeProjectVersion.update(o, u)
+}
+
+export const validateProjectValues = async (values: ProjectVersionShape, isCreate: boolean) => {
+    const transformedValues = transformProjectValues(values);
+    const validationSchema = isCreate
+        ? projectVersionValidation.create({})
+        : projectVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}

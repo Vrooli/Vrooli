@@ -78,6 +78,7 @@ export const getFocusModeInfo = (session: Session | null | undefined): {
     active: ActiveFocusMode | null,
     all: FocusMode[]
 } => {
+    console.log('focusinggg rendering getFocusModeInfo', session);
     // Try to find focus modes user from session
     const { activeFocusMode, focusModes } = getCurrentUser(session);
     // If not found, use cookies

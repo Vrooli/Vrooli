@@ -1,8 +1,10 @@
 import { NoteVersion, Session } from '@shared/consts';
 import { DUMMY_ID } from '@shared/uuid';
+import { noteVersionValidation } from '@shared/validation';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
-import { NoteVersionShape } from 'utils/shape/models/noteVersion';
+import { validateAndGetYupErrors } from 'utils/shape/general';
+import { NoteVersionShape, shapeNoteVersion } from 'utils/shape/models/noteVersion';
 import { OwnerShape } from 'utils/shape/models/types';
 
 export * from './NoteCreate/NoteCreate';
@@ -34,3 +36,18 @@ export const noteInitialValues = (
     versionLabel: existing?.versionLabel ?? '1.0.0',
     ...existing,
 });
+
+export const transformNoteValues = (o: NoteVersionShape, u?: NoteVersionShape) => {
+    return u === undefined
+        ? shapeNoteVersion.create(o)
+        : shapeNoteVersion.update(o, u)
+}
+
+export const validateNoteValues = async (values: NoteVersionShape, isCreate: boolean) => {
+    const transformedValues = transformNoteValues(values);
+    const validationSchema = isCreate
+        ? noteVersionValidation.create({})
+        : noteVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}

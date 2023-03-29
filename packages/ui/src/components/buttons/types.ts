@@ -144,6 +144,7 @@ export interface ShareButtonProps {
 export interface SideActionButtonsProps {
     children: JSX.Element | null | boolean | undefined | (JSX.Element | null | boolean | undefined)[];
     display: ViewDisplayType;
+    hasGridActions?: boolean; // If to, displays higher up
     isLeftHanded?: boolean;
     sx?: { [key: string]: any };
     zIndex: number;

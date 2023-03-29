@@ -154,7 +154,6 @@ export async function cudHelper<
             beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds: deleteMany, prisma, userData });
         }
         // Delete
-        let deleted: any = {};
         let where = { id: { in: deleteMany } };
         try {
             deleted = await delegate(prisma).deleteMany({

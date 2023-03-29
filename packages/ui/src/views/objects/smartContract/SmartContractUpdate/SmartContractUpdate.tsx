@@ -1,5 +1,4 @@
 import { FindVersionInput, SmartContractVersion, SmartContractVersionUpdateInput } from "@shared/consts";
-import { smartContractVersionValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { projectVersionUpdate } from "api/generated/endpoints/projectVersion_update";
 import { smartContractVersionFindOne } from "api/generated/endpoints/smartContractVersion_findOne";
@@ -14,7 +13,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeSmartContractVersion } from "utils/shape/models/smartContractVersion";
-import { smartContractInitialValues } from "..";
+import { smartContractInitialValues, validateSmartContractValues } from "..";
 import { SmartContractUpdateProps } from "../types";
 
 export const SmartContractUpdate = ({
@@ -59,7 +58,7 @@ export const SmartContractUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={smartContractVersionValidation.update({})}
+                validationSchema={async (values) => await validateSmartContractValues(values, false)}
             >
                 {(formik) => <SmartContractForm
                     display={display}

@@ -1,5 +1,4 @@
 import { RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
-import { routineVersionValidation } from "@shared/validation";
 import { routineVersionCreate } from "api/generated/endpoints/routineVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from "api/utils";
@@ -11,7 +10,7 @@ import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeRoutineVersion } from "utils/shape/models/routineVersion";
-import { routineInitialValues } from "..";
+import { routineInitialValues, validateRoutineValues } from "..";
 import { RoutineCreateProps } from "../types";
 
 export const RoutineCreate = ({
@@ -48,7 +47,7 @@ export const RoutineCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={routineVersionValidation.create({})}
+                validationSchema={async (values) => await validateRoutineValues(values, true)}
             >
                 {(formik) => <RoutineForm
                     display={display}

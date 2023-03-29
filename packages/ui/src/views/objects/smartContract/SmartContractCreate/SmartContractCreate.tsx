@@ -1,5 +1,4 @@
 import { SmartContractVersion, SmartContractVersionCreateInput } from "@shared/consts";
-import { smartContractVersionValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { smartContractVersionCreate } from "api/generated/endpoints/smartContractVersion_create";
 import { useCustomMutation } from "api/hooks";
@@ -11,7 +10,7 @@ import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeSmartContractVersion } from "utils/shape/models/smartContractVersion";
-import { smartContractInitialValues } from "..";
+import { smartContractInitialValues, validateSmartContractValues } from "..";
 import { SmartContractCreateProps } from "../types";
 
 export const SmartContractCreate = ({
@@ -47,7 +46,7 @@ export const SmartContractCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={smartContractVersionValidation.create({})}
+                validationSchema={async (values) => await validateSmartContractValues(values, true)}
             >
                 {(formik) => <SmartContractForm
                     display={display}

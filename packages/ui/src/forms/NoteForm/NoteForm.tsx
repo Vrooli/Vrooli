@@ -39,7 +39,7 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
 
     return (
         <>
-            <SideActionButtons display={display} zIndex={zIndex + 1}>
+            <SideActionButtons display={display} hasGridActions={true} zIndex={zIndex + 1}>
                 <EllipsisActionButton>
                     <RelationshipList
                         isEditing={true}

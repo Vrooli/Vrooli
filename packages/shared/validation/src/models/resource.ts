@@ -1,9 +1,9 @@
 import { ResourceUsedFor } from '@shared/consts';
 import * as yup from 'yup';
-import { adaHandleRegex, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from '../utils';
+import { adaHandleRegex, addHttps, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from '../utils';
 
 // Link must match one of the regex above
-const link = yup.string().transform(blankToUndefined).max(1024, maxStrErr).test(
+const link = yup.string().transform(blankToUndefined).transform(addHttps).max(1024, maxStrErr).test(
     'link',
     'Must be a URL, Cardano payment address, or ADA Handle',
     (value: string | undefined) => {

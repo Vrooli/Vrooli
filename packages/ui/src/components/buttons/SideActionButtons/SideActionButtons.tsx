@@ -7,10 +7,13 @@ import { SideActionButtonsProps } from "../types"
 export const SideActionButtons = ({
     children,
     display,
+    hasGridActions = false,
     isLeftHanded,
     sx,
     zIndex,
 }: SideActionButtonsProps) => {
+    const gridActionsHeight = hasGridActions ? '70px' : '0px'
+    const bottomNavHeight = display === 'page' ? '56px' : '0px'
     return (
         <Stack direction="row" spacing={2} sx={{
             position: 'fixed',
@@ -27,8 +30,8 @@ export const SideActionButtons = ({
             // and action buttons that might be displayed above the BottomNav
             marginBottom: {
                 // Only need to account for BottomNav when screen is small AND this is not for a dialog (which has no BottomNav)
-                xs: display === 'page' ? 'calc(56px + 70px + 16px + env(safe-area-inset-bottom))' : 'calc(70px + 16px + env(safe-area-inset-bottom))',
-                md: 'calc(70px + 16px + env(safe-area-inset-bottom))'
+                xs: `calc(${bottomNavHeight} + ${gridActionsHeight} + 16px + env(safe-area-inset-bottom))`,
+                md: `calc(${gridActionsHeight} + 16px + env(safe-area-inset-bottom))`
             },
             marginLeft: 'calc(16px + env(safe-area-inset-left))',
             marginRight: 'calc(16px + env(safe-area-inset-right))',

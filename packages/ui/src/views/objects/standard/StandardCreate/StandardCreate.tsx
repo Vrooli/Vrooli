@@ -1,5 +1,4 @@
 import { StandardVersion, StandardVersionCreateInput } from "@shared/consts";
-import { standardVersionValidation } from "@shared/validation";
 import { standardVersionCreate } from "api/generated/endpoints/standardVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
@@ -11,7 +10,7 @@ import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeStandardVersion } from "utils/shape/models/standardVersion";
-import { standardInitialValues } from "..";
+import { standardInitialValues, validateStandardValues } from "..";
 import { StandardCreateProps } from "../types";
 
 export const StandardCreate = ({
@@ -47,7 +46,7 @@ export const StandardCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={standardVersionValidation.create({})}
+                validationSchema={async (values) => await validateStandardValues(values, true)}
             >
                 {(formik) => <StandardForm
                     display={display}

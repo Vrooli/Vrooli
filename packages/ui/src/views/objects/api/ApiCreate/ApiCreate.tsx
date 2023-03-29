@@ -1,5 +1,4 @@
 import { ApiVersion, ApiVersionCreateInput } from "@shared/consts";
-import { apiVersionValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { useCustomMutation } from "api/hooks";
@@ -11,7 +10,7 @@ import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeApiVersion } from "utils/shape/models/apiVersion";
-import { apiInitialValues } from "..";
+import { apiInitialValues, validateApiValues } from "..";
 import { ApiCreateProps } from "../types";
 
 export const ApiCreate = ({
@@ -47,7 +46,7 @@ export const ApiCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={apiVersionValidation.create({})}
+                validationSchema={async (values) => await validateApiValues(values, true)}
             >
                 {(formik) => <ApiForm
                     display={display}

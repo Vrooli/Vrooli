@@ -1,5 +1,4 @@
 import { FindVersionInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
-import { projectVersionValidation } from '@shared/validation';
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
 import { projectVersionUpdate } from "api/generated/endpoints/projectVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
@@ -14,7 +13,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProjectVersion } from "utils/shape/models/projectVersion";
-import { projectInitialValues } from "..";
+import { projectInitialValues, validateProjectValues } from "..";
 import { ProjectUpdateProps } from "../types";
 
 export const ProjectUpdate = ({
@@ -59,7 +58,7 @@ export const ProjectUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={projectVersionValidation.update({})}
+                validationSchema={async (values) => await validateProjectValues(values, false)}
             >
                 {(formik) => <ProjectForm
                     display={display}

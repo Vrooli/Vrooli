@@ -49,7 +49,7 @@ export const createRel = <
     console.log('createRel START', item, relation, relTypes, isOneToOne, shape, preShape)
     // Check if shape is required
     if (relTypes.includes('Create')) {
-        if (!shape) throw new Error('Model is required if relTypes includes "Create"');
+        if (!shape) throw new Error(`Model is required if relTypes includes "Create": ${relation}`);
     }
     // Find relation data in item
     const relationData = item[relation];

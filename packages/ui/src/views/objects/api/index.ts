@@ -1,8 +1,10 @@
 import { ApiVersion, Session } from '@shared/consts';
 import { DUMMY_ID } from '@shared/uuid';
+import { apiVersionValidation } from '@shared/validation';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
-import { ApiVersionShape } from 'utils/shape/models/apiVersion';
+import { validateAndGetYupErrors } from 'utils/shape/general';
+import { ApiVersionShape, shapeApiVersion } from 'utils/shape/models/apiVersion';
 
 export * from './ApiCreate/ApiCreate';
 export * from './ApiUpdate/ApiUpdate';
@@ -39,3 +41,18 @@ export const apiInitialValues = (
     versionLabel: '1.0.0',
     ...existing,
 });
+
+export const transformApiValues = (o: ApiVersionShape, u?: ApiVersionShape) => {
+    return u === undefined
+        ? shapeApiVersion.create(o)
+        : shapeApiVersion.update(o, u)
+}
+
+export const validateApiValues = async (values: ApiVersionShape, isCreate: boolean) => {
+    const transformedValues = transformApiValues(values);
+    const validationSchema = isCreate
+        ? apiVersionValidation.create({})
+        : apiVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}

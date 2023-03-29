@@ -1,5 +1,4 @@
 import { Organization, OrganizationCreateInput } from "@shared/consts";
-import { organizationValidation } from '@shared/validation';
 import { organizationCreate } from "api/generated/endpoints/organization_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
@@ -11,7 +10,7 @@ import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeOrganization } from "utils/shape/models/organization";
-import { organizationInitialValues } from "..";
+import { organizationInitialValues, validateOrganizationValues } from "..";
 import { OrganizationCreateProps } from "../types";
 
 export const OrganizationCreate = ({
@@ -47,7 +46,7 @@ export const OrganizationCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={organizationValidation.create({})}
+                validationSchema={async (values) => await validateOrganizationValues(values, true)}
             >
                 {(formik) => <OrganizationForm
                     display={display}

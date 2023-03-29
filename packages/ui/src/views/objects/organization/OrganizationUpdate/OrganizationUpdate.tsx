@@ -1,5 +1,4 @@
 import { FindByIdInput, Organization, OrganizationUpdateInput } from "@shared/consts";
-import { organizationValidation } from "@shared/validation";
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { organizationUpdate } from "api/generated/endpoints/organization_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
@@ -14,7 +13,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeOrganization } from "utils/shape/models/organization";
-import { organizationInitialValues } from "..";
+import { organizationInitialValues, validateOrganizationValues } from "..";
 import { OrganizationUpdateProps } from "../types";
 
 export const OrganizationUpdate = ({
@@ -59,7 +58,7 @@ export const OrganizationUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={organizationValidation.update({})}
+                validationSchema={async (values) => await validateOrganizationValues(values, false)}
             >
                 {(formik) => <OrganizationForm
                     display={display}

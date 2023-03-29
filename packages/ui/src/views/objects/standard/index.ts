@@ -1,8 +1,10 @@
 import { Session, StandardVersion } from '@shared/consts';
 import { DUMMY_ID } from '@shared/uuid';
+import { standardVersionValidation } from '@shared/validation';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
-import { StandardVersionShape } from 'utils/shape/models/standardVersion';
+import { validateAndGetYupErrors } from 'utils/shape/general';
+import { shapeStandardVersion, StandardVersionShape } from 'utils/shape/models/standardVersion';
 
 export * from './StandardCreate/StandardCreate';
 export * from './StandardUpdate/StandardUpdate';
@@ -41,3 +43,18 @@ export const standardInitialValues = (
     versionLabel: '1.0.0',
     ...existing,
 });
+
+export const transformStandardValues = (o: StandardVersionShape, u?: StandardVersionShape) => {
+    return u === undefined
+        ? shapeStandardVersion.create(o)
+        : shapeStandardVersion.update(o, u)
+}
+
+export const validateStandardValues = async (values: StandardVersionShape, isCreate: boolean) => {
+    const transformedValues = transformStandardValues(values);
+    const validationSchema = isCreate
+        ? standardVersionValidation.create({})
+        : standardVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}

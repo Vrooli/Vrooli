@@ -1,10 +1,10 @@
 import * as yup from 'yup';
+import { id } from '../commonFields';
+import { YupModel } from '../types';
 import { opt } from './opt';
+import { optArr } from './optArr';
 import { req } from './req';
 import { reqArr } from './reqArr';
-import { id } from '../commonFields';
-import { optArr } from './optArr';
-import { YupModel } from '../types';
 
 export type RelationshipType = 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Update';
 
@@ -68,7 +68,7 @@ export const rel = <
 ): RelOutput<IsOneToOne, RelTypes[number], FieldName> => {
     // Check if model is required
     if (relTypes.includes('Create') || relTypes.includes('Update')) {
-        if (!model) throw new Error('Model is required if relTypes includes "Create" or "Update"');
+        if (!model) throw new Error(`Model is required if relTypes includes "Create" or "Update": ${relation}`);
     }
     // Initialize result
     const result: { [x: string]: any } = {};

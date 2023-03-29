@@ -28,6 +28,7 @@ export const typeDef = gql`
         Reminder
         ReminderList
         Report
+        Resource
         Routine
         RoutineVersion
         RunProject

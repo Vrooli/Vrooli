@@ -353,6 +353,8 @@ export function App() {
         });
         // Handle focus mode updates
         let focusModeSub = PubSub.get().subscribeFocusMode((data) => {
+            console.log('focusinggg in focus mode sub', data)
+            setCookieActiveFocusMode(data);
             setSession((prevState) => {
                 if (!prevState) return prevState;
                 const updatedUsers = prevState?.users?.map((user, idx) => {
@@ -369,7 +371,6 @@ export function App() {
                     users: updatedUsers ?? [],
                 };
             });
-            setCookieActiveFocusMode(data);
         });
         // Handle font size updates
         let fontSizeSub = PubSub.get().subscribeFontSize((data) => {

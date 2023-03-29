@@ -1,5 +1,4 @@
 import { FindVersionInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
-import { standardVersionValidation } from "@shared/validation";
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { standardVersionUpdate } from "api/generated/endpoints/standardVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
@@ -14,7 +13,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeStandardVersion } from "utils/shape/models/standardVersion";
-import { standardInitialValues } from "..";
+import { standardInitialValues, validateStandardValues } from "..";
 import { StandardUpdateProps } from "../types";
 
 export const StandardUpdate = ({
@@ -59,7 +58,7 @@ export const StandardUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={standardVersionValidation.update({})}
+                validationSchema={async (values) => await validateStandardValues(values, false)}
             >
                 {(formik) => <StandardForm
                     display={display}

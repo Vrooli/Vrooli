@@ -1,8 +1,10 @@
 import { Session, SmartContractVersion } from '@shared/consts';
 import { DUMMY_ID } from '@shared/uuid';
+import { smartContractVersionValidation } from '@shared/validation';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
-import { SmartContractVersionShape } from 'utils/shape/models/smartContractVersion';
+import { validateAndGetYupErrors } from 'utils/shape/general';
+import { shapeSmartContractVersion, SmartContractVersionShape } from 'utils/shape/models/smartContractVersion';
 
 export * from './SmartContractCreate/SmartContractCreate';
 export * from './SmartContractUpdate/SmartContractUpdate';
@@ -38,5 +40,21 @@ export const smartContractInitialValues = (
         jsonVariable: '',
         name: '',
     }],
+    versionLabel: '1.0.0',
     ...existing,
 });
+
+export const transformSmartContractValues = (o: SmartContractVersionShape, u?: SmartContractVersionShape) => {
+    return u === undefined
+        ? shapeSmartContractVersion.create(o)
+        : shapeSmartContractVersion.update(o, u)
+}
+
+export const validateSmartContractValues = async (values: SmartContractVersionShape, isCreate: boolean) => {
+    const transformedValues = transformSmartContractValues(values);
+    const validationSchema = isCreate
+        ? smartContractVersionValidation.create({})
+        : smartContractVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}

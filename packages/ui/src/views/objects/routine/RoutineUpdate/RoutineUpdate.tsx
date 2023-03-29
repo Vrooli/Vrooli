@@ -1,5 +1,4 @@
 import { FindVersionInput, RoutineVersion, RoutineVersionUpdateInput } from "@shared/consts";
-import { routineVersionValidation } from '@shared/validation';
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { routineVersionUpdate } from "api/generated/endpoints/routineVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
@@ -14,7 +13,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeRoutineVersion } from "utils/shape/models/routineVersion";
-import { routineInitialValues } from "..";
+import { routineInitialValues, validateRoutineValues } from "..";
 import { RoutineUpdateProps } from "../types";
 
 export const RoutineUpdate = ({
@@ -59,7 +58,7 @@ export const RoutineUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={routineVersionValidation.update({})}
+                validationSchema={async (values) => await validateRoutineValues(values, false)}
             >
                 {(formik) => <RoutineForm
                     display={display}

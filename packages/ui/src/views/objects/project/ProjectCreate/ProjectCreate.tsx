@@ -1,5 +1,4 @@
 import { ProjectVersion, ProjectVersionCreateInput } from "@shared/consts";
-import { projectVersionValidation } from '@shared/validation';
 import { projectVersionCreate } from "api/generated/endpoints/projectVersion_create";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
@@ -11,7 +10,7 @@ import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProjectVersion } from "utils/shape/models/projectVersion";
-import { projectInitialValues } from "..";
+import { projectInitialValues, validateProjectValues } from "..";
 import { ProjectCreateProps } from "../types";
 
 export const ProjectCreate = ({
@@ -47,7 +46,7 @@ export const ProjectCreate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={projectVersionValidation.create({})}
+                validationSchema={async (values) => await validateProjectValues(values, true)}
             >
                 {(formik) => <ProjectForm
                     display={display}

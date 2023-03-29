@@ -211,7 +211,7 @@ export const updateRel = <
 ): UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName> => {
     // Check if shape is required
     if (relTypes.includes('Create') || relTypes.includes('Update')) {
-        if (!shape) throw new Error('Model is required if relTypes includes "Create" or "Update"');
+        if (!shape) throw new Error(`Model is required if relTypes includes "Create" or "Update": ${relation}`);
     }
     // Find relation data in item
     const originalRelationData = original[relation];

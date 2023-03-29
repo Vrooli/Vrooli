@@ -1,5 +1,4 @@
 import { FindVersionInput, NoteVersion, NoteVersionUpdateInput } from "@shared/consts";
-import { noteVersionValidation } from '@shared/validation';
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 import { noteVersionUpdate } from "api/generated/endpoints/noteVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
@@ -14,7 +13,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeNoteVersion } from "utils/shape/models/noteVersion";
-import { noteInitialValues } from "..";
+import { noteInitialValues, validateNoteValues } from "..";
 import { NoteUpdateProps } from "../types";
 
 export const NoteUpdate = ({
@@ -59,7 +58,7 @@ export const NoteUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={noteVersionValidation.update({})}
+                validationSchema={async (values) => await validateNoteValues(values, false)}
             >
                 {(formik) => <NoteForm
                     display={display}

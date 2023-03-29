@@ -1,5 +1,4 @@
 import { ApiVersion, ApiVersionUpdateInput, FindVersionInput } from "@shared/consts";
-import { apiVersionValidation } from '@shared/validation';
 import { mutationWrapper } from "api";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
@@ -14,7 +13,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeApiVersion } from "utils/shape/models/apiVersion";
-import { apiInitialValues } from "..";
+import { apiInitialValues, validateApiValues } from "..";
 import { ApiUpdateProps } from "../types";
 
 export const ApiUpdate = ({
@@ -59,7 +58,7 @@ export const ApiUpdate = ({
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={apiVersionValidation.update({})}
+                validationSchema={async (values) => await validateApiValues(values, false)}
             >
                 {(formik) => <ApiForm
                     display={display}

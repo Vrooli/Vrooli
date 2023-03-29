@@ -1,8 +1,10 @@
 import { RoutineVersion, Session } from '@shared/consts';
 import { DUMMY_ID, uuid } from '@shared/uuid';
+import { routineVersionValidation } from '@shared/validation';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getUserLanguages } from 'utils/display/translationTools';
-import { RoutineVersionShape } from 'utils/shape/models/routineVersion';
+import { validateAndGetYupErrors } from 'utils/shape/general';
+import { RoutineVersionShape, shapeRoutineVersion } from 'utils/shape/models/routineVersion';
 
 export * from './RoutineCreate/RoutineCreate';
 export * from './RoutineUpdate/RoutineUpdate';
@@ -43,3 +45,18 @@ export const routineInitialValues = (
     versionLabel: '1.0.0',
     ...existing,
 });
+
+export const transformRoutineValues = (o: RoutineVersionShape, u?: RoutineVersionShape) => {
+    return u === undefined
+        ? shapeRoutineVersion.create(o)
+        : shapeRoutineVersion.update(o, u)
+}
+
+export const validateRoutineValues = async (values: RoutineVersionShape, isCreate: boolean) => {
+    const transformedValues = transformRoutineValues(values);
+    const validationSchema = isCreate
+        ? routineVersionValidation.create({})
+        : routineVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}

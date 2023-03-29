@@ -13,8 +13,8 @@ import { useCallback, useContext, useRef } from 'react';
 import { getUserLanguages } from 'utils/display/translationTools';
 import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
+import { validateAndGetYupErrors } from 'utils/shape/general';
 import { ResourceShape, shapeResource } from 'utils/shape/models/resource';
-import { ObjectSchema, ValidationError } from 'yup';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { ResourceDialogProps } from '../types';
@@ -23,42 +23,6 @@ const helpText =
     `## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service`
 
 const titleId = "resource-dialog-title";
-
-const isYupValidationError = (error: any): error is ValidationError => {
-    return error.name === 'ValidationError';
-}
-
-const validateAndGetYupErrors = async (
-    schema: ObjectSchema<any>,
-    values: any
-): Promise<{} | Record<string, string>> => {
-    console.log('vagye a', schema, values)
-    try {
-        await schema.validate(values);
-        console.log('vagye b')
-        return {}; // Return an empty object if validation succeeds
-    } catch (error) {
-        console.log('vagye c', typeof error, (error as any).name);
-        if (isYupValidationError(error)) {
-            // Check if the inner array is not empty
-            if (error.inner.length > 0) {
-                // Convert the Yup error object to a Formik-compatible error object
-                return error.inner.reduce((errors, err) => {
-                    if (err && err.path) {
-                        errors[err.path] = err.message;
-                    }
-                    return errors;
-                }, {});
-            } else if (error.path) {
-                // Handle the case when the inner array is empty
-                return { [error.path]: error.message };
-            }
-        }
-        console.log('vagye e');
-        // If it's not a Yup ValidationError, re-throw the error
-        throw error;
-    } j
-};
 
 export const ResourceDialog = ({
     mutate,

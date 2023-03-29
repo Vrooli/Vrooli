@@ -1,9 +1,12 @@
 import { useTheme } from '@mui/material';
 import { ScheduleRecurrenceType, ScheduleSearchResult } from '@shared/consts';
+import { AddIcon, PlayIcon } from '@shared/icons';
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { calculateOccurrences } from '@shared/utils';
 import { uuid } from '@shared/uuid';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { SideActionButtons } from 'components/buttons/SideActionButtons/SideActionButtons';
 import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
@@ -334,6 +337,24 @@ export const CalendarView = ({
     if (!localizer) return <FullPageSpinner />
     return (
         <>
+            {/* Add event button */}
+            <SideActionButtons
+                // Treat as a dialog when build view is open
+                display={display}
+                zIndex={201}
+            >
+                <ColorIconButton
+                    aria-label="create event"
+                    background={palette.secondary.main}
+                    sx={{
+                        padding: 0,
+                        width: '54px',
+                        height: '54px',
+                    }}
+                >
+                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                </ColorIconButton>
+            </SideActionButtons>
             <TopBar
                 display={display}
                 onClose={() => { }}
