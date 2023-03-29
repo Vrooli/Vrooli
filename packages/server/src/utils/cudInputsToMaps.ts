@@ -71,9 +71,9 @@ export const cudInputsToMaps = async ({
         idsByAction = merge(idsByAction, childIdsByAction);
         idsByType = merge(idsByType, childIdsByType);
         inputsByType = merge(inputsByType, childInputsByType);
-        // Add input to inputsByType
-        if (!inputsByType[objectType]) inputsByType[objectType] = { Create: [], Update: [], Delete: [] };
-        inputsByType[objectType]![object.actionType].push(object.data);
+        // // Add input to inputsByType
+        // if (!inputsByType[objectType]) inputsByType[objectType] = { Create: [], Update: [], Delete: [] };
+        // inputsByType[objectType]![object.actionType].push(object.data);
     });
     // Remove placeholder ids from idsByType and idsByAction
     const withoutPlaceholders = await convertPlaceholders({

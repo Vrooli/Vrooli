@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
-import { GqlModelType, MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from "@shared/consts";
+import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from "@shared/consts";
 import { resourceListValidation } from "@shared/validation";
-import { findFirstRel, shapeHelper } from "../builders";
+import { findFirstRel, shapeHelper, uppercaseFirstLetter } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
@@ -137,7 +137,7 @@ export const ResourceListModel: ModelLogic<{
                 'smartContractVersion',
                 'standardVersion',
             ])
-            const { validate } = getLogic(['validate'], resourceOnType! as GqlModelType, ['en'], 'ResourceListModel.validate.owner');
+            const { validate } = getLogic(['validate'], uppercaseFirstLetter(resourceOnType!) as any, ['en'], 'ResourceListModel.validate.owner');
             return validate.owner(resourceOnData);
         },
         isDeleted: () => false,

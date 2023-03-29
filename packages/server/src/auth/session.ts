@@ -103,6 +103,39 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
                             }
                         }
                     },
+                    resourceList: {
+                        select: {
+                            id: true,
+                            created_at: true,
+                            updated_at: true,
+                            resources: {
+                                select: {
+                                    id: true,
+                                    created_at: true,
+                                    updated_at: true,
+                                    index: true,
+                                    link: true,
+                                    usedFor: true,
+                                    translations: {
+                                        select: {
+                                            id: true,
+                                            description: true,
+                                            language: true,
+                                            name: true,
+                                        }
+                                    }
+                                }
+                            },
+                            translations: {
+                                select: {
+                                    id: true,
+                                    description: true,
+                                    language: true,
+                                    name: true,
+                                }
+                            }
+                        }
+                    },
                     schedule: {
                         select: {
                             id: true,

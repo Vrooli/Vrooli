@@ -97,6 +97,28 @@ query profile {
                 }
             }
         }
+        resourceList {
+            id
+            created_at
+            translations {
+                id
+                language
+                description
+                name
+            }
+            resources {
+                id
+                index
+                link
+                usedFor
+                translations {
+                    id
+                    language
+                    description
+                    name
+                }
+            }
+        }
         schedule {
             ...Schedule_common
         }

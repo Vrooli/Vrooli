@@ -1,13 +1,12 @@
-import { MaxObjects, ResourceSortBy } from "@shared/consts";
-import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { ResourceListModel } from "./resourceList";
-import { bestLabel, translationShapeHelper } from "../utils";
-import { SelectWrap } from "../builders/types";
+import { MaxObjects, Resource, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput } from "@shared/consts";
 import { resourceValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, translationShapeHelper } from "../utils";
+import { ResourceListModel } from "./resourceList";
+import { ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -35,8 +34,14 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
     format: {
-        gqlRelMap: { __typename },
-        prismaRelMap: { __typename },
+        gqlRelMap: {
+            __typename,
+            list: 'ResourceList',
+        },
+        prismaRelMap: {
+            __typename,
+            list: 'ResourceList',
+        },
         countFields: {},
     },
     mutate: {

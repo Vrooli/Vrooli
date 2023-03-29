@@ -72,6 +72,28 @@ mutation logOut($input: LogOutInput!) {
                         }
                     }
                 }
+                resourceList {
+                    id
+                    created_at
+                    translations {
+                        id
+                        language
+                        description
+                        name
+                    }
+                    resources {
+                        id
+                        index
+                        link
+                        usedFor
+                        translations {
+                            id
+                            language
+                            description
+                            name
+                        }
+                    }
+                }
                 schedule {
                     ...Schedule_common
                 }
@@ -142,6 +164,28 @@ mutation logOut($input: LogOutInput!) {
                         dueDate
                         index
                         isComplete
+                    }
+                }
+            }
+            resourceList {
+                id
+                created_at
+                translations {
+                    id
+                    language
+                    description
+                    name
+                }
+                resources {
+                    id
+                    index
+                    link
+                    usedFor
+                    translations {
+                        id
+                        language
+                        description
+                        name
                     }
                 }
             }

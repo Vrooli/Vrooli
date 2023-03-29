@@ -319,9 +319,12 @@ export async function permissionsCheck(
         for (const id of ids) {
             // Get permissions for this ID
             const permissions = permissionsById[id];
-            // Make sure permissions exists. If not, something went wrong.
+            // Make sure permissions exists. If not, and not create, something went wrong.
             if (!permissions) {
-                throw new CustomError('0390', 'InternalError', userData?.languages ?? ['en'], { action, id, __typename: authDataById[id].__typename });
+                if (action !== 'Create') {
+                    throw new CustomError('0390', 'InternalError', userData?.languages ?? ['en'], { action, id, __typename: authDataById[id].__typename });
+                }
+                continue;
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {

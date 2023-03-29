@@ -20,6 +20,7 @@ export const focusMode: GqlPartial<FocusMode> = {
             label: true,
         },
         reminderList: async () => rel((await import('./reminderList')).reminderList, 'full', { omit: 'focusMode' }),
+        resourceList: async () => rel((await import('./resourceList')).resourceList, 'full', { omit: 'focusMode' }),
         schedule: { __use: 0 },
     },
     list: {
