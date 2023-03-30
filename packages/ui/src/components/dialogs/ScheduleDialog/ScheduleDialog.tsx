@@ -10,28 +10,11 @@ import { BaseFormRef } from 'forms/BaseForm/BaseForm';
 import { ScheduleForm } from 'forms/ScheduleForm/ScheduleForm';
 import { useCallback, useRef } from 'react';
 import { PubSub } from 'utils/pubsub';
-import { validateAndGetYupErrors } from 'utils/shape/general';
+import { toDatetimeLocal, validateAndGetYupErrors } from 'utils/shape/general';
 import { ScheduleShape, shapeSchedule } from 'utils/shape/models/schedule';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { ScheduleDialogProps } from '../types';
-
-/**
- * Format a Date object as a string for use with a datetime-local input field.
- *
- * @param {Date} date - The Date object to be formatted.
- * @returns {string} - A formatted string in the "YYYY-MM-DDTHH:mm" format.
- */
-const toDatetimeLocal = (date: Date) => {
-    const localDate = new Date(date);
-    const yyyy = localDate.getFullYear().toString().padStart(4, "0");
-    const mm = (localDate.getMonth() + 1).toString().padStart(2, "0");
-    const dd = localDate.getDate().toString().padStart(2, "0");
-    const hh = localDate.getHours().toString().padStart(2, "0");
-    const min = localDate.getMinutes().toString().padStart(2, "0");
-
-    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-};
 
 const titleId = "schedule-dialog-title";
 
@@ -106,7 +89,7 @@ export const ScheduleDialog = ({
                         exceptions: [],
                         labelsConnect: [],
                         labelsCreate: [],
-                        recurrencesCreate: [],
+                        recurrences: [],
                         ...partialData,
                     } as ScheduleShape}
                     onSubmit={(values, helpers) => {

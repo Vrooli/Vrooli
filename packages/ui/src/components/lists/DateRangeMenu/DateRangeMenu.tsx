@@ -1,8 +1,8 @@
-import { LocalizationProvider, MobileDatePicker } from '@mui/lab';
-import AdapterDateFns from '@mui/lab/AdapterDateFns';
-import { Box, Button, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Button, Grid, Popover, Stack, TextField } from "@mui/material";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { fromDatetimeLocal, toDatetimeLocal } from "utils/shape/general";
 import { DateRangeMenuProps } from "../types";
 
 export const DateRangeMenu = ({
@@ -14,7 +14,6 @@ export const DateRangeMenu = ({
     range,
     strictIntervalRange
 }: DateRangeMenuProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
@@ -73,35 +72,48 @@ export const DateRangeMenu = ({
             onClose={onClose}
             disableScrollLock={true}
         >
-            <Typography textAlign="center" p={1} sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-            }}>{t(`SelectDateRange`)}</Typography>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <Box p={2}>
-                    <Stack direction="column">
-                        <MobileDatePicker
-                            label={t(`Start`)}
-                            inputFormat="dd/MM/yyyy"
-                            value={after}
-                            onChange={handleAfterChange}
-                            renderInput={(params) => <TextField {...params} sx={{ marginBottom: 1 }} />}
-                        />
-                        <MobileDatePicker
-                            label={t(`End`)}
-                            inputFormat="dd/MM/yyyy"
-                            value={before}
-                            onChange={handleBeforeChange}
-                            renderInput={(params) => <TextField {...params} sx={{ marginBottom: 1 }} />}
-                        />
-                        <Button
-                            type="submit"
+            <TopBar
+                display="dialog"
+                onClose={onClose}
+                titleData={{
+                    titleKey: 'SelectDateRange',
+                }}
+            />
+            <Stack direction="column" spacing={2} m={2}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
                             fullWidth
-                            onClick={() => { onSubmit(after, before); onClose() }}
-                        >{t(`Ok`)}</Button>
-                    </Stack>
-                </Box>
-            </LocalizationProvider>
+                            name="start"
+                            label={t('Start')}
+                            type="datetime-local"
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            value={after ? toDatetimeLocal(after) : ''}
+                            onChange={(e) => handleAfterChange(fromDatetimeLocal(e.target.value))}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            fullWidth
+                            name="end"
+                            label={t('End')}
+                            type="datetime-local"
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            value={before ? toDatetimeLocal(before) : ''}
+                            onChange={(e) => handleBeforeChange(fromDatetimeLocal(e.target.value))}
+                        />
+                    </Grid>
+                </Grid>
+                <Button
+                    type="submit"
+                    fullWidth
+                    onClick={() => { onSubmit(after, before); onClose() }}
+                >{t(`Ok`)}</Button>
+            </Stack>
         </Popover>
     )
 }
