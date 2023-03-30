@@ -66,6 +66,7 @@ export const NavList = () => {
             <AccountMenu
                 anchorEl={accountMenuAnchor}
                 onClose={closeAccountMenu}
+                zIndex={1000}
             />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({

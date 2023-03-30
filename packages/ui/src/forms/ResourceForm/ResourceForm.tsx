@@ -75,7 +75,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                     paddingBottom: '64px',
                 }}
             >
-                <Stack direction="column" spacing={2} paddingTop={2}>
+                <Stack direction="column" spacing={2} padding={2}>
                     {/* Language select */}
                     <LanguageInput
                         currentLanguage={language}
@@ -135,19 +135,19 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                         name="description"
                     />
                 </Stack>
-                <GridSubmitButtons
-                    display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={{
+                    ...props.errors,
+                    ...translationErrors,
+                }}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </>
     )
 })

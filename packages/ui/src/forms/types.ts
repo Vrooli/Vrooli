@@ -59,6 +59,7 @@ export interface SignUpFormProps extends FormProps {
 export interface ApiFormProps extends BaseObjectFormProps {
     versions: string[];
 }
+export interface FocusModeFormProps extends BaseObjectFormProps { }
 export interface NoteFormProps extends BaseObjectFormProps {
     versions: string[];
 }
@@ -73,6 +74,9 @@ export interface ResourceFormProps extends BaseObjectFormProps { }
 export interface RoutineFormProps extends BaseObjectFormProps {
     versions: string[];
 }
+export interface ScheduleFormProps extends BaseObjectFormProps { }
+export interface ScheduleExceptionFormProps extends BaseObjectFormProps { }
+export interface ScheduleRecurrenceFormProps extends BaseObjectFormProps { }
 export interface SmartContractFormProps extends BaseObjectFormProps {
     versions: string[];
 }

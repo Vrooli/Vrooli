@@ -1,4 +1,3 @@
-import { DialogContent } from '@mui/material';
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { DUMMY_ID } from '@shared/uuid';
 import { resourceValidation } from '@shared/validation';
@@ -86,73 +85,72 @@ export const ResourceDialog = ({
                     helpText={helpText}
                     onClose={handleClose}
                 />
-                <DialogContent>
-                    <Formik
-                        enableReinitialize={true}
-                        initialValues={{
-                            __typename: 'Resource' as const,
-                            id: partialData?.id ?? DUMMY_ID,
-                            index: partialData?.index ?? 0,
-                            link: partialData?.link ?? '',
-                            list: {
-                                __typename: 'ResourceList' as const,
-                                id: listId
-                            },
-                            usedFor: partialData?.usedFor ?? ResourceUsedFor.Context,
-                            translations: partialData?.translations ?? [{
-                                __typename: 'ResourceTranslation' as const,
-                                id: DUMMY_ID,
-                                language: getUserLanguages(session)[0],
-                                description: '',
-                                name: '',
-                            }],
-                        } as ResourceShape}
-                        onSubmit={(values, helpers) => {
-                            if (mutate) {
-                                const onSuccess = (data: Resource) => {
-                                    (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
-                                    helpers.resetForm();
-                                    onClose();
-                                }
-                                console.log('yeeeet', index, values, shapeResource.create(values));
-                                // If index is negative, create
-                                const isCreating = index < 0;
-                                if (!isCreating && (!partialData || !partialData.id)) {
-                                    PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: 'Error' });
-                                    return;
-                                }
-                                mutationWrapper<Resource, ResourceCreateInput | ResourceUpdateInput>({
-                                    mutation: isCreating ? addMutation : updateMutation,
-                                    input: transformValues(values),
-                                    successMessage: () => ({ key: isCreating ? 'ResourceCreated' : 'ResourceUpdated' }),
-                                    successCondition: (data) => data !== null,
-                                    onSuccess,
-                                    onError: () => { helpers.setSubmitting(false) },
-                                })
-                            } else {
-                                onCreated({
-                                    ...values,
-                                    created_at: partialData?.created_at ?? new Date().toISOString(),
-                                    updated_at: partialData?.updated_at ?? new Date().toISOString(),
-                                } as Resource);
+                <Formik
+                    enableReinitialize={true}
+                    initialValues={{
+                        __typename: 'Resource' as const,
+                        id: DUMMY_ID,
+                        index: 0,
+                        link: '',
+                        list: {
+                            __typename: 'ResourceList' as const,
+                            id: listId
+                        },
+                        usedFor: ResourceUsedFor.Context,
+                        translations: [{
+                            __typename: 'ResourceTranslation' as const,
+                            id: DUMMY_ID,
+                            language: getUserLanguages(session)[0],
+                            description: '',
+                            name: '',
+                        }],
+                        ...partialData,
+                    } as ResourceShape}
+                    onSubmit={(values, helpers) => {
+                        if (mutate) {
+                            const onSuccess = (data: Resource) => {
+                                (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                                 helpers.resetForm();
                                 onClose();
                             }
-                        }}
-                        validate={async (values) => await validateFormValues(values)}
-                    >
-                        {(formik) => <ResourceForm
-                            display="dialog"
-                            isCreate={index < 0}
-                            isLoading={addLoading || updateLoading}
-                            isOpen={isOpen}
-                            onCancel={handleClose}
-                            ref={formRef}
-                            zIndex={zIndex}
-                            {...formik}
-                        />}
-                    </Formik>
-                </DialogContent>
+                            console.log('yeeeet', index, values, shapeResource.create(values));
+                            // If index is negative, create
+                            const isCreating = index < 0;
+                            if (!isCreating && (!partialData || !partialData.id)) {
+                                PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: 'Error' });
+                                return;
+                            }
+                            mutationWrapper<Resource, ResourceCreateInput | ResourceUpdateInput>({
+                                mutation: isCreating ? addMutation : updateMutation,
+                                input: transformValues(values),
+                                successMessage: () => ({ key: isCreating ? 'ResourceCreated' : 'ResourceUpdated' }),
+                                successCondition: (data) => data !== null,
+                                onSuccess,
+                                onError: () => { helpers.setSubmitting(false) },
+                            })
+                        } else {
+                            onCreated({
+                                ...values,
+                                created_at: partialData?.created_at ?? new Date().toISOString(),
+                                updated_at: partialData?.updated_at ?? new Date().toISOString(),
+                            } as Resource);
+                            helpers.resetForm();
+                            onClose();
+                        }
+                    }}
+                    validate={async (values) => await validateFormValues(values)}
+                >
+                    {(formik) => <ResourceForm
+                        display="dialog"
+                        isCreate={index < 0}
+                        isLoading={addLoading || updateLoading}
+                        isOpen={isOpen}
+                        onCancel={handleClose}
+                        ref={formRef}
+                        zIndex={zIndex}
+                        {...formik}
+                    />}
+                </Formik>
             </LargeDialog>
         </>
     )

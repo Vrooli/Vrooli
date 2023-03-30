@@ -1,5 +1,5 @@
 import { DialogProps, PopoverProps } from '@mui/material';
-import { Comment, DeleteType, Node, NodeRoutineList, NodeRoutineListItem, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine } from '@shared/consts';
+import { Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from 'components/text/types';
@@ -72,6 +72,16 @@ export interface DialogTitleProps {
 export interface FindObjectDialogProps {
     handleClose: (objectLink?: string) => void;
     isOpen: boolean;
+    zIndex: number;
+}
+
+export interface FocusModeDialogProps extends Omit<DialogProps, 'open'> {
+    isCreate: boolean;
+    isOpen: boolean;
+    onClose: () => any;
+    onCreated: (focusMode: FocusMode) => any;
+    onUpdated: (focusMode: FocusMode) => any;
+    partialData?: Partial<FocusMode>;
     zIndex: number;
 }
 
@@ -206,6 +216,17 @@ export interface LinkDialogProps {
     nodeFrom?: NodeShape | null; // Initial "from" node
     nodeTo?: NodeShape | null; // Initial "to" node
     routineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
+    zIndex: number;
+}
+
+export interface ScheduleDialogProps extends Omit<DialogProps, 'open'> {
+    isCreate: boolean;
+    isMutate: boolean;
+    isOpen: boolean;
+    onClose: () => any;
+    onCreated: (schedule: Schedule) => any;
+    onUpdated: (schedule: Schedule) => any;
+    partialData?: Partial<Schedule>;
     zIndex: number;
 }
 

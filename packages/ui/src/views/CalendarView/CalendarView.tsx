@@ -1,12 +1,13 @@
 import { useTheme } from '@mui/material';
-import { ScheduleRecurrenceType, ScheduleSearchResult } from '@shared/consts';
-import { AddIcon, PlayIcon } from '@shared/icons';
+import { Schedule, ScheduleRecurrenceType, ScheduleSearchResult } from '@shared/consts';
+import { AddIcon } from '@shared/icons';
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { calculateOccurrences } from '@shared/utils';
 import { uuid } from '@shared/uuid';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { SideActionButtons } from 'components/buttons/SideActionButtons/SideActionButtons';
+import { ScheduleDialog } from 'components/dialogs/ScheduleDialog/ScheduleDialog';
 import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
@@ -334,9 +335,40 @@ export const CalendarView = ({
         console.log('CalendarEvent clicked:', event);
     }, []);
 
+    // Handle scheduling
+    const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+    const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+    const handleAddSchedule = () => { setIsScheduleDialogOpen(true) };
+    const handleUpdateSchedule = (schedule: Schedule) => {
+        setEditingSchedule(schedule);
+        setIsScheduleDialogOpen(true);
+    };
+    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false) };
+    const handleScheduleCreated = (created: Schedule) => {
+        //TODO
+        setIsScheduleDialogOpen(false);
+    };
+    const handleScheduleUpdated = (updated: Schedule) => {
+        //TODO
+        setIsScheduleDialogOpen(false);
+    };
+    const handleDeleteSchedule = () => {
+        //TODO
+    };
+
     if (!localizer) return <FullPageSpinner />
     return (
         <>
+            {/* Dialog for creating/updating schedules */}
+            <ScheduleDialog
+                isCreate={editingSchedule === null}
+                isMutate={true}
+                isOpen={isScheduleDialogOpen}
+                onClose={handleCloseScheduleDialog}
+                onCreated={handleScheduleCreated}
+                onUpdated={handleScheduleUpdated}
+                zIndex={202}
+            />
             {/* Add event button */}
             <SideActionButtons
                 // Treat as a dialog when build view is open
@@ -346,6 +378,7 @@ export const CalendarView = ({
                 <ColorIconButton
                     aria-label="create event"
                     background={palette.secondary.main}
+                    onClick={handleAddSchedule}
                     sx={{
                         padding: 0,
                         width: '54px',

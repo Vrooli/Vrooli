@@ -297,6 +297,8 @@ export interface TagSelectorBaseProps {
     tags: (TagShape | Tag)[];
 }
 
+export interface TimezoneSelectorProps extends Omit<SelectorProps<string>, 'getOptionLabel' | 'options'> { }
+
 export interface TranslatedMarkdownInputProps {
     disabled?: boolean;
     language: string;

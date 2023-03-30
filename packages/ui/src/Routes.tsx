@@ -24,7 +24,7 @@ const {
     SettingsNotificationsView,
     SettingsProfileView,
     SettingsPrivacyView,
-    SettingsFocusModesView: SettingsSchedulesView,
+    SettingsFocusModesView,
 } = lazily(() => import('./views/settings'));
 const {
     PrivacyPolicyView,
@@ -282,8 +282,8 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={LINKS.SettingsPrivacy} mustBeLoggedIn={true} {...props}>
                     <SettingsPrivacyView />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsSchedules} mustBeLoggedIn={true} {...props}>
-                    <SettingsSchedulesView />
+                <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} {...props}>
+                    <SettingsFocusModesView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
                     <SmartContractCreate onCancel={() => { }} onCreated={() => { }} />

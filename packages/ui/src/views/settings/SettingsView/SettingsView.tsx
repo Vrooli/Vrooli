@@ -47,7 +47,7 @@ export const displaySettingsData: SettingsData[] = [
     {
         title: 'Schedule',
         description: 'ScheduleSettingsDescription',
-        link: 'SettingsSchedules',
+        link: 'SettingsFocusModes',
         Icon: HistoryIcon,
     },
 ];

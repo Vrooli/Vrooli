@@ -33,7 +33,7 @@ export const LINKS = {
     SettingsAuthentication: '/settings/auth',
     SettingsDisplay: '/settings/display',
     SettingsNotifications: '/settings/notifications',
-    SettingsSchedules: '/settings/schedules',
+    SettingsFocusModes: '/settings/focus',
     SmartContract: '/contract',
     Standard: '/standard',
     Start: '/start',

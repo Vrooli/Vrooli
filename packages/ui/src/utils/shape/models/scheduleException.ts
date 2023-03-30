@@ -1,12 +1,19 @@
 import { ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { shapeUpdate } from "./tools";
+import { ScheduleShape } from "./schedule";
+import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
-export type ScheduleExceptionShape = Pick<ScheduleException, 'id'> & {
+export type ScheduleExceptionShape = Pick<ScheduleException, 'id' | 'originalStartTime' | 'newStartTime' | 'newEndTime'> & {
     __typename?: 'ScheduleException';
+    schedule: ScheduleShape | { __typename?: 'Schedule', id: string };
 }
 
 export const shapeScheduleException: ShapeModel<ScheduleExceptionShape, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput> = {
-    create: (d) => ({}) as any,
-    update: (o, u, a) => shapeUpdate(u, {}, a) as any
+    create: (d) => ({
+        ...createPrims(d, 'id', 'originalStartTime', 'newStartTime', 'newEndTime'),
+        ...createRel(d, 'schedule', ['Connect'], 'one'),
+    }),
+    update: (o, u, a) => shapeUpdate(u, {
+        ...updatePrims(o, u, 'id', 'originalStartTime', 'newStartTime', 'newEndTime'),
+    }, a)
 }
