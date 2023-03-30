@@ -80,6 +80,7 @@ export const BookmarkListModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
+            user: 'User',
         }),
         visibility: {
             private: {},

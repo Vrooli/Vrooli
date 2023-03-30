@@ -138,6 +138,7 @@ export const SearchMap = {
     labelsIds: (ids: Maybe<string[]>) => ({ labels: { some: { label: { id: { in: ids } } } } }),
     languageIn: (languages: Maybe<string[]>) => ({ language: { in: languages } }),
     lastViewedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('lastViewedAt', time),
+    listId: (id: Maybe<string>) => oneToOneId(id, 'list'),
     maxAmount: (amount: Maybe<number>) => ({ amount: { lte: amount } }),
     maxBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { lte: bookmarks } }),
     maxBookmarksRoot: (bookmarks: Maybe<number>) => ({ root: { bookmarks: { lte: bookmarks } } }),

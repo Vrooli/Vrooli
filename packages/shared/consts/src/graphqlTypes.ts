@@ -510,12 +510,27 @@ export type BookmarkListUpdateInput = {
 
 export type BookmarkSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  apiId?: InputMaybe<Scalars['ID']>;
+  commentId?: InputMaybe<Scalars['ID']>;
   excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  issueId?: InputMaybe<Scalars['ID']>;
   listId?: InputMaybe<Scalars['ID']>;
+  noteId?: InputMaybe<Scalars['ID']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  postId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  questionAnswerId?: InputMaybe<Scalars['ID']>;
+  questionId?: InputMaybe<Scalars['ID']>;
+  quizId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
+  smartContractId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<BookmarkSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
+  tagId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type BookmarkSearchResult = {

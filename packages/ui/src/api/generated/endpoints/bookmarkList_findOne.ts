@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 import { Api_list } from '../fragments/Api_list';
 import { Api_nav } from '../fragments/Api_nav';
-import { Bookmark_list } from '../fragments/Bookmark_list';
+import { Bookmark_full } from '../fragments/Bookmark_full';
 import { Comment_list } from '../fragments/Comment_list';
 import { Issue_list } from '../fragments/Issue_list';
 import { Label_common } from '../fragments/Label_common';
@@ -29,7 +29,7 @@ import { User_nav } from '../fragments/User_nav';
 
 export const bookmarkListFindOne = gql`${Api_list}
 ${Api_nav}
-${Bookmark_list}
+${Bookmark_full}
 ${Comment_list}
 ${Issue_list}
 ${Label_common}
@@ -58,7 +58,7 @@ ${User_nav}
 query bookmarkList($input: FindByIdInput!) {
   bookmarkList(input: $input) {
     bookmarks {
-        ...Bookmark_list
+        ...Bookmark_full
     }
     id
     created_at

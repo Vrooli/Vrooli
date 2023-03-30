@@ -56,8 +56,13 @@ export const useBookmarker = ({
 
     const handleRemove = useCallback(async () => {
         // First we must query for bookmarks on this object. There may be more than one.
-        await getData({ variables: { ids: [objectId!] } });
-    }, [getData, objectId]);
+        await getData({
+            variables: {
+                //Lowercase first letter of objectType and add "Id"
+                [`${objectType[0].toLowerCase()}${objectType.slice(1)}Id`]: objectId,
+            }
+        });
+    }, [getData, objectId, objectType]);
     useEffect(() => {
         if (!data || loading) return;
         const bookmarks = data?.edges.map(edge => edge.node);

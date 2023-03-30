@@ -1,10 +1,12 @@
 import { Box, useTheme } from '@mui/material';
-import { BookmarkFor } from '@shared/consts';
+import { Bookmark, BookmarkFor } from '@shared/consts';
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from '@shared/icons';
 import { uuidValidate } from '@shared/uuid';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { ObjectActionComplete } from 'utils/actions/objectActions';
 import { getCurrentUser } from 'utils/authentication/session';
 import { useBookmarker } from 'utils/hooks/useBookmarker';
+import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
 import { BookmarkButtonProps } from '../types';
 
@@ -27,10 +29,31 @@ export const BookmarkButton = ({
     const [internalIsBookmarked, setInternalIsBookmarked] = useState<boolean | null>(isBookmarked ?? null);
     useEffect(() => setInternalIsBookmarked(isBookmarked ?? false), [isBookmarked]);
 
+    const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
+        console.log('action complete', action, data)
+        switch (action) {
+            // When a bookmark is created, we assign a list automatically. 
+            // So we must show a snackbar to inform the user that the bookmark was created, 
+            // with an option to change the list.
+            case ObjectActionComplete.Bookmark:
+                const listName = (data as Bookmark).list.label;
+                PubSub.get().publishSnack({
+                    message: `Added to list "${listName}"`,
+                    buttonKey: 'Change',
+                    buttonClicked: () => {
+                        console.log('TODO')
+                    },
+                    severity: 'Success',
+                });
+                break;
+            // When bookmark is removed, we don't need to do anything
+        }
+    }, []);
+
     const { handleBookmark } = useBookmarker({
         objectId,
         objectType: bookmarkFor as BookmarkFor,
-        onActionComplete: () => { },//TODO
+        onActionComplete,
     });
 
     const handleClick = useCallback((event: any) => {

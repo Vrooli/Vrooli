@@ -1,6 +1,7 @@
 import gql from 'graphql-tag';
 import { Api_list } from '../fragments/Api_list';
 import { Api_nav } from '../fragments/Api_nav';
+import { BookmarkList_common } from '../fragments/BookmarkList_common';
 import { Comment_list } from '../fragments/Comment_list';
 import { Issue_list } from '../fragments/Issue_list';
 import { Label_common } from '../fragments/Label_common';
@@ -28,6 +29,7 @@ import { User_nav } from '../fragments/User_nav';
 
 export const bookmarkCreate = gql`${Api_list}
 ${Api_nav}
+${BookmarkList_common}
 ${Comment_list}
 ${Issue_list}
 ${Label_common}
@@ -55,6 +57,9 @@ ${User_nav}
 
 mutation bookmarkCreate($input: BookmarkCreateInput!) {
   bookmarkCreate(input: $input) {
+    list {
+        ...BookmarkList_common
+    }
     id
     to {
         ... on Api {
