@@ -78,7 +78,7 @@ export const transfer = (prisma: PrismaType) => ({
             where: { id: object.id },
             select: validate.permissionsSelect,
         });
-        const owner = permissionData && validate.owner(permissionData);
+        const owner = permissionData && validate.owner(permissionData, userData.id);
         // Check if user is allowed to transfer this object
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
@@ -147,7 +147,7 @@ export const transfer = (prisma: PrismaType) => ({
                 where: { id: transfer.fromOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
                 throw new CustomError('0300', 'TransferRejectNotAuthorized', userData.languages);
         } else if (transfer.fromUserId !== userData.id) {
             throw new CustomError('0301', 'TransferRejectNotAuthorized', userData.languages);
@@ -181,7 +181,7 @@ export const transfer = (prisma: PrismaType) => ({
                 where: { id: transfer.toOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
                 throw new CustomError('0302', 'TransferAcceptNotAuthorized', userData.languages);
         } else if (transfer.toUserId !== userData.id) {
             throw new CustomError('0303', 'TransferAcceptNotAuthorized', userData.languages);
@@ -235,7 +235,7 @@ export const transfer = (prisma: PrismaType) => ({
                 where: { id: transfer.toOrganizationId },
                 select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData, userData.id), userData.id))
                 throw new CustomError('0312', 'TransferRejectNotAuthorized', userData.languages);
         } else if (transfer.toUserId !== userData.id) {
             throw new CustomError('0313', 'TransferRejectNotAuthorized', userData.languages);

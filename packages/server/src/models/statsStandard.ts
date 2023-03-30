@@ -61,7 +61,7 @@ export const StatsStandardModel: ModelLogic<{
             standard: 'Standard',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => StandardModel.validate!.owner(data.standard as any),
+        owner: (data, userId) => StandardModel.validate!.owner(data.standard as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_standardSelect>(data, [
             ['standard', 'Standard'],

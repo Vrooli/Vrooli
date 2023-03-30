@@ -62,7 +62,7 @@ export const FocusModeFilterModel: ModelLogic<{
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => FocusModeModel.validate!.owner(data.focusMode as any),
+        owner: (data, userId) => FocusModeModel.validate!.owner(data.focusMode as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

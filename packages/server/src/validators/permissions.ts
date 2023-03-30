@@ -233,7 +233,7 @@ export async function getMultiTypePermissions(
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
         const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
-        const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
+        const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataById[id], userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataById[id] });
@@ -281,7 +281,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     }
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
-        const isAdmin = isOwnerAdminCheck(validate.owner(authDataItem), userData?.id);
+        const isAdmin = userData?.id ? isOwnerAdminCheck(validate.owner(authDataItem, userData.id), userData.id) : false;
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ['en']);
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataItem });

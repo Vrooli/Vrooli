@@ -1,5 +1,5 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { CopyType, BookmarkFor, VoteFor, GqlModelType, AwardCategory, SubscribableObject } from "@shared/consts";
+import { AwardCategory, BookmarkFor, CopyType, GqlModelType, SubscribableObject, VoteFor } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
 import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
@@ -299,6 +299,10 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If creating, track award progress of pullRequest creator. 
             if (pullRequestStatus === 'Open') {
                 await Award(prisma, pullRequestCreatedById, languages).update('PullRequestCreate', 1);
+            }
+            // If canceling (by creator of pull request), undo award progress of pullRequest creator
+            else if (pullRequestStatus === 'Canceled') {
+                await Award(prisma, pullRequestCreatedById, languages).update('PullRequestCreate', -1);
             }
             // If pullRequest marked as merged, track award and increase reputation of pullRequest creator
             else if (pullRequestStatus === 'Merged') {

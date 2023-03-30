@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { defaultPermissions } from "../utils";
-import { NodeModel } from "./node";
 import { nodeLoopValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
+import { NodeModel } from "./node";
+import { ModelLogic } from "./types";
 
 const __typename = 'NodeLoop' as const;
 const suppFields = [] as const;
@@ -69,7 +69,7 @@ export const NodeLoopModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ node: 'Node' }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => NodeModel.validate!.owner(data.node as any),
+        owner: (data, userId) => NodeModel.validate!.owner(data.node as any, userId),
         isDeleted: (data, languages) => NodeModel.validate!.isDeleted(data.node as any, languages),
         isPublic: (data, languages) => NodeModel.validate!.isPublic(data.node as any, languages),
         visibility: {

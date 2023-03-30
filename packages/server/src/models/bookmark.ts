@@ -97,11 +97,11 @@ export const BookmarkModel: ModelLogic<{
         gqlRelMap: {
             __typename,
             by: 'User',
+            list: 'BookmarkList',
             to: {
                 api: 'Api',
                 comment: 'Comment',
                 issue: 'Issue',
-                list: 'BookmarkList',
                 note: 'Note',
                 organization: 'Organization',
                 post: 'Post',
@@ -296,7 +296,7 @@ export const BookmarkModel: ModelLogic<{
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => BookmarkListModel.validate!.owner(data.list as any),
+        owner: (data, userId) => BookmarkListModel.validate!.owner(data.list as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

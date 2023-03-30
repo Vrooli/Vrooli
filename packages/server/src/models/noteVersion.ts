@@ -140,7 +140,7 @@ export const NoteVersionModel: ModelLogic<{
             NoteModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => NoteModel.validate!.owner(data.root as any),
+        owner: (data, userId) => NoteModel.validate!.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

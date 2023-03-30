@@ -1,7 +1,12 @@
 import { Prisma } from "@prisma/client";
+import { PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
+import { pullRequestValidation } from "@shared/validation";
+import { findFirstRel, noNull } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestToObjectType, PullRequestUpdateInput, PullRequestYou } from '@shared/consts';
+import { getLogic } from "../getters";
 import { PrismaType } from "../types";
+import { translationShapeHelper } from "../utils";
+import { getSingleTypePermissions } from "../validators";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
 import { NoteModel } from "./note";
@@ -15,10 +20,6 @@ import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardModel } from "./standard";
 import { StandardVersionModel } from "./standardVersion";
 import { ModelLogic } from "./types";
-import { getSingleTypePermissions } from "../validators";
-import { pullRequestValidation } from "@shared/validation";
-import { noNull } from "../builders";
-import { translationShapeHelper } from "../utils";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs['create'] } = {
     ApiVersion: 'fromApiVersion',
@@ -156,6 +157,9 @@ export const PullRequestModel: ModelLogic<{
                 [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
+            // NOTE: Pull request creator can only set status to 'Canceled'. 
+            // Owner of object that pull request is on can set status to anything but 'Canceled'
+            // TODO need to update params for shape to account for this (probably). Then need to update this function
             update: async ({ data, ...rest }) => ({
                 status: noNull(data.status),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
@@ -183,5 +187,58 @@ export const PullRequestModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    // NOTE: Combines owner/permissions for creator of pull request and owner 
+    // of object that has the pull request
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: 1000000,
+        owner: (data, userId) => {
+            // If you are the creator, return that
+            if (data.createdBy?.id === userId) return ({
+                User: data.createdBy,
+            })
+            // Otherwise, find owner from the object that has the pull request
+            const [onField, onData] = findFirstRel(data, [
+                'toApi',
+                'toNote',
+                'toProject',
+                'toRoutine',
+                'toSmartContract',
+                'toStandard',
+            ])
+            // Object type is field without the 'to' prefix
+            const onType = onField!.slice(2)
+            const { validate } = getLogic(['validate'], onType as any, ['en'], 'ResourceListModel.validate.owner');
+            return validate.owner(onData, userId);
+        },
+        permissionResolvers: ({ data, isAdmin, isDeleted, isPublic }) => ({
+            canComment: () => (isAdmin || isPublic) && !isDeleted && data.status === PullRequestStatus.Open,
+            canConnect: () => false,
+            canDelete: () => isAdmin && !isDeleted,
+            canDisconnect: () => false,
+            canRead: () => isAdmin || isPublic,
+            canReport: () => !isAdmin && !isDeleted && isPublic && data.status === PullRequestStatus.Open,
+            canUpdate: () => isAdmin && !isDeleted,
+        }),
+        permissionsSelect: () => ({
+            id: true,
+            createdBy: 'User',
+            status: true,
+            toApi: 'Api',
+            toNote: 'Note',
+            toProject: 'Project',
+            toRoutine: 'Routine',
+            toSmartContract: 'SmartContract',
+            toStandard: 'Standard',
+        }),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({
+                createdBy: { id: userId },
+            }),
+        },
+    },
 })

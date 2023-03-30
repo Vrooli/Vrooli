@@ -126,7 +126,7 @@ export const ResourceListModel: ModelLogic<{
             focusMode: 'FocusMode',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => {
+        owner: (data, userId) => {
             const [resourceOnType, resourceOnData] = findFirstRel(data, [
                 'apiVersion',
                 'focusMode',
@@ -138,7 +138,7 @@ export const ResourceListModel: ModelLogic<{
                 'standardVersion',
             ])
             const { validate } = getLogic(['validate'], uppercaseFirstLetter(resourceOnType!) as any, ['en'], 'ResourceListModel.validate.owner');
-            return validate.owner(resourceOnData);
+            return validate.owner(resourceOnData, userId);
         },
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [

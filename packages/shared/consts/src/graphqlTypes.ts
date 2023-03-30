@@ -4303,6 +4303,7 @@ export enum PullRequestSortBy {
 }
 
 export enum PullRequestStatus {
+  Canceled = 'Canceled',
   Merged = 'Merged',
   Open = 'Open',
   Rejected = 'Rejected'

@@ -1,17 +1,15 @@
-import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
-import { randomString } from "../auth/wallet";
-import { Trigger } from "../events";
-import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput, VersionYou, PrependString, MaxObjects } from '@shared/consts';
-import { PrismaType } from "../types";
-import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
-import { OrganizationModel } from "./organization";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
+import { MaxObjects, SessionUser, StandardCreateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, VersionYou } from '@shared/consts';
+import { standardVersionValidation } from "@shared/validation";
+import { randomString } from "../auth/wallet";
+import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { sortify } from "../utils/objectTools";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
-import { standardVersionValidation } from "@shared/validation";
+import { ModelLogic } from "./types";
 
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
@@ -279,7 +277,7 @@ export const StandardVersionModel: ModelLogic<{
             StandardModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => StandardModel.validate!.owner(data.root as any),
+        owner: (data, userId) => StandardModel.validate!.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

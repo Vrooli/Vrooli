@@ -61,7 +61,7 @@ export const StatsQuizModel: ModelLogic<{
             quiz: 'Quiz',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => QuizModel.validate!.owner(data.quiz as any),
+        owner: (data, userId) => QuizModel.validate!.owner(data.quiz as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_quizSelect>(data, [
             ['quiz', 'Quiz'],

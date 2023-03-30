@@ -2554,6 +2554,7 @@ enum PeriodType {
 
 enum PullRequestStatus {
     Open
+    Canceled
     Merged
     Rejected
 }

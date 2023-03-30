@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
-import { SmartContractModel } from "./smartContract";
 import { smartContractVersionValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { SmartContractModel } from "./smartContract";
+import { ModelLogic } from "./types";
 
 const __typename = 'SmartContractVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -157,7 +157,7 @@ export const SmartContractVersionModel: ModelLogic<{
             SmartContractModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => SmartContractModel.validate!.owner(data.root as any),
+        owner: (data, userId) => SmartContractModel.validate!.owner(data.root as any, userId),
         permissionsSelect: (...params) => ({
             id: true,
             isDeleted: true,

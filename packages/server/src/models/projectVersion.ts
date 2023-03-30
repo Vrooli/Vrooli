@@ -305,7 +305,7 @@ export const ProjectVersionModel: ModelLogic<{
             ProjectModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ProjectModel.validate!.owner(data.root as any),
+        owner: (data, userId) => ProjectModel.validate!.owner(data.root as any, userId),
         permissionsSelect: (...params) => ({
             id: true,
             isDeleted: true,

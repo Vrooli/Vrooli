@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { defaultPermissions, translationShapeHelper } from "../utils";
-import { NodeLoopModel } from "./nodeLoop";
 import { nodeLoopWhileValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { defaultPermissions, translationShapeHelper } from "../utils";
+import { NodeLoopModel } from "./nodeLoop";
+import { ModelLogic } from "./types";
 
 const __typename = 'NodeLoopWhile' as const;
 const suppFields = [] as const;
@@ -63,7 +63,7 @@ export const NodeLoopWhileModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ loop: 'NodeLoop' }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => NodeLoopModel.validate!.owner(data.loop as any),
+        owner: (data, userId) => NodeLoopModel.validate!.owner(data.loop as any, userId),
         isDeleted: (data, languages) => NodeLoopModel.validate!.isDeleted(data.loop as any, languages),
         isPublic: (data, languages) => NodeLoopModel.validate!.isPublic(data.loop as any, languages),
         visibility: {

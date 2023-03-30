@@ -38,6 +38,8 @@
     "PullRequestStatusOpenBody": "A pull request has been opened on \"{{objectName}}\"",
     "PullRequestStatusRejectedTitle": "Pull request rejected",
     "PullRequestStatusRejectedBody": "A pull request on \"{{objectName}}\" has been rejected",
+    "PullRequestStatusCanceledTitle": "Pull request canceled",
+    "PullRequestStatusCanceledBody": "A pull request on \"{{objectName}}\" has been canceled.",
     "QuestionActivityTitle": "Question activity",
     "QuestionActivityBody": "New activity on question \"{{questionName}}\"",
     "ReportStatusClosedDeletedTitle": "Report closed",

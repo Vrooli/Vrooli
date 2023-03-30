@@ -279,7 +279,7 @@ export const RoutineVersionModel: ModelLogic<{
             RoutineModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => RoutineModel.validate!.owner(data.root as any),
+        owner: (data, userId) => RoutineModel.validate!.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
