@@ -1,8 +1,8 @@
+import { FindByIdInput, Payment, PaymentSearchInput, PaymentSortBy, PaymentStatus, PaymentType } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { FindByIdInput, Payment, PaymentSearchInput, PaymentSortBy, PaymentStatus } from '@shared/consts';
-import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
-import { rateLimit } from '../middleware';
 import { readManyHelper, readOneHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     enum PaymentSortBy {
@@ -20,15 +20,24 @@ export const typeDef = gql`
         Failed
     }
 
+    enum PaymentType {
+        PremiumMonthly
+        PremiumYearly
+        Donation
+    }
+
+
     type Payment {
         id: ID!
         created_at: Date!
         updated_at: Date!
         amount: Int!
+        checkoutId: String!
         currency: String!
         description: String!
         status: PaymentStatus!
         paymentMethod: String!
+        paymentType: PaymentType!
         cardType: String
         cardExpDate: String
         cardLast4: String
@@ -70,6 +79,7 @@ const objectType = 'Payment';
 export const resolvers: {
     PaymentSortBy: typeof PaymentSortBy;
     PaymentStatus: typeof PaymentStatus;
+    PaymentType: typeof PaymentType;
     Query: {
         payment: GQLEndpoint<FindByIdInput, FindOneResult<Payment>>;
         payments: GQLEndpoint<PaymentSearchInput, FindManyResult<Payment>>;
@@ -77,6 +87,7 @@ export const resolvers: {
 } = {
     PaymentSortBy,
     PaymentStatus,
+    PaymentType,
     Query: {
         payment: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

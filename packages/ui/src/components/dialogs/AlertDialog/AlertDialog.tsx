@@ -40,7 +40,7 @@ const AlertDialog = () => {
     useEffect(() => {
         let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
             title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
-            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details : undefined,
+            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
             buttons: o.buttons.map((b) => ({
                 label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
                 onClick: b.onClick,

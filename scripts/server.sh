@@ -1,12 +1,12 @@
 #!/bin/sh
-HERE=`dirname $0`
+HERE=$(dirname $0)
 source "${HERE}/prettify.sh"
 
 # If in development mode, convert shared packages to typescript
 # In production, this should already be done
 if [ "${NODE_ENV}" = "development" ]; then
     source "${HERE}/shared.sh"
-fi 
+fi
 
 # info 'Waiting for database and redis to start...'
 ${PROJECT_DIR}/scripts/wait-for.sh 5432 -t 120 -- echo 'Database is up'
@@ -15,7 +15,7 @@ ${PROJECT_DIR}/scripts/wait-for.sh 5432 -t 120 -- echo 'Database is up'
 PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 
 # TODO shouldn't need these 2 lines, but for some reason we do. Otherwise, prisma not found
-yarn global add prisma@4.10.1
+yarn global add prisma@4.11.0
 yarn global bin
 
 cd ${PROJECT_DIR}/packages/server
@@ -27,7 +27,7 @@ if [ "${DB_PULL}" = true ]; then
         exit 1
     fi
     success 'Schema.prisma file generated'
-else 
+else
     info 'Running migrations...'
     /usr/local/bin/prisma migrate deploy
     if [ $? -ne 0 ]; then

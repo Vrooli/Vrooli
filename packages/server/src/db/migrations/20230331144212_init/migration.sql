@@ -24,10 +24,13 @@ CREATE TYPE "NodeType" AS ENUM ('End', 'Redirect', 'RoutineList', 'Start');
 CREATE TYPE "PaymentStatus" AS ENUM ('Pending', 'Paid', 'Failed');
 
 -- CreateEnum
+CREATE TYPE "PaymentType" AS ENUM ('PremiumMonthly', 'PremiumYearly', 'Donation');
+
+-- CreateEnum
 CREATE TYPE "PeriodType" AS ENUM ('Hourly', 'Daily', 'Weekly', 'Monthly', 'Yearly');
 
 -- CreateEnum
-CREATE TYPE "PullRequestStatus" AS ENUM ('Open', 'Merged', 'Rejected');
+CREATE TYPE "PullRequestStatus" AS ENUM ('Open', 'Canceled', 'Merged', 'Rejected');
 
 -- CreateEnum
 CREATE TYPE "QuizAttemptStatus" AS ENUM ('NotStarted', 'InProgress', 'Passed', 'Failed');
@@ -820,9 +823,11 @@ CREATE TABLE "payment" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "amount" INTEGER NOT NULL,
+    "checkoutId" VARCHAR(255) NOT NULL,
     "currency" VARCHAR(255) NOT NULL,
     "description" VARCHAR(2048) NOT NULL,
     "paymentMethod" VARCHAR(255) NOT NULL,
+    "paymentType" "PaymentType" NOT NULL DEFAULT 'PremiumMonthly',
     "status" "PaymentStatus" NOT NULL DEFAULT 'Pending',
     "organizationId" UUID,
     "userId" UUID,

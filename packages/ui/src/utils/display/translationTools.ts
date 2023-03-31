@@ -809,7 +809,6 @@ export const translateSnackMessage = (
 ): { message: string, details: string | undefined } => {
     const messageAsError = i18next.t(key as ErrorKey, { ...variables, defaultValue: key, ns: 'error' });
     const messageAsCommon = i18next.t(key as CommonKey, { ...variables, defaultValue: key, ns: 'common' });
-    console.log('in translatesnackmessage', key, variables, messageAsError, messageAsCommon);
     if (messageAsError.length > 0 && messageAsError !== key) {
         const details = i18next.t(`${key}Details` as ErrorKey, { ns: 'error' });
         return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
