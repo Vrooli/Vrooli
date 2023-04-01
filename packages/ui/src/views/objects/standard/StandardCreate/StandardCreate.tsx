@@ -5,12 +5,11 @@ import { mutationWrapper } from 'api/utils';
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { StandardForm } from "forms/StandardForm/StandardForm";
+import { StandardForm, standardInitialValues, validateStandardValues } from "forms/StandardForm/StandardForm";
 import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeStandardVersion } from "utils/shape/models/standardVersion";
-import { standardInitialValues, validateStandardValues } from "..";
 import { StandardCreateProps } from "../types";
 
 export const StandardCreate = ({

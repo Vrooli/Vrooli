@@ -54,7 +54,6 @@ export const BuildView = ({
     handleSubmit,
     isEditing,
     loading,
-    owner,
     routineVersion,
     translationData,
     zIndex = 200,
@@ -1002,7 +1001,6 @@ export const BuildView = ({
                 handleClose={closeAddSubroutineDialog}
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
-                owner={owner}
                 routineVersionId={routineVersion?.id}
                 zIndex={zIndex + 3}
             />}

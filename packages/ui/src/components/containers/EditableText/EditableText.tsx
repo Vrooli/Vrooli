@@ -1,44 +1,25 @@
-import { TextField, Typography, useTheme } from '@mui/material';
+import { TextField, Typography } from '@mui/material';
 import { isOfType } from '@shared/utils';
 import { MarkdownInput } from 'components/inputs/MarkdownInput/MarkdownInput';
 import { TranslatedMarkdownInput } from 'components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput';
 import { TranslatedTextField } from 'components/inputs/TranslatedTextField/TranslatedTextField';
 import { Field, useField } from 'formik';
 import Markdown from 'markdown-to-jsx';
-import { linkColors } from 'styles';
-import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
-import { EditableTextCollapseProps, EditTextComponent, PropsByComponentType } from '../types';
+import { EditableTextProps, EditTextComponent, PropsByComponentType } from '../types';
 
-/**
- * A text collapse that supports editing mode, either with 
- * a TextField or MarkdownInput
- */
-export function EditableTextCollapse<T extends EditTextComponent>({
+export function EditableText<T extends EditTextComponent>({
     component,
-    helpText,
     isEditing,
-    isOpen,
     name,
-    onOpenChange,
     props,
     showOnNoText,
-    title,
     variant,
-}: EditableTextCollapseProps<T>) {
-    const { palette } = useTheme();
+}: EditableTextProps<T>) {
     const [field] = useField(component.startsWith('Translated') ? `translations.${name}` : name);
 
     if (!isEditing && (!field.value || field.value.trim().length === 0) && !showOnNoText) return null;
     return (
-        <ContentCollapse
-            helpText={helpText}
-            isOpen={isOpen}
-            onOpenChange={onOpenChange}
-            title={title}
-            sxs={{
-                root: { ...linkColors(palette) },
-            }}
-        >
+        <>
             {/* Editing components */}
             {isEditing && component === 'Markdown' && <MarkdownInput name="name" {...(props as PropsByComponentType['Markdown'])} />}
             {isEditing && component === 'TranslatedMarkdown' && <TranslatedMarkdownInput name="name" {...(props as PropsByComponentType['TranslatedMarkdown'])} />}
@@ -47,6 +28,6 @@ export function EditableTextCollapse<T extends EditTextComponent>({
             {/* Display components */}
             {!isEditing && isOfType(component, 'Markdown', 'TranslatedMarkdown') && <Markdown variant={variant}>{field.value}</Markdown>}
             {!isEditing && isOfType('TextField', 'TranslatedTextField') && <Typography variant={variant}>{field.value}</Typography>}
-        </ContentCollapse>
+        </>
     )
 }

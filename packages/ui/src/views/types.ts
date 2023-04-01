@@ -1,6 +1,5 @@
 import { RoutineVersion } from "@shared/consts";
 import React from "react";
-import { OwnerShape } from "utils/shape/models/types";
 import { ViewProps } from "./objects/types";
 
 /**
@@ -38,7 +37,6 @@ export interface BuildViewProps extends ViewProps<RoutineVersion> {
     handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>) => void;
     isEditing: boolean;
     loading: boolean;
-    owner: OwnerShape | null;
     routineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
     translationData: {
         language: string;

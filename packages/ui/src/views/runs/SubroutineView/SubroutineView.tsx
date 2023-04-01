@@ -20,7 +20,6 @@ import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
-import { defaultResourceList } from "utils/defaults/resourceList";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { PubSub } from "utils/pubsub";

@@ -4,7 +4,6 @@ import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconBut
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { useField } from 'formik';
 import { useCallback, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';
 import { IsCompleteButtonProps } from '../types';
 
@@ -13,7 +12,6 @@ export function IsCompleteButton({
     objectType,
 }: IsCompleteButtonProps) {
     const { palette } = useTheme();
-    const { t } = useTranslation();
 
     const [field, , helpers] = useField('isComplete');
 
@@ -33,7 +31,7 @@ export function IsCompleteButton({
     }, [isEditing, isAvailable, helpers, field?.value]);
 
     // If not available, return null
-    if (!isAvailable || !isEditing) return null;
+    if (!isAvailable) return null;
     // Return button with label on top
     return (
         <Stack

@@ -106,7 +106,7 @@ export function ParentButton({
     }, [isEditing, languages, rootField?.value, versionField?.value]);
 
     // If not available, return null
-    if (!isAvailable || !isEditing) return null;
+    if (!isAvailable || (!isEditing && !Icon)) return null;
     // Return button with label on top
     return (
         <>
@@ -125,7 +125,11 @@ export function ParentButton({
             >
                 <TextShrink id="parent" sx={{ ...commonLabelProps() }}>Parent</TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(isEditing, true) }} onClick={handleParentClick}>
+                    <ColorIconButton
+                        background={palette.primary.light}
+                        sx={{ ...commonButtonProps(isEditing, true) }}
+                        onClick={handleParentClick}
+                    >
                         {Icon && <Icon {...commonIconProps()} />}
                     </ColorIconButton>
                 </Tooltip>

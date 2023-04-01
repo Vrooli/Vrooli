@@ -5,12 +5,11 @@ import { mutationWrapper } from 'api/utils';
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { OrganizationForm } from "forms/OrganizationForm/OrganizationForm";
+import { OrganizationForm, organizationInitialValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
 import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeOrganization } from "utils/shape/models/organization";
-import { organizationInitialValues, validateOrganizationValues } from "..";
 import { OrganizationCreateProps } from "../types";
 
 export const OrganizationCreate = ({

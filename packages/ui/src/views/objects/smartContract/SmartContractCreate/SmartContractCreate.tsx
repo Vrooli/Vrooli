@@ -5,12 +5,11 @@ import { useCustomMutation } from "api/hooks";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from 'formik';
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { SmartContractForm } from "forms/SmartContractForm/SmartContractForm";
+import { SmartContractForm, smartContractInitialValues, validateSmartContractValues } from "forms/SmartContractForm/SmartContractForm";
 import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeSmartContractVersion } from "utils/shape/models/smartContractVersion";
-import { smartContractInitialValues, validateSmartContractValues } from "..";
 import { SmartContractCreateProps } from "../types";
 
 export const SmartContractCreate = ({

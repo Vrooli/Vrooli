@@ -3,6 +3,7 @@ import { Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListI
 import { SvgComponent } from '@shared/icons';
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from 'components/text/types';
+import { BaseObjectFormProps } from 'forms/types';
 import { NavigableObject, RoutineStep } from 'types';
 import { ObjectAction } from 'utils/actions/objectActions';
 import { CookiePreferences } from 'utils/cookies';
@@ -28,17 +29,9 @@ export interface BaseObjectDialogProps extends DialogProps {
     zIndex: number;
 };
 
-export interface CommentDialogProps {
-    errorText: string;
-    handleSubmit: () => void;
-    handleClose: () => void;
-    isAdding: boolean;
-    isOpen: boolean;
-    language: string;
-    onTranslationChange: (e: { target: { name: string; value: string; }; }) => void;
+export interface CommentDialogProps extends Omit<BaseObjectFormProps, 'display'> {
+    onCancel: () => void;
     parent: Comment | null;
-    text: string;
-    zIndex: number;
 }
 
 export interface CookieSettingsDialogProps {

@@ -1,5 +1,7 @@
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
-import { organizationTranslationValidation } from "@shared/validation";
+import { Organization, Session } from "@shared/consts";
+import { DUMMY_ID } from "@shared/uuid";
+import { organizationTranslationValidation, organizationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -14,6 +16,41 @@ import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { OrganizationShape, shapeOrganization } from "utils/shape/models/organization";
+
+export const organizationInitialValues = (
+    session: Session | undefined,
+    existing?: Organization | null | undefined
+): OrganizationShape => ({
+    __typename: 'Organization' as const,
+    id: DUMMY_ID,
+    isOpenToNewMembers: false,
+    isPrivate: false,
+    tags: [],
+    translations: [{
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        name: '',
+        bio: '',
+    }],
+    ...existing,
+});
+
+export const transformOrganizationValues = (o: OrganizationShape, u?: OrganizationShape) => {
+    return u === undefined
+        ? shapeOrganization.create(o)
+        : shapeOrganization.update(o, u)
+}
+
+export const validateOrganizationValues = async (values: OrganizationShape, isCreate: boolean) => {
+    const transformedValues = transformOrganizationValues(values);
+    const validationSchema = isCreate
+        ? organizationValidation.create({})
+        : organizationValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}
 
 export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
     display,

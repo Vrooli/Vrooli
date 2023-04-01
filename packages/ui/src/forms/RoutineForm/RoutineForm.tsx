@@ -1,7 +1,8 @@
 import { Button, Dialog, Grid, Stack, Typography } from "@mui/material";
-import { Node, NodeLink, RoutineVersion } from "@shared/consts";
+import { Node, NodeLink, RoutineVersion, Session } from "@shared/consts";
 import { RoutineIcon } from "@shared/icons";
-import { routineVersionTranslationValidation } from "@shared/validation";
+import { DUMMY_ID, uuid } from "@shared/uuid";
+import { routineVersionTranslationValidation, routineVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { UpTransition } from "components/dialogs/transitions";
@@ -18,16 +19,71 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getCurrentUser } from "utils/authentication/session";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
+import { validateAndGetYupErrors } from "utils/shape/general";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { BuildView } from "views/BuildView/BuildView";
+
+export const routineInitialValues = (
+    session: Session | undefined,
+    existing?: RoutineVersion | null | undefined
+): RoutineVersionShape => ({
+    __typename: 'RoutineVersion' as const,
+    id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
+    inputs: [],
+    isComplete: false,
+    isPrivate: false,
+    directoryListings: [],
+    nodeLinks: [],
+    nodes: [],
+    outputs: [],
+    resourceList: {
+        __typename: 'ResourceList' as const,
+        id: DUMMY_ID,
+    },
+    root: {
+        __typename: 'Routine' as const,
+        id: DUMMY_ID,
+        isPrivate: false,
+        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        parent: null,
+        tags: [],
+    },
+    translations: [{
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        description: '',
+        instructions: '',
+        name: '',
+    }],
+    versionLabel: '1.0.0',
+    ...existing,
+});
+
+export const transformRoutineValues = (o: RoutineVersionShape, u?: RoutineVersionShape) => {
+    return u === undefined
+        ? shapeRoutineVersion.create(o)
+        : shapeRoutineVersion.update(o, u)
+}
+
+export const validateRoutineValues = async (values: RoutineVersionShape, isCreate: boolean) => {
+    const transformedValues = transformRoutineValues(values);
+    const validationSchema = isCreate
+        ? routineVersionValidation.create({})
+        : routineVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}
+
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 

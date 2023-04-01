@@ -326,6 +326,7 @@ export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | '
      * Label for input component, NOT the version label.
      */
     label?: string;
+    name?: string;
     /**
      * Existing versions of the object. Used to determine mimum version number.
      */

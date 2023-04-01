@@ -6,14 +6,13 @@ import { mutationWrapper } from 'api/utils';
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { OrganizationForm } from "forms/OrganizationForm/OrganizationForm";
+import { OrganizationForm, organizationInitialValues, validateOrganizationValues } from "forms/OrganizationForm/OrganizationForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeOrganization } from "utils/shape/models/organization";
-import { organizationInitialValues, validateOrganizationValues } from "..";
 import { OrganizationUpdateProps } from "../types";
 
 export const OrganizationUpdate = ({

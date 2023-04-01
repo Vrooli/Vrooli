@@ -111,7 +111,12 @@ export const ResourceListHorizontal = ({
     ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
 
     return (
-        <Box>
+        <Box sx={{
+            width: '100%',
+            maxWidth: '700px',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+        }}>
             {/* Add resource dialog */}
             {dialog}
             {/* Right-click context menu */}

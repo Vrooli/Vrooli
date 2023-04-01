@@ -9,7 +9,6 @@ import { RelationshipItemProjectVersion } from 'components/lists/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { useField } from 'formik';
 import { useCallback, useContext, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { firstString } from 'utils/display/stringTools';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { openObject } from 'utils/navigation/openObject';
@@ -25,7 +24,6 @@ export function ProjectButton({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const { t } = useTranslation();
     const languages = useMemo(() => getUserLanguages(session), [session])
 
     const [versionField, , versionHelpers] = useField('project');
@@ -82,7 +80,7 @@ export function ProjectButton({
     }, [isEditing, languages, rootField?.value, versionField?.value]);
 
     // If not available, return null
-    if (!isAvailable || !isEditing) return null;
+    if (!isAvailable || (!isEditing && !Icon)) return null;
     // Return button with label on top
     return (
         <>
@@ -101,7 +99,11 @@ export function ProjectButton({
             >
                 <TextShrink id="project" sx={{ ...commonLabelProps() }}>Project</TextShrink>
                 <Tooltip title={tooltip}>
-                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(isEditing, true) }} onClick={handleProjectClick}>
+                    <ColorIconButton
+                        background={palette.primary.light}
+                        sx={{ ...commonButtonProps(isEditing, true) }}
+                        onClick={handleProjectClick}
+                    >
                         {Icon && <Icon {...commonIconProps()} />}
                     </ColorIconButton>
                 </Tooltip>

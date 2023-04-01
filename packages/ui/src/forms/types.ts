@@ -2,6 +2,22 @@ import { InputType } from "@shared/consts";
 import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { FormikProps } from "formik";
 import { Forms } from "utils/consts";
+import { ApiVersionShape } from "utils/shape/models/apiVersion";
+import { CommentShape } from "utils/shape/models/comment";
+import { FocusModeShape } from "utils/shape/models/focusMode";
+import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
+import { NoteVersionShape } from "utils/shape/models/noteVersion";
+import { OrganizationShape } from "utils/shape/models/organization";
+import { ProfileShape } from "utils/shape/models/profile";
+import { ProjectVersionShape } from "utils/shape/models/projectVersion";
+import { QuestionShape } from "utils/shape/models/question";
+import { ReminderShape } from "utils/shape/models/reminder";
+import { ReportShape } from "utils/shape/models/report";
+import { ResourceShape } from "utils/shape/models/resource";
+import { RoutineVersionShape } from "utils/shape/models/routineVersion";
+import { ScheduleShape } from "utils/shape/models/schedule";
+import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
+import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { TagShape } from "utils/shape/models/tag";
 import { ViewDisplayType } from "views/types";
 
@@ -20,7 +36,7 @@ export interface BaseFormProps {
     validationSchema?: any;
 }
 
-export interface BaseObjectFormProps extends FormikProps<any> {
+export interface BaseObjectFormProps<T> extends FormikProps<T> {
     display: ViewDisplayType;
     isCreate: boolean;
     isLoading: boolean;
@@ -56,34 +72,38 @@ export interface SignUpFormProps extends FormProps {
     onClose: () => any;
 }
 
-export interface ApiFormProps extends BaseObjectFormProps {
+export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
-export interface FocusModeFormProps extends BaseObjectFormProps { }
-export interface NoteFormProps extends BaseObjectFormProps {
+export interface CommentFormProps extends BaseObjectFormProps<CommentShape> { }
+export interface FocusModeFormProps extends BaseObjectFormProps<FocusModeShape> { }
+export interface NoteFormProps extends BaseObjectFormProps<NoteVersionShape> {
     versions: string[];
 }
-export interface OrganizationFormProps extends BaseObjectFormProps { }
-export interface ProjectFormProps extends BaseObjectFormProps {
+export interface OrganizationFormProps extends BaseObjectFormProps<OrganizationShape> { }
+export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShape> {
     versions: string[];
 }
-export interface QuestionFormProps extends BaseObjectFormProps { }
-export interface ReminderFormProps extends BaseObjectFormProps { }
-export interface ReportFormProps extends BaseObjectFormProps { }
-export interface ResourceFormProps extends BaseObjectFormProps { }
-export interface RoutineFormProps extends BaseObjectFormProps {
+export interface QuestionFormProps extends BaseObjectFormProps<QuestionShape> { }
+export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> { }
+export interface ReportFormProps extends BaseObjectFormProps<ReportShape> { }
+export interface ResourceFormProps extends BaseObjectFormProps<ResourceShape> { }
+export interface RoutineFormProps extends BaseObjectFormProps<RoutineVersionShape> {
     versions: string[];
 }
-export interface ScheduleFormProps extends BaseObjectFormProps { }
-export interface ScheduleExceptionFormProps extends BaseObjectFormProps { }
-export interface ScheduleRecurrenceFormProps extends BaseObjectFormProps { }
-export interface SmartContractFormProps extends BaseObjectFormProps {
+export interface ScheduleFormProps extends BaseObjectFormProps<ScheduleShape> { }
+export interface SmartContractFormProps extends BaseObjectFormProps<SmartContractVersionShape> {
     versions: string[];
 }
-export interface StandardFormProps extends BaseObjectFormProps {
+export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, 'display' | 'isLoading'> {
+    canUpdate: boolean;
+    isEditing: boolean;
     versions: string[];
 }
-export interface UserFormProps extends BaseObjectFormProps { }
+export interface StandardFormProps extends BaseObjectFormProps<StandardVersionShape> {
+    versions: string[];
+}
+export interface UserFormProps extends BaseObjectFormProps<ProfileShape> { }
 
 //==============================================================
 /* #endregion Specific Form Props */

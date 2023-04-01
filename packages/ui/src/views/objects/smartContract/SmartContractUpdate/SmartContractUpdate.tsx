@@ -6,14 +6,13 @@ import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { SmartContractForm } from "forms/SmartContractForm/SmartContractForm";
+import { SmartContractForm, smartContractInitialValues, validateSmartContractValues } from "forms/SmartContractForm/SmartContractForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeSmartContractVersion } from "utils/shape/models/smartContractVersion";
-import { smartContractInitialValues, validateSmartContractValues } from "..";
 import { SmartContractUpdateProps } from "../types";
 
 export const SmartContractUpdate = ({

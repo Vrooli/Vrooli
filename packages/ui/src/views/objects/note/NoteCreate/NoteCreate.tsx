@@ -5,12 +5,11 @@ import { mutationWrapper } from 'api/utils';
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { NoteForm } from "forms/NoteForm/NoteForm";
+import { NoteForm, noteInitialValues, validateNoteValues } from "forms/NoteForm/NoteForm";
 import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeNoteVersion } from "utils/shape/models/noteVersion";
-import { noteInitialValues, validateNoteValues } from "..";
 import { NoteCreateProps } from "../types";
 
 export const NoteCreate = ({

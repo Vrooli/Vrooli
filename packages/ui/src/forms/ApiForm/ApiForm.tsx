@@ -1,5 +1,7 @@
 import { Stack, TextField } from "@mui/material";
-import { apiVersionTranslationValidation } from "@shared/validation";
+import { ApiVersion, Session } from "@shared/consts";
+import { DUMMY_ID } from "@shared/uuid";
+import { apiVersionTranslationValidation, apiVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -12,9 +14,59 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ApiFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { getCurrentUser } from "utils/authentication/session";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
+
+export const apiInitialValues = (
+    session: Session | undefined,
+    existing?: ApiVersion | null | undefined
+): ApiVersionShape => ({
+    __typename: 'ApiVersion' as const,
+    id: DUMMY_ID,
+    callLink: '',
+    directoryListings: [],
+    isComplete: false,
+    isPrivate: false,
+    resourceList: {
+        __typename: 'ResourceList' as const,
+        id: DUMMY_ID,
+    },
+    root: {
+        __typename: 'Api' as const,
+        id: DUMMY_ID,
+        isPrivate: false,
+        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
+        tags: [],
+    },
+    translations: [{
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        details: '',
+        name: '',
+        summary: '',
+    }],
+    versionLabel: '1.0.0',
+    ...existing,
+});
+
+export const transformApiValues = (o: ApiVersionShape, u?: ApiVersionShape) => {
+    return u === undefined
+        ? shapeApiVersion.create(o)
+        : shapeApiVersion.update(o, u)
+}
+
+export const validateApiValues = async (values: ApiVersionShape, isCreate: boolean) => {
+    const transformedValues = transformApiValues(values);
+    const validationSchema = isCreate
+        ? apiVersionValidation.create({})
+        : apiVersionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}
 
 export const ApiForm = forwardRef<any, ApiFormProps>(({
     display,

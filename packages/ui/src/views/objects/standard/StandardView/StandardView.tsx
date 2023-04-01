@@ -1,8 +1,7 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
+import { CommentFor, FindVersionInput, InputType, StandardVersion } from "@shared/consts";
 import { EditIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { uuid } from '@shared/uuid';
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -20,15 +19,17 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
+import { standardInitialValues } from "forms/StandardForm/StandardForm";
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
-import { defaultResourceList } from "utils/defaults/resourceList";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
+import { ResourceListShape } from "utils/shape/models/resourceList";
+import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardViewProps } from "../types";
 
@@ -105,24 +106,9 @@ export const StandardView = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-
-    // Handle tags
-    const [tags, setTags] = useState<TagShape[]>((partialData?.root?.tags as TagShape[] | undefined) ?? []);
-
-    useEffect(() => {
-        setRelationships({
-            isComplete: false, //TODO
-            isPrivate: standardVersion?.isPrivate ?? false,
-            owner: standardVersion?.root?.owner ?? null,
-            parent: null,
-            // parent: standard?.parent ?? null, TODO
-            project: null // TODO
-        });
-        setResourceList(standardVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(standardVersion?.root?.tags ?? []);
-    }, [standardVersion]);
+    const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
+    const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     return (
         <>

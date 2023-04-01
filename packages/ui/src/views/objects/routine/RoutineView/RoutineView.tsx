@@ -1,8 +1,8 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, FindVersionInput, LINKS, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
+import { CommentFor, FindVersionInput, LINKS, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag } from "@shared/consts";
 import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { parseSearchParams, setSearchParams, useLocation } from '@shared/route';
-import { setDotNotationValue } from "@shared/utils";
+import { exists, setDotNotationValue } from "@shared/utils";
 import { routineVersionFindOne } from "api/generated/endpoints/routineVersion_findOne";
 import { runRoutineComplete } from "api/generated/endpoints/runRoutine_complete";
 import { useCustomMutation } from "api/hooks";
@@ -25,6 +25,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { Formik, useFormik } from "formik";
+import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,8 +38,10 @@ import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
+import { ResourceListShape } from "utils/shape/models/resourceList";
+import { RoutineShape } from "utils/shape/models/routine";
+import { TagShape } from "utils/shape/models/tag";
 import { BuildView } from "views/BuildView/BuildView";
-import { routineInitialValues } from "..";
 import { RoutineViewProps } from "../types";
 
 const statsHelpText =
@@ -185,6 +188,8 @@ export const RoutineView = ({
     }, [formik]);
 
     const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);
+    const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     return (
         <>
@@ -200,7 +205,7 @@ export const RoutineView = ({
                 initialValues={initialValues}
                 onSubmit={() => { }}
             >
-                {(formik) => <Box sx={{
+                {(formik) => <Stack direction="column" spacing={4} sx={{
                     marginLeft: 'auto',
                     marginRight: 'auto',
                     width: 'min(100%, 700px)',
@@ -246,11 +251,10 @@ export const RoutineView = ({
                             handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
                             isEditing={false}
                             loading={isLoading}
-                            owner={relationships.owner}
                             routineVersion={existing}
                             translationData={{
                                 language,
-                                languages,
+                                languages: availableLanguages,
                                 setLanguage,
                                 handleAddLanguage: () => { },
                                 handleDeleteLanguage: () => { },
@@ -274,9 +278,9 @@ export const RoutineView = ({
                         zIndex={zIndex}
                     />
                     {/* Resources */}
-                    {Array.isArray(formik.values.resourceList.resources) && formik.values.resourceList.resources.length > 0 && <ResourceListHorizontal
+                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                         title={'Resources'}
-                        list={formik.values.resourceList.resources}
+                        list={resourceList as ResourceList}
                         canUpdate={false}
                         handleUpdate={() => { }} // Intentionally blank
                         loading={isLoading}
@@ -318,10 +322,10 @@ export const RoutineView = ({
                     {/* "View Graph" button if this is a multi-step routine */}
                     {existing?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
                     {/* Tags */}
-                    {formik.values.root?.tags?.length > 0 && <TagList
+                    {exists(tags) && tags.length > 0 && <TagList
                         maxCharacters={30}
                         parentId={existing?.id ?? ''}
-                        tags={formik.values.root!.tags}
+                        tags={tags as Tag[]}
                         sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                     />}
                     {/* Date and version labels */}
@@ -362,7 +366,7 @@ export const RoutineView = ({
                             zIndex={zIndex}
                         />
                     </Box>
-                </Box>}
+                </Stack>}
             </Formik>
         </>
     )

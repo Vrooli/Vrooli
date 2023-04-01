@@ -233,7 +233,7 @@ const main = async () => {
                     }
                     break;
                 // Session expired before payment
-                case 'checkout.session.async_payment_failed':
+                case 'checkout.session.expired':
                     // Find payment in database
                     session = event.data.object;
                     checkoutId = session.id;
@@ -271,7 +271,7 @@ const main = async () => {
                     });
                     // If not found, log an error and return
                     if (payments.length === 0) {
-                        logger.error('Payment not found on invoice.payment_failed', { trace: '0440', userId });
+                        logger.error('Payment not found on invoice.payment_failed', { trace: '0443', userId });
                         response.status(400).send('Payment not found');
                         return;
                     }
@@ -285,17 +285,73 @@ const main = async () => {
                     // Disconnect the Prisma client
                     await prisma.$disconnect();
                     // Log the error and return a response
-                    logger.error('Payment failed', { trace: '0441', userId, subscriptionId });
+                    logger.error('Payment failed', { trace: '0444', userId, subscriptionId });
                     response.status(400).send('Payment failed');
                     break;
                 // Subscription changed (monthly -> yearly, yearly -> monthly)
                 case 'customer.subscription.updated':
+                    const subscription = event.data.object;
+                    userId = subscription.metadata.userId;
+                    const newPaymentType = subscription.plan.interval === 'month' ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
+
+                    prisma = new PrismaClient();
+                    const premiumRecord = await prisma.premium.findFirst({
+                        where: { user: { id: userId } }
+                    });
+
+                    if (premiumRecord) {
+                        await prisma.premium.update({
+                            where: { id: premiumRecord.id },
+                            data: {
+                                expiresAt: new Date(Date.now() + (newPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
+                            },
+                        });
+                    }
+                    await prisma.$disconnect();
                     break;
+
                 // Subscription canceled
                 case 'customer.subscription.deleted':
+                    userId = event.data.object.metadata.userId;
+
+                    prisma = new PrismaClient();
+                    const canceledPremiumRecord = await prisma.premium.findFirst({
+                        where: { user: { id: userId } }
+                    });
+
+                    if (canceledPremiumRecord) {
+                        await prisma.premium.update({
+                            where: { id: canceledPremiumRecord.id },
+                            data: {
+                                isActive: false,
+                            },
+                        });
+                    }
+                    await prisma.$disconnect();
                     break;
+
                 // Subscription renewed
                 case 'invoice.payment_succeeded':
+                    const renewedInvoice = event.data.object;
+                    const renewedSubscriptionId = renewedInvoice.subscription;
+                    userId = renewedInvoice.metadata.userId;
+
+                    prisma = new PrismaClient();
+                    const renewedPremiumRecord = await prisma.premium.findFirst({
+                        where: { user: { id: userId } }
+                    });
+
+                    if (renewedPremiumRecord) {
+                        const renewedPaymentType = renewedPremiumRecord.expiresAt && new Date(renewedPremiumRecord.expiresAt) < new Date() ? PaymentType.PremiumMonthly : PaymentType.PremiumYearly;
+                        await prisma.premium.update({
+                            where: { id: renewedPremiumRecord.id },
+                            data: {
+                                expiresAt: new Date(Date.now() + (renewedPaymentType === PaymentType.PremiumMonthly ? 30 : 365) * 24 * 60 * 60 * 1000).toISOString(),
+                                isActive: true,
+                            },
+                        });
+                    }
+                    await prisma.$disconnect();
                     break;
                 // If this default is reached, the webhook specified in Stripe is too broad
                 default:

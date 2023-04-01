@@ -6,14 +6,13 @@ import { mutationWrapper } from 'api/utils';
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from 'formik';
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { RoutineForm } from "forms/RoutineForm/RoutineForm";
+import { RoutineForm, routineInitialValues, validateRoutineValues } from "forms/RoutineForm/RoutineForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeRoutineVersion } from "utils/shape/models/routineVersion";
-import { routineInitialValues, validateRoutineValues } from "..";
 import { RoutineUpdateProps } from "../types";
 
 export const RoutineUpdate = ({

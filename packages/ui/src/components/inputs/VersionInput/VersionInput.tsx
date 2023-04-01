@@ -11,12 +11,13 @@ export const VersionInput = ({
     autoFocus = false,
     fullWidth = true,
     label = 'Version',
+    name = 'versionLabel',
     versions,
     ...props
 }: VersionInputProps) => {
     const { palette } = useTheme();
 
-    const [field, meta, helpers] = useField('versionLabel');
+    const [field, meta, helpers] = useField(name);
     const [internalValue, setInternalValue] = useState<string>(field.value);
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;

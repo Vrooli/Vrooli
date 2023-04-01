@@ -6,14 +6,13 @@ import { mutationWrapper } from 'api/utils';
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { ProjectForm } from "forms/ProjectForm/ProjectForm";
+import { ProjectForm, projectInitialValues, validateProjectValues } from "forms/ProjectForm/ProjectForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeProjectVersion } from "utils/shape/models/projectVersion";
-import { projectInitialValues, validateProjectValues } from "..";
 import { ProjectUpdateProps } from "../types";
 
 export const ProjectUpdate = ({

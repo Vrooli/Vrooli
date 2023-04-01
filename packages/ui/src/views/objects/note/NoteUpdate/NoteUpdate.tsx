@@ -6,14 +6,13 @@ import { mutationWrapper } from 'api/utils';
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { NoteForm } from "forms/NoteForm/NoteForm";
+import { NoteForm, noteInitialValues, validateNoteValues } from "forms/NoteForm/NoteForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeNoteVersion } from "utils/shape/models/noteVersion";
-import { noteInitialValues, validateNoteValues } from "..";
 import { NoteUpdateProps } from "../types";
 
 export const NoteUpdate = ({

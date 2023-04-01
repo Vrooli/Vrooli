@@ -5,12 +5,11 @@ import { mutationWrapper } from "api/utils";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { RoutineForm } from "forms/RoutineForm/RoutineForm";
+import { RoutineForm, routineInitialValues, validateRoutineValues } from "forms/RoutineForm/RoutineForm";
 import { useContext, useMemo, useRef } from "react";
 import { useCreateActions } from "utils/hooks/useCreateActions";
 import { SessionContext } from "utils/SessionContext";
 import { shapeRoutineVersion } from "utils/shape/models/routineVersion";
-import { routineInitialValues, validateRoutineValues } from "..";
 import { RoutineCreateProps } from "../types";
 
 export const RoutineCreate = ({

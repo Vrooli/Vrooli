@@ -5,7 +5,7 @@ import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from 'formik';
-import { ApiForm } from "forms/ApiForm/ApiForm";
+import { ApiForm, apiInitialValues, validateApiValues } from "forms/ApiForm/ApiForm";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useUpdateActions } from "utils/hooks/useUpdateActions";
@@ -13,7 +13,6 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { shapeApiVersion } from "utils/shape/models/apiVersion";
-import { apiInitialValues, validateApiValues } from "..";
 import { ApiUpdateProps } from "../types";
 
 export const ApiUpdate = ({
