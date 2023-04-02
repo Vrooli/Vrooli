@@ -5,7 +5,7 @@
 ][website]
 &nbsp;&nbsp;
 
-[![Website](https://img.shields.io/website?label=app.vrooli.com&style=for-the-badge&url=https%3A%2F%2Fapp.vrooli.com)][website]
+[![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com)][website]
 [![YouTube Channel Views](https://img.shields.io/youtube/channel/views/UC4qvcwbFxx06vBD3wKjXscg?logo=youtube&logoColor=red&style=for-the-badge)][youtube]
 [![Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][twitter]
 [![Discord](https://img.shields.io/discord/880439923876974643?&style=for-the-badge)][discord]
@@ -179,9 +179,8 @@ If you'd like to work with me on this project, or create your own proposal for a
 
 ### [<img align="center" alt="Website" width="36px" src="./docs/assets/vrooli.png" style="padding-left:5px;padding-right:2px" />][start] [**Let's change the world together!🕊**][start]
 
-[landing]: https://vrooli.com
-[website]: https://app.vrooli.com
-[start]: https://app.vrooli.com/start
+[website]: https://vrooli.com
+[start]: https://vrooli.com/start
 [personal-site]: https://matthalloran.info
 [setup-guide]: https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start
 [directory-structure]: ./docs/DirectoryStructure.md
