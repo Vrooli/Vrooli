@@ -15,20 +15,16 @@
 
 # [<img align="top" alt="YouTube" width="50px" src="./docs/assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
 
-Vrooli is a decentralized, collaborative automation platform designed to minimize the time between the inception of an idea and its development into a fully-functional product.
+Vrooli is a decentralized, collaborative automation platform designed to minimize the time between the inception of an idea and its development into a fully-functional product. It combines core components like interfaces, APIs, smart contracts, data, standards, and containerization into interoperable building blocks called routines. These routines can be combined together without any coding experience, making it easy for anyone to create and customize them for rapid prototyping, reusable productivity workflows, and the automation of complex tasks. 
 
-This is accomplished by combining the following core components into interoperable building blocks: 
+Some of Vrooli's features include:
 
-* Interfaces
-* APIs
-* Smart Contracts
-* Data
-* Standards
-* Containerization  
-
-Each building block is called a *routine*, and they can be combined together without any coding experience - just simple drag-and-drop.
-
-Routines can be used for rapid prototyping, reusable productivity workflows, and the automation of complex tasks.
+* Routine visualizer
+* Referencing and creating routines from existing templates
+* Scheduling routines
+* Organizing routines into projects, and attaching them to organizations
+* Customizing the UX with focus modes
+* Community moderation using a reputation system
 
 ## What happened here?
 
@@ -96,6 +92,24 @@ To achieve this grand vision, we must think from first principles. What properti
 **How can Vrooli be used to inspire entrepreneurs?** The simple process of stepping through a routine gives entrepreneurs assurance that they are on the right track. Seeing a routine's progress also provides a sense of accomplishment and motivation. Complicated or incomplete sections of popular routines can become great business proposals.
 
 **How can Vrooli be used to automate tasks?** Vrooli has visions of becoming the "glue" of the automated world. If you're using routines to plan everything, connecting data and computation is the next logical step. The [project roadmap](#🔮-roadmap) details the timeline for this functionality.
+
+## Is this similar to LangChain?
+[LangChain](https://github.com/hwchase17/langchain) has gained a lot of attention recently for its ability to build large language model (LLM) applications using a graphical interface. At first glance, this may look a lot like what we're building, but there are several key differences:
+
+* <details>
+  <summary><b>Scope and focus</b></summary>
+  LangChain is specifically designed for creating applications that leverage large language models (LLMs), while Vrooli offers a broader range of functionality. Vrooli enables users to create and customize applications for rapid prototyping, reusable productivity workflows, and complex task automation, even if they don't involve LLMs.
+</details>
+
+* <details>
+  <summary><b>Combining automated and manual tasks</b></summary>
+  Vrooli allows users to combine both automated and manual tasks, providing a user interface for tasks that require human intervention. This makes Vrooli a more flexible solution for projects that require a mix of automated and user-driven processes. A major benefit to this approach is that processes can be slowly automated over time, rather than having to go through the effort of automating everything at once.
+</details>
+
+* <details>
+  <summary><b>Building on existing routines and community sharing</b></summary>
+  Vrooli offers the ability to build off of existing routines, enabling users to easily reuse and customize components for their projects. Additionally, Vrooli promotes a collaborative environment by allowing users to share their routines with the community, fostering innovation and accelerating development across all organizations
+</details>
 
 ## 🔗 Quick Links
 - [Motivations and goals](https://www.youtube.com/watch?v=hBHaPYi5esQ)
