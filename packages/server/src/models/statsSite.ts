@@ -55,7 +55,7 @@ export const StatsSiteModel: ModelLogic<{
         isTransferable: false,
         maxObjects: 10000000,
         owner: () => ({}),
-        permissionResolvers: ({ isDeleted, isPublic }) => defaultPermissions({ isAdmin: false, isDeleted, isPublic }), // Force isAdmin false, since there is no "visibility.owner" query
+        permissionResolvers: (params) => defaultPermissions({ ...params, isAdmin: false }), // Force isAdmin false, since there is no "visibility.owner" query
         permissionsSelect: () => ({
             id: true,
         }),

@@ -87,7 +87,7 @@ export const ReminderModel: ModelLogic<{
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ReminderListModel.validate!.owner(data.reminderList as any, userId),
-        permissionResolvers: (params) => defaultPermissions(params),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             reminderList: 'ReminderList',

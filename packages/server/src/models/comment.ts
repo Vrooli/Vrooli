@@ -341,9 +341,9 @@ export const CommentModel: ModelLogic<{
             smartContractVersion: 'SmartContract',
             standardVersion: 'Standard',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-            canReply: () => isAdmin || isPublic,
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
+            canReply: () => isLoggedIn && (isAdmin || isPublic),
         }),
         owner: (data) => ({
             Organization: data.ownedByOrganization,

@@ -161,9 +161,9 @@ export const MeetingModel: ModelLogic<{
             showOnOrganizationProfile: true,
             organization: 'Organization',
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-            canInvite: () => isAdmin,
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
+            canInvite: () => isLoggedIn && isAdmin,
         }),
         owner: (data) => ({
             Organization: data.organization,

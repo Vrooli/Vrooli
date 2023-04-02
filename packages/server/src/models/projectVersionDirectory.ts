@@ -89,7 +89,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ProjectVersionModel.validate!.owner(data.projectVersion as any, userId),
-        permissionResolvers: (params) => defaultPermissions(params),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             projectVersion: 'ProjectVersion',

@@ -312,9 +312,9 @@ export const OrganizationModel: ModelLogic<{
         owner: (data) => ({
             Organization: data,
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
-            canAddMembers: () => isAdmin,
+        permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
+            canAddMembers: () => isLoggedIn && isAdmin,
         }),
         permissionsSelect: (userId) => ({
             id: true,

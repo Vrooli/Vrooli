@@ -36,7 +36,7 @@ const GlossyContainer = ({
                 backgroundColor: 'rgba(255,255,255,0.4)',
                 backdropFilter: 'blur(24px)',
                 borderRadius: '0.5rem',
-                padding: 2,
+                padding: 1,
                 height: '100%',
                 maxWidth: '500px',
                 margin: 'auto',
@@ -162,13 +162,9 @@ export const LandingView = ({
                         }}>
                             An Open-Source Economy
                         </Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} margin="auto" sx={{ marginTop: 4, marginBottom: 4 }}>
-                                <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: 'center' }}>
-                                    We're building the tools to automate the future of work
-                                </Typography>
-                            </Grid>
-                        </Grid>
+                        <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: 'center' }}>
+                            We're building the tools to automate the future of work
+                        </Typography>
                         <PulseButton
                             variant="outlined"
                             color="secondary"
@@ -205,8 +201,8 @@ export const LandingView = ({
                     </SlideContent>
                     <SlideContent id={slide2Id}>
                         <Typography variant='h2' sx={{ ...slideTitle }}>Three Easy Steps</Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} md={4}>
+                        <Grid container>
+                            <Grid item xs={12} md={4} p={2}>
                                 <GlossyContainer>
                                     <Typography variant='h5' mb={2}><b>Connect</b></Typography>
                                     <ul style={{ textAlign: 'left' }}>
@@ -215,7 +211,7 @@ export const LandingView = ({
                                     </ul>
                                 </GlossyContainer>
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={4} p={2}>
                                 <GlossyContainer>
                                     <Typography variant='h5' mb={2}><b>Collaborate</b></Typography>
                                     <ul style={{ textAlign: 'left' }}>
@@ -224,7 +220,7 @@ export const LandingView = ({
                                     </ul>
                                 </GlossyContainer>
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={4} p={2}>
                                 <GlossyContainer>
                                     <Typography variant='h5' mb={2}><b>Automate</b></Typography>
                                     <ul style={{ textAlign: 'left' }}>

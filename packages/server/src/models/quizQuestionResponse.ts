@@ -97,7 +97,7 @@ export const QuizQuestionResponseModel: ModelLogic<{
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => QuizAttemptModel.validate!.owner(data.quizAttempt as any, userId),
-        permissionResolvers: (params) => defaultPermissions(params),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             quizAttempt: 'QuizAttempt',

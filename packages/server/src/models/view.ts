@@ -260,7 +260,7 @@ export const ViewModel: ModelLogic<{
             viewFor: keyof typeof ViewFor
         ): Promise<Array<boolean | null>> {
             // Create result array that is the same length as ids
-            const result = new Array(ids.length).fill(null);
+            const result = new Array(ids.length).fill(false);
             // If userId not provided, return result
             if (!userId) return result;
             // Filter out nulls and undefineds from ids

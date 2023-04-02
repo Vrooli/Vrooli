@@ -213,14 +213,14 @@ export const PullRequestModel: ModelLogic<{
             const { validate } = getLogic(['validate'], onType as any, ['en'], 'ResourceListModel.validate.owner');
             return validate.owner(onData, userId);
         },
-        permissionResolvers: ({ data, isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => (isAdmin || isPublic) && !isDeleted && data.status === PullRequestStatus.Open,
-            canConnect: () => false,
-            canDelete: () => isAdmin && !isDeleted,
-            canDisconnect: () => false,
+        permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
+            canComment: () => isLoggedIn && (isAdmin || isPublic) && !isDeleted && data.status === PullRequestStatus.Open,
+            canConnect: () => isLoggedIn,
+            canDelete: () => isLoggedIn && isAdmin && !isDeleted,
+            canDisconnect: () => isLoggedIn,
             canRead: () => isAdmin || isPublic,
-            canReport: () => !isAdmin && !isDeleted && isPublic && data.status === PullRequestStatus.Open,
-            canUpdate: () => isAdmin && !isDeleted,
+            canReport: () => isLoggedIn && !isAdmin && !isDeleted && isPublic && data.status === PullRequestStatus.Open,
+            canUpdate: () => isLoggedIn && isAdmin && !isDeleted,
         }),
         permissionsSelect: () => ({
             id: true,

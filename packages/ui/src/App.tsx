@@ -281,6 +281,7 @@ export function App() {
             mutation: validateSession,
             input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             onSuccess: (data) => { setSession(data) },
+            showDefaultErrorSnack: false,
             onError: (error: any) => {
                 let isInvalidSession = false;
                 // Check if error is expired/invalid session
