@@ -4,7 +4,9 @@ import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@shared/consts";
 import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "@shared/icons";
 import { openLink, useLocation } from "@shared/route";
 import Earth from 'assets/img/Earth.svg';
-import MonkeyCoin from 'assets/img/monkey-coin-page.png';
+import RelaxingCouch from 'assets/img/relaxing-couch.jpg';
+import RobotsCollab from 'assets/img/robots-collab.jpg';
+import WomanTriumph from 'assets/img/woman-triumph.jpg';
 import { PulseButton } from "components/buttons/PulseButton/PulseButton";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainer, SlideContainerNeon, SlideContent, SlidePage } from "components/slides";
@@ -31,11 +33,13 @@ const GlossyContainer = ({
         <Box
             sx={{
                 boxShadow: '0px 0px 6px #040505',
-                backgroundColor: 'rgba(255,255,255,0.3)',
+                backgroundColor: 'rgba(255,255,255,0.4)',
                 backdropFilter: 'blur(24px)',
                 borderRadius: '0.5rem',
                 padding: 2,
                 height: '100%',
+                maxWidth: '500px',
+                margin: 'auto',
                 ...sx
             }}
             {...props}
@@ -200,18 +204,18 @@ export const LandingView = ({
                         </Stack>
                     </SlideContent>
                     <SlideContent id={slide2Id}>
-                        <Typography variant='h2' mb={4} sx={{ ...slideTitle }}>Three Easy Steps</Typography>
-                        <Grid container spacing={2} mb={4}>
-                            <Grid item xs={12} sm={4}>
+                        <Typography variant='h2' sx={{ ...slideTitle }}>Three Easy Steps</Typography>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} md={4}>
                                 <GlossyContainer>
                                     <Typography variant='h5' mb={2}><b>Connect</b></Typography>
                                     <ul style={{ textAlign: 'left' }}>
-                                        <li>Find a routine for anything you want to accomplish</li>
+                                        <li>Find or create a routine for anything you want to accomplish</li>
                                         <li>Fly solo or join an organization</li>
                                     </ul>
                                 </GlossyContainer>
                             </Grid>
-                            <Grid item xs={12} sm={4}>
+                            <Grid item xs={12} md={4}>
                                 <GlossyContainer>
                                     <Typography variant='h5' mb={2}><b>Collaborate</b></Typography>
                                     <ul style={{ textAlign: 'left' }}>
@@ -220,7 +224,7 @@ export const LandingView = ({
                                     </ul>
                                 </GlossyContainer>
                             </Grid>
-                            <Grid item xs={12} sm={4}>
+                            <Grid item xs={12} md={4}>
                                 <GlossyContainer>
                                     <Typography variant='h5' mb={2}><b>Automate</b></Typography>
                                     <ul style={{ textAlign: 'left' }}>
@@ -230,8 +234,17 @@ export const LandingView = ({
                                 </GlossyContainer>
                             </Grid>
                         </Grid>
-                        <Typography variant="h5" sx={{ ...slideText, textAlign: 'center' }}>
-                            This combination creates a <Box sx={{ display: 'contents', color: 'gold' }}><b>self-improving productivity machine</b></Box>
+                        <Typography variant="h3" pt={2} sx={{ ...slideText, textAlign: 'center', lineHeight: 2 }}>
+                            This combination creates a
+                            <Box sx={{
+                                display: 'inline-block',
+                                color: '#ffe768',
+                                textShadow: '0 0 2px #fff, 0 0 3px #fff, 0 0 13px #ffe768, 0 0 42px #ffe768, 0 0 82px #ffe768, 0 0 92px #ffe768, 0 0 102px #ffe768',
+                                paddingLeft: 2,
+                                transform: 'scale(1.05'
+                            }}>
+                                <b>self-improving productivity machine</b>
+                            </Box>
                         </Typography>
                     </SlideContent>
                     <SlideContent id={slide3Id}>
@@ -251,7 +264,12 @@ export const LandingView = ({
                             </Grid>
                             <Grid item xs={12} sm={6} sx={{ paddingLeft: '0 !important' }}>
                                 <Box sx={{ ...slideImageContainer }}>
-                                    <img alt="Routine runner interface example - Minting tokens" src={MonkeyCoin} />
+                                    <Box
+                                        component="img"
+                                        alt="Showcases the concept of taking back your freedom. Features a woman who looks empowered and in control, looking straight ahead, with triumph in her eyes"
+                                        src={WomanTriumph}
+                                        sx={{ borderRadius: '32px', objectFit: 'cover' }}
+                                    />
                                 </Box>
                             </Grid>
                         </Grid>
@@ -263,7 +281,12 @@ export const LandingView = ({
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6} sx={{ paddingLeft: '0 !important' }}>
                                 <Box sx={{ ...slideImageContainer }}>
-                                    <img alt="Routine runner interface example - Minting tokens" src={MonkeyCoin} />
+                                    <Box
+                                        component="img"
+                                        alt="showcases the concept of 'Sharing is Scaling' through the use of robots collaborating to build something."
+                                        src={RobotsCollab}
+                                        sx={{ borderRadius: '32px', objectFit: 'cover' }}
+                                    />
                                 </Box>
                             </Grid>
                             <Grid item xs={12} sm={6} margin="auto">
@@ -283,10 +306,22 @@ export const LandingView = ({
                             Automate With Minimal Effort
                         </Typography>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} margin="auto" sx={{ marginTop: 4, marginBottom: 4 }}>
-                                <Typography component="h2" variant="h5" sx={{ ...slideText, textAlign: 'center' }}>
-                                    Harness the power of AI to generate routines, streamlining processes and maximizing productivity.
-                                </Typography>
+                            <Grid item xs={12} sm={6} margin="auto">
+                                <Stack direction="column" spacing={2}>
+                                    <Typography variant="h5" sx={{ ...slideText }}>
+                                        Harness the power of AI to generate routines, streamlining processes and maximizing productivity.
+                                    </Typography>
+                                </Stack>
+                            </Grid>
+                            <Grid item xs={12} sm={6} sx={{ paddingLeft: '0 !important' }}>
+                                <Box sx={{ ...slideImageContainer }}>
+                                    <Box
+                                        component="img"
+                                        alt="Visually represents the concept of 'Automate With Minimal Effort'. Features a modern living room environment with a clean and minimalistic design. Within this environment, there is a person relaxing on a couch using an AR headset to access automation technology, which is visually represented in the image in a way that conveys ease of use and minimal effort. The person's interactions with a device or interface that is visually distinct from the rest of the environment, such as a touchscreen or a voice-activated assistant."
+                                        src={RelaxingCouch}
+                                        sx={{ borderRadius: '32px', objectFit: 'cover' }}
+                                    />
+                                </Box>
                             </Grid>
                         </Grid>
                     </SlideContent>

@@ -10,7 +10,7 @@ export const SlideContent = ({
         <Stack
             id={id}
             direction="column"
-            spacing={2}
+            spacing={4}
             p={2}
             textAlign="center"
             zIndex={5}

@@ -8,7 +8,7 @@ import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton
 import { ReportButton } from 'components/buttons/ReportButton/ReportButton';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { VoteButton } from 'components/buttons/VoteButton/VoteButton';
-import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpdateInput';
+import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
 import { TextLoading } from 'components/lists/TextLoading/TextLoading';
 import { OwnerLabel } from 'components/text/OwnerLabel/OwnerLabel';
 import { useCallback, useContext, useMemo, useState } from 'react';

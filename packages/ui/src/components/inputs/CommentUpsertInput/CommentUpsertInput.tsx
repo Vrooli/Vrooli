@@ -1,5 +1,5 @@
 import { useTheme } from "@mui/material";
-import { Comment, CommentCreateInput, CommentUpdateInput, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
+import { Comment, CommentCreateInput, CommentUpdateInput } from "@shared/consts";
 import { exists } from "@shared/utils";
 import { commentCreate } from "api/generated/endpoints/comment_create";
 import { commentUpdate } from "api/generated/endpoints/comment_update";
@@ -46,7 +46,7 @@ export const CommentUpsertInput = ({
             onSubmit={(values, helpers) => {
                 // If not logged in, open login dialog
                 //TODO
-                mutationWrapper<Comment, CommentCreateInput | CommentUpdateInputType>({
+                mutationWrapper<Comment, CommentCreateInput | CommentUpdateInput>({
                     mutation,
                     input: transformCommentValues(values, comment),
                     successCondition: (data) => data !== null,
