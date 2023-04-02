@@ -3,10 +3,10 @@ import { NodeType } from '@shared/consts';
 export * from './AddAfterLinkDialog/AddAfterLinkDialog';
 export * from './AddBeforeLinkDialog/AddBeforeLinkDialog';
 export * from './edges';
-export * from './EndNodeDialog/EndNodeDialog';
 export * from './GraphActions/GraphActions';
-export * from './NodeContextMenu/NodeContextMenu';
 export * from './NodeColumn/NodeColumn';
+export * from './NodeContextMenu/NodeContextMenu';
+export * from './NodeEndDialog/NodeEndDialog';
 export * from './NodeGraph/NodeGraph';
 export * from './nodes';
 

@@ -429,6 +429,8 @@
     "SaveChangesBeforeLeaving": "Please save or discard changes before leaving.",
     "Schedule_one": "Schedule",
     "Schedule_other": "Schedules",
+    "ScheduleCreated": "Schedule created.",
+    "ScheduleUpdated": "Schedule updated.",
     "ScheduleSettingsDescription": "Choose what to display on the home screen and when to display it.",
     "Scheduling": "Scheduling",
     "ScoreAsc": "Score ↑",

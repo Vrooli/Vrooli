@@ -1,40 +1,43 @@
 import { useTheme } from "@mui/material";
-import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
+import { Comment, CommentCreateInput, CommentUpdateInput, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
+import { exists } from "@shared/utils";
+import { commentCreate } from "api/generated/endpoints/comment_create";
 import { commentUpdate } from "api/generated/endpoints/comment_update";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from "api/utils";
 import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { CommentForm, commentInitialValues, validateCommentValues } from "forms/CommentForm/CommentForm";
+import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "forms/CommentForm/CommentForm";
 import { useContext, useMemo, useRef } from "react";
-import { useUpdateActions } from "utils/hooks/useUpdateActions";
+import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { useWindowSize } from "utils/hooks/useWindowSize";
 import { SessionContext } from "utils/SessionContext";
-import { shapeComment } from "utils/shape/models/comment";
-import { CommentUpdateInputProps } from "../types";
+import { CommentUpsertInputProps } from "../types";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
  */
-export const CommentUpdateInput = ({
+export const CommentUpsertInput = ({
     comment,
-    handleClose,
     language,
     objectId,
     objectType,
-    onCommentUpdate,
+    onCancel,
+    onCompleted,
     parent,
     zIndex,
-}: CommentUpdateInputProps) => {
+}: CommentUpsertInputProps) => {
     const session = useContext(SessionContext);
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => commentInitialValues(session, objectType, objectId, language, comment), [comment, language, objectId, objectType, session]);
-    const { handleCancel, handleUpdated } = useUpdateActions<Comment>('dialog', handleClose, onCommentUpdate);
-    const [mutation, { loading: isUpdateLoading }] = useCustomMutation<Comment, CommentUpdateInputType>(commentUpdate);
+    const { handleCancel, handleCompleted } = useUpsertActions<Comment>('dialog', !exists(comment), onCancel, onCompleted);
+    const [create, { loading: isCreateLoading }] = useCustomMutation<Comment, CommentCreateInput>(commentCreate);
+    const [update, { loading: isUpdateLoading }] = useCustomMutation<Comment, CommentUpdateInput>(commentUpdate);
+    const mutation = !exists(comment) ? create : update;
 
     return (
         <Formik
@@ -43,27 +46,26 @@ export const CommentUpdateInput = ({
             onSubmit={(values, helpers) => {
                 // If not logged in, open login dialog
                 //TODO
-                const input = shapeComment.update(comment, values);
-                input !== undefined && mutationWrapper<Comment, CommentUpdateInputType>({
+                mutationWrapper<Comment, CommentCreateInput | CommentUpdateInputType>({
                     mutation,
-                    input,
+                    input: transformCommentValues(values, comment),
                     successCondition: (data) => data !== null,
                     successMessage: () => ({ key: 'CommentUpdated' }),
                     onSuccess: (data) => {
                         helpers.resetForm();
-                        handleUpdated(data);
+                        handleCompleted(data);
                     },
                     onError: () => { helpers.setSubmitting(false) },
                 })
             }}
-            validate={async (values) => await validateCommentValues(values, false)}
+            validate={async (values) => await validateCommentValues(values, comment)}
         >
             {(formik) => {
                 if (isMobile) return <CommentDialog
-                    isCreate={false}
-                    isLoading={isUpdateLoading}
+                    isCreate={!exists(comment)}
+                    isLoading={isCreateLoading || isUpdateLoading}
                     isOpen={true}
-                    onCancel={handleClose}
+                    onCancel={handleCancel}
                     parent={parent}
                     ref={formRef}
                     zIndex={zIndex + 1}
@@ -71,8 +73,8 @@ export const CommentUpdateInput = ({
                 />
                 return <CommentForm
                     display="page"
-                    isCreate={false}
-                    isLoading={isUpdateLoading}
+                    isCreate={!exists(comment)}
+                    isLoading={isCreateLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}

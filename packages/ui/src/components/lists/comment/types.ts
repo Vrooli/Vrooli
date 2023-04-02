@@ -16,9 +16,8 @@ export interface CommentThreadProps {
 
 export interface CommentThreadItemProps {
     data: Comment | null;
-    handleCommentAdd: (comment: Comment) => void;
     handleCommentRemove: (comment: Comment) => void;
-    handleCommentUpdate: (comment: Comment) => void;
+    handleCommentUpsert: (comment: Comment) => void;
     isOpen: boolean;
     language: string;
     loading: boolean;

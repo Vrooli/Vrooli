@@ -32,15 +32,15 @@ export const commentInitialValues = (
     ...existing,
 });
 
-export const transformCommentValues = (o: CommentShape, u?: CommentShape) => {
-    return u === undefined
-        ? shapeComment.create(o)
-        : shapeComment.update(o, u)
+export const transformCommentValues = (values: CommentShape, existing?: CommentShape) => {
+    return existing === undefined
+        ? shapeComment.create(values)
+        : shapeComment.update(existing, values)
 }
 
-export const validateCommentValues = async (values: CommentShape, isCreate: boolean) => {
-    const transformedValues = transformCommentValues(values);
-    const validationSchema = isCreate
+export const validateCommentValues = async (values: CommentShape, existing?: CommentShape) => {
+    const transformedValues = transformCommentValues(values, existing);
+    const validationSchema = existing === undefined
         ? commentValidation.create({})
         : commentValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);

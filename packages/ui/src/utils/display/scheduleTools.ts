@@ -1,4 +1,5 @@
 import { FocusMode, Session } from "@shared/consts";
+import { calculateOccurrences } from "@shared/utils";
 import { getCurrentUser } from "utils/authentication/session";
 
 /**
@@ -14,9 +15,8 @@ export const currentFocusMode = (session: Session | null | undefined): FocusMode
     // Find focus modes occuring right now
     return user.focusModes?.filter((s) => {
         const now = new Date();
-        return (
-            (s.eventStart <= now && s.eventEnd >= now) ||
-            (s.recurring && s.recurrStart <= now && s.recurrEnd >= now)
-        );
+        // Find if the focus mode has an event right now
+        const events = s.schedule ? calculateOccurrences(s.schedule, now, new Date(now.getTime() + 1000)) : [];
+        return events.length > 0;
     }) ?? [];
 }

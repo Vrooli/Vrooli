@@ -4,7 +4,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type NodeEndShape = Pick<NodeEnd, 'id' | 'wasSuccessful' | 'suggestedNextRoutineVersions'> & {
     __typename?: 'NodeEnd';
-    node: { id: string };
+    node: { __typename?: 'Node', id: string };
     suggestedNextRoutineVersions?: { id: string }[] | null;
 }
 

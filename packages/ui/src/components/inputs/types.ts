@@ -5,23 +5,13 @@ import { JSONVariable } from 'forms/types';
 import { TagShape } from 'utils/shape/models/tag';
 import { StringSchema } from 'yup';
 
-export interface CommentCreateInputProps {
-    handleClose: () => void;
+export interface CommentUpsertInputProps {
+    comment: Comment | undefined;
     language: string;
     objectId: string;
     objectType: CommentFor;
-    onCommentAdd: (comment: Comment) => any;
-    parent: Comment | null;
-    zIndex: number;
-}
-
-export interface CommentUpdateInputProps {
-    comment: Comment;
-    handleClose: () => void;
-    language: string;
-    objectId: string;
-    objectType: CommentFor;
-    onCommentUpdate: (comment: Comment) => any;
+    onCancel: () => void;
+    onCompleted: (comment: Comment) => any;
     parent: Comment | null;
     zIndex: number;
 }

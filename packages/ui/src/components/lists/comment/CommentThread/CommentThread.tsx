@@ -24,26 +24,30 @@ export const CommentThread = ({
     useMemo(() => {
         setChildData(data?.childThreads ?? []);
     }, [data]);
-    const addComment = useCallback((comment: Comment) => {
-        // Make comment first, so you can see it without having to scroll to the bottom
-        setChildData(curr => [{
-            __typename: 'CommentThread',
-            comment: comment as any,
-            childThreads: [],
-            endCursor: null,
-            totalInThread: 0,
-        }, ...curr]);
-    }, []);
     const removeComment = useCallback((comment: Comment) => {
         setChildData(curr => [...curr.filter(c => c.comment.id !== comment.id)]);
     }, []);
-    const updateComment = useCallback((comment: Comment) => {
+    const upsertComment = useCallback((comment: Comment) => {
+        // Find index of comment
         const index = childData.findIndex(c => c.comment.id === comment.id);
-        if (index !== -1) return;
-        setChildData(curr => updateArray(curr, index, {
-            ...curr[index],
-            comment,
-        }));
+        // If not found, must be a new comment
+        if (index !== -1) {
+            // Make comment first, so you can see it without having to scroll to the bottom
+            setChildData(curr => [{
+                __typename: 'CommentThread',
+                comment: comment as any,
+                childThreads: [],
+                endCursor: null,
+                totalInThread: 0,
+            }, ...curr]);
+        }
+        // If found, update comment
+        else {
+            setChildData(curr => updateArray(curr, index, {
+                ...curr[index],
+                comment,
+            }));
+        }
     }, [childData]);
 
     // list of comment items
@@ -76,9 +80,8 @@ export const CommentThread = ({
                 {/* Comment */}
                 <CommentThreadItem
                     data={data.comment}
-                    handleCommentAdd={addComment}
                     handleCommentRemove={removeComment}
-                    handleCommentUpdate={updateComment}
+                    handleCommentUpsert={upsertComment}
                     isOpen={isOpen}
                     language={language}
                     loading={false}

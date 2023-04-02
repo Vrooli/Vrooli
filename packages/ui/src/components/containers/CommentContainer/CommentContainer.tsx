@@ -6,7 +6,7 @@ import { Comment, CommentThread as ThreadType } from '@shared/consts';
 import { CreateIcon } from '@shared/icons';
 import { uuidValidate } from '@shared/uuid';
 import { SearchButtons } from 'components/buttons/SearchButtons/SearchButtons';
-import { CommentCreateInput } from 'components/inputs/CommentCreateInput/CommentCreateInput';
+import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
 import { CommentThread } from 'components/lists/comment';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -87,12 +87,13 @@ export function CommentContainer({
         <ContentCollapse isOpen={isOpen} title="Comments">
             {/* Add comment */}
             {
-                isAddCommentOpen && <CommentCreateInput
-                    handleClose={handleAddCommentClose}
+                isAddCommentOpen && <CommentUpsertInput
+                    comment={undefined}
                     language={language}
                     objectId={objectId}
                     objectType={objectType}
-                    onCommentAdd={onCommentAdd}
+                    onCancel={handleAddCommentClose}
+                    onCompleted={onCommentAdd}
                     parent={null} // parent is the thread. This is a top-level comment, so no parent
                     zIndex={zIndex}
                 />

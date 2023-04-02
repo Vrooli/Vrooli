@@ -5,6 +5,8 @@ import { Forms } from "utils/consts";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
 import { CommentShape } from "utils/shape/models/comment";
 import { FocusModeShape } from "utils/shape/models/focusMode";
+import { NodeShape } from "utils/shape/models/node";
+import { NodeEndShape } from "utils/shape/models/nodeEnd";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { NoteVersionShape } from "utils/shape/models/noteVersion";
 import { OrganizationShape } from "utils/shape/models/organization";
@@ -76,6 +78,10 @@ export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
     versions: string[];
 }
 export interface CommentFormProps extends BaseObjectFormProps<CommentShape> { }
+export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
+export interface NodeEndFormProps extends BaseObjectFormProps<NodeWithEndShape> {
+    isEditing: boolean;
+}
 export interface FocusModeFormProps extends BaseObjectFormProps<FocusModeShape> { }
 export interface NoteFormProps extends BaseObjectFormProps<NoteVersionShape> {
     versions: string[];

@@ -30,15 +30,6 @@ export interface AddBeforeLinkDialogProps {
     zIndex: number;
 }
 
-export interface EndNodeDialogProps {
-    handleClose: (updatedNode?: Node & { end: NodeEnd }) => void;
-    isEditing: boolean;
-    isOpen: boolean;
-    node: Node & { end: NodeEnd };
-    language: string;
-    zIndex: number;
-}
-
 export interface GraphActionsProps {
     canRedo: boolean;
     canUndo: boolean;
@@ -59,6 +50,15 @@ export interface MoveNodeMenuProps {
     language: string; // Language to display/edit
     node?: Node | null; // Node to be moved
     routineVersion: RoutineVersion;
+    zIndex: number;
+}
+
+export interface NodeEndDialogProps {
+    handleClose: (updatedNode?: Node & { end: NodeEnd }) => void;
+    isEditing: boolean;
+    isOpen: boolean;
+    node: Node & { end: NodeEnd };
+    language: string;
     zIndex: number;
 }
 
