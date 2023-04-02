@@ -1,4 +1,4 @@
-import { Button, Dialog, Grid, Stack, Typography } from "@mui/material";
+import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, Tooltip, Typography } from "@mui/material";
 import { Node, NodeLink, RoutineVersion, Session } from "@shared/consts";
 import { RoutineIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from "@shared/uuid";
@@ -69,15 +69,15 @@ export const routineInitialValues = (
     ...existing,
 });
 
-export const transformRoutineValues = (o: RoutineVersionShape, u?: RoutineVersionShape) => {
-    return u === undefined
-        ? shapeRoutineVersion.create(o)
-        : shapeRoutineVersion.update(o, u)
+export const transformRoutineValues = (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
+    return existing === undefined
+        ? shapeRoutineVersion.create(values)
+        : shapeRoutineVersion.update(existing, values)
 }
 
-export const validateRoutineValues = async (values: RoutineVersionShape, isCreate: boolean) => {
-    const transformedValues = transformRoutineValues(values);
-    const validationSchema = isCreate
+export const validateRoutineValues = async (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
+    const transformedValues = transformRoutineValues(values, existing);
+    const validationSchema = existing === undefined
         ? routineVersionValidation.create({})
         : routineVersionValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
@@ -93,6 +93,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     isCreate,
     isLoading,
     isOpen,
+    isSubroutine,
     onCancel,
     values,
     versions,
@@ -236,6 +237,24 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         fullWidth
                         versions={versions}
                     />
+                    {/* Is internal checkbox */}
+                    {isSubroutine && (
+                        <Grid item xs={12}>
+                            <Tooltip placement={'top'} title='Indicates if this routine is meant to be a subroutine for only one other routine. If so, it will not appear in search resutls.'>
+                                <FormControlLabel
+                                    label='Internal'
+                                    control={
+                                        <Checkbox
+                                            id='routine-info-dialog-is-internal'
+                                            size="small"
+                                            name='isInternal'
+                                            color='secondary'
+                                        />
+                                    }
+                                />
+                            </Tooltip>
+                        </Grid>
+                    )}
                     {/* Selector for single-step or multi-step routine */}
                     <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
                         {/* Title with help text */}
@@ -268,7 +287,6 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                         handleSubmit={handleGraphSubmit}
                                         isEditing={true}
                                         loading={false}
-                                        owner={relationships.owner}
                                         routineVersion={{
                                             id: idField.value,
                                             nodeLinks: nodeLinksField.value as NodeLink[],

@@ -107,7 +107,7 @@ export const QuestionModel: ModelLogic<{
                 id: data.id,
                 referencing: noNull(data.referencing),
                 createdBy: { connect: { id: rest.userData.id } },
-                [forMapper[data.forType]]: { connect: { id: data.forConnect } },
+                ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Question', relation: 'tags', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),

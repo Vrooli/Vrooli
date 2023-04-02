@@ -1,5 +1,7 @@
 import { Stack, useTheme } from "@mui/material";
-import { questionTranslationValidation } from "@shared/validation";
+import { Question, Session } from "@shared/consts";
+import { DUMMY_ID } from "@shared/uuid";
+import { questionTranslationValidation, questionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -12,6 +14,42 @@ import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
+
+export const questionInitialValues = (
+    session: Session | undefined,
+    existing?: Question | null | undefined
+): QuestionShape => ({
+    __typename: 'Question' as const,
+    id: DUMMY_ID,
+    isPrivate: false,
+    referencing: undefined,
+    forObject: null,
+    tags: [],
+    translations: [{
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        description: '',
+        name: '',
+    }],
+    ...existing,
+});
+
+export function transformQuestionValues(values: QuestionShape, existing?: QuestionShape) {
+    return existing === undefined
+        ? shapeQuestion.create(values)
+        : shapeQuestion.update(existing, values)
+}
+
+export const validateQuestionValues = async (values: QuestionShape, existing?: QuestionShape) => {
+    const transformedValues = transformQuestionValues(values, existing);
+    const validationSchema = existing === undefined
+        ? questionValidation.create({})
+        : questionValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}
 
 export const QuestionForm = forwardRef<any, QuestionFormProps>(({
     display,

@@ -1,37 +1,40 @@
-import { ApiVersion, ApiVersionUpdateInput, FindVersionInput } from "@shared/consts";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@shared/consts";
 import { mutationWrapper } from "api";
+import { apiVersionCreate } from "api/generated/endpoints/apiVersion_create";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
 import { apiVersionUpdate } from "api/generated/endpoints/apiVersion_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Formik } from 'formik';
-import { ApiForm, apiInitialValues, validateApiValues } from "forms/ApiForm/ApiForm";
+import { Formik } from "formik";
+import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "forms/ApiForm/ApiForm";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { useUpdateActions } from "utils/hooks/useUpdateActions";
+import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { shapeApiVersion } from "utils/shape/models/apiVersion";
-import { ApiUpdateProps } from "../types";
+import { ApiUpsertProps } from "../types";
 
-export const ApiUpdate = ({
+export const ApiUpsert = ({
     display = 'page',
+    isCreate,
     onCancel,
-    onUpdated,
+    onCompleted,
     zIndex = 200,
-}: ApiUpdateProps) => {
+}: ApiUpsertProps) => {
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => parseSingleItemUrl(), []);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ApiVersion, FindVersionInput>(apiVersionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => apiInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleUpdated } = useUpdateActions<ApiVersion>(display, onCancel, onUpdated);
-    const [mutation, { loading: isUpdateLoading }] = useCustomMutation<ApiVersion, ApiVersionUpdateInput>(apiVersionUpdate);
+    const initialValues = useMemo(() => apiInitialValues(session), [session]);
+    const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>(display, isCreate, onCancel, onCompleted);
+    const [create, { loading: isCreateLoading }] = useCustomMutation<ApiVersion, ApiVersionCreateInput>(apiVersionCreate);
+    const [update, { loading: isUpdateLoading }] = useCustomMutation<ApiVersion, ApiVersionUpdateInput>(apiVersionUpdate);
+    const mutation = isCreate ? create : update;
 
     return (
         <>
@@ -39,34 +42,34 @@ export const ApiUpdate = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: 'UpdateApi',
+                    titleKey: isCreate ? 'CreateApi' : 'UpdateApi',
                 }}
             />
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
-                    if (!existing) {
+                    if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                         return;
                     }
-                    mutationWrapper<ApiVersion, ApiVersionUpdateInput>({
+                    mutationWrapper<ApiVersion, ApiVersionCreateInput | ApiVersionUpdateInput>({
                         mutation,
-                        input: shapeApiVersion.update(existing, values),
-                        onSuccess: (data) => { handleUpdated(data) },
+                        input: transformApiValues(values, existing),
+                        onSuccess: (data) => { handleCompleted(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validate={async (values) => await validateApiValues(values, false)}
+                validate={async (values) => await validateApiValues(values, existing)}
             >
                 {(formik) => <ApiForm
                     display={display}
-                    isCreate={false}
-                    isLoading={isReadLoading || isUpdateLoading}
+                    isCreate={isCreate}
+                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}
-                    versions={existing?.root?.versions?.map(v => v.versionLabel) ?? []}
+                    versions={[]}
                     zIndex={zIndex}
                     {...formik}
                 />}

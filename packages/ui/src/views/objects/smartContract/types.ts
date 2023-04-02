@@ -1,6 +1,5 @@
 import { SmartContractVersion } from "@shared/consts";
-import { CreateProps, UpdateProps, ViewProps } from "../types";
+import { UpsertProps, ViewProps } from "../types";
 
-export interface SmartContractCreateProps extends CreateProps<SmartContractVersion> {}
-export interface SmartContractUpdateProps extends UpdateProps<SmartContractVersion> {}
-export interface SmartContractViewProps extends ViewProps<SmartContractVersion> {}
+export interface SmartContractUpsertProps extends UpsertProps<SmartContractVersion> { }
+export interface SmartContractViewProps extends ViewProps<SmartContractVersion> { }

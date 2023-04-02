@@ -37,15 +37,15 @@ export const organizationInitialValues = (
     ...existing,
 });
 
-export const transformOrganizationValues = (o: OrganizationShape, u?: OrganizationShape) => {
-    return u === undefined
-        ? shapeOrganization.create(o)
-        : shapeOrganization.update(o, u)
+export const transformOrganizationValues = (values: OrganizationShape, existing?: OrganizationShape) => {
+    return existing === undefined
+        ? shapeOrganization.create(values)
+        : shapeOrganization.update(existing, values)
 }
 
-export const validateOrganizationValues = async (values: OrganizationShape, isCreate: boolean) => {
-    const transformedValues = transformOrganizationValues(values);
-    const validationSchema = isCreate
+export const validateOrganizationValues = async (values: OrganizationShape, existing?: OrganizationShape) => {
+    const transformedValues = transformOrganizationValues(values, existing);
+    const validationSchema = existing === undefined
         ? organizationValidation.create({})
         : organizationValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);

@@ -1,39 +1,40 @@
-import { FindByIdInput, Question, QuestionUpdateInput } from "@shared/consts";
-import { questionValidation } from '@shared/validation';
+import { FindByIdInput, Question, QuestionCreateInput, QuestionUpdateInput } from "@shared/consts";
 import { mutationWrapper } from "api";
+import { questionCreate } from "api/generated/endpoints/question_create";
 import { questionFindOne } from "api/generated/endpoints/question_findOne";
 import { questionUpdate } from "api/generated/endpoints/question_update";
 import { useCustomLazyQuery, useCustomMutation } from "api/hooks";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { QuestionForm } from "forms/QuestionForm/QuestionForm";
+import { QuestionForm, questionInitialValues, transformQuestionValues, validateQuestionValues } from "forms/QuestionForm/QuestionForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { useUpdateActions } from "utils/hooks/useUpdateActions";
+import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
-import { shapeQuestion } from "utils/shape/models/question";
-import { questionInitialValues } from "..";
-import { QuestionUpdateProps } from "../types";
+import { QuestionUpsertProps } from "../types";
 
-export const QuestionUpdate = ({
+export const QuestionUpsert = ({
     display = 'page',
+    isCreate,
     onCancel,
-    onUpdated,
+    onCompleted,
     zIndex = 200,
-}: QuestionUpdateProps) => {
+}: QuestionUpsertProps) => {
     const session = useContext(SessionContext);
 
     // Fetch existing data
-    const { id } = useMemo(() => parseSingleItemUrl(), []);
+    const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Question, FindByIdInput>(questionFindOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => questionInitialValues(session, existing), [existing, session]);
-    const { handleCancel, handleUpdated } = useUpdateActions<Question>(display, onCancel, onUpdated);
-    const [mutation, { loading: isUpdateLoading }] = useCustomMutation<Question, QuestionUpdateInput>(questionUpdate);
+    const { handleCancel, handleCompleted } = useUpsertActions<Question>(display, isCreate, onCancel, onCompleted);
+    const [create, { loading: isCreateLoading }] = useCustomMutation<Question, QuestionCreateInput>(questionCreate);
+    const [update, { loading: isUpdateLoading }] = useCustomMutation<Question, QuestionUpdateInput>(questionUpdate);
+    const mutation = isCreate ? create : update;
 
     return (
         <>
@@ -41,30 +42,30 @@ export const QuestionUpdate = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: 'UpdateQuestion',
+                    titleKey: isCreate ? 'CreateQuestion' : 'UpdateQuestion',
                 }}
             />
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
-                    if (!existing) {
+                    if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                         return;
                     }
-                    mutationWrapper<Question, QuestionUpdateInput>({
+                    mutationWrapper<Question, QuestionCreateInput | QuestionUpdateInput>({
                         mutation,
-                        input: shapeQuestion.update(existing, values),
-                        onSuccess: (data) => { handleUpdated(data) },
+                        input: transformQuestionValues(values, existing),
+                        onSuccess: (data) => { handleCompleted(data) },
                         onError: () => { helpers.setSubmitting(false) },
                     })
                 }}
-                validationSchema={questionValidation.update({})}
+                validate={async (values) => await validateQuestionValues(values, existing)}
             >
                 {(formik) => <QuestionForm
                     display={display}
-                    isCreate={false}
-                    isLoading={isReadLoading || isUpdateLoading}
+                    isCreate={isCreate}
+                    isLoading={isCreateLoading || isReadLoading || isUpdateLoading}
                     isOpen={true}
                     onCancel={handleCancel}
                     ref={formRef}

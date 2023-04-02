@@ -50,15 +50,15 @@ export const smartContractInitialValues = (
     ...existing,
 });
 
-export const transformSmartContractValues = (o: SmartContractVersionShape, u?: SmartContractVersionShape) => {
-    return u === undefined
-        ? shapeSmartContractVersion.create(o)
-        : shapeSmartContractVersion.update(o, u)
+export const transformSmartContractValues = (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
+    return existing === undefined
+        ? shapeSmartContractVersion.create(values)
+        : shapeSmartContractVersion.update(existing, values)
 }
 
-export const validateSmartContractValues = async (values: SmartContractVersionShape, isCreate: boolean) => {
-    const transformedValues = transformSmartContractValues(values);
-    const validationSchema = isCreate
+export const validateSmartContractValues = async (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
+    const transformedValues = transformSmartContractValues(values, existing);
+    const validationSchema = existing === undefined
         ? smartContractVersionValidation.create({})
         : smartContractVersionValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);

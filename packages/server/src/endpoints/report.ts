@@ -1,8 +1,8 @@
-import { gql } from 'apollo-server-express';
 import { FindByIdInput, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput } from '@shared/consts';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { rateLimit } from '../middleware';
+import { gql } from 'apollo-server-express';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum ReportFor {
@@ -42,7 +42,7 @@ export const typeDef = gql`
     }
 
     type Report {
-        id: ID
+        id: ID!
         created_at: Date!
         updated_at: Date!
         details: String

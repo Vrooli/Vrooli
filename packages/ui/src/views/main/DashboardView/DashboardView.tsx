@@ -28,7 +28,7 @@ import { openObject } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
-import { NoteCreate, ReminderCreate } from 'views/objects';
+import { NoteUpsert, ReminderUpsert } from 'views/objects';
 import { DashboardViewProps } from '../types';
 
 const zIndex = 200;
@@ -238,10 +238,11 @@ export const DashboardView = ({
                 isOpen={isCreateReminderOpen}
                 zIndex={201}
             >
-                <ReminderCreate
+                <ReminderUpsert
                     display="dialog"
+                    isCreate={true}
                     onCancel={closeCreateReminder}
-                    onCreated={onReminderCreated}
+                    onCompleted={onReminderCreated}
                     zIndex={201}
                 />
             </LargeDialog>
@@ -252,10 +253,11 @@ export const DashboardView = ({
                 isOpen={isCreateNoteOpen}
                 zIndex={201}
             >
-                <NoteCreate
+                <NoteUpsert
                     display="dialog"
+                    isCreate={true}
                     onCancel={closeCreateNote}
-                    onCreated={onNoteCreated}
+                    onCompleted={onNoteCreated}
                     zIndex={201}
                 />
             </LargeDialog>

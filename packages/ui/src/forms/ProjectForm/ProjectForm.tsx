@@ -48,15 +48,15 @@ export const projectInitialValues = (
     ...existing,
 });
 
-export const transformProjectValues = (o: ProjectVersionShape, u?: ProjectVersionShape) => {
-    return u === undefined
-        ? shapeProjectVersion.create(o)
-        : shapeProjectVersion.update(o, u)
+export const transformProjectValues = (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
+    return existing === undefined
+        ? shapeProjectVersion.create(values)
+        : shapeProjectVersion.update(existing, values)
 }
 
-export const validateProjectValues = async (values: ProjectVersionShape, isCreate: boolean) => {
-    const transformedValues = transformProjectValues(values);
-    const validationSchema = isCreate
+export const validateProjectValues = async (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
+    const transformedValues = transformProjectValues(values, existing);
+    const validationSchema = existing === undefined
         ? projectVersionValidation.create({})
         : projectVersionValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);

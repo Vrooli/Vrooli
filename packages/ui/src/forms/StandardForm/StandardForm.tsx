@@ -33,11 +33,14 @@ export const standardInitialValues = (
 ): StandardVersionShape => ({
     __typename: 'StandardVersion' as const,
     id: DUMMY_ID,
-    default: '',
     directoryListings: [],
     isComplete: false,
     isPrivate: false,
     isFile: false,
+    standardType: 'JSON',
+    props: JSON.stringify({}),
+    default: JSON.stringify({}),
+    yup: JSON.stringify({}),
     resourceList: {
         __typename: 'ResourceList' as const,
         id: DUMMY_ID,
@@ -45,9 +48,11 @@ export const standardInitialValues = (
     root: {
         __typename: 'Standard' as const,
         id: DUMMY_ID,
+        isInternal: false,
         isPrivate: false,
         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
         parent: null,
+        permissions: JSON.stringify({}),
         tags: [],
     },
     translations: [{
@@ -61,15 +66,15 @@ export const standardInitialValues = (
     ...existing,
 });
 
-export const transformStandardValues = (o: StandardVersionShape, u?: StandardVersionShape) => {
-    return u === undefined
-        ? shapeStandardVersion.create(o)
-        : shapeStandardVersion.update(o, u)
+export const transformStandardValues = (values: StandardVersionShape, existing?: StandardVersionShape) => {
+    return existing === undefined
+        ? shapeStandardVersion.create(values)
+        : shapeStandardVersion.update(existing, values)
 }
 
-export const validateStandardValues = async (values: StandardVersionShape, isCreate: boolean) => {
-    const transformedValues = transformStandardValues(values);
-    const validationSchema = isCreate
+export const validateStandardValues = async (values: StandardVersionShape, existing?: StandardVersionShape) => {
+    const transformedValues = transformStandardValues(values, existing);
+    const validationSchema = existing === undefined
         ? standardVersionValidation.create({})
         : standardVersionValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);

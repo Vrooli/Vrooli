@@ -23,15 +23,15 @@ import { getCurrentUser } from 'utils/authentication/session';
 import { SearchType, searchTypeToParams } from 'utils/search/objectToSearch';
 import { SearchParams } from 'utils/search/schemas/base';
 import { SessionContext } from 'utils/SessionContext';
-import { CreateProps } from 'views/objects/types';
+import { UpsertProps } from 'views/objects/types';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
-const { ApiCreate } = lazily(() => import('../../../../views/objects/api/ApiCreate/ApiCreate'));
-const { NoteCreate } = lazily(() => import('../../../../views/objects/note/NoteCreate/NoteCreate'));
-const { OrganizationCreate } = lazily(() => import('../../../../views/objects/organization/OrganizationCreate/OrganizationCreate'));
-const { ProjectCreate } = lazily(() => import('../../../../views/objects/project/ProjectCreate/ProjectCreate'));
-const { RoutineCreate } = lazily(() => import('../../../../views/objects/routine/RoutineCreate/RoutineCreate'));
-const { SmartContractCreate } = lazily(() => import('../../../../views/objects/smartContract/SmartContractCreate/SmartContractCreate'));
-const { StandardCreate } = lazily(() => import('../../../../views/objects/standard/StandardCreate/StandardCreate'));
+const { ApiUpsert } = lazily(() => import('../../../../views/objects/api/ApiUpsert/ApiUpsert'));
+const { NoteUpsert } = lazily(() => import('../../../../views/objects/note/NoteUpsert/NoteUpsert'));
+const { OrganizationUpsert } = lazily(() => import('../../../../views/objects/organization/OrganizationUpsert/OrganizationUpsert'));
+const { ProjectUpsert } = lazily(() => import('../../../../views/objects/project/ProjectUpsert/ProjectUpsert'));
+const { RoutineUpsert } = lazily(() => import('../../../../views/objects/routine/RoutineUpsert/RoutineUpsert'));
+const { SmartContractUpsert } = lazily(() => import('../../../../views/objects/smartContract/SmartContractUpsert/SmartContractUpsert'));
+const { StandardUpsert } = lazily(() => import('../../../../views/objects/standard/StandardUpsert/StandardUpsert'));
 
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
@@ -42,14 +42,14 @@ type CreateViewTypes = ({
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
  */
-const createMap: { [K in CreateViewTypes]: (props: CreateProps<any>) => JSX.Element } = {
-    Api: ApiCreate,
-    Note: NoteCreate,
-    Organization: OrganizationCreate,
-    Project: ProjectCreate,
-    Routine: RoutineCreate,
-    SmartContract: SmartContractCreate,
-    Standard: StandardCreate,
+const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Element } = {
+    Api: ApiUpsert,
+    Note: NoteUpsert,
+    Organization: OrganizationUpsert,
+    Project: ProjectUpsert,
+    Routine: RoutineUpsert,
+    SmartContract: SmartContractUpsert,
+    Standard: StandardUpsert,
 }
 
 export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
@@ -74,7 +74,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
             titleId: `select-or-create-${objectType}-dialog-title`,
         };
     }, [help, objectType, t]);
-    const CreateView = useMemo<((props: CreateProps<any>) => JSX.Element) | null>(() =>
+    const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() =>
         objectType === 'User' ? null : (createMap as any)[objectType.replace('Version', '')], [objectType]);
 
     const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
@@ -177,6 +177,8 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                 zIndex={zIndex + 1}
             >
                 <CreateView
+                    display="dialog"
+                    isCreate={true}
                     // onCreated={handleCreated as any}
                     // onCancel={handleCreateClose}
                     zIndex={zIndex + 1}

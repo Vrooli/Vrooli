@@ -1,4 +1,3 @@
-export * from './SmartContractCreate/SmartContractCreate';
-export * from './SmartContractUpdate/SmartContractUpdate';
+export * from './SmartContractUpsert/SmartContractUpsert';
 export * from './SmartContractView/SmartContractView';
 

@@ -1,4 +1,6 @@
 import { TextField } from "@mui/material";
+import { Report, ReportFor, Session } from "@shared/consts";
+import { DUMMY_ID } from "@shared/uuid";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { Selector } from "components/inputs/Selector/Selector";
@@ -7,6 +9,8 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ReportFormProps } from "forms/types";
 import { forwardRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { getUserLanguages } from "utils/display/translationTools";
+import { ReportShape } from "utils/shape/models/report";
 
 enum ReportOptions {
     Inappropriate = 'Inappropriate',
@@ -23,6 +27,23 @@ const ReportReasons = {
     [ReportOptions.Spam]: 'Spam',
     [ReportOptions.Other]: 'Other',
 }
+
+export const reportInitialValues = (
+    session: Session | undefined,
+    createdFor: ReportFor,
+    createdForId: string,
+    existing?: Report | null | undefined
+): ReportShape => ({
+    __typename: 'Report' as const,
+    id: DUMMY_ID,
+    createdFor: { __typename: createdFor, id: createdForId },
+    reason: '',
+    otherReason: '',
+    details: '',
+    language: getUserLanguages(session)[0],
+    ...existing,
+});
+
 
 export const ReportForm = forwardRef<any, ReportFormProps>(({
     display,

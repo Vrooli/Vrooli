@@ -53,15 +53,15 @@ export const apiInitialValues = (
     ...existing,
 });
 
-export const transformApiValues = (o: ApiVersionShape, u?: ApiVersionShape) => {
-    return u === undefined
-        ? shapeApiVersion.create(o)
-        : shapeApiVersion.update(o, u)
+export const transformApiValues = (values: ApiVersionShape, existing?: ApiVersionShape) => {
+    return existing === undefined
+        ? shapeApiVersion.create(values)
+        : shapeApiVersion.update(existing, values)
 }
 
-export const validateApiValues = async (values: ApiVersionShape, isCreate: boolean) => {
-    const transformedValues = transformApiValues(values);
-    const validationSchema = isCreate
+export const validateApiValues = async (values: ApiVersionShape, existing?: ApiVersionShape) => {
+    const transformedValues = transformApiValues(values, existing);
+    const validationSchema = existing === undefined
         ? apiVersionValidation.create({})
         : apiVersionValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);

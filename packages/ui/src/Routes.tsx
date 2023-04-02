@@ -41,15 +41,15 @@ const { PremiumView } = lazily(() => import('./views/PremiumView/PremiumView'));
 const { SearchView } = lazily(() => import('./views/SearchView/SearchView'));
 const { StartView } = lazily(() => import('./views/StartView/StartView'));
 const { StatsView } = lazily(() => import('./views/StatsView/StatsView'));
-const { ApiCreate, ApiUpdate, ApiView } = lazily(() => import('./views/objects/api'));
-const { NoteCreate, NoteUpdate, NoteView } = lazily(() => import('./views/objects/note'));
-const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('./views/objects/organization'));
-const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('./views/objects/project'));
-const { QuestionCreate, QuestionUpdate, QuestionView } = lazily(() => import('./views/objects/question'));
-const { ReminderCreate, ReminderUpdate, ReminderView } = lazily(() => import('./views/objects/reminder'));
-const { RoutineCreate, RoutineUpdate, RoutineView } = lazily(() => import('./views/objects/routine'));
-const { SmartContractCreate, SmartContractUpdate, SmartContractView } = lazily(() => import('./views/objects/smartContract'));
-const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('./views/objects/standard'));
+const { ApiUpsert, ApiView } = lazily(() => import('./views/objects/api'));
+const { NoteUpsert, NoteView } = lazily(() => import('./views/objects/note'));
+const { OrganizationUpsert, OrganizationView } = lazily(() => import('./views/objects/organization'));
+const { ProjectUpsert, ProjectView } = lazily(() => import('./views/objects/project'));
+const { QuestionUpsert, QuestionView } = lazily(() => import('./views/objects/question'));
+const { ReminderUpsert, ReminderView } = lazily(() => import('./views/objects/reminder'));
+const { RoutineUpsert, RoutineView } = lazily(() => import('./views/objects/routine'));
+const { SmartContractUpsert, SmartContractView } = lazily(() => import('./views/objects/smartContract'));
+const { StandardUpsert, StandardView } = lazily(() => import('./views/objects/standard'));
 const { UserView } = lazily(() => import('./views/objects/user'));
 
 /**
@@ -108,10 +108,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <AboutView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
-                    <ApiCreate onCancel={() => { }} onCreated={() => { }} />
+                    <ApiUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ApiUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <ApiUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/:id`} {...props}>
                     <ApiView />
@@ -160,10 +160,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <MyStuffView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/add`} mustBeLoggedIn={true} {...props}>
-                    <NoteCreate onCancel={() => { }} onCreated={() => { }} />
+                    <NoteUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <NoteUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <NoteUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/:id`} {...props}>
                     <NoteView />
@@ -179,10 +179,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <NotificationsView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationCreate onCancel={() => { }} onCreated={() => { }} />
+                    <OrganizationUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <OrganizationUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Organization}/:id`} sx={noSidePadding} {...props}>
                     <OrganizationView />
@@ -209,28 +209,28 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <UserView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
-                    <ProjectCreate onCancel={() => { }} onCreated={() => { }} />
+                    <ProjectUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <ProjectUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/:id`} {...props}>
                     <ProjectView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
-                    <QuestionCreate onCancel={() => { }} onCreated={() => { }} />
+                    <QuestionUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <QuestionUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <QuestionUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/:id`} {...props}>
                     <QuestionView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderCreate onCancel={() => { }} onCreated={() => { }} />
+                    <ReminderUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <ReminderUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderView />
@@ -247,10 +247,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     </FormView>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
-                    <RoutineCreate onCancel={() => { }} onCreated={() => { }} />
+                    <RoutineUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <RoutineUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <RoutineUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Routine}/:id`} {...props}>
                     <RoutineView />
@@ -286,19 +286,19 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <SettingsFocusModesView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractCreate onCancel={() => { }} onCreated={() => { }} />
+                    <SmartContractUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <SmartContractUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.SmartContract}/:id`} {...props}>
                     <SmartContractView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
-                    <StandardCreate onCancel={() => { }} onCreated={() => { }} />
+                    <StandardUpsert display='page' isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <StandardUpdate onCancel={() => { }} onUpdated={() => { }} />
+                    <StandardUpsert display='page' isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/:id`} {...props}>
                     <StandardView />

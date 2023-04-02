@@ -45,15 +45,15 @@ export const noteInitialValues = (
     ...existing,
 });
 
-export const transformNoteValues = (o: NoteVersionShape, u?: NoteVersionShape) => {
-    return u === undefined
-        ? shapeNoteVersion.create(o)
-        : shapeNoteVersion.update(o, u)
+export function transformNoteValues(values: NoteVersionShape, existing?: NoteVersionShape) {
+    return existing === undefined
+        ? shapeNoteVersion.create(values)
+        : shapeNoteVersion.update(existing, values)
 }
 
-export const validateNoteValues = async (values: NoteVersionShape, isCreate: boolean) => {
-    const transformedValues = transformNoteValues(values);
-    const validationSchema = isCreate
+export const validateNoteValues = async (values: NoteVersionShape, existing?: NoteVersionShape) => {
+    const transformedValues = transformNoteValues(values, existing);
+    const validationSchema = existing === undefined
         ? noteVersionValidation.create({})
         : noteVersionValidation.update({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);

@@ -8,12 +8,13 @@ import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { Formik } from 'formik';
 import { BaseFormRef } from 'forms/BaseForm/BaseForm';
-import { ReportForm } from 'forms/ReportForm/ReportForm';
+import { ReportForm, reportInitialValues } from 'forms/ReportForm/ReportForm';
 import { formNavLink } from 'forms/styles';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clickSize } from 'styles';
 import { getUserLanguages } from 'utils/display/translationTools';
+import { useUpsertActions } from 'utils/hooks/useUpsertActions';
 import { SessionContext } from 'utils/SessionContext';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
@@ -35,20 +36,9 @@ export const ReportDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session])
+    const { handleCancel } = useUpsertActions<Report>('dialog', true, onClose, onClose);
     const [mutation, { loading: isLoading }] = useCustomMutation<Report, ReportCreateInput>(reportCreate);
-    const initialValues = useMemo(() => ({
-        createdFor: reportFor,
-        createdForId: forId,
-        reason: '',
-        otherReason: '',
-        details: '',
-        language,
-    }), [forId, language, reportFor]);
-
-    const handleClose = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
-        // Confirm dialog is dirty and closed by clicking outside
-        formRef.current?.handleClose(onClose, reason !== 'backdropClick');
-    }, [onClose]);
 
     /**
      * Opens existing reports in a new tab
@@ -61,7 +51,7 @@ export const ReportDialog = ({
         <LargeDialog
             id="report-dialog"
             isOpen={open}
-            onClose={handleClose}
+            onClose={handleCancel}
             titleId={titleId}
             zIndex={zIndex}
         >
@@ -69,7 +59,7 @@ export const ReportDialog = ({
                 id={titleId}
                 title={title}
                 helpText={t('ReportsHelp')}
-                onClose={handleClose}
+                onClose={handleCancel}
             />
             <DialogContent>
                 <Link onClick={toExistingReports}>
@@ -112,7 +102,7 @@ export const ReportDialog = ({
                         isCreate={true}
                         isLoading={isLoading}
                         isOpen={true}
-                        onCancel={handleClose}
+                        onCancel={handleCancel}
                         ref={formRef}
                         zIndex={zIndex}
                         {...formik}

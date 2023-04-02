@@ -85,10 +85,14 @@ export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShap
     versions: string[];
 }
 export interface QuestionFormProps extends BaseObjectFormProps<QuestionShape> { }
-export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> { }
+export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> {
+    index?: number;
+    reminderListId?: string;
+}
 export interface ReportFormProps extends BaseObjectFormProps<ReportShape> { }
 export interface ResourceFormProps extends BaseObjectFormProps<ResourceShape> { }
 export interface RoutineFormProps extends BaseObjectFormProps<RoutineVersionShape> {
+    isSubroutine: boolean;
     versions: string[];
 }
 export interface ScheduleFormProps extends BaseObjectFormProps<ScheduleShape> { }
