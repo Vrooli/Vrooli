@@ -184,6 +184,12 @@ export interface LanguageInputProps {
     zIndex: number;
 }
 
+export interface LinkInputProps {
+    label?: string;
+    name?: string;
+    zIndex: number;
+}
+
 export interface MarkdownInputProps {
     autoFocus?: boolean;
     disabled?: boolean;

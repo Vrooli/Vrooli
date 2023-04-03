@@ -144,7 +144,7 @@ type GetRoutineVersionStatusResult = {
  * @param routine The routine to check
  */
 export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion> | null): GetRoutineVersionStatusResult => {
-    if (!routineVersion || !routineVersion.nodeLinks || !routineVersion.nodes) { 
+    if (!routineVersion || !routineVersion.nodeLinks || !routineVersion.nodes) {
         return { status: Status.Invalid, messages: ['No node or link data found'], nodesById: {}, nodesOffGraph: [], nodesOnGraph: [] };
     }
     const nodesOnGraph: Node[] = [];
@@ -282,7 +282,7 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
     const link1: NodeLinkShape = {
         id: uuid(),
         from: startNode,
-        to: endNode,
+        to: routineListNode,
         whens: [],
         operation: null,
         routineVersion: { id: routineVersionId },

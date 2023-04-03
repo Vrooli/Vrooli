@@ -93,6 +93,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
+                    minWidth: '400px',
                     maxWidth: '700px',
                     marginBottom: '64px',
                 }}
@@ -107,7 +108,8 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                         name="name"
                         props={{
                             language,
-                            multiline: true
+                            fullWidth: true,
+                            multiline: true,
                         }}
                         title={t('Label')}
                     />
@@ -137,19 +139,19 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
                         />
                     </Tooltip>
                 </Stack>
-                <GridSubmitButtons
-                    display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={{
+                    ...props.errors,
+                    ...translationErrors,
+                }}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </>
     )
 })

@@ -1,4 +1,4 @@
-import { Box, Button, Typography, useTheme } from "@mui/material"
+import { Box, Button, Typography, useTheme } from "@mui/material";
 import { TIDCardProps } from "../types";
 
 /**
@@ -31,7 +31,7 @@ export const TIDCard = ({
                 },
             }}>
             {/* Left of card is icon */}
-            <Box sx={{
+            {Icon && <Box sx={{
                 float: 'left',
                 width: '75px',
                 height: '100%',
@@ -46,11 +46,11 @@ export const TIDCard = ({
                 }}>
                     <Icon width={'50px'} height={'50px'} fill={palette.background.textPrimary} />
                 </Box>
-            </Box>
+            </Box>}
             {/* Right of card is title and description */}
             <Box sx={{
                 float: 'right',
-                width: 'calc(100% - 75px)',
+                width: Icon ? 'calc(100% - 75px)' : '100%',
                 height: '100%',
                 padding: '1rem',
                 display: 'contents',

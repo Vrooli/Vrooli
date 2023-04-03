@@ -1,5 +1,5 @@
 import { DialogProps, PopoverProps } from '@mui/material';
-import { Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule } from '@shared/consts';
+import { Api, ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, Note, NoteVersion, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from 'components/text/types';
@@ -62,9 +62,30 @@ export interface DialogTitleProps {
     title?: string;
 }
 
-export interface FindObjectDialogProps {
-    handleClose: (objectLink?: string) => void;
+export type SelectOrCreateObjectType = 'Api' | 'ApiVersion' | 'Note' | 'NoteVersion' | 'Organization' | 'Project' | 'ProjectVersion' | 'Routine' | 'RoutineVersion' | 'SmartContract' | 'SmartContractVersion' | 'Standard' | 'StandardVersion' | 'User';
+export type SelectOrCreateObject = Api |
+    ApiVersion |
+    Note |
+    NoteVersion |
+    Organization |
+    Project |
+    ProjectVersion |
+    Routine |
+    RoutineVersion |
+    SmartContract |
+    SmartContractVersion |
+    Standard |
+    StandardVersion |
+    User;
+export type FindObjectDialogType = 'Url' | 'Object';
+export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
+    /**
+     * Determines the type of data returned when an object is selected
+     */
+    find: Find;
+    handleClose: (data?: Find extends 'Url' ? string : ObjectType) => any;
     isOpen: boolean;
+    limitTo?: ('Routine' | 'Project' | 'Question' | 'Note' | 'Organization' | 'User' | 'Standard' | 'Api' | 'SmartContract')[];
     zIndex: number;
 }
 

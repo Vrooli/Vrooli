@@ -1,17 +1,41 @@
-import { Button, DialogContent, Stack, Typography } from "@mui/material";
-import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon, VisibleIcon } from "@shared/icons";
-import { addSearchParams, parseSearchParams, useLocation } from "@shared/route";
+import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import { FindByIdInput } from "@shared/consts";
+import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon, VisibleIcon } from "@shared/icons";
+import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "@shared/route";
+import { isOfType } from "@shared/utils";
+import { useCustomLazyQuery } from "api";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
+import { TIDCard } from "components/cards/TIDCard/TIDCard";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { lazily } from "react-lazily";
 import { AutocompleteOption } from "types";
+import { getDisplay } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
-import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
-import { FindObjectDialogProps } from "../types";
+import { SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
+import { SearchParams } from "utils/search/schemas/base";
+import { UpsertProps } from "views/objects/types";
+import { ShareSiteDialog } from "../ShareSiteDialog/ShareSiteDialog";
+import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
+const { ApiUpsert } = lazily(() => import('../../../views/objects/api/ApiUpsert/ApiUpsert'));
+const { NoteUpsert } = lazily(() => import('../../../views/objects/note/NoteUpsert/NoteUpsert'));
+const { OrganizationUpsert } = lazily(() => import('../../../views/objects/organization/OrganizationUpsert/OrganizationUpsert'));
+const { ProjectUpsert } = lazily(() => import('../../../views/objects/project/ProjectUpsert/ProjectUpsert'));
+const { RoutineUpsert } = lazily(() => import('../../../views/objects/routine/RoutineUpsert/RoutineUpsert'));
+const { SmartContractUpsert } = lazily(() => import('../../../views/objects/smartContract/SmartContractUpsert/SmartContractUpsert'));
+const { StandardUpsert } = lazily(() => import('../../../views/objects/standard/StandardUpsert/StandardUpsert'));
+
+type CreateViewTypes = ({
+    [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
+    never :
+    K
+})[SelectOrCreateObjectType]
 
 type BaseParams = {
     Icon: (props: SvgProps) => JSX.Element,
@@ -73,25 +97,47 @@ const tabParams: BaseParams[] = [{
     where: {},
 }];
 
+/**
+ * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
+ */
+const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Element } = {
+    Api: ApiUpsert,
+    Note: NoteUpsert,
+    Organization: OrganizationUpsert,
+    Project: ProjectUpsert,
+    Routine: RoutineUpsert,
+    SmartContract: SmartContractUpsert,
+    Standard: StandardUpsert,
+}
+
+
 const searchTitleId = "search-vrooli-for-link-title";
 
-export const FindObjectDialog = ({
+export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
+    find,
     handleClose,
     isOpen,
+    limitTo,
     zIndex,
-}: FindObjectDialogProps) => {
+}: FindObjectDialogProps<Find, ObjectType>) => {
+    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     // Tabs to filter by object type
     const tabs = useMemo<PageTab<'All' | SearchPageTabOption>[]>(() => {
-        return tabParams.map((tab, i) => ({
+        // If limitTo is set, only show those tabs
+        let filteredTabParams = tabParams;
+        if (limitTo && limitTo.length > 0) {
+            filteredTabParams = tabParams.filter(tab => limitTo.includes(tab.searchType as any));
+        }
+        return filteredTabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
-    }, [t]);
+    }, [limitTo, t]);
     const [currTab, setCurrTab] = useState<PageTab<'All' | SearchPageTabOption>>(() => {
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
@@ -108,6 +154,55 @@ export const FindObjectDialog = ({
         setCurrTab(tab)
     }, [setLocation]);
 
+    // Dialog for creating new object
+    const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | 'User' | null>(null);
+
+    // Dialog for inviting new user
+    const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
+    const onInviteUserClose = useCallback(() => setIsInviteUserOpen(false), []);
+
+    // Menu for selection object type to create
+    const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
+    const isSelectCreateTypeOpen = Boolean(selectCreateTypeAnchorEl);
+
+    // Info for querying full object data
+    const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
+    useEffect(() => {
+        const fetchParams = async () => {
+            const params = searchTypeToParams[createObjectType!];
+            if (!params) return;
+            setSearchParams(await params());
+        };
+        createObjectType !== null && fetchParams();
+    }, [createObjectType]);
+    /**
+     * Before closing, remove all URL search params for advanced search
+     */
+    const onClose = useCallback((item?: ObjectType, versionId?: string) => {
+        // Clear search params
+        removeSearchParams(setLocation, [
+            ...(advancedSearchSchema?.fields.map(f => f.fieldName) ?? []),
+            'advanced',
+            'sort',
+            'time',
+        ]);
+        // If no item, close dialog
+        if (!item) handleClose();
+        // If url requested, return url
+        else if (find === 'Url') {
+            const objectUrl = getObjectUrl(item as any);
+            const base = `${window.location.origin}${objectUrl}`;
+            const url = versionId ? `${base}/${versionId}` : base;
+            // If item, store in local storage so we can display it in the link component
+            if (item) {
+                localStorage.setItem(`objectFromUrl:${url}`, JSON.stringify(item));
+            }
+            handleClose((versionId ? `${base}/${versionId}` : base) as any);
+        }
+        // Otherwise, return object
+        else handleClose(item as any);
+    }, [advancedSearchSchema?.fields, find, handleClose, setLocation]);
+
     const [searchString, setSearchString] = useState<string>('');
     const [selectedObject, setSelectedObject] = useState<{
         versions: { id: string; versionIndex: number, versionLabel: string }[];
@@ -123,6 +218,82 @@ export const FindObjectDialog = ({
         return tabParams[currTab.index];
     }, [currTab.index]);
 
+    const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
+        e.preventDefault();
+        // If tab is 'All', open menu to select type
+        if (searchType === 'All') setSelectCreateTypeAnchorEl(e.currentTarget);
+        // If tab is 'User', open invite user dialog
+        else if (searchType === 'User') setIsInviteUserOpen(true);
+        // Otherwise, open create dialog for current tab
+        else setCreateObjectType(currTab.value as any);
+    }, [currTab.value, searchType]);
+    const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
+        setSelectCreateTypeAnchorEl(null);
+        setCreateObjectType(type ?? null as any);
+    }, []);
+
+    const handleCreated = useCallback((item: SelectOrCreateObject) => {
+        // Versioned objects are always created from the perspective of the version, and not the root.
+        // If the object type is a root of a versioned object, we must change the shape before calling handleAdd
+        if (isOfType(createObjectType, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard')) {
+            const { root, ...rest } = item as any;
+            console.log('before handleadd 1')
+            onClose({ ...root, versions: [rest] } as ObjectType);
+        }
+        // Otherwise, just call handleAdd
+        else onClose(item as ObjectType);
+        setCreateObjectType(null);
+    }, [createObjectType, onClose]);
+    const handleCreateClose = useCallback(() => {
+        setCreateObjectType(null);
+    }, []);
+
+    // If item selected from search AND find is 'Object', query for full data
+    const [getItem, { data: itemData }] = useCustomLazyQuery<ObjectType, FindByIdInput>(query);
+    const queryingRef = useRef(false);
+    const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
+        if (!query || find === 'Url') return false;
+        // Query for full item data, if not already known (would be known if the same item was selected last time)
+        if (itemData && itemData.id === item.id && (!versionId || (itemData as any).versionId === versionId)) {
+            console.log('before handleadd 2')
+            onClose(itemData);
+        } else {
+            queryingRef.current = true;
+            getItem({ variables: { id: item.id, versionId } }); // Pass versionId to the query
+        }
+        // Return false so the list item does not navigate
+        return false;
+    }, [query, find, itemData, onClose, getItem]);
+
+    const onVersionSelect = useCallback((version: { id: string }) => {
+        if (!selectedObject) return;
+        // If the full data is requested, fetch the full data for the selected version
+        if (find === "Object") {
+            fetchFullData(selectedObject as any, version.id);
+        } else {
+            // Select and close dialog
+            onClose(selectedObject as any, version.id);
+        }
+    }, [onClose, selectedObject, fetchFullData, find]);
+
+    useEffect(() => {
+        if (!query) return;
+        if (itemData && find === 'Object' && queryingRef.current) {
+            console.log('before handleadd 3')
+            onClose(itemData);
+        }
+        queryingRef.current = false;
+    }, [onClose, handleCreateClose, itemData, query, find]);
+
+    /**
+     * Handles selecting an object. A few things can happen:
+     * 1. If the object is not versioned or only has one version and we 
+     * only need a URL, return the URL
+     * 2. If the object is not versioned or only has one version and we 
+     * need the object, fetch for full object data and return it
+     * 3. If the object has multiple versions, display buttons to select
+     * which version to link to
+     */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         console.log('onInputSelect', newValue)
         // If value is not an object, return;
@@ -131,112 +302,159 @@ export const FindObjectDialog = ({
         if ((newValue as any).versions && (newValue as any).versions.length > 0) {
             // If there is only one version, select it
             if ((newValue as any).versions.length === 1) {
-                const objectUrl = getObjectUrl(newValue);
                 // Select and close dialog
-                handleClose(`${window.location.origin}${objectUrl}/${(newValue as any).versions[0].id}`);
+                onClose(newValue as any, (newValue as any).versions[0].id);
                 return false;
             }
             // Otherwise, set selected object so we can choose which version to link to
             setSelectedObject(newValue as any);
             return false;
         }
-        // Otherweise, create URL
-        const objectUrl = getObjectUrl(newValue);
         // Select and close dialog
-        handleClose(`${window.location.origin}${objectUrl}`);
+        onClose(newValue as any);
         return false;
-    }, [handleClose]);
+    }, [onClose]);
 
-    const onVersionSelect = useCallback((version: { id: string }) => {
-        if (!selectedObject) return;
-        // Create base URL
-        const objectUrl = getObjectUrl(selectedObject as any);
-        // Select and close dialog
-        handleClose(`${window.location.origin}${objectUrl}/${version.id}`);
-    }, [handleClose, selectedObject]);
+    const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() =>
+        ['User', null].includes(createObjectType) ? null : (createMap as any)[createObjectType!.replace('Version', '')], [createObjectType]);
 
     return (
-        <LargeDialog
-            id="resource-find-object-dialog"
-            isOpen={isOpen}
-            onClose={handleClose}
-            titleId={searchTitleId}
-            zIndex={zIndex}
-        >
-            <TopBar
-                display="dialog"
-                onClose={handleClose}
-                titleData={{
-                    hideOnDesktop: true,
-                    titleKey: 'SearchVrooli',
-                }}
-                below={<PageTabs
-                    ariaLabel="search-tabs"
-                    currTab={currTab}
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />}
+        <>
+            {/* Menu for selecting create object type */}
+            <Menu
+                id="select-create-type-mnu"
+                anchorEl={selectCreateTypeAnchorEl}
+                disableScrollLock={true}
+                open={isSelectCreateTypeOpen}
+                onClose={() => onSelectCreateTypeClose()}
+            >
+                {/* Never show 'All'=' */}
+                {tabParams.filter((t) => !['All'].includes(t.searchType as any)).map(tab => (
+                    <MenuItem
+                        key={tab.searchType}
+                        onClick={() => onSelectCreateTypeClose(tab.searchType as SearchType)}
+                    >
+                        <ListItemIcon>
+                            <tab.Icon fill={palette.background.textPrimary} />
+                        </ListItemIcon>
+                        <ListItemText primary={t(tab.searchType, { count: 1, defaultValue: tab.searchType })} />
+                    </MenuItem>
+                ))}
+            </Menu>
+            {/* Invite user dialog (when you select 'User' as create type) */}
+            <ShareSiteDialog
+                onClose={onInviteUserClose}
+                open={isInviteUserOpen}
+                zIndex={zIndex + 1}
             />
-            <DialogContent sx={{
-                overflowY: 'visible',
-                minHeight: '500px',
-            }}>
-                {/* Search list to find object */}
-                {!selectedObject && <SearchList
-                    id="find-object-search-list"
-                    beforeNavigation={onInputSelect}
-                    take={20}
-                    // Combine results for each object type
-                    resolve={(data: { [x: string]: any }) => {
-                        console.log('resolve 1', data);
-                        // Find largest array length 
-                        const max: number = Object.values(data).reduce((acc: number, val: any[]) => {
-                            return Math.max(acc, val.length);
-                        }, -Infinity);
-                        console.log('resolve 2', max);
-                        // Initialize result array
-                        const result: any[] = [];
-                        // Loop through each index
-                        for (let i = 0; i < max; i++) {
-                            // Loop through each object type
-                            for (const key in data) {
-                                // If index exists, push to result
-                                if (Array.isArray(data[key]) && data[key][i]) result.push(data[key][i]);
-                            }
-                        }
-                        console.log('resolve 3', result);
-                        return result;
-                    }}
-                    searchType='Popular'
-                    zIndex={zIndex}
-                    where={{ ...where, objectType: searchType === 'All' ? undefined : searchType }}
+            {/* Dialog for creating new object type */}
+            <LargeDialog
+                id="create-object-dialog"
+                onClose={handleCreateClose}
+                isOpen={createObjectType !== null}
+                titleId="create-object-dialog-title"
+                zIndex={zIndex + 1}
+            >
+                {CreateView && <CreateView
+                    display="dialog"
+                    isCreate={true}
+                    onCompleted={handleCreated}
+                    onCancel={handleCreateClose}
+                    zIndex={zIndex + 1}
                 />}
-                {/* If object selected (and supports versioning), display buttons to select version */}
-                {selectedObject && (
-                    <Stack spacing={2} direction="column" sx={{ mt: 2 }}>
-                        <Typography variant="h6" mt={2} textAlign="center">
-                            Select a version
-                        </Typography>
-                        {selectedObject.versions.sort((a, b) => b.versionIndex - a.versionIndex).map((version, index) => (
+            </LargeDialog>
+            {/* Main content */}
+            <LargeDialog
+                id="resource-find-object-dialog"
+                isOpen={isOpen}
+                onClose={() => { handleClose() }}
+                titleId={searchTitleId}
+                zIndex={zIndex}
+            >
+                <TopBar
+                    display="dialog"
+                    onClose={() => { handleClose() }}
+                    titleData={{
+                        hideOnDesktop: true,
+                        titleKey: 'SearchVrooli',
+                    }}
+                    below={tabs.length > 1 && <PageTabs
+                        ariaLabel="search-tabs"
+                        currTab={currTab}
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />}
+                />
+                <Box sx={{
+                    minHeight: '500px',
+                    margin: { xs: 0, sm: 2 },
+                    paddingTop: 4,
+                }}>
+                    {/* Create object button. Convenient for when you can't find 
+                what you're looking for */}
+                    <SideActionButtons display="dialog" zIndex={zIndex + 1}>
+                        <ColorIconButton aria-label="create-new" background={palette.secondary.main} onClick={onCreateStart}>
+                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </ColorIconButton>
+                    </SideActionButtons>
+                    {/* Search list to find object */}
+                    {!selectedObject && <SearchList
+                        id="find-object-search-list"
+                        beforeNavigation={onInputSelect}
+                        take={20}
+                        // Combine results for each object type
+                        resolve={(data: { [x: string]: any }) => {
+                            console.log('resolve 1', data);
+                            // Find largest array length 
+                            const max: number = Object.values(data).reduce((acc: number, val: any[]) => {
+                                return Math.max(acc, val.length);
+                            }, -Infinity);
+                            console.log('resolve 2', max);
+                            // Initialize result array
+                            const result: any[] = [];
+                            // Loop through each index
+                            for (let i = 0; i < max; i++) {
+                                // Loop through each object type
+                                for (const key in data) {
+                                    // If index exists, push to result
+                                    if (Array.isArray(data[key]) && data[key][i]) result.push(data[key][i]);
+                                }
+                            }
+                            console.log('resolve 3', result);
+                            return result;
+                        }}
+                        searchType='Popular'
+                        zIndex={zIndex}
+                        where={{ ...where, objectType: searchType === 'All' ? undefined : searchType }}
+                    />}
+                    {/* If object selected (and supports versioning), display buttons to select version */}
+                    {selectedObject && (
+                        <Stack spacing={2} direction="column" m={2}>
+                            <Typography variant="h6" mt={2} textAlign="center">
+                                Select a version
+                            </Typography>
+                            {[...(selectedObject.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex).map((version, index) => (
+                                <TIDCard
+                                    buttonText={t('Select')}
+                                    description={getDisplay(version as any).subtitle}
+                                    key={index}
+                                    Icon={tabParams.find((t) => t.searchType === (version as any).__typename)?.Icon}
+                                    onClick={() => onVersionSelect(version)}
+                                    title={`${version.versionLabel} - ${getDisplay(version as any).title}`}
+                                />
+                            ))}
+                            {/* Remove selection button */}
                             <Button
-                                key={index}
                                 fullWidth
-                                onClick={() => onVersionSelect(version)}
+                                color="secondary"
+                                onClick={() => setSelectedObject(null)}
                             >
-                                {version.versionLabel}
+                                Select a different object
                             </Button>
-                        ))}
-                        {/* Remove selection button */}
-                        <Button
-                            fullWidth
-                            color="secondary"
-                            onClick={() => setSelectedObject(null)}
-                        >
-                            Select a different object
-                        </Button>
-                    </Stack>
-                )}
-            </DialogContent>
-        </LargeDialog>
+                        </Stack>
+                    )}
+                </Box>
+            </LargeDialog>
+        </>
     )
 }

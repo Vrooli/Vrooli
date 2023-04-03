@@ -185,8 +185,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    maxWidth: '700px',
-                    margin: 'auto',
+                    paddingBottom: '64px',
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -279,7 +278,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                     open={isGraphOpen}
                                     onClose={handleGraphClose}
                                     TransitionComponent={UpTransition}
-                                    sx={{ zIndex: zIndex + 1 }}
+                                    sx={{ zIndex: zIndex + 1001 }}
                                 >
                                     <BuildView
                                         handleCancel={handleGraphClose}
@@ -299,7 +298,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                             handleDeleteLanguage,
                                             languages,
                                         }}
-                                        zIndex={zIndex + 1}
+                                        zIndex={zIndex + 1001}
                                     />
                                 </Dialog>
                                 {/* Button to display graph */}

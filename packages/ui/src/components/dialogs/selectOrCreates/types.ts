@@ -1,20 +1,4 @@
-import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersion, Routine, RoutineVersion, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from "@shared/consts";
-
-export type SelectOrCreateObjectType = 'Api' | 'ApiVersion' | 'Note' | 'NoteVersion' | 'Organization' | 'Project' | 'ProjectVersion' | 'Routine' | 'RoutineVersion' | 'SmartContract' | 'SmartContractVersion' | 'Standard' | 'StandardVersion' | 'User';
-export type SelectOrCreateObject = Api |
-    ApiVersion |
-    Note |
-    NoteVersion |
-    Organization |
-    Project |
-    ProjectVersion |
-    Routine |
-    RoutineVersion |
-    SmartContract |
-    SmartContractVersion |
-    Standard |
-    StandardVersion |
-    User;
+import { RoutineVersion } from "@shared/consts";
 
 export interface SelectOrCreateDialogProps<T extends SelectOrCreateObject> {
     handleAdd: (item: T) => any;

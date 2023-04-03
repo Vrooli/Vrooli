@@ -11,7 +11,6 @@ import { removeSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { isOfType } from '@shared/utils';
 import { useCustomLazyQuery } from 'api/hooks';
-import { BaseObjectDialog } from 'components/dialogs/BaseObjectDialog/BaseObjectDialog';
 import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { ShareSiteDialog } from 'components/dialogs/ShareSiteDialog/ShareSiteDialog';
@@ -171,19 +170,21 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
                 zIndex={zIndex + 1}
             />
             {/* Popup for creating a new item */}
-            {CreateView && <BaseObjectDialog
-                onAction={handleCreateClose}
-                open={isCreateOpen}
-                zIndex={zIndex + 1}
+            {CreateView && <LargeDialog
+                id="create-object-dialog"
+                onClose={handleCreateClose}
+                isOpen={isCreateOpen}
+                titleId="create-object-dialog-title"
+                zIndex={zIndex}
             >
                 <CreateView
                     display="dialog"
                     isCreate={true}
-                    // onCreated={handleCreated as any}
-                    // onCancel={handleCreateClose}
+                    onCompleted={handleCreated}
+                    onCancel={handleCreateClose}
                     zIndex={zIndex + 1}
                 />
-            </BaseObjectDialog>}
+            </LargeDialog>}
             <DialogTitle
                 id={titleId}
                 title={t(`Add${objectType.replace('Version', '')}` as CommonKey)}

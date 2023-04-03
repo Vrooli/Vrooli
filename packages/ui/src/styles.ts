@@ -92,7 +92,10 @@ export const slideImageContainer: SxProps = {
     height: '100%',
     display: 'flex',
     '& > img': {
-        maxWidth: 'min(225px, 90%)',
+        maxWidth: {
+            xs: 'min(225px, 90%)',
+            sm: 'min(300px, 90%)',
+        },
         maxHeight: '100%',
         objectFit: 'contain',
         zIndex: '3',
