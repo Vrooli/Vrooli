@@ -12,7 +12,6 @@ import { NotificationsViewProps } from '../types';
 
 export const NotificationsView = ({
     display = 'page',
-    session
 }: NotificationsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -46,8 +45,7 @@ export const NotificationsView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Notification',
                     titleVariables: { count: 2 },

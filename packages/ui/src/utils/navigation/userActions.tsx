@@ -6,7 +6,7 @@ import {
     IconButton
 } from '@mui/material';
 import { LINKS, Session } from '@shared/consts';
-import { CreateAccountIcon, CreateIcon, GridIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SvgComponent } from '@shared/icons';
+import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from '@shared/icons';
 import { openLink, SetLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import i18next from 'i18next';
@@ -17,6 +17,8 @@ export enum ACTION_TAGS {
     Search = 'Search',
     Create = 'Create',
     Notifications = 'Notifications',
+    About = 'About',
+    Pricing = 'Pricing',
     LogIn = 'LogIn',
     MyStuff = 'MyStuff',
 }
@@ -39,12 +41,11 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     // Check if user is logged in using session
     let isLoggedIn = checkIfLoggedIn(session);
     let actions: ActionArray[] = [];
-    // Home only available to logged in users
-    if (isLoggedIn) {
-        actions.push(
-            ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
-        )
-    }
+    // Home always available. Page changes based on login status, 
+    // but we don't worry about that here.
+    actions.push(
+        ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+    )
     // Search always available
     actions.push(
         ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
@@ -56,7 +57,11 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
             ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
             ['MyStuff', ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         )
-    } else {
+    }
+    // Display about, pricing, and login for logged out users 
+    else {
+        actions.push(['About', ACTION_TAGS.About, LINKS.About, HelpIcon, 0])
+        actions.push(['Pricing', ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));

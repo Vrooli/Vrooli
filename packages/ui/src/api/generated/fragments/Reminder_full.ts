@@ -21,19 +21,18 @@ reminderList {
     id
     created_at
     updated_at
-    userSchedule {
+    focusMode {
         labels {
-            ...Label_list
+            id
+            color
+            label
+        }
+        schedule {
+            ...Schedule_common
         }
         id
         name
         description
-        timeZone
-        eventStart
-        eventEnd
-        recurring
-        recurrStart
-        recurrEnd
     }
 }
 }`;

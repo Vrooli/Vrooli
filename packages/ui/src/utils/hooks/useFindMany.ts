@@ -1,21 +1,21 @@
-import { Session, TimeFrame } from "@shared/consts";
+import { TimeFrame } from "@shared/consts";
 import { addSearchParams, parseSearchParams, useLocation } from "@shared/route";
 import { exists } from "@shared/utils";
 import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AutocompleteOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
+import { SessionContext } from "utils/SessionContext";
 import { useDisplayApolloError } from "./useDisplayApolloError";
 
 type UseFindManyProps = {
     canSearch: boolean;
     searchType: SearchType | `${SearchType}`;
     resolve?: (data: any) => any;
-    session: Session | undefined;
     take?: number;
     where?: any;
 }
@@ -25,7 +25,7 @@ type UseFindManyProps = {
  * @param data data returned from a findMany query
  * @param resolve function for resolving the data
  */
-const parseData = (data: any, resolve?: (data: any) => any) => {
+export const parseData = (data: any, resolve?: (data: any) => any) => {
     if (!data) return [];
     // query result is always returned as an object with a single key (the endpoint name), where 
     // the value is the actual data. If this is not the case, then (hopefully) it was already 
@@ -44,24 +44,25 @@ const parseData = (data: any, resolve?: (data: any) => any) => {
 export const useFindMany = <DataType extends Record<string, any>>({
     canSearch,
     searchType,
-    session,
     resolve,
     take = 20,
     where,
 }: UseFindManyProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
-    const [{ advancedSearchSchema, defaultSortBy, sortByOptions, query }, setSearchParams] = useState<Partial<SearchParams>>({});
+    const [params, setParams] = useState<Partial<Partial<SearchParams> & { where: any }>>({});
     useEffect(() => {
         const fetchParams = async () => {
-            const params = searchTypeToParams[searchType];
-            if (!params) return;
-            setSearchParams(await params());
+            const newParams = searchTypeToParams[searchType];
+            if (!newParams) return;
+            const resolvedParams = await newParams();
+            setParams({ ...resolvedParams, where });
         };
         fetchParams();
-    }, [searchType, session]);
+    }, [searchType, where]);
 
-    const [sortBy, setSortBy] = useState<string>(defaultSortBy);
+    const [sortBy, setSortBy] = useState<string>(params?.defaultSortBy ?? '');
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
     useEffect(() => {
@@ -69,10 +70,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
         if (typeof searchParams.sort === 'string') {
             // Check if sortBy is valid
-            if (exists(sortByOptions) && searchParams.sort in sortByOptions) {
+            if (exists(params?.sortByOptions) && searchParams.sort in params.sortByOptions) {
                 setSortBy(searchParams.sort);
             } else {
-                setSortBy(defaultSortBy);
+                setSortBy(params?.defaultSortBy ?? '');
             }
         }
         if (typeof searchParams.time === 'object' &&
@@ -84,7 +85,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 before: new Date((searchParams.time as any).before),
             });
         }
-    }, [defaultSortBy, sortByOptions]);
+    }, [params?.defaultSortBy, params?.sortByOptions]);
 
     /**
      * When sort and filter options change, update the URL
@@ -106,7 +107,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const after = useRef<string | undefined>(undefined);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(query, {
+    const [getPageData, { data: pageData, loading, error }] = useCustomLazyQuery<Record<string, any>, SearchQueryVariablesInput<any>>(params!.query, {
         variables: ({
             after: after.current,
             take,
@@ -116,7 +117,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 after: timeFrame.after?.toISOString(),
                 before: timeFrame.before?.toISOString(),
             } : undefined,
-            ...where,
+            ...params.where,
             ...advancedSearchParams
         } as any),
         errorPolicy: 'all',
@@ -137,7 +138,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         // Reset the pagination cursor
         after.current = undefined;
         // Only get data if we can search
-        if (canSearch) getPageData();
+        if (canSearch && sortBy?.length > 0) getPageData();
     }, [advancedSearchParams, canSearch, searchString, sortBy, timeFrame, getPageData]);
 
     // Fetch more data by setting "after"
@@ -156,6 +157,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
         const parsedData = parseData(pageData, resolve);
+        console.log('got parsed data', parsedData)
         if (!parsedData) {
             setAllData([]);
             return;
@@ -168,6 +170,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     }, [pageData, resolve]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
+        console.log('LISTTOAUTOCOMPLETE allData', allData)
         return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
             return b.bookmarks - a.bookmarks; //TODO not all objects have bookmarks
         });
@@ -175,10 +178,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
 
     return {
         advancedSearchParams,
-        advancedSearchSchema,
+        advancedSearchSchema: params?.advancedSearchSchema,
         allData,
         autocompleteOptions,
-        defaultSortBy,
+        defaultSortBy: params?.defaultSortBy,
         loading,
         loadMore,
         pageData,
@@ -190,7 +193,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         setSearchString,
         setTimeFrame,
         sortBy,
-        sortByOptions,
+        sortByOptions: params?.sortByOptions,
         timeFrame,
     }
 }

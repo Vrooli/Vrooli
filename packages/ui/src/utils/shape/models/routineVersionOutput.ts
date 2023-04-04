@@ -29,7 +29,7 @@ export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, Ro
             ...createPrims(d, 'id', 'index', 'name'),
             ...createRel(d, 'routineVersion', ['Connect'], 'one'),
             standardVersionConnect: shouldConnectToStandard ? d.standardVersion!.id : undefined,
-            standardCreate: d.standardVersion && !shouldConnectToStandard ? shapeStandardVersion.create(d.standardVersion) : undefined,
+            standardVersionCreate: d.standardVersion && !shouldConnectToStandard ? shapeStandardVersion.create(d.standardVersion) : undefined,
             ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionOutputTranslation),
         }
     },
@@ -40,8 +40,8 @@ export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, Ro
         const hasStandardChanged = hasObjectChanged(o.standardVersion, u.standardVersion);
         return {
             ...updatePrims(o, u, 'id', 'index', 'name'),
-            standardConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
-            standardCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.update(o.standardVersion!, u.standardVersion!) : undefined,
+            standardVersionConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
+            standardVersionCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.create(u.standardVersion!) : undefined,
             ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionOutputTranslation),
         }
     }, a)

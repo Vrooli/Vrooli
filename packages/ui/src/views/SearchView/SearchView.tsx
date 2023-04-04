@@ -1,6 +1,3 @@
-/**
- * Search page for organizations, projects, routines, standards, and users
- */
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { GqlModelType, LINKS } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
@@ -11,13 +8,14 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
 import { SearchViewProps } from "../types";
 
 // Tab data type
@@ -32,26 +30,12 @@ type BaseParams = {
 
 // Data for each tab
 const tabParams: BaseParams[] = [{
-    Icon: ApiIcon,
+    Icon: RoutineIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Api,
-    tabType: SearchPageTabOption.Apis,
-    where: {},
-}, {
-    Icon: NoteIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Note,
-    tabType: SearchPageTabOption.Notes,
-    where: {},
-}, {
-    Icon: OrganizationIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.Organization,
-    tabType: SearchPageTabOption.Organizations,
-    where: {},
+    searchType: SearchType.Routine,
+    tabType: SearchPageTabOption.Routines,
+    where: { isInternal: false },
 }, {
     Icon: ProjectIcon,
     popupTitleKey: 'Add',
@@ -62,23 +46,30 @@ const tabParams: BaseParams[] = [{
 }, {
     Icon: HelpIcon,
     popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
+    popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Question,
     tabType: SearchPageTabOption.Questions,
     where: {},
 }, {
-    Icon: RoutineIcon,
+    Icon: NoteIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Routine,
-    tabType: SearchPageTabOption.Routines,
-    where: { isInternal: false },
+    searchType: SearchType.Note,
+    tabType: SearchPageTabOption.Notes,
+    where: {},
 }, {
-    Icon: SmartContractIcon,
+    Icon: OrganizationIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Organization,
+    tabType: SearchPageTabOption.Organizations,
+    where: {},
+}, {
+    Icon: UserIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.SmartContract,
-    tabType: SearchPageTabOption.SmartContracts,
+    searchType: SearchType.User,
+    tabType: SearchPageTabOption.Users,
     where: {},
 }, {
     Icon: StandardIcon,
@@ -88,18 +79,28 @@ const tabParams: BaseParams[] = [{
     tabType: SearchPageTabOption.Standards,
     where: {},
 }, {
-    Icon: UserIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.User,
-    tabType: SearchPageTabOption.Users,
+    Icon: ApiIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Api,
+    tabType: SearchPageTabOption.Apis,
+    where: {},
+}, {
+    Icon: SmartContractIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.SmartContract,
+    tabType: SearchPageTabOption.SmartContracts,
     where: {},
 }];
 
+/**
+ * Search page for organizations, projects, routines, standards, users, and other main objects
+ */
 export const SearchView = ({
     display = 'page',
-    session,
 }: SearchViewProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -123,7 +124,7 @@ export const SearchView = ({
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
         // Default to routine tab
-        if (index === -1) return tabs[3];
+        if (index === -1) return tabs[0];
         // Return tab
         return tabs[index];
     });
@@ -154,9 +155,9 @@ export const SearchView = ({
         if (searchType === SearchType.Routine) {
             setLocation(`${LINKS.Routine}/add`);
         }
-        // If search type is a user, open start page
+        // If search type is a user, open share dialog
         else if (searchType === SearchType.User) {
-            setLocation(`${LINKS.Start}`);
+            setShareDialogOpen(true);
         }
         // Otherwise, navigate to add page
         else {
@@ -165,7 +166,7 @@ export const SearchView = ({
     }, [searchType, session, setLocation]);
 
     const onPopupButtonClick = useCallback((ev: any) => {
-        if ([SearchPageTabOption.Organizations, SearchPageTabOption.Users].includes(currTab.value)) {
+        if ([SearchPageTabOption.Users].includes(currTab.value)) {
             setShareDialogOpen(true);
         } else {
             onAddClick(ev);
@@ -203,7 +204,6 @@ export const SearchView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     hideOnDesktop: true,
                     titleKey: 'Search',
@@ -240,7 +240,6 @@ export const SearchView = ({
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
-                session={session}
                 zIndex={200}
                 where={where}
             />}

@@ -1,7 +1,9 @@
 import { Session, SessionUser } from '@shared/consts';
+import { getActiveFocusMode } from '@shared/utils';
 import { Request } from "express";
-import { CustomError } from "../events";
+import { CustomError, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events";
 import { PrismaType } from "../types";
+import { getUser } from './request';
 
 /**
  * Creates SessionUser object from user.
@@ -13,9 +15,11 @@ import { PrismaType } from "../types";
 export const toSessionUser = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<SessionUser> => {
     if (!user.id)
         throw new CustomError('0064', 'NotFound', req.languages ?? ['en']);
-    // Get UNIX timestamp for 7 days from now
-    const in7Days = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-    // Update user's lastSessionVerified
+    // Create time frame to find schedule data for. 
+    const now = new Date();
+    const startDate = now;
+    const endDate = new Date(now.setDate(now.getDate() + 7));
+    // Update user's lastSessionVerified, and query for user data
     const userData = await prisma.user.update({
         where: { id: user.id },
         data: { lastSessionVerified: new Date().toISOString() },
@@ -26,27 +30,24 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             name: true,
             theme: true,
             premium: { select: { id: true, expiresAt: true } },
-            schedules: {
-                // Schedules have an event start/end and recurring start/end.
-                // Select all schedules which are occuring now or in the near future (7 days)
-                where: {
-                    OR: [
-                        // Event start is in the past (or in the near future), and event end is in the future
-                        { eventStart: { lte: new Date(in7Days).toISOString() }, eventEnd: { gte: new Date().toISOString() } },
-                        // Recurring start is in the past (or in the near future), and recurring end is in the future
-                        { recurring: true, recurrStart: { lte: new Date(in7Days).toISOString() }, recurrEnd: { gte: new Date().toISOString() } },
-                    ]
-                },
+            bookmakLists: {
+                select: {
+                    id: true,
+                    created_at: true,
+                    updated_at: true,
+                    label: true,
+                    _count: {
+                        select: {
+                            bookmarks: true,
+                        }
+                    }
+                }
+            },
+            focusModes: {
                 select: {
                     id: true,
                     name: true,
                     description: true,
-                    timeZone: true,
-                    eventStart: true,
-                    eventEnd: true,
-                    recurring: true,
-                    recurrStart: true,
-                    recurrEnd: true,
                     filters: {
                         select: {
                             id: true,
@@ -59,38 +60,161 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
                             }
                         }
                     },
+                    labels: {
+                        select: {
+                            id: true,
+                            label: {
+                                select: {
+                                    id: true,
+                                    color: true,
+                                    label: true,
+                                }
+                            }
+                        }
+                    },
+                    reminderList: {
+                        select: {
+                            id: true,
+                            created_at: true,
+                            updated_at: true,
+                            reminders: {
+                                select: {
+                                    id: true,
+                                    created_at: true,
+                                    updated_at: true,
+                                    name: true,
+                                    description: true,
+                                    dueDate: true,
+                                    index: true,
+                                    isComplete: true,
+                                    reminderItems: {
+                                        select: {
+                                            id: true,
+                                            created_at: true,
+                                            updated_at: true,
+                                            name: true,
+                                            description: true,
+                                            dueDate: true,
+                                            index: true,
+                                            isComplete: true,
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     resourceList: {
                         select: {
                             id: true,
-                            // TODO
+                            created_at: true,
+                            updated_at: true,
+                            resources: {
+                                select: {
+                                    id: true,
+                                    created_at: true,
+                                    updated_at: true,
+                                    index: true,
+                                    link: true,
+                                    usedFor: true,
+                                    translations: {
+                                        select: {
+                                            id: true,
+                                            description: true,
+                                            language: true,
+                                            name: true,
+                                        }
+                                    }
+                                }
+                            },
+                            translations: {
+                                select: {
+                                    id: true,
+                                    description: true,
+                                    language: true,
+                                    name: true,
+                                }
+                            }
                         }
                     },
-                    reminderList: { 
+                    schedule: {
                         select: {
                             id: true,
-                            // TODO
+                            created_at: true,
+                            updated_at: true,
+                            startTime: true,
+                            endTime: true,
+                            timezone: true,
+                            exceptions: {
+                                where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
+                                select: {
+                                    id: true,
+                                    originalStartTime: true,
+                                    newStartTime: true,
+                                    newEndTime: true,
+                                }
+                            },
+                            recurrences: {
+                                where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
+                                select: {
+                                    id: true,
+                                    recurrenceType: true,
+                                    interval: true,
+                                    dayOfWeek: true,
+                                    dayOfMonth: true,
+                                    month: true,
+                                    endDate: true,
+                                }
+                            }
                         }
                     }
+                }
+            },
+            _count: {
+                select: {
+                    apis: true,
+                    notes: true,
+                    memberships: true,
+                    projects: true,
+                    questionsAsked: true,
+                    routines: true,
+                    smartContracts: true,
+                    standards: true,
                 }
             }
         }
     })
+    // Find active focus mode
+    const activeFocusMode = getActiveFocusMode(getUser(req)?.activeFocusMode, (userData.focusModes as any) ?? []);
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
     let languages: string[] = userData.languages.map((l) => l.language).filter(Boolean) as string[];
     if (req.languages) languages.push(...req.languages);
     languages = [...new Set(languages)];
     // Return shaped SessionUser object
-    return {
+    const result = {
         __typename: 'SessionUser' as const,
+        activeFocusMode,
+        apisCount: userData._count?.apis ?? 0,
+        bookmarkLists: userData.bookmakLists.map(({ _count, ...rest }) => ({
+            ...rest,
+            bookmarksCount: _count?.bookmarks ?? 0,
+        })) as any[],
+        focusModes: userData.focusModes as any[],
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,
         languages,
+        membershipsCount: userData._count?.memberships ?? 0,
         name: userData.name,
-        schedules: userData.schedules as any[], //TODO
+        notesCount: userData._count?.notes ?? 0,
+        projectsCount: userData._count?.projects ?? 0,
+        questionsAskedCount: userData._count?.questionsAsked ?? 0,
+        routinesCount: userData._count?.routines ?? 0,
+        smartContractsCount: userData._count?.smartContracts ?? 0,
+        standardsCount: userData._count?.standards ?? 0,
         theme: userData.theme,
     }
+    return result;
 }
 
 /**

@@ -183,6 +183,7 @@ query project($input: FindByIdOrHandleInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
             }
             parentDirectory {

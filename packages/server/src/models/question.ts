@@ -1,14 +1,14 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
-import { getSingleTypePermissions } from "../validators";
-import { BookmarkModel } from "./bookmark";
-import { VoteModel } from "./vote";
 import { questionValidation } from "@shared/validation";
 import { noNull } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { ModelLogic } from "./types";
+import { VoteModel } from "./vote";
 
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs['create'] } = {
     Api: 'api',
@@ -107,7 +107,7 @@ export const QuestionModel: ModelLogic<{
                 id: data.id,
                 referencing: noNull(data.referencing),
                 createdBy: { connect: { id: rest.userData.id } },
-                [forMapper[data.forType]]: { connect: { id: data.forConnect } },
+                ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
                 ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Question', relation: 'tags', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
@@ -159,8 +159,8 @@ export const QuestionModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'descriptionWrapped',
-                'nameWrapped',
+                'transDescriptionWrapped',
+                'transNameWrapped',
             ]
         }),
     },

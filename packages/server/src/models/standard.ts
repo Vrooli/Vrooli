@@ -1,20 +1,19 @@
-import { MaxObjects, StandardSortBy, StandardYou } from "@shared/consts";
-import { BookmarkModel } from "./bookmark";
-import { VoteModel } from "./vote";
-import { ViewModel } from "./view";
-import { ModelLogic } from "./types";
-import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from '@shared/consts';
-import { PrismaType } from "../types";
 import { Prisma } from "@prisma/client";
-import { OrganizationModel } from "./organization";
-import { getSingleTypePermissions } from "../validators";
+import { MaxObjects, SessionUser, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardYou } from "@shared/consts";
+import { standardValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
+import { PrismaType } from "../types";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { standardValidation } from "@shared/validation";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { OrganizationModel } from "./organization";
+import { StandardVersionModel } from "./standardVersion";
+import { ModelLogic } from "./types";
+import { ViewModel } from "./view";
+import { VoteModel } from "./vote";
 
 const __typename = 'Standard' as const;
 type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
@@ -253,8 +252,8 @@ export const StandardModel: ModelLogic<{
             OR: [
                 'tagsWrapped',
                 'labelsWrapped',
-                'nameWrapped',
-                { versions: { some: 'transDescriptionWrapped' } }
+                { versions: { some: 'transNameWrapped' } },
+                { versions: { some: 'transDescriptionWrapped' } },
             ]
         }),
         /**

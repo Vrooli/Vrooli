@@ -6,6 +6,7 @@ export enum SearchType {
     Bookmark = 'Bookmark',
     BookmarkList = 'BookmarkList',
     Comment = 'Comment',
+    FocusMode = 'FocusMode',
     Issue = 'Issue',
     Label = 'Label',
     MeetingInvite = 'MeetingInvite',
@@ -17,6 +18,7 @@ export enum SearchType {
     Notification = 'Notification',
     NotificationSubscription = 'NotificationSubscription',
     Organization = 'Organization',
+    Popular = 'Popular',
     Post = 'Post',
     ProjectOrOrganization = 'ProjectOrOrganization',
     ProjectOrRoutine = 'ProjectOrRoutine',
@@ -41,10 +43,9 @@ export enum SearchType {
     RoutineVersion = 'RoutineVersion',
     RunProject = 'RunProject',
     RunProjectOrRunRoutine = 'RunProjectOrRunRoutine',
-    RunProjectSchedule = 'RunProjectSchedule',
     RunRoutine = 'RunRoutine',
-    RunRoutineSchedule = 'RunRoutineSchedule',
     RunRoutineInput = 'RunRoutineInput',
+    Schedule = 'Schedule',
     SmartContract = 'SmartContract',
     SmartContractVersion = 'SmartContractVersion',
     Standard = 'Standard',
@@ -61,13 +62,13 @@ export enum SearchType {
     Tag = 'Tag',
     Transfer = 'Transfer',
     User = 'User',
-    UserSchedule = 'UserSchedule',
     View = 'View',
     Vote = 'Vote',
 }
 
-export enum HistorySearchPageTabOption {
-    Runs = 'Runs',
+export enum HistoryPageTabOption {
+    RunsActive = 'RunsActive',
+    RunsCompleted = 'RunsCompleted',
     Viewed = 'Viewed',
     Bookmarked = 'Bookmarked',
 }
@@ -84,6 +85,13 @@ export enum SearchPageTabOption {
     Users = 'Users',
 }
 
+export enum CalendarPageTabOption {
+    Meetings = 'Meetings',
+    Routines = 'Routines',
+    Projects = 'Projects',
+    FocusModes = 'FocusModes',
+}
+
 
 /**
  * Maps search types to values needed to query and display results
@@ -94,6 +102,7 @@ export const searchTypeToParams: { [key in SearchType]: () => Promise<SearchPara
     Bookmark: async () => (await import('./schemas/bookmark')).bookmarkSearchParams(),
     BookmarkList: async () => (await import('./schemas/bookmarkList')).bookmarkListSearchParams(),
     Comment: async () => (await import('./schemas/comment')).commentSearchParams(),
+    FocusMode: async () => (await import('./schemas/focusMode')).focusModeSearchParams(),
     Issue: async () => (await import('./schemas/issue')).issueSearchParams(),
     Label: async () => (await import('./schemas/label')).labelSearchParams(),
     Meeting: async () => (await import('./schemas/meeting')).meetingSearchParams(),
@@ -105,6 +114,7 @@ export const searchTypeToParams: { [key in SearchType]: () => Promise<SearchPara
     Notification: async () => (await import('./schemas/notification')).notificationSearchParams(),
     NotificationSubscription: async () => (await import('./schemas/notificationSubscription')).notificationSubscriptionSearchParams(),
     Organization: async () => (await import('./schemas/organization')).organizationSearchParams(),
+    Popular: async () => (await import('./schemas/popular')).popularSearchParams(),
     Post: async () => (await import('./schemas/post')).postSearchParams(),
     Project: async () => (await import('./schemas/project')).projectSearchParams(),
     ProjectOrOrganization: async () => (await import('./schemas/projectOrOrganization')).projectOrOrganizationSearchParams(),
@@ -129,10 +139,9 @@ export const searchTypeToParams: { [key in SearchType]: () => Promise<SearchPara
     RoutineVersion: async () => (await import('./schemas/routineVersion')).routineVersionSearchParams(),
     RunProject: async () => (await import('./schemas/runProject')).runProjectSearchParams(),
     RunProjectOrRunRoutine: async () => (await import('./schemas/runProjectOrRunRoutine')).runProjectOrRunRoutineSearchParams(),
-    RunProjectSchedule: async () => (await import('./schemas/runProjectSchedule')).runProjectScheduleSearchParams(),
     RunRoutine: async () => (await import('./schemas/runRoutine')).runRoutineSearchParams(),
     RunRoutineInput: async () => (await import('./schemas/runRoutineInput')).runRoutineInputSearchParams(),
-    RunRoutineSchedule: async () => (await import('./schemas/runRoutineSchedule')).runRoutineScheduleSearchParams(),
+    Schedule: async () => (await import('./schemas/schedule')).scheduleSearchParams(),
     SmartContract: async () => (await import('./schemas/smartContract')).smartContractSearchParams(),
     SmartContractVersion: async () => (await import('./schemas/smartContractVersion')).smartContractVersionSearchParams(),
     Standard: async () => (await import('./schemas/standard')).standardSearchParams(),
@@ -149,7 +158,6 @@ export const searchTypeToParams: { [key in SearchType]: () => Promise<SearchPara
     Tag: async () => (await import('./schemas/tag')).tagSearchParams(),
     Transfer: async () => (await import('./schemas/transfer')).transferSearchParams(),
     User: async () => (await import('./schemas/user')).userSearchParams(),
-    UserSchedule: async () => (await import('./schemas/userSchedule')).userScheduleSearchParams(),
     View: async () => (await import('./schemas/view')).viewSearchParams(),
     Vote: async () => (await import('./schemas/vote')).voteSearchParams(),
 };

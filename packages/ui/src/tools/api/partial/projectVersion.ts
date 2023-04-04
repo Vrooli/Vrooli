@@ -1,6 +1,6 @@
 import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 import { versionYou } from "./root";
 
 export const projectVersionTranslation: GqlPartial<ProjectVersionTranslation> = {
@@ -28,9 +28,6 @@ export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
     },
     full: {
         runs: async () => rel((await import('./runProject')).runProject, 'full', { omit: 'projectVersion' }),
-    },
-    list: {
-        runs: async () => rel((await import('./runProject')).runProject, 'list', { omit: 'projectVersion' }),
     },
 }
 

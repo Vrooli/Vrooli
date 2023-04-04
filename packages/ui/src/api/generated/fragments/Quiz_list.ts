@@ -15,7 +15,6 @@ createdBy {
 }
 score
 bookmarks
-views
 attemptsCount
 quizQuestionsCount
 project {

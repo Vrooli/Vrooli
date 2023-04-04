@@ -1,13 +1,15 @@
-import { bool, details, id, opt, req, summary, transRel, url, versionLabel, versionNotes, YupModel, yupObj } from '../utils';
-import { resourceListValidation } from './resourceList';
+import { bool, details, id, name, opt, req, summary, transRel, url, versionLabel, versionNotes, YupModel, yupObj } from '../utils';
 import { apiValidation } from './api';
+import { resourceListValidation } from './resourceList';
 
 export const apiVersionTranslationValidation: YupModel = transRel({
     create: {
-        details: req(details),
+        name: req(name),
+        details: opt(details),
         summary: opt(summary),
     },
     update: {
+        name: opt(name),
         details: opt(details),
         summary: opt(summary),
     },

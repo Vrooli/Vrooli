@@ -1,7 +1,6 @@
 import { BoxProps, TypographyProps } from "@mui/material";
-import { Api, Organization, Project, Quiz, Routine, Session, SmartContract, Standard, User } from "@shared/consts";
+import { Api, Organization, Project, Quiz, Routine, SmartContract, Standard, User } from "@shared/consts";
 import { SvgComponent } from "@shared/icons";
-import { VersionInfo } from "types";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends BoxProps {
@@ -13,8 +12,8 @@ export interface DateDisplayProps extends BoxProps {
 
 export interface ObjectTitleProps extends BoxProps {
     language: string;
+    languages: string[];
     loading: boolean;
-    session: Session | undefined;
     setLanguage: (language: string) => void;
     translations: { language: string }[];
     title: string | undefined;
@@ -26,7 +25,6 @@ export interface OwnerLabelProps {
     language?: string
     objectType: ObjectType;
     owner: Routine['owner'] | null | undefined
-    session: Session | undefined;
     sxs?: {
         label?: { [x: string]: any };
     }
@@ -34,7 +32,7 @@ export interface OwnerLabelProps {
 
 export interface HeaderProps {
     help?: string | undefined;
-    sxs?: { 
+    sxs?: {
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
     }
@@ -46,7 +44,6 @@ export interface StatsCompactProps<T extends StatsCompactPropsObject> {
     handleObjectUpdate: (object: T) => void;
     loading: boolean;
     object: T | null | undefined;
-    session: Session | undefined;
 }
 
 export interface TextShrinkProps extends TypographyProps {
@@ -57,7 +54,7 @@ export interface TextShrinkProps extends TypographyProps {
 export interface SubheaderProps {
     help?: string | undefined;
     Icon?: SvgComponent;
-    sxs?: { 
+    sxs?: {
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };
     }
@@ -66,10 +63,10 @@ export interface SubheaderProps {
 
 export interface VersionDisplayProps extends BoxProps {
     confirmVersionChange?: (callback: () => void) => void;
-    currentVersion: VersionInfo | null | undefined;
+    currentVersion: { versionLabel: string } | null | undefined;
     loading?: boolean;
     prefix?: string;
-    versions?: VersionInfo[];
+    versions?: { versionLabel: string }[];
 }
 
 export interface ViewsDisplayProps {

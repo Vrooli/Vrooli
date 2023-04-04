@@ -50,7 +50,6 @@ export const InputOutputContainer = ({
     isInput,
     language,
     list,
-    session,
     zIndex,
 }: InputOutputContainerProps) => {
     const { palette } = useTheme();
@@ -60,7 +59,7 @@ export const InputOutputContainer = ({
         return list;
         // TODO when index added in schema.prisma, sort by index
         //return list.sort((a, b) => a. - b.index);
-    } , [list]);
+    }, [list]);
 
     const type = useMemo(() => isInput ? 'input' : 'output', [isInput]);
     // Store open/close state of each sortedList item
@@ -189,7 +188,6 @@ export const InputOutputContainer = ({
                                 handleReorder={openMoveDialog}
                                 handleUpdate={onItemUpdate}
                                 language={language}
-                                session={session}
                                 zIndex={zIndex}
                             />
                         </Fragment>

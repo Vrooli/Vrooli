@@ -1,22 +1,22 @@
-import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputType, Session, StandardVersion } from '@shared/consts';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 import { uuid } from '@shared/uuid';
 import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
+import { EditableText } from 'components/containers/EditableText/EditableText';
 import { GeneratedInputComponent } from 'components/inputs/generated';
-import { MarkdownInput } from 'components/inputs/MarkdownInput/MarkdownInput';
 import { PreviewSwitch } from 'components/inputs/PreviewSwitch/PreviewSwitch';
 import { Selector } from 'components/inputs/Selector/Selector';
 import { BaseStandardInput } from 'components/inputs/standards';
 import { StandardVersionSelectSwitch } from 'components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch';
 import { useFormik } from 'formik';
 import { FieldData } from 'forms/types';
-import Markdown from 'markdown-to-jsx';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { linkColors } from 'styles';
 import { getCurrentUser } from 'utils/authentication/session';
 import { InputTypeOption, InputTypeOptions } from 'utils/consts';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
 import { jsonToString, standardVersionToFieldData, updateArray } from 'utils/shape/general';
 import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from 'utils/shape/models/routineVersionInput';
 import { RoutineVersionOutputTranslationShape } from 'utils/shape/models/routineVersionOutput';
@@ -37,7 +37,6 @@ const defaultStandardVersion = (
     yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
     root: {
         id: uuid(),
-        name: `${item.name}-schema`,
         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
         permissions: JSON.stringify({}),
         isInternal: true,
@@ -47,6 +46,7 @@ const defaultStandardVersion = (
     translations: [{
         id: uuid(),
         language: getUserLanguages(session)[0],
+        name: `${item.name}-schema`,
     }],
     versionLabel: '1.0.0',
 })
@@ -56,9 +56,9 @@ const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], 
     return standardVersionToFieldData({
         fieldName: schemaKey,
         description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(item.standardVersion, [language]).description,
-        helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText,
+        helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText ?? '',
         props: item.standardVersion.props ?? '',
-        name: item.standardVersion.root.name ?? '',
+        name: item.name ?? getTranslation(item.standardVersion, [language]).name ?? '',
         standardType: item.standardVersion.standardType ?? InputTypeOptions[0].value,
         yup: item.standardVersion.yup ?? null,
     })
@@ -77,9 +77,9 @@ export const InputOutputListItem = ({
     handleReorder,
     handleUpdate,
     language,
-    session,
     zIndex,
 }: InputOutputListItemProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
@@ -271,50 +271,33 @@ export const InputOutputListItem = ({
             }}>
                 <Grid container spacing={2} sx={{ padding: 1, ...linkColors(palette) }}>
                     <Grid item xs={12}>
-                        {isEditing ? <TextField
-                            fullWidth
-                            id="name"
-                            name="name"
-                            label="identifier"
-                            value={formik.values.name}
-                            onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
-                            onChange={formik.handleChange}
-                            error={formik.touched.name && Boolean(formik.errors.name)}
-                            helperText={formik.touched.name ? (formik.errors.name as any) : null}
-                        /> : <Typography variant="h6">{`Name: ${formik.values.name}`}</Typography>}
+                        <EditableText
+                            component='TextField'
+                            isEditing={isEditing}
+                            name='name'
+                            props={{ label: 'identifier' }}
+                        />
                     </Grid>
                     <Grid item xs={12}>
-                        {isEditing ? <TextField
-                            fullWidth
-                            id="description"
-                            name="description"
-                            placeholder="Short description (optional)"
-                            value={formik.values.description}
-                            multiline
-                            maxRows={3}
-                            onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
-                            onChange={formik.handleChange}
-                            error={formik.touched.description && Boolean(formik.errors.description)}
-                            helperText={formik.touched.description && formik.errors.description}
-                        /> : <Typography variant="body2">{`Description: ${formik.values.description}`}</Typography>}
+                        <EditableText
+                            component='TextField'
+                            isEditing={isEditing}
+                            name='description'
+                            props={{ placeholder: 'Short description (optional)' }}
+                        />
                     </Grid>
                     <Grid item xs={12}>
-                        {isEditing ? <MarkdownInput
-                            id="helpText"
-                            placeholder="Detailed information (optional)"
-                            value={formik.values.helpText}
-                            minRows={3}
-                            onChange={(newText: string) => formik.setFieldValue('helpText', newText)}
-                            error={formik.touched.helpText && Boolean(formik.errors.helpText)}
-                            helperText={formik.touched.helpText ? formik.errors.helpText as string : null}
-                        /> : formik.values.helpText.length > 0 ? <Markdown>{`Defailed information: ${formik.values.helpText}`}</Markdown> :
-                            null}
+                        <EditableText
+                            component='Markdown'
+                            isEditing={isEditing}
+                            name='helpText'
+                            props={{ placeholder: 'Detailed information (optional)' }}
+                        />
                     </Grid>
                     {/* Select standard */}
                     <Grid item xs={12}>
                         <StandardVersionSelectSwitch
                             disabled={!isEditing}
-                            session={session}
                             selected={!canUpdateStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
@@ -337,15 +320,13 @@ export const InputOutputListItem = ({
                                         standardVersionToFieldData({
                                             fieldName: schemaKey,
                                             description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(standardVersion, [language]).description,
-                                            helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText,
+                                            helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText ?? '',
                                             props: standardVersion?.props ?? '',
-                                            name: standardVersion?.root?.name ?? '',
+                                            name: item.name ?? getTranslation(standardVersion, [language]).name ?? '',
                                             standardType: standardVersion?.standardType ?? InputTypeOptions[0].value,
                                             yup: standardVersion.yup ?? null,
                                         }) as FieldData :
                                         generatedSchema as FieldData}
-                                    formik={formik}
-                                    session={session}
                                     onUpload={() => { }}
                                     zIndex={zIndex}
                                 />) :

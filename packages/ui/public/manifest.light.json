@@ -5,7 +5,9 @@
     "dir": "ltr",
     "lang": "en-US",
     "prefer_related_applications": false,
-    "omnibox": { "keyword" : "vrooli" },
+    "omnibox": {
+        "keyword": "vrooli"
+    },
     "categories": [
         "automation",
         "productivity"
@@ -29,7 +31,7 @@
             "purpose": "maskable"
         }
     ],
-    "background_color": "#002784",
+    "background_color": "#072c6a",
     "display": "standalone",
     "display_override": [
         "standalone",

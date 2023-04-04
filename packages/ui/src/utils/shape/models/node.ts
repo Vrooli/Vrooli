@@ -13,7 +13,7 @@ export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'nodeType
     // loop?: LoopShape | null
     end?: NodeEndShape | null;
     routineList?: NodeRoutineListShape | null;
-    routineVersion: { id: string };
+    routineVersion: { __typename?: 'RoutineVersion', id: string };
     translations: NodeTranslationShape[];
 }
 

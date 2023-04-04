@@ -64,7 +64,6 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
     idsByType: IdsByType,
     inputsByType: InputsByType,
 } => {
-    console.log('inputToMapWithPartials', actionType, JSON.stringify(object, null, 2), 'relMap', JSON.stringify(relMap, null, 2), 'languages', languages);
     // Initialize return objects
     const idsByAction: IdsByAction = {};
     const idsByType: IdsByType = {};
@@ -87,7 +86,6 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
         idsByAction[actionType] = [objectId];
         idsByType[relMap.__typename] = [objectId];
     }
-    console.log('in objectToIds a', JSON.stringify(object, null, 2));
     // Loop through all keys in relationship map
     Object.keys(relMap).forEach((key) => {
         // Ignore __typename
@@ -147,6 +145,5 @@ export const inputToMapWithPartials = <T extends Record<string, any>>(
             }
         });
     });
-    console.log('in objectToIds end', JSON.stringify(idsByAction), '\n\n', JSON.stringify(idsByType), '\n\n', JSON.stringify(inputsByType), '\n\n');
     return { idsByAction, idsByType, inputsByType };
 };

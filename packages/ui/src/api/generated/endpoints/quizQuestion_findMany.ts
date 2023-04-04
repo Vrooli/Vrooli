@@ -33,6 +33,7 @@ query quizQuestions($input: QuizQuestionSearchInput!) {
                     language
                     description
                     jsonVariable
+                    name
                 }
             }
             you {

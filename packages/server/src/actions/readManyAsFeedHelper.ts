@@ -1,4 +1,4 @@
-import { modelToGraphQL, toPartialGraphQLInfo } from "../builders"
+import { modelToGql, toPartialGqlInfo } from "../builders"
 import { getLogic } from "../getters"
 import { readManyHelper } from "./readManyHelper"
 import { ReadManyHelperProps } from "./types"
@@ -7,7 +7,7 @@ import { ReadManyHelperProps } from "./types"
  * Helper function for reading many objects and converting them to a GraphQL response
  * (except for supplemental fields). This is useful when querying feeds
  */
- export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
+export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
     additionalQueries,
     info,
     input,
@@ -26,7 +26,7 @@ import { ReadManyHelperProps } from "./types"
     })
     const { format } = getLogic(['format'], objectType, req.languages, 'readManyAsFeedHelper')
     const nodes = readManyResult.edges.map(({ node }: any) =>
-        modelToGraphQL(node, toPartialGraphQLInfo(info, format.gqlRelMap, req.languages, true))) as any[]
+        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, req.languages, true))) as any[]
     return {
         pageInfo: readManyResult.pageInfo,
         nodes,

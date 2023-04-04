@@ -1,13 +1,19 @@
-import { AppBar, Box, Button, Dialog, Stack, Typography, useTheme } from "@mui/material";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { useCallback, useMemo, useState } from "react";
+import { Box, Typography, useTheme } from "@mui/material";
+import { commentTranslationValidation } from "@shared/validation";
+import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
-import { useKeyboardOpen } from "utils/hooks/useKeyboardOpen";
-import { PopoverWithArrow } from "../PopoverWithArrow/PopoverWithArrow";
-import { UpTransition } from "../transitions";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
+import { SessionContext } from "utils/SessionContext";
+import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { CommentDialogProps } from "../types";
 
+const titleId = 'comment-dialog-title';
 
 /**
  * Dialog for creating/updating a comment. 
@@ -15,108 +21,55 @@ import { CommentDialogProps } from "../types";
  * CommentContainer
  */
 export const CommentDialog = ({
-    errorText,
-    handleSubmit,
-    handleClose,
-    isAdding,
+    dirty,
+    isCreate,
+    isLoading,
     isOpen,
-    language,
-    onTranslationChange,
+    onCancel,
     parent,
-    text,
+    ref,
     zIndex,
+    ...props
 }: CommentDialogProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
-    console.log('comment dialog', errorText);
 
-    // Add padding when keyboard open to make sure input is visible
-    const isKeyboardOpen = useKeyboardOpen();
+    // Handle translations
+    const {
+        language,
+        translationErrors,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
+        fields: ['text'],
+        validationSchema: isCreate ? commentTranslationValidation.create({}) : commentTranslationValidation.update({}),
+    });
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
 
-    // Errors popup
-    const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
-    const openError = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-        ev.preventDefault();
-        setErrorAnchorEl(ev.currentTarget ?? ev.target)
-    }, []);
-    const closeError = useCallback(() => {
-        setErrorAnchorEl(null);
-    }, []);
-
-    const onSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-        // If formik invalid, display errors in popup
-        if (errorText.length > 0) openError(ev);
-        else handleSubmit();
-    }, [errorText.length, openError, handleSubmit]);
-
-    if (!isOpen) return null;
     return (
-        <Dialog
-            fullScreen
-            id="create-comment-dialog"
-            onClose={handleClose}
-            open={isOpen}
-            TransitionComponent={UpTransition}
-            sx={{
-                zIndex: zIndex + 1,
-                '& .MuiDialog-paper': {
-                    background: palette.background.default,
-                    color: palette.background.textPrimary,
-                    paddingBottom: isKeyboardOpen ? '100vh' : 0,
-                },
-            }}
+        <LargeDialog
+            id="comment-dialog"
+            isOpen={isOpen}
+            onClose={onCancel}
+            titleId={titleId}
+            zIndex={zIndex}
         >
-            {/* Errors popup */}
-            <PopoverWithArrow
-                anchorEl={errorAnchorEl}
-                handleClose={closeError}
-                sxs={{
-                    root: {
-                        // Remove horizontal spacing for list items
-                        '& ul': {
-                            paddingInlineStart: '20px',
-                            margin: '8px',
-                        }
-                    }
+            <DialogTitle id={titleId} title={isCreate ? t(`AddComment`) : t(`EditComment`)} onClose={onCancel} />
+            <BaseForm
+                dirty={dirty}
+                isLoading={isLoading}
+                ref={ref}
+                style={{
+                    display: 'block',
+                    paddingBottom: '64px',
                 }}
             >
-                {errorText}
-            </PopoverWithArrow>
-            {/* App bar with Cancel, title, and Submit */}
-            <AppBar sx={{ position: 'relative', background: palette.primary.dark, height: '64px!important' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
-                    {/* Cancel button */}
-                    <Button variant="text" onClick={handleClose}>
-                        {t(`Cancel`)}
-                    </Button>
-                    {/* Title */}
-                    <Typography variant="h6" component="div" sx={{ flexGrow: 1, textAlign: 'center' }}>
-                        {isAdding ? t(`AddComment`) : t(`EditComment`)}
-                    </Typography>
-                    {/* Submit button */}
-                    <Box onClick={onSubmit}>
-                        <Button
-                            disabled={errorText.length > 0}
-                            variant="text"
-                        >
-                            {t(`Submit`)}
-                        </Button>
-                    </Box>
-                </Box>
-            </AppBar>
-            {/* Main content */}
-            <Stack direction="column" spacing={0}>
-                {/* Input for comment */}
-                <MarkdownInput
-                    id="add-comment"
+                <TranslatedMarkdownInput
+                    language={language}
+                    name="text"
                     placeholder={t(`PleaseBeNice`)}
-                    value={text}
-                    minRows={6}
-                    onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                    error={text.length > 0 && Boolean(errorText)}
-                    helperText={text.length > 0 ? errorText : ''}
+                    minRows={3}
                     sxs={{
                         bar: {
                             borderRadius: 0,
@@ -125,6 +78,8 @@ export const CommentDialog = ({
                         textArea: {
                             borderRadius: 0,
                             resize: 'none',
+                            height: parent ? '70vh' : '100vh',
+                            background: palette.background.paper,
                         }
                     }}
                 />
@@ -132,11 +87,24 @@ export const CommentDialog = ({
                 {parent && (
                     <Box sx={{
                         backgroundColor: palette.background.paper,
+                        height: '30vh',
                     }}>
                         <Typography variant="body2">{parentText}</Typography>
                     </Box>
                 )}
-            </Stack>
-        </Dialog >
+                <GridSubmitButtons
+                    display={"dialog"}
+                    errors={{
+                        ...props.errors,
+                        ...translationErrors,
+                    }}
+                    isCreate={isCreate}
+                    loading={props.isSubmitting}
+                    onCancel={onCancel}
+                    onSetSubmitting={props.setSubmitting}
+                    onSubmit={props.handleSubmit}
+                />
+            </BaseForm>
+        </LargeDialog>
     )
 }

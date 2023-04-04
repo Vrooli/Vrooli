@@ -1,3 +1,4 @@
+import { exists } from '@shared/utils';
 import { ShapeModel } from 'types';
 import { hasObjectChanged } from 'utils/shape/general';
 import { createRel } from './createRel';
@@ -211,15 +212,13 @@ export const updateRel = <
 ): UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName> => {
     // Check if shape is required
     if (relTypes.includes('Create') || relTypes.includes('Update')) {
-        if (!shape) throw new Error('Model is required if relTypes includes "Create" or "Update"');
+        if (!shape) throw new Error(`Model is required if relTypes includes "Create" or "Update": ${relation}`);
     }
     // Find relation data in item
     const originalRelationData = original[relation];
     const updatedRelationData = updated[relation];
-    // If not original or updated, return empty object
-    if (originalRelationData === undefined && updatedRelationData === undefined) return {} as any;
     // If no original, treat as create/connect
-    if (originalRelationData === undefined) {
+    if (!exists(originalRelationData)) {
         return createRel(
             updated,
             relation,
@@ -228,11 +227,18 @@ export const updateRel = <
             shape as any,
         ) as any;
     }
+    // If updated if undefined, return empty object
+    if (updatedRelationData === undefined) return {} as any;
+    // If updated is null, treat as delete/disconnect. 
+    // We do this by removing connect/create/update from relTypes
+    const filteredRelTypes = updatedRelationData === null ?
+        relTypes.filter(x => x !== 'Create' && x !== 'Connect' && x !== 'Update') as any :
+        relTypes;
     // Initialize result
     const result: { [x: string]: any } = {};
     const idField = (shape as ShapeModel<any, any, any> | undefined)?.idField ?? 'id';
     // Loop through relation types
-    for (const t of relTypes) {
+    for (const t of filteredRelTypes) {
         // If type is connect, add IDs to result
         if (t === 'Connect') {
             const shaped = findConnectedItems(

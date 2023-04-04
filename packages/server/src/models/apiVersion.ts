@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, VersionYou } from '@shared/consts';
+import { apiVersionValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, MaxObjects, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
-import { ModelLogic } from "./types";
 import { ApiModel } from "./api";
-import { apiVersionValidation } from "@shared/validation";
-import { noNull, shapeHelper } from "../builders";
+import { ModelLogic } from "./types";
 
 const __typename = 'ApiVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -159,7 +159,7 @@ export const ApiVersionModel: ModelLogic<{
             ApiModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ApiModel.validate!.owner(data.root as any),
+        owner: (data, userId) => ApiModel.validate!.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

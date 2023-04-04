@@ -1,6 +1,6 @@
 import { StandardVersion, StandardVersionTranslation } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 import { versionYou } from "./root";
 
 export const standardVersionTranslation: GqlPartial<StandardVersionTranslation> = {
@@ -10,6 +10,7 @@ export const standardVersionTranslation: GqlPartial<StandardVersionTranslation> 
         language: true,
         description: true,
         jsonVariable: true,
+        name: true,
     },
     full: {},
     list: {},

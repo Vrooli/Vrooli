@@ -130,6 +130,7 @@ query routine($input: FindByIdInput!) {
                                 language
                                 description
                                 jsonVariable
+                                name
                             }
                             id
                             created_at
@@ -208,23 +209,30 @@ query routine($input: FindByIdInput!) {
                 organization {
                     ...Organization_nav
                 }
-                runRoutineSchedule {
+                schedule {
                     labels {
                         ...Label_full
                     }
                     id
-                    attemptAutomatic
-                    maxAutomaticAttempts
-                    timeZone
-                    windowStart
-                    windowEnd
-                    recurrStart
-                    recurrEnd
-                    translations {
+                    created_at
+                    updated_at
+                    startTime
+                    endTime
+                    timezone
+                    exceptions {
                         id
-                        language
-                        description
-                        name
+                        originalStartTime
+                        newStartTime
+                        newEndTime
+                    }
+                    recurrences {
+                        id
+                        recurrenceType
+                        interval
+                        dayOfWeek
+                        dayOfMonth
+                        month
+                        endDate
                     }
                 }
                 user {

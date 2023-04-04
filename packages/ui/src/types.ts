@@ -1,14 +1,17 @@
 // Defines common props
 import { FetchResult } from "@apollo/client";
-import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { RoutineStepType } from "utils/consts";
 
-/**
- * Top-level props that can be passed into any routed component
- */
-export interface CommonProps {
-    session: Session | undefined;
+export type CalendarEvent = {
+    __typename: 'CalendarEvent',
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    allDay: boolean;
+    schedule: Schedule;
 }
 
 /**
@@ -39,7 +42,7 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    __typename: `${GqlModelType}` | 'Shortcut' | 'Action',
+    __typename: `${GqlModelType}` | 'Shortcut' | 'Action' | 'CalendarEvent',
     handle?: string | null,
     id: string,
     projectVersion?: {
@@ -80,16 +83,6 @@ export type AwardDisplay = {
         level: number;
     },
     progress: number;
-}
-
-// Common query input groups
-export type IsCompleteInput = {
-    isComplete?: boolean;
-    isCompleteExceptions?: SearchException[];
-}
-export type IsInternalInput = {
-    isInternal?: boolean;
-    isInternalExceptions?: SearchException[];
 }
 
 /**
@@ -176,13 +169,13 @@ export interface ActionOption {
     label: string;
 }
 
-export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
-
-export type VersionInfo = {
-    versionIndex: number;
-    versionLabel: string;
-    versionNotes?: string | null;
+export interface CalendarEventOption {
+    __typename: 'CalendarEvent';
+    id: string; // Shape is <scheduleId>|<startDate>|<endDate>
+    title: string;
 }
+
+export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
 
 declare global {
     // Enable Nami integration

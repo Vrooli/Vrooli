@@ -1,7 +1,7 @@
 import { SxProps, Theme } from '@mui/material';
 
 export const formPaper: SxProps = {
-    marginTop: 3,
+    margin: '16px',
     background: 'transparent',
     boxShadow: 'none',
 };

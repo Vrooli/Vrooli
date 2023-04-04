@@ -1,8 +1,8 @@
+import { FindVersionInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput, FindVersionInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum RoutineVersionSortBy {
@@ -179,6 +179,8 @@ export const typeDef = gql`
         isInternalWithRoot: Boolean
         isInternalWithRootExcludeOwnedByOrganizationId: ID
         isInternalWithRootExcludeOwnedByUserId: ID
+        isExternalWithRootExcludeOwnedByOrganizationId: ID
+        isExternalWithRootExcludeOwnedByUserId: ID
         isLatest: Boolean
         minComplexity: Int
         maxComplexity: Int

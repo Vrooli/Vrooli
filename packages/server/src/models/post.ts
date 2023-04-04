@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
 import { postValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper } from "../utils";
 import { OrganizationModel } from "./organization";
+import { ModelLogic } from "./types";
 
 const __typename = 'Post' as const;
 const suppFields = [] as const;
@@ -130,7 +130,7 @@ export const PostModel: ModelLogic<{
             Organization: data.organization,
             User: data.user,
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => defaultPermissions({ isAdmin, isDeleted, isPublic }),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

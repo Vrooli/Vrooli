@@ -1,8 +1,8 @@
+import { FindByIdInput, Question, QuestionCreateInput, QuestionForType, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, Question, QuestionSearchInput, QuestionCreateInput, QuestionUpdateInput, QuestionSortBy, QuestionForType } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
 import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
@@ -37,8 +37,8 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         referencing: String
-        forType: QuestionForType!
-        forConnect: ID!
+        forObjectType: QuestionForType
+        forObjectConnect: ID
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [QuestionTranslationCreateInput!]
@@ -47,6 +47,7 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         acceptedAnswerConnect: ID
+        acceptedAnswerDisconnect: Boolean
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -63,7 +64,7 @@ export const typeDef = gql`
         isPrivate: Boolean!
         bookmarks: Int!
         score: Int!
-        forObject: QuestionFor!
+        forObject: QuestionFor
         reports: [Report!]!
         reportsCount: Int!
         translations: [QuestionTranslation!]!

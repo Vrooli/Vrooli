@@ -8,7 +8,6 @@ import { CameraButtonProps } from '../types';
 export const CameraButton = ({
     disabled = false,
     onTranscriptChange,
-    session,
 }: CameraButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();

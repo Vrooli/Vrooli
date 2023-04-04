@@ -21,7 +21,6 @@ export const ResourceListHorizontal = ({
     mutate = true,
     list,
     loading = false,
-    session,
     zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
@@ -101,19 +100,23 @@ export const ResourceListHorizontal = ({
         list ? <ResourceDialog
             partialData={editingIndex >= 0 ? list.resources[editingIndex as number] : undefined}
             index={editingIndex}
+            isOpen={isDialogOpen}
             listId={list.id}
-            open={isDialogOpen}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
-            session={session}
             zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
 
     return (
-        <Box>
+        <Box sx={{
+            width: '100%',
+            maxWidth: '700px',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+        }}>
             {/* Add resource dialog */}
             {dialog}
             {/* Right-click context menu */}
@@ -159,7 +162,6 @@ export const ResourceListHorizontal = ({
                             canUpdate={canUpdate}
                             key={`resource-card-${index}`}
                             index={index}
-                            session={session}
                             data={c}
                             onContextMenu={openContext}
                             onEdit={openUpdateDialog}

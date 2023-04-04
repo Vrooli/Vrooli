@@ -1,4 +1,4 @@
-import { Node, NodeEnd, NodeLink, RoutineVersion, Session } from '@shared/consts';
+import { Node, NodeEnd, NodeLink, RoutineVersion } from '@shared/consts';
 import { BuildAction } from 'utils/consts';
 
 export interface NodeContextMenuProps {
@@ -17,7 +17,6 @@ export interface AddAfterLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -28,16 +27,6 @@ export interface AddBeforeLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
-    session: Session | undefined;
-    zIndex: number;
-}
-
-export interface EndNodeDialogProps {
-    handleClose: (updatedNode?: Node & { end: NodeEnd }) => void;
-    isEditing: boolean;
-    isOpen: boolean;
-    node: Node & { end: NodeEnd };
-    language: string;
     zIndex: number;
 }
 
@@ -61,6 +50,15 @@ export interface MoveNodeMenuProps {
     language: string; // Language to display/edit
     node?: Node | null; // Node to be moved
     routineVersion: RoutineVersion;
+    zIndex: number;
+}
+
+export interface NodeEndDialogProps {
+    handleClose: (updatedNode?: Node & { end: NodeEnd }) => void;
+    isEditing: boolean;
+    isOpen: boolean;
+    node: Node & { end: NodeEnd };
+    language: string;
     zIndex: number;
 }
 

@@ -45,7 +45,7 @@ export const StatsOrganizationModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsOrganizationSortBy.DateUpdatedDesc,
+        defaultSort: StatsOrganizationSortBy.PeriodStartAsc,
         sortBy: StatsOrganizationSortBy,
         searchFields: {
             periodTimeFrame: true,
@@ -61,7 +61,7 @@ export const StatsOrganizationModel: ModelLogic<{
             organization: 'Organization',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => OrganizationModel.validate!.owner(data.organization as any),
+        owner: (data, userId) => OrganizationModel.validate!.owner(data.organization as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_organizationSelect>(data, [
             ['organization', 'Organization'],

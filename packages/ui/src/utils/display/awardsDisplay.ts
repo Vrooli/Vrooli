@@ -1,5 +1,5 @@
-import { Award, awardNames } from "@shared/consts"
-import { AwardDisplay } from "types"
+import { Award, awardNames } from "@shared/consts";
+import { AwardDisplay } from "types";
 
 /**
  * Converts a queried award object into an AwardDisplay object.
@@ -9,7 +9,7 @@ import { AwardDisplay } from "types"
  */
 export const awardToDisplay = (award: Award, t: any): AwardDisplay => {
     // Find earned tier
-    const earnedTierDisplay = awardNames[award.category](award.progress);
+    const earnedTierDisplay = awardNames[award.category](award.progress, false);
     let earnedTier: AwardDisplay['earnedTier'] | undefined = undefined;
     if (earnedTierDisplay.name && earnedTierDisplay.body) {
         earnedTier = {

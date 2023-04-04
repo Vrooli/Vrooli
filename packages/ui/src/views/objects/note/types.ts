@@ -1,6 +1,5 @@
 import { NoteVersion } from "@shared/consts";
-import { CreateProps, UpdateProps, ViewProps } from "../types";
+import { UpsertProps, ViewProps } from "../types";
 
-export interface NoteCreateProps extends CreateProps<NoteVersion> {}
-export interface NoteUpdateProps extends UpdateProps<NoteVersion> {}
-export interface NoteViewProps extends ViewProps<NoteVersion> {}
+export interface NoteUpsertProps extends UpsertProps<NoteVersion> { }
+export interface NoteViewProps extends ViewProps<NoteVersion> { }

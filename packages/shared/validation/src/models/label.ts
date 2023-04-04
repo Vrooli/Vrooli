@@ -20,6 +20,7 @@ export const labelValidation: YupModel = {
     }, [
         ['organization', ['Connect'], 'one', 'opt'],
         ['apis', ['Connect'], 'many', 'opt'],
+        ['focusModes', ['Connect'], 'many', 'opt'],
         ['issues', ['Connect'], 'many', 'opt'],
         ['notes', ['Connect'], 'many', 'opt'],
         ['projects', ['Connect'], 'many', 'opt'],
@@ -27,8 +28,7 @@ export const labelValidation: YupModel = {
         ['smartContracts', ['Connect'], 'many', 'opt'],
         ['standards', ['Connect'], 'many', 'opt'],
         ['meetings', ['Connect'], 'many', 'opt'],
-        ['runProjectSchedules', ['Connect'], 'many', 'opt'],
-        ['runRoutineSchedules', ['Connect'], 'many', 'opt'],
+        ['schedules', ['Connect'], 'many', 'opt'],
         ['translations', ['Create'], 'many', 'opt', labelTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
@@ -37,6 +37,7 @@ export const labelValidation: YupModel = {
         color: opt(hexColor),
     }, [
         ['apis', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['focusModes', ['Connect', 'Disconnect'], 'many', 'opt'],
         ['issues', ['Connect', 'Disconnect'], 'many', 'opt'],
         ['notes', ['Connect', 'Disconnect'], 'many', 'opt'],
         ['projects', ['Connect', 'Disconnect'], 'many', 'opt'],
@@ -44,8 +45,7 @@ export const labelValidation: YupModel = {
         ['smartContracts', ['Connect', 'Disconnect'], 'many', 'opt'],
         ['standards', ['Connect', 'Disconnect'], 'many', 'opt'],
         ['meetings', ['Connect', 'Disconnect'], 'many', 'opt'],
-        ['runProjectSchedules', ['Connect', 'Disconnect'], 'many', 'opt'],
-        ['runRoutineSchedules', ['Connect', 'Disconnect'], 'many', 'opt'],
+        ['schedules', ['Connect', 'Disconnect'], 'many', 'opt'],
         ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', labelTranslationValidation],
     ], [], o),
 }

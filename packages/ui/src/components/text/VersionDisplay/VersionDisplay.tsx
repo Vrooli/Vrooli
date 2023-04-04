@@ -2,7 +2,6 @@ import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography 
 import { addSearchParams, useLocation } from "@shared/route";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useCallback, useMemo, useState } from "react";
-import { VersionInfo } from "types";
 import usePress from "utils/hooks/usePress";
 import { VersionDisplayProps } from "../types";
 
@@ -22,31 +21,31 @@ export const VersionDisplay = ({
 }: VersionDisplayProps) => {
     const [, setLocation] = useLocation();
 
-    const handleVersionChange = useCallback((versionInfo: VersionInfo) => {
-        addSearchParams(setLocation, { version: versionInfo.versionLabel })
+    const handleVersionChange = useCallback((version: string) => {
+        addSearchParams(setLocation, { version })
         window.location.reload();
     }, [setLocation]);
 
-    const openVersion = useCallback((versionInfo: VersionInfo) => {
+    const openVersion = useCallback((version: string) => {
         if (typeof confirmVersionChange === 'function') {
-            confirmVersionChange(() => { handleVersionChange(versionInfo) });
+            confirmVersionChange(() => { handleVersionChange(version) });
         } else {
-            handleVersionChange(versionInfo);
+            handleVersionChange(version);
         }
     }, [confirmVersionChange, handleVersionChange]);
 
-    const listItems = useMemo(() => versions?.map((versionInfo, index) => {
+    const listItems = useMemo(() => versions?.map((version, index) => {
         return (
             <ListItem
                 button
-                disabled={versionInfo.versionLabel === currentVersion?.versionLabel}
-                onClick={() => { openVersion(versionInfo) }}
+                disabled={version.versionLabel === currentVersion?.versionLabel}
+                onClick={() => { openVersion(version.versionLabel) }}
                 key={index}
                 sx={{
                     padding: '0px 8px',
                 }}
             >
-                <ListItemText primary={versionInfo.versionLabel} />
+                <ListItemText primary={version.versionLabel} />
             </ListItem>
         )
     }), [currentVersion, openVersion, versions])
@@ -109,7 +108,7 @@ export const VersionDisplay = ({
                     sx={{
                         cursor: listItems.length > 1 ? 'pointer' : 'default',
                     }}
-                >{`${prefix}${currentVersion}`}</Typography>
+                >{`${prefix}${currentVersion.versionLabel}`}</Typography>
             </Tooltip>
         </Box>
     )

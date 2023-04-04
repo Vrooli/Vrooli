@@ -1,7 +1,8 @@
-import { Box, Button, Dialog, DialogContent, ListItem, Stack, Typography } from '@mui/material';
+import { Box, Button, DialogContent, ListItem, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { getInstalledWalletProviders } from 'utils/authentication/walletIntegration';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { WalletSelectDialogProps } from '../types';
 
 const helpText =
@@ -24,21 +25,12 @@ export const WalletSelectDialog = ({
     }
 
     return (
-        <Dialog
+        <LargeDialog
+            id="wallet-select-dialog"
             onClose={handleClose}
-            open={open}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-                '& .MuiPaper-root': {
-                    minWidth: 'min(400px, 100%)',
-                    margin: '0 auto',
-                },
-                '& .MuiDialog-paper': {
-                    textAlign: 'center',
-                    overflowX: 'hidden',
-                }
-            }}
+            isOpen={open}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -81,6 +73,6 @@ export const WalletSelectDialog = ({
                     </Button>
                 </Stack>
             </DialogContent>
-        </Dialog >
+        </LargeDialog>
     )
 }

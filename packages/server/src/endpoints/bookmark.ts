@@ -1,11 +1,10 @@
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { BookmarkCreateInput, BookmarkSortBy, BookmarkUpdateInput, FindByIdInput } from '@shared/consts';
-import { Bookmark, BookmarkFor, BookmarkSearchInput } from '@shared/consts';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { rateLimit } from '../middleware';
-import { resolveUnion } from './resolvers';
-import { assertRequestFrom } from '../auth/request';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { assertRequestFrom } from '../auth/request';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
+import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
     enum BookmarkSortBy {
@@ -56,12 +55,27 @@ export const typeDef = gql`
 
     input BookmarkSearchInput {
         after: String
+        apiId: ID
+        commentId: ID
         excludeLinkedToTag: Boolean
         ids: [ID!]
+        issueId: ID
         listId: ID
+        noteId: ID
+        organizationId: ID
+        postId: ID
+        projectId: ID
+        questionId: ID
+        questionAnswerId: ID
+        quizId: ID
+        routineId: ID
         searchString: String
+        smartContractId: ID
         sortBy: BookmarkSortBy
+        standardId: ID
+        tagId: ID
         take: Int
+        userId: ID
     }
     type BookmarkSearchResult {
         pageInfo: PageInfo!
@@ -108,7 +122,7 @@ export const resolvers: {
         bookmarks: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
+            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { list: { userId: userData.id } } });
         },
     },
     Mutation: {

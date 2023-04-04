@@ -3,19 +3,15 @@ import { LINKS } from '@shared/consts';
 import { Link } from '@shared/route';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useTranslation } from 'react-i18next';
-import { NotFoundViewProps } from 'views/types';
 
-export const NotFoundView = ({
-    session
-}: NotFoundViewProps) => {
+export const NotFoundView = () => {
     const { t } = useTranslation();
 
     return (
         <>
             <TopBar
                 display="page"
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     title: t('PageNotFound', { ns: 'error', defaultValue: 'Page Not Found' }),
                 }}

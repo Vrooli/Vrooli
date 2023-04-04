@@ -1,6 +1,6 @@
-import { Session, SessionUser } from "@shared/consts";
+import { ActiveFocusMode, FocusMode, Session, SessionUser } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
-import { getCookieLanguage } from "utils/cookies";
+import { getCookieActiveFocusMode, getCookieAllFocusModes, getCookieLanguage } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
 
 /**
@@ -67,4 +67,23 @@ export const getSiteLanguage = (session: Session | null | undefined): string => 
     if (cookieLanguages && siteLanguages.includes(cookieLanguages)) return cookieLanguages;
     // Otherwise, return default (first in array)
     return siteLanguages[0];
+}
+
+/**
+ * Finds which focus mode the site should be displayed in, as well as 
+ * all focus modes of the user
+ * @param session Session object
+ */
+export const getFocusModeInfo = (session: Session | null | undefined): {
+    active: ActiveFocusMode | null,
+    all: FocusMode[]
+} => {
+    console.log('focusinggg rendering getFocusModeInfo', session);
+    // Try to find focus modes user from session
+    const { activeFocusMode, focusModes } = getCurrentUser(session);
+    // If not found, use cookies
+    return {
+        active: activeFocusMode ?? getCookieActiveFocusMode(),
+        all: focusModes ?? getCookieAllFocusModes() ?? [],
+    }
 }

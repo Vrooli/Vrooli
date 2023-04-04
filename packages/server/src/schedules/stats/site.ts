@@ -1,5 +1,5 @@
-import pkg, { PeriodType, QuizAttemptStatus } from '@prisma/client';
-import { CustomError } from '../../events';
+import pkg, { PeriodType, Prisma, QuizAttemptStatus } from '@prisma/client';
+import { logger } from '../../events';
 const { PrismaClient } = pkg;
 
 /**
@@ -15,9 +15,46 @@ export const logSiteStats = async (
 ) => {
     // Initialize the Prisma client
     const prisma = new PrismaClient();
+    // Initialize stats object
+    const data: Prisma.stats_siteCreateInput = {
+        periodStart,
+        periodEnd,
+        periodType,
+        activeUsers: 0,
+        apiCalls: 0, //TODO no way to track calls yet
+        apisCreated: 0,
+        organizationsCreated: 0,
+        projectsCreated: 0,
+        projectsCompleted: 0,
+        projectCompletionTimeAverage: 0,
+        quizzesCreated: 0,
+        quizzesCompleted: 0,
+        routinesCreated: 0,
+        routinesCompleted: 0,
+        routineCompletionTimeAverage: 0,
+        routineComplexityAverage: 0,
+        routineSimplicityAverage: 0,
+        runProjectsStarted: 0,
+        runProjectsCompleted: 0,
+        runProjectCompletionTimeAverage: 0,
+        runProjectContextSwitchesAverage: 0,
+        runRoutinesStarted: 0,
+        runRoutinesCompleted: 0,
+        runRoutineCompletionTimeAverage: 0,
+        runRoutineContextSwitchesAverage: 0,
+        smartContractsCreated: 0,
+        smartContractsCompleted: 0,
+        smartContractCompletionTimeAverage: 0,
+        smartContractCalls: 0, //TODO no way to track calls yet
+        standardsCreated: 0,
+        standardsCompleted: 0,
+        standardCompletionTimeAverage: 0,
+        verifiedEmailsCreated: 0,
+        verifiedWalletsCreated: 0,
+    }
     try {
         // Find all users active in the past 90 days
-        const activeUsers = await prisma.user.count({
+        data.activeUsers = await prisma.user.count({
             where: {
                 updated_at: {
                     gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
@@ -25,27 +62,27 @@ export const logSiteStats = async (
             },
         });
         // Find all apis created within the period
-        const apisCreated = await prisma.api.count({
+        data.apisCreated = await prisma.api.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
             },
         });
         // Find all organizations created within the period
-        const organizationsCreated = await prisma.organization.count({
+        data.organizationsCreated = await prisma.organization.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
             },
         });
         // Find all projects created within the period
-        const projectsCreated = await prisma.project.count({
+        data.projectsCreated = await prisma.project.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
             },
         });
         // Find all projects completed within the period
-        const projectsCompleted = await prisma.project.count({
+        data.projectsCompleted = await prisma.project.count({
             where: {
                 completedAt: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
@@ -55,28 +92,28 @@ export const logSiteStats = async (
         // for projects completed within the period 
         // NOTE: Prisma does not support aggregating by DateTime fields, 
         // so we must use a raw query.
-        const projectsCompletedSum: number = projectsCompleted > 0 ? await prisma.$queryRaw`
+        const projectsCompletedSum: number = data.projectsCompleted > 0 ? await prisma.$queryRaw`
         SELECT SUM(completedAt - created_at) AS time
         FROM project
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd} AND isDeleted = false
     ` : 0;
         // Calculate the average project completion time
-        const projectCompletionTimeAverage = projectsCompleted > 0 ? projectsCompletedSum / projectsCompleted : 0;
+        data.projectCompletionTimeAverage = data.projectsCompleted > 0 ? projectsCompletedSum / data.projectsCompleted : 0;
         // Find all quizzes created within the period
-        const quizzesCreated = await prisma.quiz.count({
+        data.quizzesCreated = await prisma.quiz.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
             },
         });
         // Find all quiz attempts completed within the period
-        const quizzesCompleted = await prisma.quiz_attempt.count({
+        data.quizzesCompleted = await prisma.quiz_attempt.count({
             where: {
                 updated_at: { gte: periodStart, lte: periodEnd },
                 status: { in: [QuizAttemptStatus.Passed, QuizAttemptStatus.Failed] },
             },
         });
         // Find all routines created within the period
-        const routinesCreated = await prisma.routine.count({
+        data.routinesCreated = await prisma.routine.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
@@ -99,7 +136,7 @@ export const logSiteStats = async (
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd} AND isDeleted = false
     ` : 0;
         // Calculate the average routine completion time
-        const routineCompletionTimeAverage = routinesCompleted > 0 ? routinesCompletedSum / routinesCompleted : 0;
+        data.routineCompletionTimeAverage = routinesCompleted > 0 ? routinesCompletedSum / routinesCompleted : 0;
         // Find the total complexity and simplicity of all routines completed within the period
         const routineSimplicitySum = await prisma.routine_version.aggregate({
             where: {
@@ -114,10 +151,10 @@ export const logSiteStats = async (
             },
         });
         // Calculate average routine complexity and simplicity
-        const routineComplexityAverage = routinesCompleted > 0 ? (routineSimplicitySum._sum.complexity ?? 0) / routinesCompleted : 0;
-        const routineSimplicityAverage = routinesCompleted > 0 ? (routineSimplicitySum._sum.simplicity ?? 0) / routinesCompleted : 0;
+        data.routineComplexityAverage = routinesCompleted > 0 ? (routineSimplicitySum._sum.complexity ?? 0) / routinesCompleted : 0;
+        data.routineSimplicityAverage = routinesCompleted > 0 ? (routineSimplicitySum._sum.simplicity ?? 0) / routinesCompleted : 0;
         // Find all run projects started within the period
-        const runProjectsStarted = await prisma.run_project.count({
+        data.runProjectsStarted = await prisma.run_project.count({
             where: {
                 startedAt: { gte: periodStart, lte: periodEnd },
             },
@@ -138,7 +175,7 @@ export const logSiteStats = async (
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd}
     ` : 0;
         // Calculate the average run project completion time
-        const runProjectCompletionTimeAverage = runProjectsCompleted > 0 ? runProjectsCompletedSum / runProjectsCompleted : 0;
+        data.runProjectCompletionTimeAverage = runProjectsCompleted > 0 ? runProjectsCompletedSum / runProjectsCompleted : 0;
         // Find the sum of all context switches for run projects completed within the period
         const runProjectContextSwitchesSum = await prisma.run_project.aggregate({
             where: {
@@ -149,9 +186,9 @@ export const logSiteStats = async (
             },
         });
         // Calculate the average run project context switches
-        const runProjectContextSwitchesAverage = runProjectsCompleted > 0 ? (runProjectContextSwitchesSum._sum.contextSwitches ?? 0) / runProjectsCompleted : 0;
+        data.runProjectContextSwitchesAverage = runProjectsCompleted > 0 ? (runProjectContextSwitchesSum._sum.contextSwitches ?? 0) / runProjectsCompleted : 0;
         // Find all run routines started within the period
-        const runRoutinesStarted = await prisma.run_routine.count({
+        data.runRoutinesStarted = await prisma.run_routine.count({
             where: {
                 startedAt: { gte: periodStart, lte: periodEnd },
             },
@@ -172,7 +209,7 @@ export const logSiteStats = async (
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd}
     ` : 0;
         // Calculate the average run routine completion time
-        const runRoutineCompletionTimeAverage = runRoutinesCompleted > 0 ? runRoutinesCompletedSum / runRoutinesCompleted : 0;
+        data.runRoutineCompletionTimeAverage = runRoutinesCompleted > 0 ? runRoutinesCompletedSum / runRoutinesCompleted : 0;
         // Find the sum of all context switches for run routines completed within the period
         const runRoutineContextSwitchesSum = await prisma.run_routine.aggregate({
             where: {
@@ -183,9 +220,9 @@ export const logSiteStats = async (
             },
         });
         // Calculate the average run routine context switches
-        const runRoutineContextSwitchesAverage = runRoutinesCompleted > 0 ? (runRoutineContextSwitchesSum._sum.contextSwitches ?? 0) / runRoutinesCompleted : 0;
+        data.runRoutineContextSwitchesAverage = runRoutinesCompleted > 0 ? (runRoutineContextSwitchesSum._sum.contextSwitches ?? 0) / runRoutinesCompleted : 0;
         // Find all smart contracts created within the period
-        const smartContractsCreated = await prisma.smart_contract.count({
+        data.smartContractsCreated = await prisma.smart_contract.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
@@ -208,9 +245,9 @@ export const logSiteStats = async (
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd}
     ` : 0;
         // Calculate the average smart contract completion time
-        const smartContractCompletionTimeAverage = smartContractsCompleted > 0 ? smartContractsCompletedSum / smartContractsCompleted : 0;
+        data.smartContractCompletionTimeAverage = smartContractsCompleted > 0 ? smartContractsCompletedSum / smartContractsCompleted : 0;
         // Find all standards created within the period
-        const standardsCreated = await prisma.standard.count({
+        data.standardsCreated = await prisma.standard.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
@@ -233,62 +270,25 @@ export const logSiteStats = async (
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd}
     ` : 0;
         // Calculate the average standard completion time
-        const standardCompletionTimeAverage = standardsCompleted > 0 ? standardsCompletedSum / standardsCompleted : 0;
+        data.standardCompletionTimeAverage = standardsCompleted > 0 ? standardsCompletedSum / standardsCompleted : 0;
         // Find all verified emails created within the period
-        const verifiedEmailsCreated = await prisma.email.count({
+        data.verifiedEmailsCreated = await prisma.email.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 verified: true,
             },
         });
         // Find all verified wallets created within the period
-        const verifiedWalletsCreated = await prisma.wallet.count({
+        data.verifiedWalletsCreated = await prisma.wallet.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 verified: true,
             },
         });
         // Store in database
-        await prisma.stats_site.create({
-            data: {
-                periodStart,
-                periodEnd,
-                periodType,
-                activeUsers,
-                apiCalls: 0, //TODO no way to track calls yet
-                apisCreated,
-                organizationsCreated,
-                projectsCreated,
-                projectsCompleted,
-                projectCompletionTimeAverage,
-                quizzesCreated,
-                quizzesCompleted,
-                routinesCreated,
-                routinesCompleted,
-                routineCompletionTimeAverage,
-                routineComplexityAverage,
-                routineSimplicityAverage,
-                runProjectsStarted,
-                runProjectsCompleted,
-                runProjectCompletionTimeAverage,
-                runProjectContextSwitchesAverage,
-                runRoutinesStarted,
-                runRoutinesCompleted,
-                runRoutineCompletionTimeAverage,
-                runRoutineContextSwitchesAverage,
-                smartContractsCreated,
-                smartContractsCompleted,
-                smartContractCompletionTimeAverage,
-                smartContractCalls: 0, //TODO no way to track calls yet
-                standardsCreated,
-                standardsCompleted,
-                standardCompletionTimeAverage,
-                verifiedEmailsCreated,
-                verifiedWalletsCreated,
-            },
-        })
+        await prisma.stats_site.create({ data })
     } catch (error) {
-        throw new CustomError('0423', 'InternalError', ['en'], { error });
+        logger.error('Caught error logging site statistics', { trace: '0423', data });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();

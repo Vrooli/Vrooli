@@ -1,5 +1,6 @@
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import * as Root from './root';
+import { DocumentNode } from 'graphql';
+import pkg from 'lodash';
 import * as Api from './api';
 import * as ApiKey from './apiKey';
 import * as ApiVersion from './apiVersion';
@@ -8,11 +9,12 @@ import * as Award from './award';
 import * as Bookmark from './bookmark';
 import * as BookmarkList from './bookmarkList';
 import * as Comment from './comment';
-import * as DeleteOneOrMany from './deleteOneOrMany';
 import * as Duplicate from './copy';
+import * as DeleteOneOrMany from './deleteOneOrMany';
 import * as Email from './email';
 import * as Feed from './feed';
-import * as History from './history';
+import * as FocusMode from './focusMode';
+import * as FocusModeFilter from './focusModeFilter';
 import * as Issue from './issue';
 import * as Label from './label';
 import * as Meeting from './meeting';
@@ -33,8 +35,8 @@ import * as Notification from './notification';
 import * as NotificationSubscription from './notificationSubscription';
 import * as Organization from './organization';
 import * as Payment from './payment';
-import * as Post from './post';
 import * as Phone from './phone';
+import * as Post from './post';
 import * as Premium from './premium';
 import * as Project from './project';
 import * as ProjectVersion from './projectVersion';
@@ -56,17 +58,19 @@ import * as ReputationHistory from './reputationHistory';
 import * as Resource from './resource';
 import * as ResourceList from './resourceList';
 import * as Role from './role';
+import * as Root from './root';
 import * as Routine from './routine';
 import * as RoutineVersion from './routineVersion';
 import * as RoutineVersionInput from './routineVersionInput';
 import * as RoutineVersionOutput from './routineVersionOutput';
 import * as RunProject from './runProject';
-import * as RunProjectSchedule from './runProjectSchedule';
 import * as RunProjectStep from './runProjectStep';
 import * as RunRoutine from './runRoutine';
 import * as RunRoutineInput from './runRoutineInput';
-import * as RunRoutineSchedule from './runRoutineSchedule';
 import * as RunRoutineStep from './runRoutineStep';
+import * as Schedule from './schedule';
+import * as ScheduleException from './scheduleException';
+import * as ScheduleRecurrence from './scheduleRecurrence';
 import * as SmartContract from './smartContract';
 import * as SmartContractVersion from './smartContractVersion';
 import * as Standard from './standard';
@@ -85,13 +89,9 @@ import * as Transfer from './transfer';
 import * as Translate from './translate';
 import * as Unions from './unions';
 import * as User from './user';
-import * as UserSchedule from './userSchedule';
-import * as UserScheduleFilter from './userScheduleFilter';
 import * as View from './view';
 import * as Vote from './vote';
 import * as Wallet from './wallet';
-import pkg from 'lodash';
-import { DocumentNode } from 'graphql';
 const { merge } = pkg;
 
 export type SchemaType = {
@@ -113,7 +113,8 @@ const schemas: SchemaType[] = [
     Duplicate,
     Email,
     Feed,
-    History,
+    FocusMode,
+    FocusModeFilter,
     Issue,
     Label,
     Meeting,
@@ -162,12 +163,13 @@ const schemas: SchemaType[] = [
     RoutineVersionInput,
     RoutineVersionOutput,
     RunProject,
-    RunProjectSchedule,
     RunProjectStep,
     RunRoutine,
     RunRoutineInput,
-    RunRoutineSchedule,
     RunRoutineStep,
+    Schedule,
+    ScheduleException,
+    ScheduleRecurrence,
     SmartContract,
     SmartContractVersion,
     Standard,
@@ -186,8 +188,6 @@ const schemas: SchemaType[] = [
     Translate,
     Unions,
     User,
-    UserSchedule,
-    UserScheduleFilter,
     View,
     Vote,
     Wallet

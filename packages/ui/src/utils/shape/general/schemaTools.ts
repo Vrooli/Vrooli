@@ -5,7 +5,7 @@ export interface StandardVersionToFieldDataProps {
     description?: StandardVersion['translations'][0]['description'];
     fieldName: string;
     helpText: string | null | undefined;
-    name: StandardVersion['root']['name'];
+    name: StandardVersion['translations'][0]['name'];
     props: StandardVersion['props'];
     standardType: StandardVersion['standardType'];
     yup: StandardVersion['yup'] | null | undefined;

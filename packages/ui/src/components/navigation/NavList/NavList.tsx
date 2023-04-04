@@ -4,13 +4,13 @@ import { LogInIcon, ProfileIcon } from '@shared/icons';
 import { openLink, useLocation } from '@shared/route';
 import { PopupMenu } from 'components/buttons/PopupMenu/PopupMenu';
 import { AccountMenu } from 'components/dialogs/AccountMenu/AccountMenu';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { checkIfLoggedIn } from 'utils/authentication/session';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils/navigation/userActions';
+import { SessionContext } from 'utils/SessionContext';
 import { ContactInfo } from '../ContactInfo/ContactInfo';
-import { NavListProps } from '../types';
 
 const navItemStyle = (palette: Palette) => ({
     background: 'transparent',
@@ -22,9 +22,8 @@ const navItemStyle = (palette: Palette) => ({
     },
 })
 
-export const NavList = ({
-    session,
-}: NavListProps) => {
+export const NavList = () => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -61,13 +60,12 @@ export const NavList = ({
                 size="large"
                 sx={navItemStyle(palette)}
             >
-                <ContactInfo session={session} />
+                <ContactInfo />
             </PopupMenu>}
             {/* Account menu */}
             <AccountMenu
                 anchorEl={accountMenuAnchor}
                 onClose={closeAccountMenu}
-                session={session}
             />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({

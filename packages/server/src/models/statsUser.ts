@@ -45,7 +45,7 @@ export const StatsUserModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsUserSortBy.DateUpdatedDesc,
+        defaultSort: StatsUserSortBy.PeriodStartAsc,
         sortBy: StatsUserSortBy,
         searchFields: {
             periodTimeFrame: true,
@@ -61,7 +61,7 @@ export const StatsUserModel: ModelLogic<{
             user: 'User',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => UserModel.validate!.owner(data.user as any),
+        owner: (data, userId) => UserModel.validate!.owner(data.user as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_userSelect>(data, [
             ['user', 'User'],

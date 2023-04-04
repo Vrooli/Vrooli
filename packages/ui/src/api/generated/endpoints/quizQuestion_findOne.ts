@@ -28,7 +28,6 @@ query quizQuestion($input: FindByIdInput!) {
                 }
                 score
                 bookmarks
-                views
                 attemptsCount
                 quizQuestionsCount
                 project {
@@ -93,6 +92,7 @@ query quizQuestion($input: FindByIdInput!) {
             language
             description
             jsonVariable
+            name
         }
     }
     you {

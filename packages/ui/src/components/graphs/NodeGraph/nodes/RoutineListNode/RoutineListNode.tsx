@@ -199,9 +199,10 @@ export const RoutineListNode = ({
                 }}
                 text={label}
                 validationSchema={nameValidation.required(reqErr)}
+                zIndex={zIndex}
             />
         )
-    }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, node.id, t]);
+    }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, zIndex, node.id, t]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{

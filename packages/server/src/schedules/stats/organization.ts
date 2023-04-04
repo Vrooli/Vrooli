@@ -1,5 +1,5 @@
 import pkg, { PeriodType } from '@prisma/client';
-import { CustomError } from '../../events';
+import { logger } from '../../events';
 import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
@@ -145,7 +145,7 @@ export const logOrganizationStats = async (
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        throw new CustomError('0419', 'InternalError', ['en'], { error });
+        logger.error('Caught error logging organization statistics', { trace: '0419', periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();

@@ -1,10 +1,10 @@
+import { FindByIdOrHandleInput, ProfileEmailUpdateInput, ProfileUpdateInput, Success, User, UserDeleteInput, UserSearchInput, UserSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CustomError } from '../events/error';
-import { UserDeleteInput, Success, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, User, ProfileEmailUpdateInput, UserSortBy } from '@shared/consts';
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { rateLimit } from '../middleware';
-import { assertRequestFrom } from '../auth/request';
 import { readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { assertRequestFrom } from '../auth/request';
+import { CustomError } from '../events/error';
+import { rateLimit } from '../middleware';
+import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 import { parseICalFile } from '../utils';
 
 export const typeDef = gql`
@@ -48,6 +48,7 @@ export const typeDef = gql`
         views: Int!
         apiKeys: [ApiKey!]
         apis: [Api!]!
+        apisCount: Int!
         apisCreated: [Api!]
         awards: [Award!]
         comments: [Comment!]
@@ -62,20 +63,24 @@ export const typeDef = gql`
         meetingsAttending: [Meeting!]
         meetingsInvited: [MeetingInvite!]
         memberships: [Member!]
+        membershipsCount: Int!
         membershipsInvited: [MemberInvite!]
         notesCreated: [Note!]
         notes: [Note!]
+        notesCount: Int!
         notifications: [Notification!]
         notificationSubscriptions: [NotificationSubscription!]
         notificationSettings: String
         paymentHistory: [Payment!]
         premium: Premium
         projects: [Project!]
+        projectsCount: Int!
         projectsCreated: [Project!]
         pullRequests: [PullRequest!]
         pushDevices: [PushDevice!]
         questionsAnswered: [QuestionAnswer!]
         questionsAsked: [Question!]
+        questionsAskedCount: Int!
         quizzesCreated: [Quiz!]
         quizzesTaken: [Quiz!]
         sentReports: [Report!]
@@ -86,14 +91,17 @@ export const typeDef = gql`
         reputationHistory: [ReputationHistory!]
         roles: [Role!]
         routines: [Routine!]
+        routinesCount: Int!
         routinesCreated: [Routine!]
         runProjects: [RunProject!]
         runRoutines: [RunRoutine!]
-        schedules: [UserSchedule!]
-        smartContractsCreated: [SmartContract!]
+        focusModes: [FocusMode!]
         smartContracts: [SmartContract!]
-        standardsCreated: [Standard!]
+        smartContractsCount: Int!
+        smartContractsCreated: [SmartContract!]
         standards: [Standard!]
+        standardsCount: Int!
+        standardsCreated: [Standard!]
         bookmarkedBy: [User!]!
         bookmarked: [Bookmark!]
         stats: StatsUser
@@ -157,9 +165,9 @@ export const typeDef = gql`
         isPrivateVotes: Boolean
         notificationSettings: String
         languages: [String!]
-        schedulesDelete: [ID!]
-        schedulesCreate: [UserScheduleCreateInput!]
-        schedulesUpdate: [UserScheduleUpdateInput!]
+        focusModesDelete: [ID!]
+        focusModesCreate: [FocusModeCreateInput!]
+        focusModesUpdate: [FocusModeUpdateInput!]
         translationsDelete: [ID!]
         translationsCreate: [UserTranslationCreateInput!]
         translationsUpdate: [UserTranslationUpdateInput!]

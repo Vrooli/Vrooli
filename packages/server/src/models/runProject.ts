@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
+import { runProjectValidation } from "@shared/validation";
+import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
-import { defaultPermissions, oneIsPublic } from "../utils";
-import { runProjectValidation } from "@shared/validation";
+import { ModelLogic } from "./types";
 
 const __typename = 'RunProject' as const;
 type Permissions = Pick<RunProjectYou, 'canDelete' | 'canUpdate' | 'canRead'>;
@@ -36,7 +36,7 @@ export const RunProjectModel: ModelLogic<{
         gqlRelMap: {
             __typename,
             projectVersion: 'ProjectVersion',
-            runProjectSchedule: 'RunProjectSchedule',
+            schedule: 'Schedule',
             steps: 'RunProjectStep',
             user: 'User',
             organization: 'Organization',
@@ -44,7 +44,7 @@ export const RunProjectModel: ModelLogic<{
         prismaRelMap: {
             __typename,
             projectVersion: 'ProjectVersion',
-            runProjectSchedule: 'RunProjectSchedule',
+            schedule: 'Schedule',
             steps: 'RunProjectStep',
             user: 'User',
             organization: 'Organization',

@@ -2,19 +2,18 @@
 // 1. Wallet login
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
-import { gql } from 'apollo-server-express';
-import { emailLogInFormValidation, emailSignUpFormValidation, emailRequestPasswordChangeSchema, password as passwordValidation } from '@shared/validation';
-import { COOKIE, GqlModelType } from "@shared/consts";
-import { CustomError } from '../events/error';
-import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
-import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
-import { GQLEndpoint, RecursivePartial } from '../types';
-import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, LogOutInput, SwitchCurrentAccountInput, ValidateSessionInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
-import { Trigger } from '../events';
+import { COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LogOutInput, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@shared/consts";
+import { emailLogInFormValidation, emailRequestPasswordChangeSchema, emailSignUpFormValidation, password as passwordValidation } from '@shared/validation';
+import { gql } from 'apollo-server-express';
 import { getUser, hashPassword, logIn, setupPasswordReset, toSession, validateCode, validateVerificationCode } from '../auth';
+import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
+import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
+import { Award, Trigger } from '../events';
+import { CustomError } from '../events/error';
+import { rateLimit } from '../middleware';
+import { GQLEndpoint, RecursivePartial } from '../types';
+import { hasProfanity } from '../utils/censor';
 const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -81,12 +80,22 @@ export const typeDef = gql`
     }
 
     type SessionUser {
+        activeFocusMode: ActiveFocusMode
+        apisCount: Int!
+        bookmarkLists: [BookmarkList!]! # Will not include the bookmarks themselves, just info about the lists
+        focusModes: [FocusMode!]!
         handle: String
         hasPremium: Boolean!
         id: String!
         languages: [String!]!
+        membershipsCount: Int!
         name: String
-        schedules: [UserSchedule!]!
+        notesCount: Int!
+        projectsCount: Int!
+        questionsAskedCount: Int!
+        routinesCount: Int!
+        smartContractsCount: Int!
+        standardsCount: Int!
         theme: String
     }
 
@@ -222,11 +231,26 @@ export const resolvers: {
                         create: [
                             { emailAddress: input.email },
                         ]
+                    },
+                    focusModes: {
+                        create: [{
+                            name: 'Work',
+                            description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                            reminderList: { create: [{}] },
+                            resourceList: { create: [{}] },
+                        }, {
+                            name: 'Study',
+                            description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                            reminderList: { create: [{}] },
+                            resourceList: { create: [{}] },
+                        }]
                     }
                 }
             });
             if (!user)
                 throw new CustomError('0142', 'FailedToCreate', req.languages);
+            // Give user award for signing up
+            await Award(prisma, user.id, req.languages).update('AccountNew', 1);
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
@@ -308,10 +332,10 @@ export const resolvers: {
             }
             // Otherwise, remove the specified user from the session
             else {
-                const session = { 
+                const session = {
                     __typename: 'Session' as const,
-                    isLoggedIn: true, 
-                    users: req.users.filter(u => u.id !== input.id) 
+                    isLoggedIn: true,
+                    users: req.users.filter(u => u.id !== input.id)
                 };
                 await generateSessionJwt(res, session);
                 return session;
@@ -437,7 +461,6 @@ export const resolvers: {
             let firstLogIn: boolean = false;
             // If you are not signed in
             if (!req.isLoggedIn) {
-                console.log('wlalet dta', walletData)
                 // Wallet must be verified
                 if (!walletData.verified) {
                     throw new CustomError('0152', 'NotYourWallet', req.languages);
@@ -449,15 +472,29 @@ export const resolvers: {
                         name: `user${randomString(8)}`,
                         wallets: {
                             connect: { id: walletData.id }
+                        },
+                        focusModes: {
+                            create: [{
+                                name: 'Work',
+                                description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                                reminderList: { create: [{}] },
+                                resourceList: { create: [{}] },
+                            }, {
+                                name: 'Study',
+                                description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                                reminderList: { create: [{}] },
+                                resourceList: { create: [{}] },
+                            }]
                         }
                     },
                     select: { id: true }
                 });
                 userId = userData.id;
+                // Give user award for signing up
+                await Award(prisma, userId, req.languages).update('AccountNew', 1);
             }
             // If you are signed in
             else {
-                console.log('wwwwalet data', walletData)
                 // If wallet is not verified, link it to your account
                 if (!walletData.verified) {
                     await prisma.user.update({

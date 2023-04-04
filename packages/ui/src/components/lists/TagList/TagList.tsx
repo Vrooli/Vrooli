@@ -1,10 +1,9 @@
+import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useMemo } from 'react';
 import { TagListProps } from '../types';
-import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 
 export const TagList = ({
     maxCharacters = 50,
-    session,
     parentId,
     sx,
     tags,

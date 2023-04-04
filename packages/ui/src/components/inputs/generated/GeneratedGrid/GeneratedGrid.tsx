@@ -42,14 +42,12 @@ export const calculateGridItemSize = (numItems: number): { [key: string]: GridSp
 export const GeneratedGrid = ({
     childContainers,
     fields,
-    formik,
     layout,
     onUpload,
-    session,
     theme,
     zIndex,
 }: GeneratedGridProps) => {
-    console.log('rendering grid');
+    console.log('rendering grid', fields, childContainers);
     const { containers, splitFields } = useMemo(() => {
         console.log('rendering grid.containers, grid.splitfields')
         // Split fields into which containers they belong to.
@@ -89,11 +87,9 @@ export const GeneratedGrid = ({
             // Generate component for each field in the grid, and wrap it in a grid item
             const gridItems: Array<React.ReactElement | null> = currFields.map((fieldData, index) => {
                 const inputComponent = <GeneratedInputComponent
-                    formik={formik}
                     fieldData={fieldData}
                     index={index}
                     onUpload={onUpload}
-                    session={session}
                     zIndex={zIndex}
                 />
                 return inputComponent ? generateGridItem(inputComponent, index) : null;
@@ -109,6 +105,7 @@ export const GeneratedGrid = ({
                 {gridItems}
             </Grid>
             // Each container is represented as a fieldset
+            console.log('generatedGrid: item ifo:', currLayout)
             grids.push(
                 <fieldset
                     key={`grid-container-${i}`}
@@ -129,7 +126,7 @@ export const GeneratedGrid = ({
             )
         }
         return grids;
-    }, [containers, formik, onUpload, session, splitFields, theme.palette.background.textPrimary, zIndex]);
+    }, [containers, onUpload, splitFields, theme.palette.background.textPrimary, zIndex]);
 
     return (
         <Stack

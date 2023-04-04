@@ -1,10 +1,10 @@
+import { Count, FindByIdInput, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
-import { Count, FindByIdInput, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, RunStatus } from '@shared/consts';
-import { rateLimit } from '../middleware';
-import { assertRequestFrom } from '../auth/request';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { assertRequestFrom } from '../auth/request';
+import { rateLimit } from '../middleware';
 import { RunRoutineModel } from '../models';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum RunRoutineSortBy {
@@ -31,8 +31,7 @@ export const typeDef = gql`
         contextSwitches: Int
         stepsCreate: [RunRoutineStepCreateInput!]
         inputsCreate: [RunRoutineInputCreateInput!]
-        runRoutineScheduleConnect: ID
-        runRoutineScheduleCreate: RunProjectScheduleCreateInput
+        scheduleCreate: ScheduleCreateInput
         routineVersionConnect: ID!
         runProjectConnect: ID
         organizationId: ID
@@ -50,8 +49,8 @@ export const typeDef = gql`
         inputsDelete: [ID!]
         inputsCreate: [RunRoutineInputCreateInput!]
         inputsUpdate: [RunRoutineInputUpdateInput!]
-        runRoutineScheduleConnect: ID
-        runRoutineScheduleCreate: RunProjectScheduleCreateInput
+        scheduleCreate: ScheduleCreateInput
+        scheduleUpdate: ScheduleUpdateInput
     }
     type RunRoutine {
         id: ID!
@@ -66,7 +65,7 @@ export const typeDef = gql`
         wasRunAutomaticaly: Boolean!
         routineVersion: RoutineVersion
         runProject: RunProject
-        runRoutineSchedule: RunRoutineSchedule
+        schedule: Schedule
         steps: [RunRoutineStep!]!
         stepsCount: Int!
         inputs: [RunRoutineInput!]!

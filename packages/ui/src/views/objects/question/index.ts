@@ -1,3 +1,3 @@
-export * from './QuestionCreate/QuestionCreate';
-export * from './QuestionUpdate/QuestionUpdate';
+export * from './QuestionUpsert/QuestionUpsert';
 export * from './QuestionView/QuestionView';
+

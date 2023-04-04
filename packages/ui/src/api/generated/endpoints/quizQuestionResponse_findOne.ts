@@ -27,7 +27,6 @@ query quizQuestionResponse($input: FindByIdInput!) {
             }
             score
             bookmarks
-            views
             attemptsCount
             quizQuestionsCount
             project {

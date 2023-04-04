@@ -1,5 +1,5 @@
 import { assertRequestFrom } from "../auth/request";
-import { addSupplementalFields, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, toPartialGqlInfo } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { RecursivePartial } from "../types";
@@ -22,7 +22,7 @@ export async function updateHelper<GraphQLModel>({
     // Get formatter
     const { format } = getLogic(['format'], objectType, userData.languages, 'cudHelper')
     // Partially convert info type
-    let partialInfo = toPartialGraphQLInfo(info, format.gqlRelMap, req.languages, true);
+    let partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.languages, true);
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: where(input), data: input };
     // Create objects. cudHelper will check permissions

@@ -1,3 +1,5 @@
+import { ObjectSchema, ValidationError } from 'yup';
+
 type YupTest = {
     OPTIONS: {
         name: string;
@@ -120,3 +122,41 @@ export const grabValidTopLevelFields = (object: { [key: string]: any }, fields: 
     }
     return returnObject;
 }
+
+export const isYupValidationError = (error: any): error is ValidationError => {
+    return error.name === 'ValidationError';
+}
+
+/**
+ * Validate a schema against a values object and return an object with the
+ * error messages. If validation succeeds, return an empty object.
+ * @param schema A Yup schema
+ * @param values An object of values to validate
+ */
+export const validateAndGetYupErrors = async (
+    schema: ObjectSchema<any>,
+    values: any
+): Promise<{} | Record<string, string>> => {
+    try {
+        await schema.validate(values);
+        return {}; // Return an empty object if validation succeeds
+    } catch (error) {
+        if (isYupValidationError(error)) {
+            // Check if the inner array is not empty
+            if (error.inner.length > 0) {
+                // Convert the Yup error object to a Formik-compatible error object
+                return error.inner.reduce((errors, err) => {
+                    if (err && err.path) {
+                        errors[err.path] = err.message;
+                    }
+                    return errors;
+                }, {});
+            } else if (error.path) {
+                // Handle the case when the inner array is empty
+                return { [error.path]: error.message };
+            }
+        }
+        // If it's not a Yup ValidationError, re-throw the error
+        throw error;
+    }
+};

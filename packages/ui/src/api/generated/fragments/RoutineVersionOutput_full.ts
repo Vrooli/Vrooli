@@ -8,6 +8,7 @@ standardVersion {
         language
         description
         jsonVariable
+        name
     }
     id
     created_at

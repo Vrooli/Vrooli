@@ -1,15 +1,15 @@
 import { Note, NoteCreateInput, NoteUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { OwnerShape } from "./common";
 import { LabelShape, shapeLabel } from "./label";
 import { NoteVersionShape, shapeNoteVersion } from "./noteVersion";
 import { shapeTag, TagShape } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
+import { OwnerShape } from "./types";
 
 export type NoteShape = Pick<Note, 'id' | 'isPrivate'> & {
     __typename?: 'Note';
     labels?: ({ id: string } | LabelShape)[];
-    owner: OwnerShape | null;
+    owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

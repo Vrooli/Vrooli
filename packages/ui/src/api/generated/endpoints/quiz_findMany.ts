@@ -22,7 +22,6 @@ query quizzes($input: QuizSearchInput!) {
             }
             score
             bookmarks
-            views
             attemptsCount
             quizQuestionsCount
             project {

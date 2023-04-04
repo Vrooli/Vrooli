@@ -1,5 +1,5 @@
 import { getUser } from "../auth";
-import { addSupplementalFields, combineQueries, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
@@ -31,9 +31,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
-    console.log('readmanyhelper before toPartialGraphQLInfo', objectType, model.__typename, JSON.stringify(model.format.gqlRelMap), '\n\n');
-    let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
-    console.log('readmanyhelper after toPartialGraphQLInfo', objectType, JSON.stringify(partialInfo), '\n\n')
+    let partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
@@ -56,27 +54,17 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     if (searcher?.customQueryData) {
         customQueries.push(searcher.customQueryData(input, userData));
     }
+    console.log('CUSTOM QUERIES', JSON.stringify(customQueries), '\n\n')
     // Combine queries
     const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
+    console.log('WHERE', JSON.stringify(where), '\n\n')
     // Determine sort order
     // Make sure sort field is valid
     const orderBy = SortMap[input.sortBy ?? searcher!.defaultSort] ?? undefined;
     // Find requested search array
-    console.log('readmanyhelper before selectHelper', objectType, JSON.stringify(partialInfo), '\n\n');
     const select = selectHelper(partialInfo);
-    console.log('readmanyhelper after selectHelper', objectType, JSON.stringify(select), '\n\n');
     let searchResults: any[];
     try {
-        // await prisma.run_project_schedule.findMany({
-        //     "where": {
-        //     },
-        //     "orderBy": {
-        //         "bookmarkedBy": {
-        //           "_count": "desc"
-        //         }
-        //       },
-
-        // })
         searchResults = await (model.delegate(prisma) as any).findMany({
             where,
             orderBy,
@@ -91,7 +79,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         logger.error('readManyHelper: Failed to find searchResults', { trace: '0383', error, objectType, ...select, where, orderBy });
         throw new CustomError('0383', 'InternalError', req.languages, { objectType });
     }
-    console.log('readmanyhelper after searchResults', JSON.stringify(searchResults), '\n\n')
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {
@@ -130,17 +117,13 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             edges: []
         }
     }
-    console.log('readmanyhelper yeeeee 1', addSupplemental, JSON.stringify(paginatedResults), '\n');
     //TODO validate that the user has permission to read all of the results, including relationships
     // If not adding supplemental fields, return the paginated results
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
-    console.log('readmanyhelper yeeeee 2', JSON.stringify(formattedNodes), '\n');
-    formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
-    console.log('readmanyhelper yeeeee 3', JSON.stringify(formattedNodes), '\n');
+    formattedNodes = formattedNodes.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
     formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
-    console.log('readmanyhelper yeeeee 4', JSON.stringify(formattedNodes), '\n');
     return {
         ...paginatedResults,
         pageInfo: paginatedResults.pageInfo,

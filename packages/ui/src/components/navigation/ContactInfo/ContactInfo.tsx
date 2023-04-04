@@ -19,7 +19,6 @@ import { ContactInfoProps } from '../types';
 type NavActionListData = [string, string, string, SvgComponent]
 
 export const ContactInfo = ({
-    session,
     sx,
     ...props
 }: ContactInfoProps) => {

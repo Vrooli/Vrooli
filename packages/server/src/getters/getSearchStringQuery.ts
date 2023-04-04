@@ -1,8 +1,8 @@
-import { isRelationshipArray, isRelationshipObject } from "../builders";
+import { GqlModelType } from "@shared/consts";
+import { getLogic } from ".";
+import { isRelationshipObject } from "../builders";
 import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
 import { SearchStringMap } from "../utils";
-import { getLogic } from ".";
-import { GqlModelType } from "@shared/consts";
 
 /**
  * @param queryParams Data required to replace keys
@@ -16,17 +16,29 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
     // Loop through [key, value] pairs in query
     const where: Where = {} as Where;
     for (const [key, value] of Object.entries(query)) {
-        // If value is a key of SearchStringMap, convert it to a Prisma query
-        if (SearchStringMap[key]) {
-            where[key as keyof Where] = SearchStringMap[key](queryParams);
-        }
         // If value is an array, recursively convert each element
-        else if (isRelationshipArray(value)) {
-            where[key as keyof Where] = value.map((v) => getSearchStringQueryHelper(queryParams, v)) as any;
+        if (Array.isArray(value)) {
+            where[key as keyof Where] = value.map((v) => {
+                if (typeof v === 'string' && SearchStringMap[v]) {
+                    return SearchStringMap[v](queryParams);
+                } else if (typeof v === 'object') {
+                    return getSearchStringQueryHelper(queryParams, v);
+                } else {
+                    return v;
+                }
+            }) as any;
+        }
+        // If value is a key of SearchStringMap, convert it to a Prisma query
+        else if (SearchStringMap[key]) {
+            where[key as keyof Where] = SearchStringMap[key](queryParams);
         }
         // If value is an object, recursively convert it
         else if (isRelationshipObject(value)) {
             where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value);
+        }
+        // If value is a string, convert it to a Prisma query
+        else if (typeof value === 'string' && SearchStringMap[value]) {
+            (where as any)[key as keyof Where] = SearchStringMap[value](queryParams);
         }
         // Otherwise, just copy the value
         else {

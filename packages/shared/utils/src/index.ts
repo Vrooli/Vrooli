@@ -1,5 +1,6 @@
 export * from './difference';
 export * from './exists';
+export * from './focusModes';
 export * from './getDotNotationValue';
 export * from './isEqual';
 export * from './isObject';

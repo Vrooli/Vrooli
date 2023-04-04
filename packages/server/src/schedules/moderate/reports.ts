@@ -1,10 +1,9 @@
-import { GqlModelType, ReportSuggestedAction } from "@shared/consts";
 import pkg, { ReportStatus } from '@prisma/client';
-import { PrismaType } from "../../types";
+import { GqlModelType, ReportSuggestedAction } from "@shared/consts";
+import { findFirstRel, uppercaseFirstLetter } from "../../builders";
 import { logger, Trigger } from "../../events";
-import { findFirstRel, noNull, selPad, uppercaseFirstLetter } from "../../builders";
-import { ApiVersionModel } from "../../models";
 import { getLogic } from "../../getters";
+import { PrismaType } from "../../types";
 const { PrismaClient } = pkg;
 
 // Constants for calculating when a moderation action for a report should be accepted
@@ -149,7 +148,7 @@ const moderateReport = async (
         });
         // Find the object that was reported.
         // Must capitalize the first letter of the object type to match the __typename
-        const [objectType, objectData] = findFirstRel(report, [
+        const [objectField, objectData] = findFirstRel(report, [
             'apiVersion',
             'comment',
             'issue',
@@ -164,10 +163,11 @@ const moderateReport = async (
             'tag',
             'user'
         ]).map(([type, data]) => [uppercaseFirstLetter(type ?? ''), data]) as [string, any];
-        if (!objectType || !objectData) {
-            logger.error('Failed to complete report moderation. Object likely deleted', { trace: '0409', reportId: report.id, objectType, objectData })
+        if (!objectField || !objectData) {
+            logger.error('Failed to complete report moderation. Object likely deleted', { trace: '0409', reportId: report.id, objectField, objectData })
             return;
         }
+        const objectType = uppercaseFirstLetter(objectField);
         // Find the object's owner
         let objectOwner: { __typename: 'Organization' | 'User', id: string } | null = null;
         if (objectType.endsWith('Version')) {

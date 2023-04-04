@@ -1,6 +1,8 @@
 import { DeleteType, ReportFor } from "@shared/consts";
+import { useContext } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { SessionContext } from "utils/SessionContext";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { ReportDialog } from "../ReportDialog/ReportDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
@@ -34,9 +36,11 @@ export const ObjectActionDialogs = ({
     closeReportDialog,
     object,
     objectType,
-    session,
     zIndex,
 }: ObjectActionDialogsProps) => {
+    const session = useContext(SessionContext);
+    console.log('isDeleteDialogOpen', isDeleteDialogOpen, object?.id, hasDeletingSupport)
+
     return (
         <>
             {/* openAddCommentDialog?: () => void; //TODO: implement
@@ -55,7 +59,6 @@ export const ObjectActionDialogs = ({
                 onClose={closeReportDialog}
                 open={isReportDialogOpen}
                 reportFor={objectType as unknown as ReportFor}
-                session={session}
                 zIndex={zIndex + 1}
             />}
             {hasSharingSupport && <ShareObjectDialog
@@ -69,7 +72,6 @@ export const ObjectActionDialogs = ({
                 isOpen={isStatsDialogOpen}
                 object={object as any}
                 onClose={closeStatsDialog}
-                session={session}
                 zIndex={zIndex + 1}
             />}
         </>

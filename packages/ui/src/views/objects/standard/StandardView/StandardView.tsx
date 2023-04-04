@@ -1,18 +1,16 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
+import { CommentFor, FindVersionInput, InputType, StandardVersion } from "@shared/consts";
 import { EditIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { uuid } from '@shared/uuid';
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
-import { RelationshipButtons } from "components/inputs/RelationshipButtons/RelationshipButtons";
 import { BaseStandardInput } from "components/inputs/standards";
-import { RelationshipsObject } from "components/inputs/types";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { TagList } from "components/lists/TagList/TagList";
@@ -21,15 +19,17 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
+import { standardInitialValues } from "forms/StandardForm/StandardForm";
 import { FieldData, FieldDataJSON } from "forms/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
-import { defaultRelationships } from "utils/defaults/relationships";
-import { defaultResourceList } from "utils/defaults/resourceList";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
+import { ResourceListShape } from "utils/shape/models/resourceList";
+import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardViewProps } from "../types";
 
@@ -46,9 +46,9 @@ const containerProps = (palette: Palette) => ({
 export const StandardView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: StandardViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -99,7 +99,6 @@ export const StandardView = ({
         object: standardVersion,
         objectType: 'Standard',
         openAddCommentDialog,
-        session,
         setLocation,
         setObject: setStandardVersion,
     });
@@ -107,35 +106,15 @@ export const StandardView = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
-
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-
-    // Handle tags
-    const [tags, setTags] = useState<TagShape[]>((partialData?.root?.tags as TagShape[] | undefined) ?? []);
-
-    useEffect(() => {
-        setRelationships({
-            isComplete: false, //TODO
-            isPrivate: standardVersion?.isPrivate ?? false,
-            owner: standardVersion?.root?.owner ?? null,
-            parent: null,
-            // parent: standard?.parent ?? null, TODO
-            project: null // TODO
-        });
-        setResourceList(standardVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(standardVersion?.root?.tags ?? []);
-    }, [standardVersion]);
+    const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
+    const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Standard',
                 }}
@@ -173,20 +152,16 @@ export const StandardView = ({
                 </Stack>
                 <ObjectTitle
                     language={language}
+                    languages={availableLanguages}
                     loading={isLoading}
                     title={name}
-                    session={session}
                     setLanguage={setLanguage}
-                    translations={standardVersion?.translations ?? partialData?.translations ?? []}
                     zIndex={zIndex}
                 />
                 {/* Relationships */}
-                <RelationshipButtons
+                <RelationshipList
                     isEditing={false}
                     objectType={'Routine'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Resources */}
@@ -196,12 +171,11 @@ export const StandardView = ({
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
-                    session={session}
                     zIndex={zIndex}
                 />}
                 {/* Box with description */}
                 <Box sx={containerProps(palette)}>
-                    <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
+                    <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                 </Box>
                 {/* Box with standard */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
@@ -215,8 +189,6 @@ export const StandardView = ({
                             schema ? <GeneratedInputComponent
                                 disabled={true}
                                 fieldData={schema}
-                                formik={previewFormik}
-                                session={session}
                                 onUpload={() => { }}
                                 zIndex={zIndex}
                             /> :
@@ -242,7 +214,6 @@ export const StandardView = ({
                 {tags.length > 0 && <TagList
                     maxCharacters={30}
                     parentId={standardVersion?.id ?? ''}
-                    session={session}
                     tags={tags as any[]}
                     sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                 />}
@@ -265,14 +236,12 @@ export const StandardView = ({
                 handleObjectUpdate={updateStandard}
                 loading={loading}
                 object={standardVersion}
-                session={session}
             /> */}
                 {/* Action buttons */}
                 <ObjectActionsRow
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                     object={standardVersion}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Comments */}
@@ -283,7 +252,6 @@ export const StandardView = ({
                         objectId={standardVersion?.id ?? ''}
                         objectType={CommentFor.StandardVersion}
                         onAddCommentClose={closeAddCommentDialog}
-                        session={session}
                         zIndex={zIndex}
                     />
                 </Box>

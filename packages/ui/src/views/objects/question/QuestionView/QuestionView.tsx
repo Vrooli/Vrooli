@@ -10,19 +10,20 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
 import { QuestionViewProps } from "../types";
 
 export const QuestionView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: QuestionViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -62,7 +63,6 @@ export const QuestionView = ({
     const actionData = useObjectActions({
         object: question,
         objectType: 'Question',
-        session,
         setLocation,
         setObject: setQuestion,
     });
@@ -163,7 +163,6 @@ export const QuestionView = ({
                     <ReportsLink object={question} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        session={session}
                         objectId={question?.id ?? ''}
                         bookmarkFor={BookmarkFor.Question}
                         isBookmarked={question?.you?.isBookmarked ?? false}
@@ -173,14 +172,13 @@ export const QuestionView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, question, description, zIndex, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, question, description, zIndex, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Question',
                 }}
@@ -191,7 +189,6 @@ export const QuestionView = ({
                 anchorEl={moreMenuAnchor}
                 object={question as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -210,8 +207,7 @@ export const QuestionView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
-                        translations={question?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>

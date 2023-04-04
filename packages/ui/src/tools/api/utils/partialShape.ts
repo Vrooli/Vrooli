@@ -119,9 +119,18 @@ export const partialShape = async <T extends { __typename: string }>(
         else if (exists(data[key]?.__use)) {
             // This is a single value instead of an object, so logic is much simpler than __union
             const useKey = data[key].__use;
-            if (!exists(currDefine[useKey])) continue;
-            const defineData = currDefine[useKey];
-            result[key] = { __typename: key, __use: uniqueFragmentName(defineData.__typename!, defineData.__selectionType!) };
+            if (exists(currDefine[useKey])) {
+                const defineData = currDefine[useKey];
+                result[key] = { __typename: key, __use: uniqueFragmentName(defineData.__typename!, defineData.__selectionType!) };
+            }
+            // If there are other keys in the object besides __use and __typename, add them to the result
+            if (Object.keys(data[key]).filter(k => k !== '__use' && k !== '__typename').length > 0) {
+                // Split __define (i.e. fragments) from the object so we can move them to shared fragments
+                const { __define, __use, ...rest } = await unlazy(data[key] as any);
+                uniqueFragments = addFragments(uniqueFragments, __define);
+                // Add the object to the result
+                result[key] = { ...result[key], ...rest };
+            }
         }
         // Otherwise, combine the values of the key
         else {
@@ -140,7 +149,7 @@ export const partialShape = async <T extends { __typename: string }>(
         }
     }
     // Set the __define field of the combined object
-    if(Object.keys(uniqueFragments).length > 0) result.__define = uniqueFragments;
+    if (Object.keys(uniqueFragments).length > 0) result.__define = uniqueFragments;
     // Return the combined object
     return result;
 }

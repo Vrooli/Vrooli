@@ -12,9 +12,9 @@ import { useLocation } from '@shared/route';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { DeleteDialogProps } from '../types';
 
@@ -63,10 +63,12 @@ export const DeleteDialog = ({
             onClose={() => { close(); }}
             zIndex={zIndex}
         >
-            <DialogTitle
-                id=''
-                title=''
+            <TopBar
+                display="dialog"
                 onClose={() => { close() }}
+                titleData={{
+                    titleKey: 'Delete',
+                }}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>
@@ -82,11 +84,11 @@ export const DeleteDialog = ({
                         helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
                         sx={{ paddingBottom: 2 }}
                     />
-                    <Button 
-                    startIcon={<DeleteIcon />} 
-                    color="secondary" 
-                    onClick={handleDelete}
-                    disabled={nameInput.trim() !== objectName.trim()}
+                    <Button
+                        startIcon={<DeleteIcon />}
+                        color="secondary"
+                        onClick={handleDelete}
+                        disabled={nameInput.trim() !== objectName.trim()}
                     >{t('Delete')}</Button>
                 </Stack>
             </DialogContent>

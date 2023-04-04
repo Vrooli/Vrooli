@@ -1,4 +1,4 @@
-import { exists } from "@shared/utils"
+import { exists } from "@shared/utils";
 
 /**
  * Determines which fragments are needed for a given partial. 
@@ -12,25 +12,39 @@ export const fragmentsNeeded = (
     fragments: [string, string][],
     partialTag: string
 ) => {
-    // First, find all fragments that are used in the partial. These must be included.
-    const inPartial = fragments.filter(([fragmentName]) => partialTag.includes(fragmentName))
-    // Find every fragment referenced by a fragment used in the partial. 
-    // This is accomplished with regex, since we know that every fragment is preceded by an ellipsis. 
-    // NOTE: Unions are also preceded by an ellipsis, but there is a space in between the fragment name and the ellipsis (so not a problem)
-    const allFragments: string[] = []
-    // Loop through each fragment used in the partial
-    inPartial.forEach(([fragmentName, fragmentTag]) => {
-        // Any word followed by an ellipsis is a fragment
-        const nestedFragments = fragmentTag.match(/\.\.\.(\w+)/g)
-        if (!exists(nestedFragments)) return;
-        // Add each unique fragment to the list
+    const temp1 = fragments.map(([fragmentName]) => fragmentName);
+    console.log('fragments needed start', temp1, temp1.length);
+
+    const getDependentFragments = (fragmentName: string, fragments: [string, string][]) => {
+        const fragmentTag = fragments.find(([name]) => name === fragmentName)?.[1];
+        if (!fragmentTag) return [];
+
+        const nestedFragments = fragmentTag.match(/\.\.\.(\w+)/g);
+        if (!exists(nestedFragments)) return [];
+
+        let dependentFragments: string[] = [];
         nestedFragments.forEach(fragment => {
-            const fragmentName = fragment.replace('...', '')
-            if (!allFragments.includes(fragmentName)) allFragments.push(fragmentName)
-        })
-    })
-    // Combine inPartial and allFragments into a set
-    const allFragmentsUsed = new Set([...inPartial.map(([fragmentName]) => fragmentName), ...allFragments])
-    // Return fragment tuples that are in the set
-    return fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName))
-}
+            const name = fragment.replace('...', '');
+            dependentFragments.push(name);
+            dependentFragments = [...dependentFragments, ...getDependentFragments(name, fragments)];
+        });
+
+        return Array.from(new Set(dependentFragments));
+    };
+
+    const inPartial = fragments.filter(([fragmentName]) => partialTag.includes(fragmentName));
+
+    let allFragmentsUsed = new Set(inPartial.map(([fragmentName]) => fragmentName));
+    console.log('fragments needed inPartial', Array.from(allFragmentsUsed), allFragmentsUsed.size);
+
+    inPartial.forEach(([fragmentName]) => {
+        const dependentFragments = getDependentFragments(fragmentName, fragments);
+        dependentFragments.forEach(fragment => {
+            allFragmentsUsed.add(fragment);
+        });
+    });
+
+    const temp2 = fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName)).map(([fragmentName]) => fragmentName)
+    console.log('fragments needed result', temp2, temp2.length);
+    return fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName));
+};

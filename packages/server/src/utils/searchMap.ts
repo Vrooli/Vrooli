@@ -1,6 +1,6 @@
-import { timeFrameToPrisma, visibilityBuilder } from "../builders";
-import { GqlModelType, InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
 import { PeriodType } from "@prisma/client";
+import { GqlModelType, InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
+import { timeFrameToPrisma, visibilityBuilder } from "../builders";
 
 type Maybe<T> = InputMaybe<T> | undefined
 
@@ -64,6 +64,8 @@ export const SearchMap = {
     eventStartTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('startTime', time),
     excludeIds: (ids: Maybe<string[]>) => ({ NOT: { id: { in: ids } } }),
     excludeLinkedToTag: (exclude: Maybe<boolean>) => exclude === true ? { tagId: null } : {},
+    focusModeId: (id: Maybe<string>) => oneToOneId(id, 'focusMode'),
+    focusModesId: (id: Maybe<string>) => oneToManyId(id, 'focusModes'),
     fromId: (id: Maybe<string>) => oneToOneId(id, 'from'),
     hasAcceptedAnswer: (hasAcceptedAnswer: Maybe<boolean>) => ({ hasAcceptedAnswer }),
     hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
@@ -72,7 +74,7 @@ export const SearchMap = {
     isCompleteWithRoot: (isComplete: Maybe<boolean>) => ({
         AND: [
             { isComplete },
-            { root: { isComplete } }
+            { root: { hasCompleteVersion: isComplete } }
         ]
     }),
     isCompleteWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
@@ -81,7 +83,7 @@ export const SearchMap = {
             {
                 AND: [
                     { isComplete: true },
-                    { root: { isComplete: true } }
+                    { root: { hasCompleteVersion: true } }
                 ]
             }
         ]
@@ -92,38 +94,35 @@ export const SearchMap = {
             {
                 AND: [
                     { isComplete: true },
-                    { root: { isComplete: true } }
+                    { root: { hasCompleteVersion: true } }
                 ]
             }
         ]
     }),
     isInternal: (isInternal: Maybe<boolean>) => ({ isInternal }),
-    isInternalWithRoot: (isInternal: Maybe<boolean>) => ({
-        AND: [
-            { isInternal },
-            { root: { isInternal } }
-        ]
-    }),
+    isInternalWithRoot: (isInternal: Maybe<boolean>) => ({ root: { isInternal } }),
     isInternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
         OR: [
             { ownedByOrganizationId },
-            {
-                AND: [
-                    { isInternal: true },
-                    { root: { isInternal: true } }
-                ]
-            }
+            { root: { isInternal: true } }
         ]
     }),
     isInternalWithRootExcludeOwnedByUserId: (ownedByUserId: Maybe<string>) => ({
         OR: [
             { ownedByUserId },
-            {
-                AND: [
-                    { isInternal: true },
-                    { root: { isInternal: true } }
-                ]
-            }
+            { root: { isInternal: true } }
+        ]
+    }),
+    isExternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+        OR: [
+            { ownedByOrganizationId },
+            { root: { isInternal: false } }
+        ]
+    }),
+    isExternalWithRootExcludeOwnedByUserId: (ownedByUserId: Maybe<string>) => ({
+        OR: [
+            { ownedByUserId },
+            { root: { isInternal: false } }
         ]
     }),
     isMergedOrRejected: (isMergedOrRejected: Maybe<boolean>) => ({ isMergedOrRejected }),
@@ -136,6 +135,7 @@ export const SearchMap = {
     labelsIds: (ids: Maybe<string[]>) => ({ labels: { some: { label: { id: { in: ids } } } } }),
     languageIn: (languages: Maybe<string[]>) => ({ language: { in: languages } }),
     lastViewedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('lastViewedAt', time),
+    listId: (id: Maybe<string>) => oneToOneId(id, 'list'),
     maxAmount: (amount: Maybe<number>) => ({ amount: { lte: amount } }),
     maxBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { lte: bookmarks } }),
     maxBookmarksRoot: (bookmarks: Maybe<number>) => ({ root: { bookmarks: { lte: bookmarks } } }),
@@ -266,8 +266,6 @@ export const SearchMap = {
     updatedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('updated_at', time),
     userId: (id: Maybe<string>) => oneToOneId(id, 'user'),
     usersId: (id: Maybe<string>) => oneToManyId(id, 'users'),
-    userScheduleId: (id: Maybe<string>) => oneToOneId(id, 'userSchedule'),
-    userSchedulesId: (id: Maybe<string>) => oneToManyId(id, 'userSchedules'),
     visibility: (
         visibility: InputMaybe<VisibilityType> | undefined,
         userData: SessionUser | null | undefined,

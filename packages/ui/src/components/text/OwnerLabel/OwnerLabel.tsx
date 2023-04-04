@@ -1,9 +1,10 @@
 import { Tooltip, Typography, useTheme } from "@mui/material";
 import { useLocation } from "@shared/route";
-import { useCallback, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
+import { SessionContext } from "utils/SessionContext";
 import { OwnerLabelProps } from "../types";
 
 /**
@@ -30,9 +31,9 @@ export const OwnerLabel = ({
     language,
     objectType,
     owner,
-    session,
     sxs,
 }: OwnerLabelProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 

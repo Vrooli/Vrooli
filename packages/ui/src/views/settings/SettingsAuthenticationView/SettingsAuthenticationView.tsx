@@ -1,38 +1,36 @@
-import { Box, Button, Grid, Stack, TextField, useTheme } from "@mui/material";
+import { Box, Button, Stack, useTheme } from "@mui/material";
 import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { userValidation } from "@shared/validation";
+import { profileEmailUpdateValidation } from "@shared/validation";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
 import { useCustomMutation } from "api/hooks";
 import { mutationWrapper } from 'api/utils';
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
 import { EmailList, WalletList } from "components/lists/devices";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Subheader } from "components/text/Subheader/Subheader";
-import { useFormik } from 'formik';
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useCallback, useState } from "react";
+import { Formik } from 'formik';
+import { SettingsAuthenticationForm } from "forms/settings";
+import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
-import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { SettingsAuthenticationViewProps } from "../types";
 
 export const SettingsAuthenticationView = ({
     display = 'page',
-    session,
 }: SettingsAuthenticationViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery(session);
+    const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 
     const [logOut] = useCustomMutation<Session, LogOutInput>(authLogOut);
     const onLogOut = useCallback(() => {
@@ -68,32 +66,6 @@ export const SettingsAuthenticationView = ({
 
     // Handle update
     const [mutation, { loading: isUpdating }] = useCustomMutation<User, ProfileEmailUpdateInput>(userProfileEmailUpdate);
-    const formik = useFormik({
-        initialValues: {
-            currentPassword: '',
-            newPassword: '',
-            newPasswordConfirmation: '',
-        },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: userValidation.update({}),
-        onSubmit: (values) => {
-            if (!profile) {
-                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
-                return;
-            }
-            if (!formik.isValid) return;
-            mutationWrapper<User, ProfileEmailUpdateInput>({
-                mutation,
-                input: {
-                    currentPassword: values.currentPassword,
-                    newPassword: values.newPassword,
-                },
-                onSuccess: (data) => { onProfileUpdate(data) },
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const openDelete = useCallback(() => setDeleteOpen(true), [setDeleteOpen]);
@@ -105,20 +77,18 @@ export const SettingsAuthenticationView = ({
             <DeleteAccountDialog
                 isOpen={deleteOpen}
                 handleClose={closeDelete}
-                session={session}
                 zIndex={100}
             />
             <SettingsTopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Authentication',
                 }}
             />
             <Stack direction="row">
                 <SettingsList />
-                <Box style={{ overflow: 'hidden' }}>
+                <Box>
                     <Subheader
                         help={t('WalletListHelp')}
                         Icon={WalletIcon}
@@ -140,73 +110,37 @@ export const SettingsAuthenticationView = ({
                     <Subheader
                         help={t('PasswordChangeHelp')}
                         title={t('ChangePassword')} />
-                    <BaseForm
-                        isLoading={isProfileLoading || isUpdating}
-                        onSubmit={formik.handleSubmit}
-                        style={{ margin: 8, paddingBottom: 16 }}
+                    <Formik
+                        enableReinitialize={true}
+                        initialValues={{
+                            currentPassword: '',
+                            newPassword: '',
+                            newPasswordConfirmation: '',
+                        } as ProfileEmailUpdateInput}
+                        onSubmit={(values, helpers) => {
+                            if (!profile) {
+                                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: 'Error' });
+                                return;
+                            }
+                            mutationWrapper<User, ProfileEmailUpdateInput>({
+                                mutation,
+                                input: {
+                                    currentPassword: values.currentPassword,
+                                    newPassword: values.newPassword,
+                                },
+                                onSuccess: (data) => { onProfileUpdate(data) },
+                                onError: () => { helpers.setSubmitting(false) },
+                            })
+                        }}
+                        validationSchema={profileEmailUpdateValidation.update({})}
                     >
-                        {/* Hidden username input because some password managers require it */}
-                        <TextField
-                            name="username"
-                            autoComplete="username"
-                            sx={{ display: 'none' }}
-                        />
-                        <Grid container spacing={1}>
-                            <Grid item xs={12}>
-                                <PasswordTextField
-                                    fullWidth
-                                    id="currentPassword"
-                                    name="currentPassword"
-                                    label="Current Password"
-                                    autoComplete="current-password"
-                                    value={formik.values.currentPassword}
-                                    onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.currentPassword && Boolean(formik.errors.currentPassword)}
-                                    helperText={formik.touched.currentPassword ? formik.errors.currentPassword : null}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <PasswordTextField
-                                    fullWidth
-                                    id="newPassword"
-                                    name="newPassword"
-                                    label="New Password"
-                                    autoComplete="new-password"
-                                    value={formik.values.newPassword}
-                                    onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
-                                    helperText={formik.touched.newPassword ? formik.errors.newPassword : null}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <PasswordTextField
-                                    fullWidth
-                                    id="newPasswordConfirmation"
-                                    name="newPasswordConfirmation"
-                                    autoComplete="new-password"
-                                    label="Confirm New Password"
-                                    value={formik.values.newPasswordConfirmation}
-                                    onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.newPasswordConfirmation && Boolean(formik.errors.newPasswordConfirmation)}
-                                    helperText={formik.touched.newPasswordConfirmation ? formik.errors.newPasswordConfirmation : null}
-                                />
-                            </Grid>
-                        </Grid>
-                        <GridSubmitButtons
-                            disabledCancel={!formik.dirty}
-                            disabledSubmit={!formik.dirty}
+                        {(formik) => <SettingsAuthenticationForm
                             display={display}
-                            errors={formik.errors}
-                            isCreate={false}
-                            loading={formik.isSubmitting}
+                            isLoading={isProfileLoading || isUpdating}
                             onCancel={formik.resetForm}
-                            onSetSubmitting={formik.setSubmitting}
-                            onSubmit={formik.handleSubmit}
-                        />
-                    </BaseForm>
+                            {...formik}
+                        />}
+                    </Formik>
                     <Button
                         color="secondary"
                         onClick={onLogOut}

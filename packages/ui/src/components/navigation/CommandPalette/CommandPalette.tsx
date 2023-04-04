@@ -7,7 +7,7 @@ import { useCustomLazyQuery } from 'api/hooks';
 import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { SiteSearchBar } from 'components/inputs/search';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AutocompleteOption, ShortcutOption } from 'types';
 import { listToAutocomplete } from 'utils/display/listTools';
@@ -16,7 +16,7 @@ import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
 import { getObjectUrl } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { PubSub } from 'utils/pubsub';
-import { CommandPaletteProps } from '../types';
+import { SessionContext } from 'utils/SessionContext';
 
 /**
  * Strips URL for comparison against the current URL.
@@ -41,12 +41,12 @@ const stripUrl = (url: string) => {
 
 const titleId = 'command-palette-dialog-title';
 
-export const CommandPalette = ({
-    session
-}: CommandPaletteProps) => {
+export const CommandPalette = () => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [searchString, setSearchString] = useState<string>('');
@@ -147,13 +147,12 @@ export const CommandPalette = ({
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
-                    session={session}
                     showSecondaryLabel={true}
                     sxs={{
-                        root: { 
+                        root: {
                             width: '100%',
                             top: 0,
-                            marginTop: 2, 
+                            marginTop: 2,
                         },
                         paper: { background: palette.background.paper },
                     }}

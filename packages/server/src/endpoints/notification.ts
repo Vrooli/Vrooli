@@ -56,12 +56,6 @@ export const typeDef = gql`
         toPush: Boolean
     }
 
-    type PushDevice {
-        id: ID!
-        expires: Date
-        name: String
-    }
-
     type NotificationSettings {
         includedEmails: [Email!]
         includedSms: [Phone!]

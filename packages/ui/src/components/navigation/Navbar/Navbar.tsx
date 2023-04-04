@@ -30,7 +30,6 @@ import { NavbarLogoState, NavbarProps } from '../types';
  * content is inside the navbar on small screens, and below the navbar on large screens.
  */
 export const Navbar = ({
-    session,
     shouldHideTitle = false,
     title,
     help,
@@ -78,7 +77,7 @@ export const Navbar = ({
     ), [isLeftHanded, isMobile, logoState, toHome]);
 
     return (
-        <Box sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
+        <Box id='navbar' sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
             <HideOnScroll>
                 <AppBar
                     onClick={scrollToTop}
@@ -88,7 +87,7 @@ export const Navbar = ({
                         background: palette.primary.dark,
                         minHeight: '64px!important',
                         position: 'fixed', // Allows items to be displayed below the navbar
-                        zIndex: 100,
+                        zIndex: 300,
                     }}>
                     {/* <Toolbar> */}
                     <Stack direction="row" spacing={0} alignItems="center" sx={{
@@ -101,7 +100,7 @@ export const Navbar = ({
                             marginRight: 'auto',
                             maxHeight: '100%',
                         }}>
-                            <NavList session={session} />
+                            <NavList />
                         </Box>}
                         {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
@@ -110,7 +109,7 @@ export const Navbar = ({
                             marginLeft: 'auto',
                             maxHeight: '100%',
                         }}>
-                            <NavList session={session} />
+                            <NavList />
                         </Box>}
                     </Stack>
                     {/* "below" displayed inside AppBar on mobile */}

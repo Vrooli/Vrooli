@@ -1,10 +1,12 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
 import { Organization_nav } from '../fragments/Organization_nav';
+import { Schedule_full } from '../fragments/Schedule_full';
 import { User_nav } from '../fragments/User_nav';
 
 export const meetingInviteFindOne = gql`${Label_full}
 ${Organization_nav}
+${Schedule_full}
 ${User_nav}
 
 query meetingInvite($input: FindByIdInput!) {
@@ -18,6 +20,9 @@ query meetingInvite($input: FindByIdInput!) {
         labels {
             ...Label_full
         }
+        schedule {
+            ...Schedule_full
+        }
         translations {
             id
             language
@@ -28,12 +33,6 @@ query meetingInvite($input: FindByIdInput!) {
         id
         openToAnyoneWithInvite
         showOnOrganizationProfile
-        timeZone
-        eventStart
-        eventEnd
-        recurring
-        recurrStart
-        recurrEnd
         organization {
             id
             handle

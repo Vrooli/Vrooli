@@ -39,28 +39,23 @@ export const versionsCheck = async ({
     deleteList,
     userData,
 }: VersionsCheckProps) => {
-    console.log('versionsCheck 1', JSON.stringify(createList), '\n\n');
     // Filter unchanged versions from create and update data
     const create = createList.filter(x => x.versionLabel).map(x => ({
         id: x.id,
         rootId: x.rootConnect || x.rootCreate?.id as string,
         versionLabel: x.versionLabel,
     }));
-    console.log('versionsCheck 2');
     const update = updateList.filter(x => x.data.versionLabel).map(x => ({
         id: x.where.id,
         versionLabel: x.data.versionLabel,
     }));
-    console.log('versionsCheck 3');
     // Find unique root ids from create data
     const createRootIds = create.map(x => x.rootId);
     const uniqueRootIds = [...new Set(createRootIds)];
-    console.log('versionsCheck 4', createRootIds, uniqueRootIds);
     // Find unique version ids from update and delete data
     const updateIds = update.map(x => x.id);
     const deleteIds = deleteList;
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
-    console.log('versionsCheck 5');
     // Query the database for existing data (by root)
     const rootType = objectType.replace('Version', '') as GqlModelType;
     const { delegate } = getLogic(['delegate'], rootType, userData.languages, 'versionsCheck');
@@ -74,7 +69,7 @@ export const versionsCheck = async ({
                 { versions: { some: { id: { in: uniqueVersionIds } } } },
             ]
         };
-        select =  {
+        select = {
             id: true,
             hasCompleteVersion: true,
             isDeleted: true,
@@ -98,7 +93,6 @@ export const versionsCheck = async ({
     } catch (error) {
         throw new CustomError('0414', 'InternalError', userData.languages, { error, where, select, rootType });
     }
-    console.log('versionsCheck 6');
     for (const root of existingRoots) {
         // Check 1
         // Root cannot already be deleted
@@ -138,5 +132,4 @@ export const versionsCheck = async ({
             }
         }
     }
-    console.log('versionsCheck END');
 }

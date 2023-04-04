@@ -1,13 +1,12 @@
 import { BottomNavigation, useTheme } from '@mui/material';
 import { useLocation } from '@shared/route';
+import { useContext } from 'react';
 import { useKeyboardOpen } from 'utils/hooks/useKeyboardOpen';
 import { actionsToBottomNav, getUserActions } from 'utils/navigation/userActions';
-import { BottomNavProps } from '../types';
+import { SessionContext } from 'utils/SessionContext';
 
-export const BottomNav = ({
-    session,
-    ...props
-}: BottomNavProps) => {
+export const BottomNav = () => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
 
@@ -24,11 +23,12 @@ export const BottomNav = ({
     if (invisible) return null;
     return (
         <BottomNavigation
+            id="bottom-nav"
             showLabels
             sx={{
                 background: palette.primary.dark,
                 position: 'fixed',
-                zIndex: 5,
+                zIndex: 6,
                 bottom: 0,
                 // env variables are used to account for iOS nav bar, notches, etc.
                 paddingBottom: 'env(safe-area-inset-bottom)',
@@ -38,7 +38,6 @@ export const BottomNav = ({
                 width: '100%',
                 display: { xs: 'flex', md: 'none' },
             }}
-            {...props}
         >
             {actions}
         </BottomNavigation>

@@ -1,3 +1,3 @@
-export * from './ReminderCreate/ReminderCreate';
-export * from './ReminderUpdate/ReminderUpdate';
+export * from './ReminderUpsert/ReminderUpsert';
 export * from './ReminderView/ReminderView';
+

@@ -1,18 +1,18 @@
-import { gql } from 'apollo-server-express';
-import { CreateOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
+import { gql } from 'apollo-server-express';
 import { createHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     input ReminderListCreateInput {
         id: ID!
-        userScheduleConnect: ID
+        focusModeConnect: ID
         remindersCreate: [ReminderCreateInput!]
     }
     input ReminderListUpdateInput {
         id: ID!
-        userScheduleConnect: ID
+        focusModeConnect: ID
         remindersCreate: [ReminderCreateInput!]
         remindersUpdate: [ReminderUpdateInput!]
         remindersDelete: [ID!]
@@ -21,7 +21,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        userSchedule: UserSchedule
+        focusMode: FocusMode
         reminders: [Reminder!]!
     }
 

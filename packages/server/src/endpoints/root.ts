@@ -3,11 +3,11 @@ import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
-import { rateLimit } from '../middleware';
-import { CustomError } from '../events/error';
-import { resolveUnion } from './resolvers';
 import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from '@shared/consts';
+import { CustomError } from '../events/error';
+import { rateLimit } from '../middleware';
 import { GQLEndpoint, UnionResolver } from '../types';
+import { resolveUnion } from './resolvers';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -21,10 +21,11 @@ export const typeDef = gql`
         Comment
         Copy
         Email
+        FocusMode
+        FocusModeFilter
         Fork
         Handle
-        HomeResult,
-        HistoryResult
+        HomeResult
         Issue
         Label
         Meeting
@@ -78,12 +79,13 @@ export const typeDef = gql`
         RoutineVersionOutput
         RunProject
         RunProjectOrRunRoutineSearchResult
-        RunProjectSchedule
         RunProjectStep
         RunRoutine
         RunRoutineInput
-        RunRoutineSchedule
         RunRoutineStep
+        Schedule
+        ScheduleException
+        ScheduleRecurrence
         Session
         SessionUser
         SmartContract
@@ -102,8 +104,6 @@ export const typeDef = gql`
         Tag
         Transfer
         User
-        UserSchedule
-        UserScheduleFilter
         View
         Vote
         Wallet

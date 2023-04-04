@@ -1,9 +1,9 @@
+import { GqlModelType } from "@shared/consts";
 import { omit } from "@shared/utils";
+import pkg from 'lodash';
 import { ObjectMap } from "../models";
 import { SupplementalConverter } from "../models/types";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
-import pkg from 'lodash';
-import { GqlModelType } from "@shared/consts";
 const { merge } = pkg;
 
 
@@ -19,9 +19,7 @@ export const removeSupplementalFields = (objectType: `${GqlModelType}`, partial:
     const supplementer: SupplementalConverter<any> | undefined = ObjectMap[objectType]?.format?.supplemental;
     if (!supplementer) return partial;
     // Remove graphQL supplemental fields
-    console.log('before removeSupplementalFields omit', supplementer.graphqlFields, JSON.stringify(partial), '\n\n');
     const withoutGqlSupp = omit(partial, supplementer.graphqlFields);
-    console.log('after removeSupplementalFields omit', JSON.stringify(withoutGqlSupp), '\n\n');
     // Add db supplemental fields
     if (supplementer.dbFields) {
         // For each db supplemental field, add it to the select object with value true

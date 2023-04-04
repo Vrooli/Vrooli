@@ -1,11 +1,11 @@
 import { GqlModelType } from "@shared/consts";
+import pkg from 'lodash';
 import { PrismaUpdate } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";
-import pkg from 'lodash';
-import { IdsByAction, IdsByType, InputsByType, QueryAction } from "./types";
-import { inputToMapWithPartials } from "./inputToMapWithPartials";
 import { convertPlaceholders } from "./convertPlaceholders";
+import { inputToMapWithPartials } from "./inputToMapWithPartials";
+import { IdsByAction, IdsByType, InputsByType, QueryAction } from "./types";
 const { merge } = pkg;
 
 /**
@@ -23,7 +23,7 @@ export const cudInputsToMaps = async ({
 }: {
     createMany: { [x: string]: any }[] | null | undefined,
     deleteMany: string[] | null | undefined,
-    updateMany: { 
+    updateMany: {
         where: { [x: string]: any },
         data: { [x: string]: any },
     }[] | null | undefined,
@@ -35,7 +35,6 @@ export const cudInputsToMaps = async ({
     idsByType: IdsByType,
     inputsByType: InputsByType,
 }> => {
-    console.log('cudInputsToMaps start', JSON.stringify(createMany), '\n\n');
     // Initialize return objects
     let idsByType: IdsByType = {};
     let idsByAction: IdsByAction = {};
@@ -63,8 +62,8 @@ export const cudInputsToMaps = async ({
         // Call objectToIds to get ids of all objects requiring authentication. 
         // For implicit IDs (see function for explanation), this will return placeholders
         // that we can use to query for the actual ids.
-        const { 
-            idsByAction: childIdsByAction, 
+        const {
+            idsByAction: childIdsByAction,
             idsByType: childIdsByType,
             inputsByType: childInputsByType,
         } = inputToMapWithPartials(object.actionType as QueryAction, format.prismaRelMap, object.data as PrismaUpdate, languages);
@@ -72,9 +71,9 @@ export const cudInputsToMaps = async ({
         idsByAction = merge(idsByAction, childIdsByAction);
         idsByType = merge(idsByType, childIdsByType);
         inputsByType = merge(inputsByType, childInputsByType);
-        // Add input to inputsByType
-        if (!inputsByType[objectType]) inputsByType[objectType] = { Create: [], Update: [], Delete: [] };
-        inputsByType[objectType]![object.actionType].push(object.data);
+        // // Add input to inputsByType
+        // if (!inputsByType[objectType]) inputsByType[objectType] = { Create: [], Update: [], Delete: [] };
+        // inputsByType[objectType]![object.actionType].push(object.data);
     });
     // Remove placeholder ids from idsByType and idsByAction
     const withoutPlaceholders = await convertPlaceholders({

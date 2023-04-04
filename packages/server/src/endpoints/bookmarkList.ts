@@ -1,11 +1,9 @@
+import { BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, FindByIdInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { BookmarkListCreateInput, BookmarkListSortBy, BookmarkListUpdateInput, FindByIdInput } from '@shared/consts';
-import { BookmarkList, BookmarkListSearchInput } from '@shared/consts';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { rateLimit } from '../middleware';
-import { resolveUnion } from './resolvers';
-import { assertRequestFrom } from '../auth/request';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { assertRequestFrom } from '../auth/request';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum BookmarkListSortBy {

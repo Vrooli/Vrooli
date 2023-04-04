@@ -1,9 +1,9 @@
 import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionTranslation, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput, SmartContractVersionUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { SmartContractShape, shapeSmartContract } from "./smartContract";
-import { ResourceListShape, shapeResourceList } from "./resourceList";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
+import { ResourceListShape, shapeResourceList } from "./resourceList";
+import { shapeSmartContract, SmartContractShape } from "./smartContract";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTranslation, 'id' | 'language' | 'description' | 'name' | 'jsonVariable'> & {
     __typename?: 'SmartContractVersionTranslation';
@@ -12,7 +12,7 @@ export type SmartContractVersionTranslationShape = Pick<SmartContractVersionTran
 export type SmartContractVersionShape = Pick<SmartContractVersion, 'id' | 'content' | 'contractType' | 'default' | 'isComplete' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
     __typename?: 'SmartContractVersion';
     directoryListings?: ProjectVersionDirectoryShape[] | null;
-    resourceList?: ResourceListShape | null;
+    resourceList?: { id: string } | ResourceListShape | null;
     root?: { id: string } | SmartContractShape | null;
     suggestedNextBySmartContract?: { id: string }[] | null;
     translations?: SmartContractVersionTranslationShape[] | null;

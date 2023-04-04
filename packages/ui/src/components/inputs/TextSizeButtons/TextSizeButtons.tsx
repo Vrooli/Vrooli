@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { noSelect } from 'styles';
 import { getCookieFontSize } from 'utils/cookies';
 import { PubSub } from 'utils/pubsub';
-import { TextSizeButtonsProps } from '../types';
 
 const smallestFontSize = 10;
 const largestFontSize = 20;
@@ -14,9 +13,7 @@ const largestFontSize = 20;
 /**
  * Updates the font size of the entire app
  */
-export function TextSizeButtons({
-    session,
-}: TextSizeButtonsProps) {
+export function TextSizeButtons() {
     const { palette } = useTheme();
     const { t } = useTranslation();
 

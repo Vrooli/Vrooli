@@ -1,13 +1,13 @@
 import { Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { OwnerShape } from "./common";
 import { LabelShape, shapeLabel } from "./label";
 import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
 import { shapeTag, TagShape } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
+import { OwnerShape } from "./types";
 
 
-export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPrivate' | 'permissions'> & {
+export type StandardShape = Pick<Standard, 'id' | 'isInternal' | 'isPrivate' | 'permissions'> & {
     __typename?: 'Standard';
     parent?: { id: string } | null;
     owner?: OwnerShape | null;
@@ -22,7 +22,7 @@ export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' |
 
 export const shapeStandard: ShapeModel<StandardShape, StandardCreateInput, StandardUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'name', 'isInternal', 'isPrivate', 'permissions'),
+        ...createPrims(d, 'id', 'isInternal', 'isPrivate', 'permissions'),
         ...createOwner(d, 'ownedBy'),
         ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
         ...createRel(d, 'parent', ['Connect'], 'one'),
@@ -30,7 +30,7 @@ export const shapeStandard: ShapeModel<StandardShape, StandardCreateInput, Stand
         ...createVersion(d, shapeStandardVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'name', 'isInternal', 'isPrivate', 'permissions'),
+        ...updatePrims(o, u, 'id', 'isInternal', 'isPrivate', 'permissions'),
         ...updateOwner(o, u, 'ownedBy'),
         ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),

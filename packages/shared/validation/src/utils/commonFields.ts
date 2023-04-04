@@ -52,13 +52,13 @@ export const int = yup.number().min(MIN_INT, minNumErr).max(MAX_INT, maxNumErr).
 export const index = intPositiveOrZero;
 
 // dates
-export const timeZone = yup.string().transform(blankToUndefined).max(64, maxStrErr)
-export const eventStart = yup.date().min(new Date(), 'Start date must be in the future');
-export const eventEnd = yup.date().min(yup.ref('eventStart'), 'End date must be after start date');
-export const recurrStart = yup.date().min(new Date(), 'Start date must be in the future');
-export const recurrEnd = yup.date().min(yup.ref('recurrStart'), 'End date must be after start date');
-export const windowStart = yup.date().min(new Date(), 'Start date must be in the future');
-export const windowEnd = yup.date().min(yup.ref('windowStart'), 'End date must be after start date');
+export const timezone = yup.string().transform(blankToUndefined).max(64, maxStrErr)
+export const startTime = yup.date().min(new Date(), 'Start time must be in the future');
+export const endTime = yup.date().min(yup.ref('startTime'), 'End time must be after start date');
+export const originalStartTime = yup.date().min(new Date(), 'Start time must be in the future');
+export const newStartTime = yup.date().min(new Date(), 'Start time must be in the future');
+export const newEndTime = yup.date().min(yup.ref('newStartTime'), 'End time must be after start date');
+export const endDate = yup.date().min(new Date(), 'End date must be in the future');
 
 // strings
 export const bio = yup.string().transform(blankToUndefined).max(2048, maxStrErr);

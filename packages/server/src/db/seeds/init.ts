@@ -3,10 +3,10 @@
  * This is written so that it can be called multiple times without duplicating data.
  */
 import { InputType } from '@shared/consts';
-import { PrismaType } from '../../types';
-import { logger } from '../../events/logger';
 import { uuid } from '@shared/uuid';
 import { hashPassword } from '../../auth';
+import { logger } from '../../events/logger';
+import { PrismaType } from '../../types';
 
 export async function init(prisma: PrismaType) {
     //==============================================================
@@ -95,6 +95,26 @@ export async function init(prisma: PrismaType) {
             languages: {
                 create: [{ language: EN }],
             },
+            focusModes: {
+                create: [{
+                    name: 'Work',
+                    description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                    reminderList: { create: {} },
+                    resourceList: { create: {} },
+                }, {
+                    name: 'Study',
+                    description: 'This is an auto-generated focus mode. You can edit or delete it.',
+                    reminderList: { create: {} },
+                    resourceList: { create: {} },
+                }]
+            },
+            awards: {
+                create: [{
+                    timeCurrentTierCompleted: new Date(),
+                    category: 'AccountNew',
+                    progress: 1,
+                }]
+            }
         },
     })
     //==============================================================
@@ -224,34 +244,51 @@ export async function init(prisma: PrismaType) {
 
     // TODO temporary
     // Add 100 dummy projects
-    let dummy1 = await prisma.project_version.findFirst({
+    let dummy1 = await prisma.project.findFirst({
         where: {
             AND: [
-                { root: { ownedByOrganizationId: vrooli.id } },
-                { translations: { some: { language: EN, name: 'DUMMY 1' } } },
+                { ownedByOrganizationId: vrooli.id },
+                { versions: { some: { translations: { some: { language: EN, name: 'DUMMY 1' } } } } },
             ]
         }
     })
     if (!dummy1) {
         for (let i = 0; i < 100; i++) {
             logger.info('📚 Creating DUMMY project' + i);
-            await prisma.project_version.create({
+            await prisma.project.create({
                 data: {
-                    translations: {
-                        create: [
-                            {
-                                language: EN,
-                                description: `This is the description for DUMMY ${i}`,
-                                name: `DUMMY ${i}`,
-                            }
-                        ]
-                    },
-                    root: {
-                        create: {
-                            permissions: JSON.stringify({}),
-                            createdBy: { connect: { id: admin.id } },
-                            ownedByOrganization: { connect: { id: vrooli.id } },
-                        }
+                    permissions: JSON.stringify({}),
+                    createdBy: { connect: { id: admin.id } },
+                    ownedByOrganization: { connect: { id: vrooli.id } },
+                    versions: {
+                        create: [{
+                            isComplete: true,
+                            isLatest: true,
+                            versionIndex: 0,
+                            versionLabel: '1.0.0',
+                            translations: {
+                                create: [
+                                    {
+                                        language: EN,
+                                        description: `This is the first description for DUMMY ${i}`,
+                                        name: `DUMMY ${i}`,
+                                    }
+                                ]
+                            },
+                        }, {
+                            isComplete: false,
+                            versionIndex: 1,
+                            versionLabel: '1.0.1',
+                            translations: {
+                                create: [
+                                    {
+                                        language: EN,
+                                        description: `This is the second description for DUMMY ${i}`,
+                                        name: `DUMMY ${i}`,
+                                    }
+                                ]
+                            },
+                        }]
                     }
                 }
             })

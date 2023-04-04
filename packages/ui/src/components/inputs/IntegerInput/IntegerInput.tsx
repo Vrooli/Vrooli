@@ -1,6 +1,7 @@
-import { Box, FormControl, Input, InputLabel, Tooltip, useTheme } from '@mui/material';
+import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from '@mui/material';
 import { MinusIcon, PlusIcon } from "@shared/icons";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { useField } from "formik";
 import { useCallback, useEffect, useRef } from "react";
 import { IntegerInputProps } from "../types";
 
@@ -22,37 +23,35 @@ type HoldRefs = {
 export const IntegerInput = ({
     autoFocus = false,
     disabled = false,
-    error = false, // TODO use
-    handleChange,
-    helperText = '', //TODO use
-    id,
     key,
     initial = 0,
     label = 'Number',
     max = 2097151,
     min = -2097151,
+    name,
     step = 1,
     tooltip = '',
-    value,
     ...props
 }: IntegerInputProps) => {
     const { palette } = useTheme();
+    console.log('INTEGER INPUT STARTTTT', name);
+    const [field, meta, helpers] = useField(name);
 
     const holdRefs = useRef<HoldRefs>({
         which: null,
         speed: 1,
         timeout: null,
-        value: value,
+        value: field.value,
     })
     useEffect(() => {
-        holdRefs.current.value = value
-    }, [value])
+        holdRefs.current.value = field.value
+    }, [field.value])
 
     const updateValue = useCallback((quantity) => {
         if (quantity > max) quantity = max;
         if (quantity < min) quantity = min;
-        handleChange(quantity);
-    }, [max, min, handleChange]);
+        helpers.setValue(quantity);
+    }, [max, min, helpers]);
 
     const startHold = useCallback(() => {
         // Check if hold is taking place
@@ -115,9 +114,9 @@ export const IntegerInput = ({
                     "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
                         display: "none",
                     }
-                }}>
+                }} error={meta.touched && !!meta.error}>
                     <InputLabel
-                        htmlFor={`quantity-box-${id}`}
+                        htmlFor={`quantity-box-${name}`}
                         sx={{
                             color: palette.background.textSecondary,
                             paddingTop: '10px'
@@ -126,21 +125,23 @@ export const IntegerInput = ({
                     <Input
                         autoFocus={autoFocus}
                         disabled={disabled}
-                        id={`quantity-box-${id}`}
-                        aria-describedby={`helper-text-${id}`}
+                        id={`quantity-box-${name}`}
+                        name={name}
+                        aria-describedby={`helper-text-${name}`}
                         type="number"
                         inputMode="numeric"
-                        inputProps={{ 
-                            min, 
+                        inputProps={{
+                            min,
                             max,
                             pattern: "[0-9]*",
                         }}
-                        value={value}
+                        value={field.value}
                         onChange={(e) => updateValue(e.target.value)}
                         sx={{
                             color: palette.background.textPrimary,
                         }}
                     />
+                    {meta.touched && meta.error && <FormHelperText id={`helper-text-${name}`}>{meta.error}</FormHelperText>}
                 </FormControl>
                 <ColorIconButton
                     aria-label='plus'

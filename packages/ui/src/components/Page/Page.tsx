@@ -1,17 +1,20 @@
 import { LINKS } from '@shared/consts';
 import { Redirect, useLocation } from '@shared/route';
 import { PageContainer } from 'components/containers/PageContainer/PageContainer';
+import { useContext } from 'react';
 import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { PageProps } from '../../views/wrapper/types';
 
 export const Page = ({
     children,
+    excludePageContainer = false,
     mustBeLoggedIn = false,
     redirect = LINKS.Start,
-    session,
     sessionChecked,
     sx,
 }: PageProps) => {
+    const session = useContext(SessionContext);
     const [location] = useLocation();
 
     // If this page has restricted access
@@ -24,6 +27,7 @@ export const Page = ({
         return null;
     }
 
+    if (excludePageContainer) return <>{children}</>;
     return (
         <PageContainer sx={sx}>
             {children}

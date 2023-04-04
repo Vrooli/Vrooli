@@ -109,9 +109,10 @@ export const SubroutineNode = ({
                 }}
                 text={title}
                 validationSchema={nameValidation.required(reqErr)}
+                zIndex={zIndex}
             />
         )
-    }, [labelVisible, isEditing, handleLabelUpdate, title, data.id]);
+    }, [labelVisible, isEditing, handleLabelUpdate, title, zIndex, data.id]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -123,7 +124,7 @@ export const SubroutineNode = ({
         setContextAnchor(target)
     }, [isEditing]);
     const closeContext = useCallback(() => { setContextAnchor(null) }, []);
-    const pressEvents = usePress({ 
+    const pressEvents = usePress({
         onLongPress: openContext,
         onClick: openSubroutine,
         onRightClick: openContext,

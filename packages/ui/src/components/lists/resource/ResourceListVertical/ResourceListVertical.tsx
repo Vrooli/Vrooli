@@ -14,13 +14,11 @@ import { ResourceListItemContextMenu } from '../ResourceListItemContextMenu/Reso
 import { ResourceListVerticalProps } from '../types';
 
 export const ResourceListVertical = ({
-    title = '📌 Resources',
     canUpdate = true,
     handleUpdate,
     mutate,
     list,
     loading,
-    session,
     zIndex,
 }: ResourceListVerticalProps) => {
 
@@ -98,17 +96,16 @@ export const ResourceListVertical = ({
     const dialog = useMemo(() => (
         list ? <ResourceDialog
             index={editingIndex}
+            isOpen={isDialogOpen}
             partialData={(editingIndex >= 0) ? list.resources[editingIndex as number] as any : undefined}
             listId={list.id}
-            open={isDialogOpen}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
-            session={session}
             zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
 
     return (
         <>
@@ -148,7 +145,6 @@ export const ResourceListVertical = ({
                         handleDelete={onDelete}
                         index={index}
                         loading={loading}
-                        session={session}
                     />
                 ))}
             </Box>}

@@ -140,12 +140,12 @@ export const findRecipientsAndLimit = async (
         }
         // Add included devices, emails, and numbers to the return object
         if (settings.includedPush && settings.toPush !== false) {
-            userResult.pushDevices = pushDevices.filter(device => settings.includedPush?.includes(device.id));
+            userResult.pushDevices = pushDevices.filter(device => settings.includedPush?.some(({ id }) => id === device.id));
         } else {
             userResult.pushDevices = pushDevices;
         }
         if (settings.includedEmails && settings.toEmails !== false) {
-            userResult.emails = emails.filter(email => settings.includedEmails?.includes(email.id));
+            userResult.emails = emails.filter(email => settings.includedEmails?.some(({ id }) => id === email.id));
         } else {
             userResult.emails = emails;
         }

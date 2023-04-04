@@ -230,7 +230,6 @@ export const RunView = ({
     display = 'page',
     handleClose,
     runnableObject,
-    session,
     zIndex,
 }: RunViewProps) => {
     return {} as any;
@@ -761,7 +760,6 @@ export const RunView = ({
     //     switch (currentStep.type) {
     //         case RoutineStepType.Subroutine:
     //             return <SubroutineView
-    //                 session={session}
     //                 handleUserInputsUpdate={handleUserInputsUpdate}
     //                 handleSaveProgress={saveProgress}
     //                 owner={routineVersion?.root?.owner}
@@ -775,7 +773,6 @@ export const RunView = ({
     //                 data={currentStep as DecisionStep}
     //                 handleDecisionSelect={toDecision}
     //                 nodes={routineVersion?.nodes ?? []}
-    //                 session={session}
     //                 zIndex={zIndex}
     //             />
     //     }

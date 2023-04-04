@@ -179,6 +179,7 @@ export const WalletList = ({
             <ListContainer
                 emptyText={t(`NoWallets`, { ns: 'error' })}
                 isEmpty={list.length === 0}
+                sx={{ maxWidth: '500px' }}
             >
                 {/* Wallet list */}
                 {list.map((w: Wallet, index) => (

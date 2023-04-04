@@ -100,6 +100,7 @@ export const EmailList = ({
             <ListContainer
                 emptyText={t(`NoEmails`, { ns: 'error' })}
                 isEmpty={list.length === 0}
+                sx={{ maxWidth: '500px' }}
             >
                 {/* Email list */}
                 {list.map((email: Email, index) => (

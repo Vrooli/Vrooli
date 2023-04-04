@@ -1,12 +1,11 @@
-import { tagValidation } from "@shared/validation";
-import { MaxObjects, TagSortBy } from "@shared/consts";
-import { BookmarkModel } from "./bookmark";
-import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
+import { MaxObjects, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput } from "@shared/consts";
+import { tagValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
 import { defaultPermissions, translationShapeHelper } from "../utils";
+import { BookmarkModel } from "./bookmark";
+import { ModelLogic } from "./types";
 
 const __typename = 'Tag' as const;
 const suppFields = ['you'] as const;
@@ -58,7 +57,7 @@ export const TagModel: ModelLogic<{
             smartContracts: 'SmartContract',
             standards: 'Standard',
             bookmarkedBy: 'User',
-            scheduleFilters: 'UserScheduleFilter',
+            focusModeFilters: 'FocusModeFilter',
         },
         joinMap: {
             apis: 'tagged',

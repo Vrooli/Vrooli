@@ -10,4 +10,4 @@ export const statsApiSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 })
 
-export const statsApiSearchParams = () => toParams(statsApiSearchSchema(), statsApiFindMany, StatsApiSortBy, StatsApiSortBy.DateUpdatedDesc);
+export const statsApiSearchParams = () => toParams(statsApiSearchSchema(), statsApiFindMany, StatsApiSortBy, StatsApiSortBy.PeriodStartAsc);

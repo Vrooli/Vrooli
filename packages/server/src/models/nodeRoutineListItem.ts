@@ -1,13 +1,13 @@
-import { MaxObjects, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
-import { noNull, selPad, shapeHelper } from "../builders";
-import { RoutineModel } from "./routine";
-import { SelectWrap } from "../builders/types";
+import { MaxObjects, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from '@shared/consts';
 import { nodeRoutineListItemValidation } from '@shared/validation';
+import { noNull, selPad, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { NodeRoutineListModel } from './nodeRoutineList';
+import { RoutineModel } from "./routine";
+import { ModelLogic } from "./types";
 
 const __typename = 'NodeRoutineListItem' as const;
 const suppFields = [] as const;
@@ -77,7 +77,7 @@ export const NodeRoutineListItemModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ list: 'NodeRoutineList' }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => NodeRoutineListModel.validate!.owner(data.list as any),
+        owner: (data, userId) => NodeRoutineListModel.validate!.owner(data.list as any, userId),
         isDeleted: (data, languages) => NodeRoutineListModel.validate!.isDeleted(data.list as any, languages),
         isPublic: (data, languages) => NodeRoutineListModel.validate!.isPublic(data.list as any, languages),
         visibility: {

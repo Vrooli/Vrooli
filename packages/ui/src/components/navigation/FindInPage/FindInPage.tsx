@@ -17,7 +17,6 @@ import { useTranslation } from 'react-i18next';
 import { keyComboToString } from 'utils/display/device';
 import { getTextNodes, normalizeText, removeHighlights, wrapMatches } from 'utils/display/documentTools';
 import { PubSub } from 'utils/pubsub';
-import { FindInPageProps } from '../types';
 
 const commonButtonSx = (palette: Palette) => ({
     borderRadius: '0',
@@ -84,9 +83,7 @@ const highlightText = (
     return highlightSpans;
 }
 
-const FindInPage = ({
-    session,
-}: FindInPageProps) => {
+const FindInPage = () => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 

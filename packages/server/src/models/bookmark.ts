@@ -1,23 +1,22 @@
-import { BookmarkCreateInput, BookmarkFor, BookmarkSortBy, BookmarkUpdateInput, GqlModelType, MaxObjects } from "@shared/consts";
+import { Prisma } from "@prisma/client";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, GqlModelType, MaxObjects } from "@shared/consts";
+import { exists } from "@shared/utils";
+import { bookmarkValidation } from "@shared/validation";
+import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
+import { findFirstRel, onlyValidIds, selPad, shapeHelper, uppercaseFirstLetter } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { Trigger } from "../events";
+import { getLogic } from "../getters";
+import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
+import { CommentModel } from "./comment";
+import { NoteModel } from "./note";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
-import { CommentModel } from "./comment";
-import { Bookmark, BookmarkSearchInput } from '@shared/consts';
-import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
-import { Prisma } from "@prisma/client";
-import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
-import { SelectWrap } from "../builders/types";
-import { findFirstRel, onlyValidIds, selPad, shapeHelper, uppercaseFirstLetter } from "../builders";
-import { NoteModel } from "./note";
-import { exists } from "@shared/utils";
-import { bookmarkValidation } from "@shared/validation";
-import { Trigger } from "../events";
-import { getLogic } from "../getters";
-import { defaultPermissions } from "../utils";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs['create'] } = {
     Api: 'api',
@@ -98,11 +97,11 @@ export const BookmarkModel: ModelLogic<{
         gqlRelMap: {
             __typename,
             by: 'User',
+            list: 'BookmarkList',
             to: {
                 api: 'Api',
                 comment: 'Comment',
                 issue: 'Issue',
-                list: 'BookmarkList',
                 note: 'Note',
                 organization: 'Organization',
                 post: 'Post',
@@ -253,7 +252,23 @@ export const BookmarkModel: ModelLogic<{
         defaultSort: BookmarkSortBy.DateUpdatedDesc,
         sortBy: BookmarkSortBy,
         searchFields: {
+            apiId: true,
+            commentId: true,
             excludeLinkedToTag: true,
+            issueId: true,
+            listId: true,
+            noteId: true,
+            organizationId: true,
+            postId: true,
+            projectId: true,
+            questionId: true,
+            questionAnswerId: true,
+            quizId: true,
+            routineId: true,
+            smartContractId: true,
+            standardId: true,
+            tagId: true,
+            userId: true,
         },
         searchStringQuery: () => ({
             OR: [
@@ -281,7 +296,7 @@ export const BookmarkModel: ModelLogic<{
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => BookmarkListModel.validate!.owner(data.list as any),
+        owner: (data, userId) => BookmarkListModel.validate!.owner(data.list as any, userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

@@ -11,9 +11,9 @@
  * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
  * the organization's governance structure.
  */
+import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from '@shared/consts';
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 
@@ -138,7 +138,7 @@ export async function maxObjectsCheck(
             // Get validator
             const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-create')
             // Find owner and object type
-            const owners = validate.owner(authData);
+            const owners = validate.owner(authData, userData.id);
             // Increment count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError('0310', 'InternalError', userData.languages);
@@ -160,7 +160,7 @@ export async function maxObjectsCheck(
             // Get validator
             const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-delete')
             // Find owner and object type
-            const owners = validate.owner(authData);
+            const owners = validate.owner(authData, userData.id);
             // Decrement count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError('0311', 'InternalError', userData.languages);

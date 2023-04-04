@@ -1,7 +1,8 @@
-import { Box, Dialog } from "@mui/material";
+import { Box } from "@mui/material";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { StatsCompactPropsObject } from "components/text/types";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { StatsDialogProps } from "../types";
 
 const titleId = 'stats-object-dialog-title';
@@ -15,25 +16,15 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
     isOpen,
     object,
     onClose,
-    session,
     zIndex,
 }: StatsDialogProps<T>) => {
-
     return (
-        <Dialog
+        <LargeDialog
+            id="object-stats-dialog"
             onClose={onClose}
-            open={isOpen}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': {
-                    overflow: 'hidden',
-                    borderRadius: 2,
-                    boxShadow: 12,
-                    textAlign: "center",
-                    padding: "1em",
-                },
-            }}
+            isOpen={isOpen}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -46,11 +37,10 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
                     handleObjectUpdate={handleObjectUpdate}
                     loading={false}
                     object={object}
-                    session={session}
                 />
                 {/* Historical stats */}
                 {/* TODO */}
             </Box>
-        </Dialog>
+        </LargeDialog>
     )
 }

@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, VersionYou } from '@shared/consts';
+import { noteVersionValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
-import { ModelLogic } from "./types";
 import { NoteModel } from "./note";
-import { noteVersionValidation } from "@shared/validation";
-import { noNull, shapeHelper } from "../builders";
+import { ModelLogic } from "./types";
 
 const __typename = 'NoteVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -30,7 +30,7 @@ export const NoteVersionModel: ModelLogic<{
     __typename,
     delegate: (prisma: PrismaType) => prisma.note_version,
     display: {
-        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages)
     },
     format: {
@@ -140,7 +140,7 @@ export const NoteVersionModel: ModelLogic<{
             NoteModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => NoteModel.validate!.owner(data.root as any),
+        owner: (data, userId) => NoteModel.validate!.owner(data.root as any, userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

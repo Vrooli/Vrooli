@@ -1,10 +1,10 @@
 import { Bookmark } from "@shared/consts";
-import { rel } from "../utils";
 import { GqlPartial } from "../types";
+import { rel } from "../utils";
 
 export const bookmark: GqlPartial<Bookmark> = {
     __typename: 'Bookmark',
-    list: {
+    common: {
         __define: {
             0: async () => rel((await import('./api')).api, 'list'),
             1: async () => rel((await import('./comment')).comment, 'list'),
@@ -42,5 +42,11 @@ export const bookmark: GqlPartial<Bookmark> = {
                 User: 14,
             }
         }
+    },
+    full: {
+        __define: {
+            0: async () => rel((await import('./bookmarkList')).bookmarkList, 'common', { omit: 'bookmarks' }),
+        },
+        list: { __use: 0 },
     }
 }

@@ -1,6 +1,6 @@
 import { Meeting, MeetingTranslation, MeetingYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const meetingTranslation: GqlPartial<MeetingTranslation> = {
     __typename: 'MeetingTranslation',
@@ -32,12 +32,6 @@ export const meeting: GqlPartial<Meeting> = {
         id: true,
         openToAnyoneWithInvite: true,
         showOnOrganizationProfile: true,
-        timeZone: true,
-        eventStart: true,
-        eventEnd: true,
-        recurring: true,
-        recurrStart: true,
-        recurrEnd: true,
         organization: async () => rel((await import('./organization')).organization, 'nav'),
         restrictedToRoles: async () => rel((await import('./role')).role, 'full'),
         attendeesCount: true,
@@ -47,17 +41,21 @@ export const meeting: GqlPartial<Meeting> = {
     full: {
         __define: {
             0: async () => rel((await import('./label')).label, 'full'),
+            1: async () => rel((await import('./schedule')).schedule, 'full'),
         },
         attendees: async () => rel((await import('./user')).user, 'nav'),
         invites: async () => rel((await import('./meetingInvite')).meetingInvite, 'list', { omit: 'meeting' }),
         labels: { __use: 0 },
+        schedule: { __use: 1 },
         translations: () => rel(meetingTranslation, 'full'),
     },
     list: {
         __define: {
             0: async () => rel((await import('./label')).label, 'list'),
+            1: async () => rel((await import('./schedule')).schedule, 'list'),
         },
         labels: { __use: 0 },
+        schedule: { __use: 1 },
         translations: () => rel(meetingTranslation, 'list'),
     }
 }

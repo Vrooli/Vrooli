@@ -1,11 +1,12 @@
-import { Box, List, Typography, useTheme } from "@mui/material"
+import { Box, List, Typography, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { ListContainerProps } from "../types"
+import { ListContainerProps } from "../types";
 
 export const ListContainer = ({
     children,
     emptyText,
     isEmpty = false,
+    sx,
 }: ListContainerProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -23,6 +24,7 @@ export const ListContainer = ({
                 overflow: 'overlay',
                 display: 'block',
             }),
+            ...(sx ?? {})
         }}>
             {isEmpty && (
                 <Typography variant="h6" textAlign="center">

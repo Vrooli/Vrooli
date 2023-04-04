@@ -1,15 +1,15 @@
 import { Project, ProjectCreateInput, ProjectUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { OwnerShape } from "./common";
 import { LabelShape, shapeLabel } from "./label";
 import { ProjectVersionShape, shapeProjectVersion } from "./projectVersion";
 import { shapeTag, TagShape } from "./tag";
 import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
+import { OwnerShape } from "./types";
 
 export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permissions'> & {
     __typename?: 'Project';
     labels?: ({ id: string } | LabelShape)[];
-    owner: OwnerShape | null;
+    owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

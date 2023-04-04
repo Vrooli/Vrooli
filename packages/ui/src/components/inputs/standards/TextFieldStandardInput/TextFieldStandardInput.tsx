@@ -1,9 +1,10 @@
-import { TextFieldStandardInputProps } from '../types';
-import { textFieldStandardInputForm as validationSchema } from '@shared/validation';
-import { useFormik } from 'formik';
 import { Grid, TextField } from '@mui/material';
+import { textFieldStandardInputForm as validationSchema } from '@shared/validation';
 import { IntegerInput } from 'components/inputs/IntegerInput/IntegerInput';
+import { useFormik } from 'formik';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { TextFieldStandardInputProps } from '../types';
 
 /**
  * Input for entering (and viewing format of) TextField data that 
@@ -16,6 +17,7 @@ export const TextFieldStandardInput = ({
     maxRows,
     onPropsChange,
 }: TextFieldStandardInputProps) => {
+    const { t } = useTranslation();
 
     const formik = useFormik({
         initialValues: {
@@ -67,17 +69,10 @@ export const TextFieldStandardInput = ({
             </Grid> */}
             <Grid item xs={12}>
                 <IntegerInput
-                    id="maxRows"
                     disabled={!isEditing}
-                    label="Max Rows"
-                    min={1}
-                    max={100}
+                    label={t('MaxRows')}
+                    name="maxRows"
                     tooltip="The maximum number of rows to display"
-                    value={formik.values.maxRows}
-                    onBlur={formik.handleBlur}
-                    handleChange={(value: number) => formik.setFieldValue('maxRows', value)}
-                    error={formik.touched.maxRows && Boolean(formik.errors.maxRows)}
-                    helperText={formik.touched.maxRows ? formik.errors.maxRows : null}
                 />
             </Grid>
         </Grid>

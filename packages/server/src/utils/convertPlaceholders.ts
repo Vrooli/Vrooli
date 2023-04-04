@@ -23,13 +23,11 @@ export const convertPlaceholders = async ({
     idsByAction: IdsByAction,
     idsByType: IdsByType,
 }> => {
-    console.log('convertPlaceholders start', JSON.stringify(idsByAction), '\n\n');
     const updatedIdsByAction: IdsByAction = { ...idsByAction };
     const updatedIdsByType: IdsByType = { ...idsByType };
 
     // Iterate over the idsByAction map
     for (const actionType in idsByAction) {
-        console.log('convertPlaceholders loop actionType', actionType, '\n\n')
         const ids = idsByAction[actionType];
         const updatedIds: string[] = [];
 
@@ -37,12 +35,10 @@ export const convertPlaceholders = async ({
         for (const id of ids) {
             // Check if the ID is a placeholder
             if (typeof id === "string" && id.includes("|")) {
-                console.log('convertPlaceholders loop id', id, '\n\n');
                 // Split the placeholder string into the object type and path
                 const [objectType, path] = id.split("|", 2);
                 // Split the path into rootId and relationship steps
                 const [rootId, ...relations] = path.split(".");
-                console.log('convertPlaceholders loop objectType and path', objectType, path, '\n\n');
 
                 // Query the database to find the actual ID
                 const { delegate } = getLogic(['delegate'], objectType as GqlModelType, languages, 'convertPlaceholders');
@@ -52,7 +48,6 @@ export const convertPlaceholders = async ({
                         return { [relation]: selectObj };
                     }, {}),
                 });
-                console.log('convertPlaceholders loop queryResult', JSON.stringify(queryResult), '\n\n');
 
                 // Traverse the result object following the relationship steps
                 let currentObject = queryResult;

@@ -1,4 +1,5 @@
 import { Resource, ResourceCreateInput, ResourceTranslation, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "@shared/consts";
+import { addHttps } from "@shared/validation";
 import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
@@ -19,12 +20,16 @@ export const shapeResourceTranslation: ShapeModel<ResourceTranslationShape, Reso
 
 export const shapeResource: ShapeModel<ResourceShape, ResourceCreateInput, ResourceUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'index', 'link', 'usedFor'),
+        // Make sure link is properly shaped
+        link: addHttps(d.link)!,
+        ...createPrims(d, 'id', 'index', 'usedFor'),
         ...createRel(d, 'list', ['Connect'], 'one'),
         ...createRel(d, 'translations', ['Create'], 'many', shapeResourceTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'index', 'link', 'usedFor'),
+        // Make sure link is properly shaped
+        link: o.link !== u.link ? addHttps(u.link) : undefined,
+        ...updatePrims(o, u, 'id', 'index', 'usedFor'),
         ...updateRel(o, u, 'list', ['Connect'], 'one'),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeResourceTranslation),
     })

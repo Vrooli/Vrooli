@@ -5,23 +5,17 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils/pubsub';
-import { ThemeSwitchProps } from '../types';
 
-export function ThemeSwitch({
-    showText = true,
-    theme,
-    onChange,
-}: ThemeSwitchProps) {
+export function ThemeSwitch() {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const handleChange = useCallback(() => {
-        const newTheme = theme === 'light' ? 'dark' : 'light';
-        PubSub.get().publishTheme(newTheme)
-        onChange(newTheme);
-    }, [onChange, theme]);
+        const newTheme = palette.mode === 'light' ? 'dark' : 'light';
+        PubSub.get().publishTheme(newTheme);
+    }, [palette.mode]);
 
-    const isDark = useMemo(() => theme === 'dark', [theme]);
+    const isDark = useMemo(() => palette.mode === 'dark', [palette.mode]);
     const Icon = useMemo(() => isDark ? DarkModeIcon : LightModeIcon, [isDark]);
     const trackColor = useMemo(() => isDark ? '#2F3A45' : '#BFC7CF', [isDark]);
 
@@ -31,7 +25,7 @@ export function ThemeSwitch({
                 ...noSelect,
                 marginRight: 'auto',
             }}>
-                {t(`Theme`)}: {theme === 'light' ? t(`Light`) : t(`Dark`)}
+                {t(`Theme`)}: {palette.mode === 'light' ? t(`Light`) : t(`Dark`)}
             </Typography>
             <Box component="span" sx={{
                 display: 'inline-block',

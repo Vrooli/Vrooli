@@ -8,9 +8,9 @@ import { BuildEditButtons } from 'components/buttons/BuildEditButtons/BuildEditB
 import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
 import { StatusButton } from 'components/buttons/StatusButton/StatusButton';
 import { StatusMessageArray } from 'components/buttons/types';
+import { FindSubroutineDialog } from 'components/dialogs/FindSubroutineDialog/FindSubroutineDialog';
 import { LinkDialog } from 'components/dialogs/LinkDialog/LinkDialog';
 import { SelectLanguageMenu } from 'components/dialogs/SelectLanguageMenu/SelectLanguageMenu';
-import { SubroutineSelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
 import { SubroutineInfoDialog } from 'components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog';
 import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from 'components/graphs/NodeGraph';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
@@ -54,9 +54,7 @@ export const BuildView = ({
     handleSubmit,
     isEditing,
     loading,
-    owner,
     routineVersion,
-    session,
     translationData,
     zIndex = 200,
 }: BuildViewProps) => {
@@ -975,8 +973,7 @@ export const BuildView = ({
                 handleAdd={translationData.handleAddLanguage}
                 handleDelete={translationData.handleDeleteLanguage}
                 handleCurrent={translationData.setLanguage}
-                session={session}
-                translations={translationData.translations}
+                languages={translationData.languages}
                 zIndex={zIndex}
             />
         )
@@ -984,12 +981,11 @@ export const BuildView = ({
             <SelectLanguageMenu
                 currentLanguage={translationData.language}
                 handleCurrent={translationData.setLanguage}
-                session={session}
-                translations={translationData.translations}
+                languages={translationData.languages}
                 zIndex={zIndex}
             />
         )
-    }, [translationData, isEditing, session, zIndex]);
+    }, [translationData, isEditing, zIndex]);
 
     return (
         <Box sx={{
@@ -1000,14 +996,12 @@ export const BuildView = ({
             width: '100%',
         }}>
             {/* Popup for adding new subroutines */}
-            {addSubroutineNode && <SubroutineSelectOrCreateDialog
-                handleAdd={handleSubroutineAdd}
-                handleClose={closeAddSubroutineDialog}
+            {addSubroutineNode && <FindSubroutineDialog
+                handleCancel={closeAddSubroutineDialog}
+                handleComplete={handleSubroutineAdd}
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
-                owner={owner}
                 routineVersionId={routineVersion?.id}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for "Add after" dialog */}
@@ -1018,7 +1012,6 @@ export const BuildView = ({
                 nodes={changedRoutineVersion.nodes}
                 links={changedRoutineVersion.nodeLinks}
                 nodeId={addAfterLinkNode}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for "Add before" dialog */}
@@ -1029,7 +1022,6 @@ export const BuildView = ({
                 nodes={changedRoutineVersion.nodes}
                 links={changedRoutineVersion.nodeLinks}
                 nodeId={addBeforeLinkNode}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for creating new links */}
@@ -1064,7 +1056,6 @@ export const BuildView = ({
                 handleReorder={handleSubroutineReorder}
                 handleViewFull={handleSubroutineViewFull}
                 open={Boolean(openedSubroutine)}
-                session={session}
                 onClose={closeRoutineInfo}
                 zIndex={zIndex + 3}
             />

@@ -1,6 +1,6 @@
 import { Comment, CommentThread, CommentTranslation, CommentYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const commentTranslation: GqlPartial<CommentTranslation> = {
     __typename: 'CommentTranslation',
@@ -33,7 +33,26 @@ export const comment: GqlPartial<Comment> = {
     __typename: 'Comment',
     common: {
         __define: {
-            0: async () => rel((await import('./api')).api, 'nav'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
+        },
+        id: true,
+        created_at: true,
+        updated_at: true,
+        owner: {
+            __union: {
+                Organization: 0,
+                User: 1,
+            }
+        },
+        score: true,
+        bookmarks: true,
+        reportsCount: true,
+        you: () => rel(commentYou, 'full'),
+    },
+    full: {
+        __define: {
+            0: async () => rel((await import('./apiVersion')).apiVersion, 'nav'),
             1: async () => rel((await import('./issue')).issue, 'nav'),
             2: async () => rel((await import('./noteVersion')).noteVersion, 'nav'),
             3: async () => rel((await import('./post')).post, 'nav'),
@@ -47,9 +66,6 @@ export const comment: GqlPartial<Comment> = {
             11: async () => rel((await import('./organization')).organization, 'nav'),
             12: async () => rel((await import('./user')).user, 'nav'),
         },
-        id: true,
-        created_at: true,
-        updated_at: true,
         commentedOn: {
             __union: {
                 ApiVersion: 0,
@@ -65,18 +81,6 @@ export const comment: GqlPartial<Comment> = {
                 StandardVersion: 10,
             }
         },
-        owner: {
-            __union: {
-                Organization: 11,
-                User: 12,
-            }
-        },
-        score: true,
-        bookmarks: true,
-        reportsCount: true,
-        you: () => rel(commentYou, 'full'),
-    },
-    full: {
         translations: () => rel(commentTranslation, 'full'),
     },
     list: {

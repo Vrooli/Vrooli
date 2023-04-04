@@ -1,9 +1,12 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { EditIcon as CustomIcon, LinkIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
-import { useCallback, useMemo, useState } from 'react';
+import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
+import { useCallback, useContext, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { noSelect } from 'styles';
+import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
 import { StandardVersionSelectSwitchProps } from '../types';
 
 const grey = {
@@ -12,14 +15,15 @@ const grey = {
 };
 
 export function StandardVersionSelectSwitch({
-    session,
     selected,
     onChange,
     disabled,
     zIndex,
     ...props
 }: StandardVersionSelectSwitchProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // Create dialog
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
@@ -31,7 +35,7 @@ export function StandardVersionSelectSwitch({
         // If using custom data, remove standardVersion data
         if (Boolean(selected)) {
             onChange(null);
-        } 
+        }
         // Otherwise, open dialog to select standardVersion
         else {
             openCreateDialog();
@@ -44,17 +48,17 @@ export function StandardVersionSelectSwitch({
     return (
         <>
             {/* Popup for adding/connecting a new standardVersion */}
-            <SelectOrCreateDialog
+            <FindObjectDialog
+                find="Object"
                 isOpen={isCreateDialogOpen}
-                handleAdd={onChange as any}
-                handleClose={closeCreateDialog}
-                objectType="StandardVersion"
-                session={session}
-                zIndex={zIndex+1}
+                handleComplete={onChange as any}
+                handleCancel={closeCreateDialog}
+                limitTo={["StandardVersion"]}
+                zIndex={zIndex + 1}
             />
             {/* Main component */}
             <Stack direction="row" spacing={1}>
-                <Typography variant="h6" sx={{ ...noSelect }}>Standard:</Typography>
+                <Typography variant="h6" sx={{ ...noSelect }}>{t('Standard', { count: 1 })}:</Typography>
                 <Box component="span" sx={{
                     display: 'inline-block',
                     position: 'relative',
@@ -104,7 +108,7 @@ export function StandardVersionSelectSwitch({
                             cursor: 'pointer',
                         }} />
                 </Box >
-                <Typography variant="h6" sx={{ ...noSelect }}>{selected ? selected.root.name : 'Custom'}</Typography>
+                <Typography variant="h6" sx={{ ...noSelect }}>{selected ? getTranslation(selected, getUserLanguages(session)).name : t('Custom')}</Typography>
             </Stack>
         </>
     )

@@ -3,13 +3,14 @@ import { BookmarkFor } from '@shared/consts';
 import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
 import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
 import { MicrophoneButton } from 'components/buttons/MicrophoneButton/MicrophoneButton';
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AutocompleteOption } from 'types';
 import { getCurrentUser } from 'utils/authentication/session';
 import { useDebounce } from 'utils/hooks/useDebounce';
 import { getLocalStorageKeys } from 'utils/localStorage';
 import { performAction } from 'utils/navigation/quickActions';
+import { SessionContext } from 'utils/SessionContext';
 import { SiteSearchBarProps } from '../types';
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
@@ -134,11 +135,11 @@ export function SiteSearchBar({
     onInputChange,
     debounce = 200,
     loading = false,
-    session,
     showSecondaryLabel = false,
     sxs,
     ...props
 }: SiteSearchBarProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
@@ -348,7 +349,6 @@ export function SiteSearchBar({
                             isBookmarked={option.isBookmarked}
                             objectId={option.id}
                             onChange={(isBookmarked, event) => handleBookmark(option, isBookmarked, event)}
-                            session={session}
                             showBookmarks={true}
                             bookmarkFor={option.__typename as unknown as BookmarkFor}
                             bookmarks={option.bookmarks}
@@ -417,7 +417,7 @@ export function SiteSearchBar({
                             // }
                         }}
                     />
-                    <MicrophoneButton  onTranscriptChange={handleChange} />
+                    <MicrophoneButton onTranscriptChange={handleChange} />
                     <IconButton sx={{
                         width: '48px',
                         height: '48px',
