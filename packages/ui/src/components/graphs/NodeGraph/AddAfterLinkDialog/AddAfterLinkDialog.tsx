@@ -1,9 +1,10 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { Dialog, DialogContent, List, ListItem, ListItemText } from '@mui/material';
+import { DialogContent, List, ListItem, ListItemText } from '@mui/material';
 import { NodeLink } from '@shared/consts';
 import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { useCallback, useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -44,13 +45,12 @@ export const AddAfterLinkDialog = ({
     }));
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="add-link-after-dialog"
             onClose={handleClose}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-            }}
+            isOpen={isOpen}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -66,6 +66,6 @@ export const AddAfterLinkDialog = ({
                     ))}
                 </List>
             </DialogContent>
-        </Dialog >
+        </LargeDialog>
     )
 }

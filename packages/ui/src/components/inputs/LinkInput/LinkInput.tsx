@@ -59,7 +59,8 @@ export const LinkInput = ({
             <FindObjectDialog
                 find="Url"
                 isOpen={searchOpen}
-                handleClose={closeSearch}
+                handleCancel={closeSearch}
+                handleComplete={closeSearch}
                 zIndex={zIndex + 1}
             />
             <Box>

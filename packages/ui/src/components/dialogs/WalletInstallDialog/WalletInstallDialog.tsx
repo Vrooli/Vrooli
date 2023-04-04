@@ -1,6 +1,7 @@
-import { Dialog, DialogContent, ListItem, ListItemText } from '@mui/material';
+import { DialogContent, ListItem, ListItemText } from '@mui/material';
 import { walletDownloadUrls } from 'utils/authentication/walletIntegration';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { WalletInstallDialogProps } from '../types';
 
 const installExtension = (url: string) => {
@@ -15,11 +16,12 @@ export const WalletInstallDialog = ({
     zIndex,
 }: WalletInstallDialogProps) => {
     return (
-        <Dialog
-            open={open}
+        <LargeDialog
+            id="wallet-install-dialog"
             onClose={onClose}
-            aria-labelledby={titleId}
-            sx={{ zIndex }}
+            isOpen={open}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -33,6 +35,6 @@ export const WalletInstallDialog = ({
                     </ListItem>
                 ))}
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

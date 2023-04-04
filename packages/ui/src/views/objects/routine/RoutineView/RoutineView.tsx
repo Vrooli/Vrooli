@@ -211,29 +211,6 @@ export const RoutineView = ({
                     width: 'min(100%, 700px)',
                     padding: 2,
                 }}>
-                    {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
-                    <SideActionButtons
-                        // Treat as a dialog when build view is open
-                        display={isBuildOpen ? 'dialog' : display}
-                        zIndex={zIndex + 2}
-                    >
-                        {/* Edit button */}
-                        {permissions.canUpdate ? (
-                            <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
-                                <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                            </ColorIconButton>
-                        ) : null}
-                        {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
-                        {existing?.nodes?.length ? <RunButton
-                            canUpdate={permissions.canUpdate}
-                            handleRunAdd={handleRunAdd as any}
-                            handleRunDelete={handleRunDelete as any}
-                            isBuildGraphOpen={isBuildOpen}
-                            isEditing={false}
-                            runnableObject={existing}
-                            zIndex={zIndex}
-                        /> : null}
-                    </SideActionButtons>
                     {/* Dialog for building routine */}
                     {existing && <Dialog
                         id="run-routine-view-dialog"
@@ -368,6 +345,30 @@ export const RoutineView = ({
                     </Box>
                 </Stack>}
             </Formik>
+            {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
+            <SideActionButtons
+                // Treat as a dialog when build view is open
+                display={isBuildOpen ? 'dialog' : display}
+                zIndex={zIndex + 2}
+                sx={{ position: 'fixed' }}
+            >
+                {/* Edit button */}
+                {permissions.canUpdate ? (
+                    <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+                {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
+                {existing?.nodes?.length ? <RunButton
+                    canUpdate={permissions.canUpdate}
+                    handleRunAdd={handleRunAdd as any}
+                    handleRunDelete={handleRunDelete as any}
+                    isBuildGraphOpen={isBuildOpen}
+                    isEditing={false}
+                    runnableObject={existing}
+                    zIndex={zIndex}
+                /> : null}
+            </SideActionButtons>
         </>
     )
 }

@@ -83,9 +83,26 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
      * Determines the type of data returned when an object is selected
      */
     find: Find;
-    handleClose: (data?: Find extends 'Url' ? string : ObjectType) => any;
+    handleCancel: () => any;
+    handleComplete: (data: Find extends 'Url' ? string : ObjectType) => any;
     isOpen: boolean;
-    limitTo?: ('Routine' | 'Project' | 'Question' | 'Note' | 'Organization' | 'User' | 'Standard' | 'Api' | 'SmartContract')[];
+    limitTo?: SelectOrCreateObjectType[];
+    /**
+     * If not set, uses "Popular" endpoint to get data
+     */
+    searchData?: {
+        searchType: SearchType | `${SearchType}`;
+        where: { [key: string]: any };
+    }
+    zIndex: number;
+}
+
+export interface FindSubroutineDialogProps {
+    handleCancel: () => any;
+    handleComplete: (nodeId: string, subroutine: RoutineVersion) => any;
+    isOpen: boolean;
+    nodeId: string;
+    routineVersionId: string | null | undefined;
     zIndex: number;
 }
 
@@ -333,6 +350,9 @@ export interface LargeDialogProps {
     onClose: () => any;
     titleId?: string;
     zIndex: number;
+    sxs?: {
+        paper?: { [x: string]: any };
+    }
 };
 
 export interface WalletInstallDialogProps {

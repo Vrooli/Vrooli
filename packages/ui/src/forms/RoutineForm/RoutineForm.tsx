@@ -1,11 +1,11 @@
-import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, Tooltip, Typography } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, Typography } from "@mui/material";
 import { Node, NodeLink, RoutineVersion, Session } from "@shared/consts";
 import { RoutineIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { routineVersionTranslationValidation, routineVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { UpTransition } from "components/dialogs/transitions";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -272,13 +272,13 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         isMultiStep === true && (
                             <>
                                 {/* Dialog for building routine graph */}
-                                <Dialog
-                                    id="run-routine-view-dialog"
-                                    fullScreen
-                                    open={isGraphOpen}
+                                <LargeDialog
+                                    id="build-routine-graph-dialog"
                                     onClose={handleGraphClose}
-                                    TransitionComponent={UpTransition}
-                                    sx={{ zIndex: zIndex + 1001 }}
+                                    isOpen={isGraphOpen}
+                                    titleId=""
+                                    zIndex={zIndex + 1300}
+                                    sxs={{ paper: { display: 'contents' } }}
                                 >
                                     <BuildView
                                         handleCancel={handleGraphClose}
@@ -298,9 +298,9 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                                             handleDeleteLanguage,
                                             languages,
                                         }}
-                                        zIndex={zIndex + 1001}
+                                        zIndex={zIndex + 1300}
                                     />
-                                </Dialog>
+                                </LargeDialog>
                                 {/* Button to display graph */}
                                 <Grid item xs={12} mb={4}>
                                     <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
@@ -338,19 +338,19 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         )
                     }
                 </Stack>
-                <GridSubmitButtons
-                    display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
-                    isCreate={isCreate}
-                    loading={props.isSubmitting}
-                    onCancel={onCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={props.handleSubmit}
-                />
             </BaseForm>
+            <GridSubmitButtons
+                display={display}
+                errors={{
+                    ...props.errors,
+                    ...translationErrors,
+                }}
+                isCreate={isCreate}
+                loading={props.isSubmitting}
+                onCancel={onCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={props.handleSubmit}
+            />
         </>
     )
 })

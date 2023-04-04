@@ -3,8 +3,8 @@ import { ProjectIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 import { exists } from '@shared/utils';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
-import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
+import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
+import { SelectOrCreateObjectType } from 'components/dialogs/types';
 import { RelationshipItemProjectVersion } from 'components/lists/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { useField } from 'formik';
@@ -59,8 +59,8 @@ export function ProjectButton({
         exists(rootHelpers) && rootHelpers.setValue(project);
     }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers]);
 
-    // SelectOrCreateDialog
-    const [selectOrCreateType, selectOrCreateHandleAdd, selectOrCreateHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    // FindObjectDialog
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
         if (isProjectDialogOpen) return ['ProjectVersion', handleProjectSelect, closeProjectDialog];
         return [null, () => { }, () => { }];
     }, [isProjectDialogOpen, handleProjectSelect, closeProjectDialog]);
@@ -85,11 +85,12 @@ export function ProjectButton({
     return (
         <>
             {/* Popup for selecting project */}
-            {selectOrCreateType && <SelectOrCreateDialog
-                isOpen={Boolean(selectOrCreateType)}
-                handleAdd={selectOrCreateHandleAdd}
-                handleClose={selectOrCreateHandleClose}
-                objectType={selectOrCreateType}
+            {findType && <FindObjectDialog
+                find="Object"
+                isOpen={Boolean(findType)}
+                handleCancel={findHandleClose}
+                handleComplete={findHandleAdd}
+                limitTo={[findType]}
                 zIndex={zIndex + 1}
             />}
             <Stack

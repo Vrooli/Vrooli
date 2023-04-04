@@ -9,6 +9,7 @@ export const LargeDialog = ({
     onClose,
     titleId,
     zIndex,
+    sxs,
 }: LargeDialogProps) => {
     const { palette } = useTheme();
 
@@ -37,6 +38,7 @@ export const LargeDialog = ({
                         '& > .MuiDialogContent-root': {
                             position: 'relative',
                         },
+                        ...(sxs?.paper ?? {})
                     },
                 }
             }}

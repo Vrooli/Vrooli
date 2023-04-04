@@ -36,6 +36,7 @@ export interface EditableLabelProps {
     sxs?: { stack?: { [x: string]: any } };
     text: string;
     validationSchema?: StringSchema<string | undefined, any, string | undefined>;
+    zIndex: number;
 }
 
 export interface JsonFormatInputProps {

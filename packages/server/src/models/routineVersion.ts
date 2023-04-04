@@ -242,6 +242,8 @@ export const RoutineVersionModel: ModelLogic<{
             isInternalWithRoot: true,
             isInternalWithRootExcludeOwnedByOrganizationId: true,
             isInternalWithRootExcludeOwnedByUserId: true,
+            isExternalWithRootExcludeOwnedByOrganizationId: true,
+            isExternalWithRootExcludeOwnedByUserId: true,
             maxComplexity: true,
             maxSimplicity: true,
             maxTimesCompleted: true,

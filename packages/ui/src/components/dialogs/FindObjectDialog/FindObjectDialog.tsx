@@ -110,14 +110,15 @@ const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Elem
     Standard: StandardUpsert,
 }
 
-
 const searchTitleId = "search-vrooli-for-link-title";
 
 export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
     find,
-    handleClose,
+    handleCancel,
+    handleComplete,
     isOpen,
     limitTo,
+    searchData,
     zIndex,
 }: FindObjectDialogProps<Find, ObjectType>) => {
     const { palette } = useTheme();
@@ -126,10 +127,12 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     // Tabs to filter by object type
     const tabs = useMemo<PageTab<'All' | SearchPageTabOption>[]>(() => {
+        console.log('yeet calculating tabs', limitTo)
         // If limitTo is set, only show those tabs
         let filteredTabParams = tabParams;
         if (limitTo && limitTo.length > 0) {
-            filteredTabParams = tabParams.filter(tab => limitTo.includes(tab.searchType as any));
+            const unversionedLimitTo = limitTo.map(l => l.replace('Version', '') as any);
+            filteredTabParams = tabParams.filter(tab => unversionedLimitTo.includes(tab.searchType as any));
         }
         return filteredTabParams.map((tab, i) => ({
             index: i,
@@ -139,8 +142,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }));
     }, [limitTo, t]);
     const [currTab, setCurrTab] = useState<PageTab<'All' | SearchPageTabOption>>(() => {
+        console.log('yeet calcualting curr tab', tabs)
         const searchParams = parseSearchParams();
-        const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
+        const index = tabs.findIndex(tab => tab.value === searchParams.type);
         // Default to routine tab
         if (index === -1) return tabs[0];
         // Return tab
@@ -163,7 +167,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     // Menu for selection object type to create
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
-    const isSelectCreateTypeOpen = Boolean(selectCreateTypeAnchorEl);
 
     // Info for querying full object data
     const [{ advancedSearchSchema, query }, setSearchParams] = useState<Partial<SearchParams>>({});
@@ -187,7 +190,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             'time',
         ]);
         // If no item, close dialog
-        if (!item) handleClose();
+        if (!item) handleCancel();
         // If url requested, return url
         else if (find === 'Url') {
             const objectUrl = getObjectUrl(item as any);
@@ -195,42 +198,56 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             const url = versionId ? `${base}/${versionId}` : base;
             // If item, store in local storage so we can display it in the link component
             if (item) {
-                localStorage.setItem(`objectFromUrl:${url}`, JSON.stringify(item));
+                const itemToStore = versionId ? ((item as any).versions?.find(v => v.id === versionId) ?? {}) : item;
+                localStorage.setItem(`objectFromUrl:${url}`, JSON.stringify(itemToStore));
             }
-            handleClose((versionId ? `${base}/${versionId}` : base) as any);
+            handleComplete((versionId ? `${base}/${versionId}` : base) as any);
         }
         // Otherwise, return object
-        else handleClose(item as any);
-    }, [advancedSearchSchema?.fields, find, handleClose, setLocation]);
+        else handleComplete(item as any);
+    }, [advancedSearchSchema?.fields, find, handleCancel, handleComplete, setLocation]);
 
-    const [searchString, setSearchString] = useState<string>('');
     const [selectedObject, setSelectedObject] = useState<{
         versions: { id: string; versionIndex: number, versionLabel: string }[];
     } | null>(null);
-    // Reset search string and selected objectwhen dialog is opened/closed
+    // Reset selected object when dialog is opened/closed
     useEffect(() => {
-        setSearchString('');
         setSelectedObject(null);
     }, [isOpen]);
 
-    // On tab change, update BaseParams, document title, where, and URL
-    const { searchType, where } = useMemo<BaseParams>(() => {
+    // On tab change, update search params
+    const { searchType, where } = useMemo<Pick<BaseParams, 'searchType' | 'where'>>(() => {
+        console.log('curr tab')
+        if (searchData) return searchData as any;
         return tabParams[currTab.index];
-    }, [currTab.index]);
+    }, [currTab.index, searchData]);
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
+        console.log('yeet onCreateStart', e.currentTarget, currTab.value)
         e.preventDefault();
         // If tab is 'All', open menu to select type
         if (searchType === 'All') setSelectCreateTypeAnchorEl(e.currentTarget);
         // If tab is 'User', open invite user dialog
         else if (searchType === 'User') setIsInviteUserOpen(true);
         // Otherwise, open create dialog for current tab
-        else setCreateObjectType(currTab.value as any);
-    }, [currTab.value, searchType]);
+        setCreateObjectType(tabParams[currTab.index].searchType as any);
+    }, [currTab.index, currTab.value, searchType]);
     const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
-        setSelectCreateTypeAnchorEl(null);
-        setCreateObjectType(type ?? null as any);
+        console.log('yeet onSelectCreateTypeClose', type)
+        if (type) {
+            if (type === 'User') {
+                setIsInviteUserOpen(true); // Open the Invite User dialog
+                setSelectCreateTypeAnchorEl(null); // Close the Popover
+
+            } else {
+                setCreateObjectType(type as any); // Open the Create Object dialog
+                // Wait for the Create Object dialog to open fully (which is loaded asynchronously) 
+                // before closing the Popover. Otherwise, it can get stuck open.
+            }
+        }
+        else setSelectCreateTypeAnchorEl(null);
     }, []);
+    console.log('yeet selectCreateTypeAnchorEl', selectCreateTypeAnchorEl)
 
     const handleCreated = useCallback((item: SelectOrCreateObject) => {
         // Versioned objects are always created from the perspective of the version, and not the root.
@@ -245,8 +262,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setCreateObjectType(null);
     }, [createObjectType, onClose]);
     const handleCreateClose = useCallback(() => {
+        console.log('handleCreateClose', createObjectType)
         setCreateObjectType(null);
-    }, []);
+    }, [createObjectType]);
 
     // If item selected from search AND find is 'Object', query for full data
     const [getItem, { data: itemData }] = useCustomLazyQuery<ObjectType, FindByIdInput>(query);
@@ -317,15 +335,40 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     const CreateView = useMemo<((props: UpsertProps<any>) => JSX.Element) | null>(() =>
         ['User', null].includes(createObjectType) ? null : (createMap as any)[createObjectType!.replace('Version', '')], [createObjectType]);
+    useEffect(() => {
+        setSelectCreateTypeAnchorEl(null);
+    }, [createObjectType]);
 
     return (
         <>
+            {/* Invite user dialog (when you select 'User' as create type) */}
+            <ShareSiteDialog
+                onClose={onInviteUserClose}
+                open={isInviteUserOpen}
+                zIndex={zIndex + 2}
+            />
+            {/* Dialog for creating new object type */}
+            <LargeDialog
+                id="create-object-dialog"
+                onClose={handleCreateClose}
+                isOpen={createObjectType !== null}
+                titleId="create-object-dialog-title"
+                zIndex={zIndex + 2}
+            >
+                {CreateView && <CreateView
+                    display="dialog"
+                    isCreate={true}
+                    onCompleted={handleCreated}
+                    onCancel={handleCreateClose}
+                    zIndex={zIndex + 2}
+                />}
+            </LargeDialog>
             {/* Menu for selecting create object type */}
-            <Menu
+            {!CreateView && <Menu
                 id="select-create-type-mnu"
                 anchorEl={selectCreateTypeAnchorEl}
                 disableScrollLock={true}
-                open={isSelectCreateTypeOpen}
+                open={Boolean(selectCreateTypeAnchorEl)}
                 onClose={() => onSelectCreateTypeClose()}
             >
                 {/* Never show 'All'=' */}
@@ -340,43 +383,22 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         <ListItemText primary={t(tab.searchType, { count: 1, defaultValue: tab.searchType })} />
                     </MenuItem>
                 ))}
-            </Menu>
-            {/* Invite user dialog (when you select 'User' as create type) */}
-            <ShareSiteDialog
-                onClose={onInviteUserClose}
-                open={isInviteUserOpen}
-                zIndex={zIndex + 1}
-            />
-            {/* Dialog for creating new object type */}
-            <LargeDialog
-                id="create-object-dialog"
-                onClose={handleCreateClose}
-                isOpen={createObjectType !== null}
-                titleId="create-object-dialog-title"
-                zIndex={zIndex + 1}
-            >
-                {CreateView && <CreateView
-                    display="dialog"
-                    isCreate={true}
-                    onCompleted={handleCreated}
-                    onCancel={handleCreateClose}
-                    zIndex={zIndex + 1}
-                />}
-            </LargeDialog>
+            </Menu>}
             {/* Main content */}
             <LargeDialog
                 id="resource-find-object-dialog"
                 isOpen={isOpen}
-                onClose={() => { handleClose() }}
+                onClose={() => { handleCancel() }}
                 titleId={searchTitleId}
                 zIndex={zIndex}
             >
                 <TopBar
                     display="dialog"
-                    onClose={() => { handleClose() }}
+                    onClose={() => { handleCancel() }}
                     titleData={{
                         hideOnDesktop: true,
                         titleKey: 'SearchVrooli',
+                        helpKey: 'FindObjectDialogHelp'
                     }}
                     below={tabs.length > 1 && <PageTabs
                         ariaLabel="search-tabs"
@@ -404,12 +426,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         take={20}
                         // Combine results for each object type
                         resolve={(data: { [x: string]: any }) => {
-                            console.log('resolve 1', data);
                             // Find largest array length 
                             const max: number = Object.values(data).reduce((acc: number, val: any[]) => {
                                 return Math.max(acc, val.length);
                             }, -Infinity);
-                            console.log('resolve 2', max);
                             // Initialize result array
                             const result: any[] = [];
                             // Loop through each index
@@ -420,12 +440,11 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                                     if (Array.isArray(data[key]) && data[key][i]) result.push(data[key][i]);
                                 }
                             }
-                            console.log('resolve 3', result);
                             return result;
                         }}
-                        searchType='Popular'
+                        searchType={searchData?.searchType ?? 'Popular'}
                         zIndex={zIndex}
-                        where={{ ...where, objectType: searchType === 'All' ? undefined : searchType }}
+                        where={searchData?.where ?? { ...where, objectType: searchType === 'All' ? undefined : searchType }}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (

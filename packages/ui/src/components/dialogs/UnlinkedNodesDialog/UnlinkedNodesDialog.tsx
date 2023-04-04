@@ -42,7 +42,7 @@ export const UnlinkedNodesDialog = ({
             key: `unlinked-node-${node.id}`,
             label: getTranslation(node, [language], false).name ?? null,
             labelVisible: false,
-            scale: 0.8,
+            scale: -0.5,
             zIndex,
         }
         // Determine node to display based on nodeType
@@ -123,9 +123,7 @@ export const UnlinkedNodesDialog = ({
                         {nodes.map((node) => (
                             <Box key={node.id} sx={{ display: 'flex', alignItems: 'center' }}>
                                 {/* Miniature version of node */}
-                                <Box sx={{
-                                    height: '50px',
-                                }}>
+                                <Box>
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}

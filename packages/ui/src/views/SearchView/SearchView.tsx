@@ -155,9 +155,9 @@ export const SearchView = ({
         if (searchType === SearchType.Routine) {
             setLocation(`${LINKS.Routine}/add`);
         }
-        // If search type is a user, open start page
+        // If search type is a user, open share dialog
         else if (searchType === SearchType.User) {
-            setLocation(`${LINKS.Start}`);
+            setShareDialogOpen(true);
         }
         // Otherwise, navigate to add page
         else {

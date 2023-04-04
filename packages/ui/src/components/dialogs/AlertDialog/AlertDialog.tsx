@@ -63,6 +63,14 @@ const AlertDialog = () => {
             onClose={resetState}
             aria-labelledby={titleId}
             aria-describedby={descriptionAria}
+            sx={{
+                zIndex: 30000,
+                '& > .MuiDialog-container': {
+                    '& > .MuiPaper-root': {
+                        zIndex: 30000,
+                    },
+                }
+            }}
         >
             <DialogTitle
                 id={titleId}

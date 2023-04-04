@@ -6710,6 +6710,8 @@ export type RoutineVersionSearchInput = {
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
   isCompleteWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
   isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
+  isExternalWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isExternalWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
   isInternalWithRoot?: InputMaybe<Scalars['Boolean']>;
   isInternalWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
   isInternalWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;

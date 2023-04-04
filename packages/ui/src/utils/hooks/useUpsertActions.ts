@@ -25,8 +25,9 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
     const hasPreviousPage = useMemo(() => Boolean(sessionStorage.getItem('lastPath')), []);
 
     const onAction = useCallback((action: ObjectDialogAction, item?: T) => {
+        console.log('useUpsertActions.onAction', action, item)
         // URL of view page for the object
-        const viewUrl = getObjectUrl(item as any);
+        const viewUrl = item ? getObjectUrl(item as any) : undefined;
         switch (action) {
             case ObjectDialogAction.Add:
                 if (display === 'page') {
@@ -46,14 +47,16 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
                 if (display === 'page') {
-                    setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
+                    if (!viewUrl && hasPreviousPage) window.history.back();
+                    else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
                     onCancel!();
                 }
                 break;
             case ObjectDialogAction.Save:
                 if (display === 'page') {
-                    setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
+                    if (!viewUrl && hasPreviousPage) window.history.back();
+                    else setLocation(viewUrl ?? LINKS.Home, { replace: !hasPreviousPage });
                 } else {
                     onCompleted!(item!);
                 }

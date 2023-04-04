@@ -74,7 +74,7 @@ export const SearchMap = {
     isCompleteWithRoot: (isComplete: Maybe<boolean>) => ({
         AND: [
             { isComplete },
-            { root: { isComplete } }
+            { root: { hasCompleteVersion: isComplete } }
         ]
     }),
     isCompleteWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
@@ -83,7 +83,7 @@ export const SearchMap = {
             {
                 AND: [
                     { isComplete: true },
-                    { root: { isComplete: true } }
+                    { root: { hasCompleteVersion: true } }
                 ]
             }
         ]
@@ -94,38 +94,35 @@ export const SearchMap = {
             {
                 AND: [
                     { isComplete: true },
-                    { root: { isComplete: true } }
+                    { root: { hasCompleteVersion: true } }
                 ]
             }
         ]
     }),
     isInternal: (isInternal: Maybe<boolean>) => ({ isInternal }),
-    isInternalWithRoot: (isInternal: Maybe<boolean>) => ({
-        AND: [
-            { isInternal },
-            { root: { isInternal } }
-        ]
-    }),
+    isInternalWithRoot: (isInternal: Maybe<boolean>) => ({ root: { isInternal } }),
     isInternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
         OR: [
             { ownedByOrganizationId },
-            {
-                AND: [
-                    { isInternal: true },
-                    { root: { isInternal: true } }
-                ]
-            }
+            { root: { isInternal: true } }
         ]
     }),
     isInternalWithRootExcludeOwnedByUserId: (ownedByUserId: Maybe<string>) => ({
         OR: [
             { ownedByUserId },
-            {
-                AND: [
-                    { isInternal: true },
-                    { root: { isInternal: true } }
-                ]
-            }
+            { root: { isInternal: true } }
+        ]
+    }),
+    isExternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+        OR: [
+            { ownedByOrganizationId },
+            { root: { isInternal: false } }
+        ]
+    }),
+    isExternalWithRootExcludeOwnedByUserId: (ownedByUserId: Maybe<string>) => ({
+        OR: [
+            { ownedByUserId },
+            { root: { isInternal: false } }
         ]
     }),
     isMergedOrRejected: (isMergedOrRejected: Maybe<boolean>) => ({ isMergedOrRejected }),
