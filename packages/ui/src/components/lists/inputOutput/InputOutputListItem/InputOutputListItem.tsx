@@ -1,23 +1,20 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from '@mui/material';
-import { InputType, Session, StandardVersion } from '@shared/consts';
+import { Session, StandardVersion } from '@shared/consts';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 import { uuid } from '@shared/uuid';
 import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
 import { EditableText } from 'components/containers/EditableText/EditableText';
-import { GeneratedInputComponent } from 'components/inputs/generated';
-import { PreviewSwitch } from 'components/inputs/PreviewSwitch/PreviewSwitch';
-import { Selector } from 'components/inputs/Selector/Selector';
-import { BaseStandardInput } from 'components/inputs/standards';
+import { StandardInput } from 'components/inputs/standards/StandardInput/StandardInput';
 import { StandardVersionSelectSwitch } from 'components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch';
 import { useFormik } from 'formik';
 import { FieldData } from 'forms/types';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { linkColors } from 'styles';
 import { getCurrentUser } from 'utils/authentication/session';
-import { InputTypeOption, InputTypeOptions } from 'utils/consts';
+import { InputTypeOptions } from 'utils/consts';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { SessionContext } from 'utils/SessionContext';
-import { jsonToString, standardVersionToFieldData, updateArray } from 'utils/shape/general';
+import { updateArray } from 'utils/shape/general';
 import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from 'utils/shape/models/routineVersionInput';
 import { RoutineVersionOutputTranslationShape } from 'utils/shape/models/routineVersionOutput';
 import { StandardVersionShape } from 'utils/shape/models/standardVersion';
@@ -51,18 +48,6 @@ const defaultStandardVersion = (
     versionLabel: '1.0.0',
 })
 
-const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], language: string): FieldData | null => {
-    if (!item.standardVersion || item.standardVersion.root.isInternal === false) return null;
-    return standardVersionToFieldData({
-        fieldName: schemaKey,
-        description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(item.standardVersion, [language]).description,
-        helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText ?? '',
-        props: item.standardVersion.props ?? '',
-        name: item.name ?? getTranslation(item.standardVersion, [language]).name ?? '',
-        standardType: item.standardVersion.standardType ?? InputTypeOptions[0].value,
-        yup: item.standardVersion.yup ?? null,
-    })
-}
 
 //TODO handle language change somehow
 export const InputOutputListItem = ({
@@ -81,7 +66,6 @@ export const InputOutputListItem = ({
 }: InputOutputListItemProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
-    const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
     const [standardVersion, setStandardVersion] = useState<StandardVersionShape>(item.standardVersion ?? defaultStandardVersion(item, session));
     useEffect(() => {
@@ -89,29 +73,6 @@ export const InputOutputListItem = ({
     }, [item, session])
 
     const canUpdateStandardVersion = useMemo(() => isEditing && standardVersion.root.isInternal === true, [isEditing, standardVersion.root.isInternal]);
-
-    /**
-     * Schema only available when defining custom (internal) standard
-     */
-    const [generatedSchema, setGeneratedSchema] = useState<FieldData | null>(null);
-
-    // Handle standard schema
-    const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        if (!canUpdateStandardVersion) return;
-        setGeneratedSchema(schema);
-    }, [canUpdateStandardVersion]);
-
-    const handleInputTypeSelect = useCallback((selected: InputTypeOption) => {
-        if (selected.value === item.standardVersion?.standardType) return;
-        const existingStandardVersion = item.standardVersion ?? defaultStandardVersion(item, session);
-        setGeneratedSchema(toFieldData(schemaKey, {
-            ...item,
-            standardVersion: {
-                ...existingStandardVersion,
-                standardType: (selected ?? InputTypeOptions[0]).value,
-            }
-        }, language));
-    }, [item, language, schemaKey, session]);
 
     type Translation = RoutineVersionInputTranslationShape | RoutineVersionOutputTranslationShape;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
@@ -128,8 +89,6 @@ export const InputOutputListItem = ({
             helpText: getTranslation(item as RoutineVersionInputShape, [language]).helpText ?? '',
             isRequired: true,
             name: item.name ?? '' as string,
-            // Value of generated input component preview
-            [schemaKey]: jsonToString((generatedSchema?.props as any)?.format),
         },
         enableReinitialize: true,
         validationSchema: isInput ? routineVersionInputValidation.create({}) : routineVersionOutputValidation.create({}),
@@ -159,15 +118,11 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(!canUpdateStandardVersion);
-    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: StandardVersion | null) => {
         if (s && s.root.isInternal === false) {
             setStandardVersion(s as any)
-            setIsPreviewOn(true);
         } else {
             setStandardVersion(defaultStandardVersion(item, session))
-            setIsPreviewOn(false);
         }
     }, [item, session]);
 
@@ -307,53 +262,11 @@ export const InputOutputListItem = ({
                     </Grid>
                     {/* Standard build/preview */}
                     <Grid item xs={12}>
-                        {canUpdateStandardVersion && <PreviewSwitch
-                            isPreviewOn={isPreviewOn}
-                            onChange={onPreviewChange}
-                            sx={{
-                                marginBottom: 2
-                            }}
-                        />}
-                        {
-                            (isPreviewOn || !canUpdateStandardVersion) ?
-                                ((standardVersion || generatedSchema) && <GeneratedInputComponent
-                                    disabled={true}
-                                    fieldData={standardVersion ?
-                                        standardVersionToFieldData({
-                                            fieldName: schemaKey,
-                                            description: getTranslation(item as RoutineVersionInputShape, [language]).description ?? getTranslation(standardVersion, [language]).description,
-                                            helpText: getTranslation(item as RoutineVersionInputShape, [language], false).helpText ?? '',
-                                            props: standardVersion?.props ?? '',
-                                            name: item.name ?? getTranslation(standardVersion, [language]).name ?? '',
-                                            standardType: standardVersion?.standardType ?? InputTypeOptions[0].value,
-                                            yup: standardVersion.yup ?? null,
-                                        }) as FieldData :
-                                        generatedSchema as FieldData}
-                                    onUpload={() => { }}
-                                    zIndex={zIndex}
-                                />) :
-                                // Only editable if standard not selected and is editing
-                                <Box>
-                                    <Selector
-                                        fullWidth
-                                        options={InputTypeOptions}
-                                        selected={InputTypeOptions.find(option => option.value === generatedSchema?.type) ?? InputTypeOptions[0]}
-                                        handleChange={handleInputTypeSelect}
-                                        getOptionLabel={(option: InputTypeOption) => option.label}
-                                        inputAriaLabel='input-type-selector'
-                                        label="Type"
-                                        sx={{ marginBottom: 2 }}
-                                    />
-                                    <BaseStandardInput
-                                        fieldName={schemaKey}
-                                        inputType={(generatedSchema?.type as InputType) ?? InputTypeOptions[0].value}
-                                        isEditing={isEditing}
-                                        schema={generatedSchema}
-                                        onChange={handleSchemaUpdate}
-                                        storageKey={schemaKey}
-                                    />
-                                </Box>
-                        }
+                        <StandardInput
+                            disabled={!canUpdateStandardVersion}
+                            fieldName="preview"
+                            zIndex={zIndex}
+                        />
                     </Grid>
                     {isInput && <Grid item xs={12}>
                         <Tooltip placement={'right'} title='Is this input mandatory?'>

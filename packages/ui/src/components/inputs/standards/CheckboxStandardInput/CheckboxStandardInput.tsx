@@ -4,16 +4,16 @@
  */
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { AddIcon, DeleteIcon } from '@shared/icons';
-import { checkboxStandardInputForm as validationSchema } from '@shared/validation';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useFormik } from 'formik';
-import { useCallback, useEffect } from 'react';
+import { useField } from 'formik';
+import { CheckboxProps } from 'forms/types';
+import { useCallback } from 'react';
 import { CheckboxStandardInputProps } from '../types';
 
 /**
  * Create new option
  */
-const emptyOption = (index: number) => ({ label: `Enter option ${index + 1}` });
+export const emptyCheckboxOption = (index: number) => ({ label: `Enter option ${index + 1}` });
 
 /**
  * Checkbox option with delete icon, TextField for label, and Checkbox for default value.
@@ -84,61 +84,44 @@ const CheckboxOption = ({
 };
 
 export const CheckboxStandardInput = ({
-    color,
-    defaultValue,
     isEditing,
-    onPropsChange,
-    options,
-    row,
 }: CheckboxStandardInputProps) => {
-
-    const formik = useFormik({
-        initialValues: {
-            defaultValue: defaultValue ?? [false],
-            options: options ?? [emptyOption(0)],
-            row: row ?? false,
-        },
-        validationSchema,
-        onSubmit: () => { },
-    });
+    const [defaultValueField, , defaultValueHelpers] = useField<CheckboxProps['defaultValue']>('defaultValue');
+    const [optionsField, , optionsHelpers] = useField<CheckboxProps['options']>('options');
 
     const handleOptionAdd = useCallback(() => {
-        formik.setFieldValue('options', [...formik.values.options, emptyOption(formik.values.options.length)]);
-        formik.setFieldValue('defaultValue', [...formik.values.defaultValue, false]);
-    }, [formik]);
+        optionsHelpers.setValue([...optionsField.value, emptyCheckboxOption(optionsField.value.length)]);
+        defaultValueHelpers.setValue([...(defaultValueField.value ?? [false]), false]);
+    }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
     const handleOptionRemove = useCallback((index: number) => {
-        const filtered = formik.values.options.filter((_, i) => i !== index);
-        const defaults = formik.values.defaultValue.filter((_, i) => i !== index)
+        const filtered = optionsField.value.filter((_, i) => i !== index);
+        const defaults = defaultValueField.value?.filter((_, i) => i !== index) ?? [];
         // If there will be no options left, add default
         if (filtered.length === 0) {
-            filtered.push(emptyOption(0));
+            filtered.push(emptyCheckboxOption(0));
             defaults.push(false);
         }
-        formik.setFieldValue('options', filtered);
-        formik.setFieldValue('defaultValue', defaults);
-    }, [formik]);
+        optionsHelpers.setValue(filtered);
+        defaultValueHelpers.setValue(defaults);
+    }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
     const handleOptionChange = useCallback((index: number, label: string, dValue: boolean) => {
-        const options = [...formik.values.options];
+        const options = [...optionsField.value];
         options[index] = { label };
-        formik.setFieldValue('options', options);
-        const defaultValue = [...formik.values.defaultValue];
+        optionsHelpers.setValue(options);
+        const defaultValue = [...defaultValueField.value ?? [false]];
         defaultValue[index] = dValue;
-        formik.setFieldValue('defaultValue', defaultValue);
-    }, [formik]);
-
-    useEffect(() => {
-        onPropsChange(formik.values);
-    }, [formik.values, onPropsChange]);
+        defaultValueHelpers.setValue(defaultValue);
+    }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
 
     return (
         <Stack direction="column">
-            {formik.values.options.map((option, index) => (
+            {optionsField.value.map((option, index) => (
                 <CheckboxOption
                     key={index}
                     index={index}
                     isEditing={isEditing}
                     label={option.label}
-                    value={formik.values.defaultValue[index]}
+                    value={Array.isArray(defaultValueField.value) ? defaultValueField.value[index] : false}
                     onChange={handleOptionChange}
                     onDelete={() => handleOptionRemove(index)}
                 />

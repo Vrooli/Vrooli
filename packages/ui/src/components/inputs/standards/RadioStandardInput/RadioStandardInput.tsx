@@ -4,16 +4,14 @@
  */
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { AddIcon, DeleteIcon } from '@shared/icons';
-import { radioStandardInputForm as validationSchema } from '@shared/validation';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { RadioStandardInputProps } from '../types';
 
 /**
  * Create new option
  */
- const emptyOption = (index: number) => ({
+export const emptyRadioOption = (index: number) => ({
     label: `Enter option ${index + 1}`,
     // Random string for value
     value: Math.random().toString(36).substring(2, 15),
@@ -88,25 +86,15 @@ const RadioOption = ({
 };
 
 export const RadioStandardInput = ({
-    defaultValue,
     isEditing,
-    onPropsChange,
-    options,
-    row,
 }: RadioStandardInputProps) => {
 
-    const formik = useFormik({
-        initialValues: {
-            defaultValue: defaultValue ?? '',
-            options: options ?? [emptyOption(0)],
-            row: row ?? false,
-        },
-        validationSchema,
-        onSubmit: () => { onPropsChange(formik.values) },
-    });
+    // defaultValue?: RadioProps['defaultValue'];
+    // options: RadioProps['options'];
+    // row?: RadioProps['row'];
 
     const handleOptionAdd = useCallback(() => {
-        const newOption = emptyOption(formik.values.options.length);
+        const newOption = emptyRadioOption(formik.values.options.length);
         formik.setFieldValue('options', [...formik.values.options, newOption]);
         // If default value was not set before, set it to the new option
         if (!(typeof formik.values.defaultValue === 'string') || formik.values.defaultValue.length === 0) {
@@ -117,7 +105,7 @@ export const RadioStandardInput = ({
         const filtered = formik.values.options.filter((_, i) => i !== index);
         // If there will be no options left, add default
         if (filtered.length === 0) {
-            filtered.push(emptyOption(0));
+            filtered.push(emptyRadioOption(0));
         }
         // If defaultValue is not one of the values in filtered, set it to the first value
         if (!filtered.some(o => o.value === formik.values.defaultValue)) {

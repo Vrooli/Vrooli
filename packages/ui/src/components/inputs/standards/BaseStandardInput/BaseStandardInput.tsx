@@ -1,8 +1,10 @@
 import { InputType } from '@shared/consts';
+import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from '@shared/validation';
+import { Formik, useField } from 'formik';
 import { createDefaultFieldData } from 'forms/generators';
 import { FieldData } from 'forms/types';
-import { useCallback, useEffect, useMemo } from 'react';
-import { CheckboxStandardInput, DropzoneStandardInput, JsonStandardInput, MarkdownStandardInput, IntegerStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from '../';
+import { useEffect, useMemo } from 'react';
+import { CheckboxStandardInput, DropzoneStandardInput, emptyCheckboxOption, emptyRadioOption, IntegerStandardInput, JsonStandardInput, MarkdownStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from '../';
 import { BaseStandardInputProps } from '../types';
 
 /**
@@ -14,18 +16,18 @@ export const BaseStandardInput = ({
     inputType,
     isEditing,
     label,
-    onChange,
-    schema,
     storageKey,
 }: BaseStandardInputProps) => {
+    const [field, , helpers] = useField(fieldName ?? '');
+
     /**
      * Store schema in local storage when updated
      */
     useEffect(() => {
-        if (!schema || !isEditing) return;
-        const typeKey = `${storageKey}-${schema.type}`;
-        localStorage.setItem(typeKey, JSON.stringify(schema));
-    }, [isEditing, schema, storageKey]);
+        if (!fieldName || !field.value || !isEditing) return;
+        const typeKey = `${storageKey}-${inputType}`;
+        localStorage.setItem(typeKey, JSON.stringify(field.value));
+    }, [field.value, fieldName, inputType, isEditing, storageKey]);
 
     /**
      * Change schema when input type changes
@@ -55,54 +57,122 @@ export const BaseStandardInput = ({
         }
         // Update state
         localStorage.setItem(typeKey, JSON.stringify(newSchema));
-        onChange(newSchema as FieldData)
-    }, [onChange, inputType, storageKey, fieldName, isEditing]);
-
-    const onPropsChange = useCallback((newProps: FieldData['props']) => {
-        if (!schema || !isEditing) return;
-        const changedSchema = {
-            ...schema,
-            props: {
-                ...schema.props,
-                ...newProps,
-            } as any,
-        }
-        if (JSON.stringify(changedSchema) !== JSON.stringify(schema)) {
-            onChange(changedSchema);
-        }
-    }, [isEditing, onChange, schema]);
+        helpers.setValue(newSchema);
+    }, [inputType, storageKey, fieldName, isEditing, helpers]);
 
     // Generate input component for type-specific fields
-    const SchemaInput = useMemo(() => {
-        if (!schema) return null;
-        const props = { 
-            isEditing,
-            fieldName,
-            label: schema.label,
-            onPropsChange,
-            yup: schema.yup,
-        }
-        switch (schema.type) {
+    const { defaultValues, SchemaInput, validationSchema } = useMemo(() => {
+        if (!fieldName || !field.value || !isEditing) return { SchemaInput: null, validationSchema: null };
+        switch (field.value.type) {
             case InputType.TextField:
-                return <TextFieldStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {
+                        defaultValue: '',
+                        autoComplete: '',
+                        maxRows: 1,
+                    },
+                    SchemaInput: TextFieldStandardInput,
+                    validationSchema: textFieldStandardInputForm
+                }
             case InputType.JSON:
-                return <JsonStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {
+                        format: JSON.stringify({}),
+                        defaultValue: '',
+                        variables: {},
+                    },
+                    SchemaInput: JsonStandardInput,
+                    validationSchema: jsonStandardInputForm
+                }
             case InputType.IntegerInput:
-                return <IntegerStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {
+                        defaultValue: 0,
+                        min: 0,
+                        max: 1000000,
+                        step: 1,
+                    },
+                    SchemaInput: IntegerStandardInput,
+                    validationSchema: quantityBoxStandardInputForm
+                }
             case InputType.Radio:
-                return <RadioStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {
+                        defaultValue: '',
+                        options: [emptyRadioOption(0)],
+                        row: false,
+                    },
+                    SchemaInput: RadioStandardInput,
+                    validationSchema: radioStandardInputForm
+                }
             case InputType.Checkbox:
-                return <CheckboxStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {
+                        defaultValue: [false],
+                        options: [emptyCheckboxOption(0)],
+                        row: false,
+                    },
+                    SchemaInput: CheckboxStandardInput,
+                    validationSchema: checkboxStandardInputForm
+                }
             case InputType.Switch:
-                return <SwitchStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {
+                        defaultValue: false,
+                    },
+                    SchemaInput: SwitchStandardInput,
+                    validationSchema: switchStandardInputForm
+                }
             case InputType.Dropzone:
-                return <DropzoneStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {},
+                    SchemaInput: DropzoneStandardInput,
+                    validationSchema: null
+                }
             case InputType.Markdown:
-                return <MarkdownStandardInput {...props} {...schema.props} />;
+                return {
+                    defaultValues: {
+                        defaultValue: '',
+                    },
+                    SchemaInput: MarkdownStandardInput,
+                    validationSchema: markdownStandardInputForm
+                }
             default:
-                return null;
+                return {
+                    defaultValues: {},
+                    SchemaInput: null,
+                    validationSchema: null
+                };
         }
-    }, [fieldName, isEditing, onPropsChange, schema]);
+    }, [field.value, fieldName, isEditing]);
 
-    return SchemaInput;
+    return (
+        <Formik
+            enableReinitialize={true}
+            initialValues={{
+                ...defaultValues,
+                ...field.value.props
+            }}
+            onSubmit={(values) => {
+                if (!fieldName || !field.value || !isEditing) return;
+                const changedSchema = {
+                    ...field.value,
+                    props: {
+                        ...field.value.props,
+                        ...values,
+                    } as any,
+                }
+                if (JSON.stringify(changedSchema) !== JSON.stringify(field.value)) {
+                    helpers.setValue(changedSchema);
+                }
+            }}
+            validationSchema={validationSchema}
+        >
+            {SchemaInput && <SchemaInput
+                isEditing={isEditing}
+                fieldName={fieldName}
+            // yup={field.value.yup}
+            />}
+        </Formik>
+    )
 }

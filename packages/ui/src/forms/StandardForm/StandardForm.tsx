@@ -1,26 +1,20 @@
-import { Box, Stack } from "@mui/material";
+import { Stack } from "@mui/material";
 import { Session, StandardVersion } from "@shared/consts";
 import { DUMMY_ID } from "@shared/uuid";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { GeneratedInputComponent } from "components/inputs/generated";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
-import { Selector } from "components/inputs/Selector/Selector";
-import { BaseStandardInput } from "components/inputs/standards";
+import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { useFormik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { generateYupSchema } from "forms/generators";
-import { FieldData, StandardFormProps } from "forms/types";
-import { forwardRef, useCallback, useContext, useState } from "react";
+import { StandardFormProps } from "forms/types";
+import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { InputTypeOption, InputTypeOptions } from "utils/consts";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -96,32 +90,6 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
-    // Handle input type selector
-    const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
-    const handleInputTypeSelect = useCallback((selected: InputTypeOption) => {
-        setInputType(selected);
-    }, []);
-
-    // Handle standard schema
-    const [schema, setSchema] = useState<FieldData | null>(null);
-    const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        setSchema(schema);
-    }, []);
-    const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
-
-    const previewFormik = useFormik({
-        initialValues: {
-            preview: schema?.props?.defaultValue,
-        },
-        enableReinitialize: true,
-        validationSchema: schema ? generateYupSchema({
-            fields: [schema],
-        }) : undefined,
-        onSubmit: () => { },
-    });
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
-    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
-
     // Handle translations
     const {
         handleAddLanguage,
@@ -182,43 +150,10 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                             name="description"
                         />
                     </Stack>
-                    {/* Standard build/preview */}
-                    <PreviewSwitch
-                        isPreviewOn={isPreviewOn}
-                        onChange={onPreviewChange}
-                        sx={{
-                            marginBottom: 2
-                        }}
+                    <StandardInput
+                        fieldName="preview"
+                        zIndex={zIndex}
                     />
-                    {
-                        isPreviewOn ?
-                            (schema && <GeneratedInputComponent
-                                disabled={true}
-                                fieldData={schema}
-                                onUpload={() => { }}
-                                zIndex={zIndex}
-                            />) :
-                            <Box>
-                                <Selector
-                                    fullWidth
-                                    options={InputTypeOptions}
-                                    selected={inputType}
-                                    handleChange={handleInputTypeSelect}
-                                    getOptionLabel={(option: InputTypeOption) => option.label}
-                                    inputAriaLabel='input-type-selector'
-                                    label="Type"
-                                    sx={{ marginBottom: 2 }}
-                                />
-                                <BaseStandardInput
-                                    fieldName="preview"
-                                    inputType={inputType.value}
-                                    isEditing={true}
-                                    schema={schema}
-                                    onChange={handleSchemaUpdate}
-                                    storageKey={schemaKey}
-                                />
-                            </Box>
-                    }
                     <ResourceListHorizontalInput
                         isCreate={true}
                         zIndex={zIndex}

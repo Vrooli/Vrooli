@@ -12,7 +12,7 @@ export interface GeneratedGridProps {
 
 export interface GeneratedInputComponentProps {
     disabled?: boolean;
-    fieldData: FieldData;
+    fieldName: string;
     index?: number;
     onUpload: (fieldName: string, files: string[]) => void;
     zIndex: number;

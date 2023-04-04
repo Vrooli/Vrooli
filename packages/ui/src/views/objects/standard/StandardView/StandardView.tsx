@@ -1,14 +1,12 @@
-import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, FindVersionInput, InputType, StandardVersion } from "@shared/consts";
+import { Box, Palette, Stack, useTheme } from "@mui/material";
+import { CommentFor, FindVersionInput, StandardVersion } from "@shared/consts";
 import { EditIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
-import { GeneratedInputComponent } from "components/inputs/generated";
-import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
-import { BaseStandardInput } from "components/inputs/standards";
+import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListHorizontal } from "components/lists/resource";
@@ -18,16 +16,13 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
-import { useFormik } from "formik";
 import { standardInitialValues } from "forms/StandardForm/StandardForm";
-import { FieldData, FieldDataJSON } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
 import { SessionContext } from "utils/SessionContext";
-import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
@@ -64,23 +59,6 @@ export const StandardView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const schema = useMemo<FieldData | null>(() => (standardVersion ? standardVersionToFieldData({
-        fieldName: 'preview',
-        description: getTranslation(standardVersion, [language]).description,
-        helpText: null,
-        props: standardVersion.props,
-        name: standardVersion.root.name,
-        standardType: standardVersion.standardType,
-        yup: standardVersion.yup,
-    }) : null), [language, standardVersion]);
-    const previewFormik = useFormik({
-        initialValues: {
-            preview: JSON.stringify((schema as FieldDataJSON)?.props?.format),
-        },
-        enableReinitialize: true,
-        onSubmit: () => { },
-    });
-
     const { description, name } = useMemo(() => {
         const { description } = getTranslation(standardVersion ?? partialData, [language]);
         const { name } = standardVersion?.root ?? partialData?.root ?? {};
@@ -102,9 +80,6 @@ export const StandardView = ({
         setLocation,
         setObject: setStandardVersion,
     });
-
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
-    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
     const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
@@ -165,9 +140,9 @@ export const StandardView = ({
                     zIndex={zIndex}
                 />
                 {/* Resources */}
-                {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
                     title={'Resources'}
-                    list={resourceList}
+                    list={resourceList as any}
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
@@ -179,39 +154,14 @@ export const StandardView = ({
                 </Box>
                 {/* Box with standard */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
-                    {/* Build/Preview switch */}
-                    <PreviewSwitch
-                        isPreviewOn={isPreviewOn}
-                        onChange={onPreviewChange}
+                    <StandardInput
+                        disabled={true}
+                        fieldName="preview"
+                        zIndex={zIndex}
                     />
-                    {
-                        isPreviewOn ?
-                            schema ? <GeneratedInputComponent
-                                disabled={true}
-                                fieldData={schema}
-                                onUpload={() => { }}
-                                zIndex={zIndex}
-                            /> :
-                                <Box sx={{
-                                    minHeight: 'min(300px, 25vh)',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                }}>
-                                    <CircularProgress color="secondary" />
-                                </Box> :
-                            <BaseStandardInput
-                                fieldName="preview"
-                                inputType={schema?.type ?? InputType.TextField}
-                                isEditing={false}
-                                schema={schema}
-                                onChange={() => { }} // Intentionally blank
-                                storageKey={''} // Intentionally blank
-                            />
-                    }
                 </Stack>
                 {/* Tags */}
-                {tags.length > 0 && <TagList
+                {Array.isArray(tags) && tags!.length > 0 && <TagList
                     maxCharacters={30}
                     parentId={standardVersion?.id ?? ''}
                     tags={tags as any[]}
