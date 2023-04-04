@@ -3,11 +3,10 @@
  */
 import { DialogContent, List, ListItem, ListItemText } from '@mui/material';
 import { NodeLink } from '@shared/consts';
-import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { ListMenuItemData } from 'components/dialogs/types';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useCallback, useContext, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { SessionContext } from 'utils/SessionContext';
 import { AddAfterLinkDialogProps } from '../types';
@@ -24,7 +23,6 @@ export const AddAfterLinkDialog = ({
     zIndex,
 }: AddAfterLinkDialogProps) => {
     const session = useContext(SessionContext);
-    const { t } = useTranslation();
 
     /**
      * Gets the name of a node from its id
@@ -52,10 +50,10 @@ export const AddAfterLinkDialog = ({
             titleId={titleId}
             zIndex={zIndex}
         >
-            <DialogTitle
-                id={titleId}
+            <TopBar
+                display="dialog"
                 onClose={handleClose}
-                title={t('LinkSelect')}
+                titleData={{ titleId, titleKey: 'LinkSelect' }}
             />
             <DialogContent>
                 <List>

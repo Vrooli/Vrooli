@@ -5,31 +5,27 @@ import {
     Button, Grid,
     Stack,
     Switch,
-    Typography,
-    useTheme
+    Typography
 } from '@mui/material';
 import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useFormik } from 'formik';
 import { useTranslation } from 'react-i18next';
 import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { CookieSettingsDialogProps } from '../types';
 
 const titleId = 'cookie-settings-dialog-title';
 const strictlyNecessaryUses = ['Authentication'] as const;
-const functionalUses = ['Theme', 'Font Size'] as const;
+const functionalUses = ['Theme', 'FontSize'] as const;
 
-//TODO not fully translated
 export const CookieSettingsDialog = ({
     handleClose,
     isOpen,
 }: CookieSettingsDialogProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     const setPreferences = (preferences: CookiePreferences) => {
-        console.log('in setcookiepreferences', preferences);
         // Set preference in local storage
         setCookiePreferences(preferences);
         // Close dialog
@@ -68,11 +64,10 @@ export const CookieSettingsDialog = ({
             titleId={titleId}
             zIndex={1234}
         >
-            {/* Title */}
-            <DialogTitle
-                id={titleId}
-                title={t(`CookieSettings`)}
+            <TopBar
+                display="dialog"
                 onClose={onCancel}
+                titleData={{ titleId, titleKey: 'CookieSettings' }}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: '16px' }}>
                 {/* Description of cookies and why we use them */}
@@ -97,7 +92,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: {strictlyNecessaryUses.join(', ')}
+                        {t('CurrentUses')}: {strictlyNecessaryUses.map((use) => t(use)).join(', ')}
                     </Typography>
                 </Stack>
                 {/* Performance */}
@@ -116,7 +111,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: <b>None</b>
+                        {t('CurrentUses')}: <b>{t('None')}</b>
                     </Typography>
                 </Stack>
                 {/* Functional */}
@@ -135,7 +130,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: {functionalUses.join(', ')}
+                        {t('CurrentUses')}: {functionalUses.map((use) => t(use)).join(', ')}
                     </Typography>
                 </Stack>
                 {/* Targeting */}
@@ -154,7 +149,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: <b>None</b>
+                        {t('CurrentUses')}: <b>{t('None')}</b>
                     </Typography>
                 </Stack>
                 {/* Search/Cancel buttons */}

@@ -107,6 +107,7 @@ export interface SmartContractFormProps extends BaseObjectFormProps<SmartContrac
 }
 export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, 'display' | 'isLoading'> {
     canUpdate: boolean;
+    handleViewFull: () => void;
     isEditing: boolean;
     versions: string[];
 }

@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { StatsCompactPropsObject } from "components/text/types";
-import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { StatsDialogProps } from "../types";
 
@@ -26,10 +26,10 @@ export const StatsDialog = <T extends StatsCompactPropsObject>({
             titleId={titleId}
             zIndex={zIndex}
         >
-            <DialogTitle
-                id={titleId}
-                title="Share"
+            <TopBar
+                display="dialog"
                 onClose={onClose}
+                titleData={{ titleId, titleKey: 'Share' }}
             />
             <Box sx={{ padding: 2 }}>
                 {/* Bookmarks, votes, and other info */}

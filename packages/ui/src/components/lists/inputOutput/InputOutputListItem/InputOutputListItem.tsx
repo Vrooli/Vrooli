@@ -298,7 +298,9 @@ export const InputOutputListItem = ({
                     <Grid item xs={12}>
                         <StandardVersionSelectSwitch
                             disabled={!isEditing}
-                            selected={!canUpdateStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
+                            selected={!canUpdateStandardVersion ? {
+                                translations: standardVersion.translations ?? [{ __typename: 'StandardVersionTranslation' as const, language: getUserLanguages(session)[0], name: '' }]
+                            } as any : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />

@@ -22,9 +22,8 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
 import { exists } from "i18next";
-import { forwardRef, useCallback, useContext, useEffect } from "react";
+import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { resourceList } from "tools/api/partial/resourceList";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -72,6 +71,7 @@ export const validateSubroutineValues = async (values: NodeRoutineListItemShape,
 export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     canUpdate,
     dirty,
+    handleViewFull,
     isCreate,
     isEditing,
     isOpen,
@@ -105,13 +105,6 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>('routineVersion.inputs');
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>('routineVersion.outputs');
     const [resourceListField, , resourceListHelpers] = useField<ResourceList>('routineVersion.resourceList');
-
-    // On index change, update the index of the subroutine
-    useEffect(() => {
-        if (formik.values.index !== subroutine?.index) {
-            handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, formik.values.index - 1);
-        }
-    }, [data?.node?.id, formik.values.index, handleReorder, subroutine?.id, subroutine?.index]);
 
     /**
      * Navigate to the subroutine's build page
@@ -155,7 +148,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     </Tooltip>
                 )}
                 {/* Close button */}
-                <IconButton onClick={handleClose} sx={{
+                <IconButton onClick={onCancel} sx={{
                     color: palette.primary.contrastText,
                     borderBottom: `1px solid ${palette.primary.dark}`,
                     justifyContent: 'end',
@@ -166,7 +159,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
             </Box>
             <BaseForm
                 dirty={dirty}
-                isLoading={isLoading}
+                isLoading={false}
                 ref={ref}
                 style={{
                     display: 'block',
@@ -179,7 +172,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     <Grid item xs={12}>
                         <RelationshipList
                             isEditing={isEditing}
-                            isFormDirty={formik.dirty}
+                            isFormDirty={dirty}
                             objectType={'Routine'}
                             zIndex={zIndex}
                         />
@@ -190,12 +183,12 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleDeleteLanguage}
                             handleCurrent={setLanguage}
-                            translations={formik.values.translationsUpdate}
+                            languages={languages}
                             zIndex={zIndex}
                         /> : <SelectLanguageMenu
                             currentLanguage={language}
                             handleCurrent={setLanguage}
-                            translations={formik.values.translationsUpdate}
+                            languages={languages}
                             zIndex={zIndex}
                         />}
                     </Grid>
@@ -236,7 +229,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                             name="description"
                             props={{
                                 fullWidth: true,
-                                InputLabelProps: { shrink: true },
+                                language,
                                 multiline: true,
                                 maxRows: 3,
                             }}
@@ -246,10 +239,11 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     {/* Instructions */}
                     <Grid item xs={12} sm={6}>
                         <EditableTextCollapse
-                            component='TranslatedMarkdownInput'
+                            component='TranslatedMarkdown'
                             isEditing={isEditing}
                             name="instructions"
                             props={{
+                                language,
                                 placeholder: "Instructions",
                                 minRows: 3,
                             }}
@@ -266,32 +260,32 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         </Grid>
                     }
                     {/* Inputs */}
-                    {(canUpdate || (inputsList?.length > 0)) && <Grid item xs={12} sm={6}>
+                    {(canUpdate || (inputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
                             isEditing={canUpdate}
-                            handleUpdate={handleInputsUpdate as any}
+                            handleUpdate={inputsHelpers.setValue as any}
                             isInput={true}
                             language={language}
-                            list={inputsList}
+                            list={inputsField.value}
                             zIndex={zIndex}
                         />
                     </Grid>}
                     {/* Outputs */}
-                    {(canUpdate || (outputsList?.length > 0)) && <Grid item xs={12} sm={6}>
+                    {(canUpdate || (outputsField.value?.length > 0)) && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
                             isEditing={canUpdate}
-                            handleUpdate={handleOutputsUpdate as any}
+                            handleUpdate={outputsHelpers.setValue as any}
                             isInput={false}
                             language={language}
-                            list={outputsList}
+                            list={outputsField.value}
                             zIndex={zIndex}
                         />
                     </Grid>}
                     {
-                        (canUpdate || (exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0)) && <Grid item xs={12} mb={2}>
+                        (canUpdate || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
                             <ResourceListHorizontal
                                 title={'Resources'}
-                                list={resourceList}
+                                list={resourceListField.value}
                                 canUpdate={canUpdate}
                                 handleUpdate={handleResourcesUpdate}
                                 mutate={false}
@@ -309,7 +303,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                         }
                     </Grid>
                 </Grid>
-                {canSubmit && <GridSubmitButtons
+                {canUpdate && <GridSubmitButtons
                     display="dialog"
                     errors={{
                         ...props.errors,

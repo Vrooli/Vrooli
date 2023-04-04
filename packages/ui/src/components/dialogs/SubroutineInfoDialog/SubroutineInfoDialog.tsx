@@ -49,13 +49,19 @@ export const SubroutineInfoDialog = ({
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
-                    if (!subroutine) return;
-                    handleUpdate(values)
+                    if (!data || !subroutine) return;
+                    // Check if subroutine index has changed
+                    const originalIndex = subroutine.index;
+                    // Update the subroutine
+                    handleUpdate(values as any)
+                    // If the index has changed, reorder the subroutine
+                    originalIndex !== values.index && handleReorder(data.node.id, originalIndex, values.index);
                 }}
-                validate={async (values) => await validateSubroutineValues(values, true)}
+                validate={async (values) => await validateSubroutineValues(values, subroutine)}
             >
                 {(formik) => <SubroutineForm
                     canUpdate={canUpdate}
+                    handleViewFull={handleViewFull}
                     isCreate={true}
                     isEditing={isEditing}
                     isOpen={true}

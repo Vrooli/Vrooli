@@ -28,6 +28,6 @@ export interface SettingsTopBarProps extends Omit<TopBarProps, 'below'> { }
 export interface TopBarProps {
     display: ViewDisplayType
     onClose: () => void,
-    titleData?: OptionalTranslation & { hideOnDesktop?: boolean },
+    titleData?: OptionalTranslation & { hideOnDesktop?: boolean, titleId?: string },
     below?: JSX.Element | boolean
 }

@@ -5,11 +5,10 @@
 import { DialogContent, DialogContentText, IconButton, Stack, TextField } from '@mui/material';
 import { EditIcon } from '@shared/icons';
 import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
-import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useFormik } from 'formik';
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import * as yup from 'yup';
 import { EditableLabelProps } from '../types';
 
@@ -27,7 +26,6 @@ export const EditableLabel = ({
     validationSchema,
     zIndex,
 }: EditableLabelProps) => {
-    const { t } = useTranslation();
 
     /**
      * Random string for unique ID
@@ -80,10 +78,10 @@ export const EditableLabel = ({
                 titleId={titleId}
                 zIndex={zIndex + 1}
             >
-                <DialogTitle
-                    id={titleId}
+                <TopBar
+                    display="dialog"
                     onClose={handleCancel}
-                    title={t('EditLabel')}
+                    titleData={{ titleId, titleKey: 'EditLabel' }}
                 />
                 <DialogContent sx={{ paddingBottom: '80px' }}>
                     <DialogContentText id={descriptionAria}>

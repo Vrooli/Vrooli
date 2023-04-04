@@ -14,7 +14,7 @@ export const TopBar = ({
     titleData,
 }: TopBarProps) => {
     const { title, help } = useMemo(() => getTranslatedTitleAndHelp(titleData), [titleData]);
-    const titleId = useMemo(() => Math.random().toString(36).substring(2, 15), []);
+    const titleId = useMemo(() => titleData?.titleId ?? Math.random().toString(36).substring(2, 15), [titleData?.titleId]);
 
     if (display === 'dialog') return (
         <DialogTitle
