@@ -1,4 +1,5 @@
 import { IconButton } from '@mui/material';
+import { forwardRef } from 'react';
 import { ColorIconButtonProps } from '../types';
 
 const buttonSx = (background: string, disabled: boolean | undefined) => ({
@@ -15,7 +16,7 @@ const buttonSx = (background: string, disabled: boolean | undefined) => ({
 /**
  * IconButton with a custom color
  */
-export const ColorIconButton = ({
+export const ColorIconButton = forwardRef<HTMLButtonElement | HTMLAnchorElement, ColorIconButtonProps>(({
     background,
     children,
     disabled,
@@ -23,7 +24,7 @@ export const ColorIconButton = ({
     onClick,
     sx,
     ...props
-}: ColorIconButtonProps) => {
+}, ref) => {
     // If href is provided, use an anchor tag
     if (href) return (
         <IconButton
@@ -51,4 +52,4 @@ export const ColorIconButton = ({
             {children}
         </IconButton>
     )
-}
+})

@@ -1,9 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, GqlModelType, MaxObjects } from "@shared/consts";
-import { exists } from "@shared/utils";
+import { exists, uppercaseFirstLetter } from "@shared/utils";
 import { bookmarkValidation } from "@shared/validation";
 import { ApiModel, BookmarkListModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
-import { findFirstRel, onlyValidIds, selPad, shapeHelper, uppercaseFirstLetter } from "../builders";
+import { findFirstRel, onlyValidIds, selPad, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { Trigger } from "../events";
 import { getLogic } from "../getters";

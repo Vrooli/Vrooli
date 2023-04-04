@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from "@shared/consts";
+import { uppercaseFirstLetter } from "@shared/utils";
 import { resourceListValidation } from "@shared/validation";
-import { findFirstRel, shapeHelper, uppercaseFirstLetter } from "../builders";
+import { findFirstRel, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLogic } from "../getters";
 import { PrismaType } from "../types";

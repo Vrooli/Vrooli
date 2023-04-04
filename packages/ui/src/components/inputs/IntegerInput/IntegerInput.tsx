@@ -34,8 +34,7 @@ export const IntegerInput = ({
     ...props
 }: IntegerInputProps) => {
     const { palette } = useTheme();
-    console.log('INTEGER INPUT STARTTTT', name);
-    const [field, meta, helpers] = useField(name);
+    const [field, meta, helpers] = useField<number>(name);
 
     const holdRefs = useRef<HoldRefs>({
         which: null,
@@ -86,8 +85,9 @@ export const IntegerInput = ({
     return (
         <Tooltip title={tooltip}>
             <Box key={key} {...props} sx={{
-                ...props?.sx ?? {},
                 display: 'flex',
+                justifyContent: 'center',
+                ...props?.sx ?? {},
             }}>
                 <ColorIconButton
                     aria-label='minus'
@@ -135,7 +135,7 @@ export const IntegerInput = ({
                             max,
                             pattern: "[0-9]*",
                         }}
-                        value={field.value}
+                        value={field.value ?? 0}
                         onChange={(e) => updateValue(e.target.value)}
                         sx={{
                             color: palette.background.textPrimary,

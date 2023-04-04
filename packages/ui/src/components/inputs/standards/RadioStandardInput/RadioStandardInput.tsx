@@ -2,10 +2,12 @@
  * Input for entering (and viewing format of) Radio data that 
  * must match a certain schema.
  */
-import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { AddIcon, DeleteIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useCallback, useEffect } from 'react';
+import { useField } from 'formik';
+import { RadioProps } from 'forms/types';
+import { useCallback } from 'react';
 import { RadioStandardInputProps } from '../types';
 
 /**
@@ -35,6 +37,7 @@ const RadioOption = ({
     onChange: (index: number, label: string, defaultValue: boolean) => void,
     onDelete: () => void,
 }) => {
+    const { palette } = useTheme();
 
     const handleDelete = useCallback(() => {
         if (!isEditing) return;
@@ -56,7 +59,7 @@ const RadioOption = ({
             <IconButton
                 onClick={handleDelete}
             >
-                <DeleteIcon />
+                <DeleteIcon fill={palette.error.light} />
             </IconButton>
             {isEditing ? (
                 <TextField
@@ -79,6 +82,12 @@ const RadioOption = ({
                             onChange={handleCheckboxChange}
                         />
                     }
+                    // Hide label on small screens
+                    sx={{
+                        '.MuiFormControlLabel-label': {
+                            display: { xs: 'none', sm: 'block' },
+                        },
+                    }}
                 />
             </Tooltip>
         </Stack>
@@ -88,62 +97,51 @@ const RadioOption = ({
 export const RadioStandardInput = ({
     isEditing,
 }: RadioStandardInputProps) => {
-
-    // defaultValue?: RadioProps['defaultValue'];
-    // options: RadioProps['options'];
-    // row?: RadioProps['row'];
+    const [defaultValueField, , defaultValueHelpers] = useField<RadioProps['defaultValue']>('defaultValue');
+    const [optionsField, , optionsHelpers] = useField<RadioProps['options']>('options');
+    // const [rowField, , rowHelpers] = useField<RadioProps['row']>('row');
 
     const handleOptionAdd = useCallback(() => {
-        const newOption = emptyRadioOption(formik.values.options.length);
-        formik.setFieldValue('options', [...formik.values.options, newOption]);
+        const newOption = emptyRadioOption((optionsField.value ?? [emptyRadioOption(0)]).length);
+        optionsHelpers.setValue([...(optionsField.value ?? [emptyRadioOption(0)]), newOption]);
         // If default value was not set before, set it to the new option
-        if (!(typeof formik.values.defaultValue === 'string') || formik.values.defaultValue.length === 0) {
-            formik.setFieldValue('defaultValue', newOption.value);
+        if (!(typeof defaultValueField.value === 'string') || defaultValueField.value.length === 0) {
+            defaultValueHelpers.setValue(newOption.value);
         }
-    }, [formik]);
+    }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
     const handleOptionRemove = useCallback((index: number) => {
-        const filtered = formik.values.options.filter((_, i) => i !== index);
+        const filtered = (optionsField.value ?? [emptyRadioOption(0)]).filter((_, i) => i !== index);
         // If there will be no options left, add default
         if (filtered.length === 0) {
             filtered.push(emptyRadioOption(0));
         }
         // If defaultValue is not one of the values in filtered, set it to the first value
-        if (!filtered.some(o => o.value === formik.values.defaultValue)) {
-            formik.setFieldValue('defaultValue', filtered[0].value);
+        if (!filtered.some(o => o.value === defaultValueField.value)) {
+            defaultValueHelpers.setValue(filtered[0].value);
         }
-        formik.setFieldValue('options', filtered);
-    }, [formik]);
+        optionsHelpers.setValue(filtered);
+    }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
     const handleOptionChange = useCallback((index: number, label: string, dValue: boolean) => {
-        const options = [...formik.values.options];
+        const options = [...(optionsField.value ?? [emptyRadioOption(0)])];
         options[index] = {
             ...options[index],
             label,
         };
-        formik.setFieldValue('options', options);
+        optionsHelpers.setValue(options);
         if (dValue) {
-            formik.setFieldValue('defaultValue', options[index].value);
+            defaultValueHelpers.setValue(options[index].value);
         }
-    }, [formik]);
-
-    useEffect(() => {
-        // Call onPropsChange callback
-        // If default value is not set, try setting it to the first available option
-        const firstValue = formik.values.options.length > 0 ? formik.values.options[0].value : undefined;
-        onPropsChange({
-            ...formik.values,
-            defaultValue: formik.values.defaultValue ?? firstValue,
-        });
-    }, [formik, onPropsChange]);
+    }, [defaultValueHelpers, optionsField.value, optionsHelpers]);
 
     return (
         <Stack direction="column">
-            {formik.values.options.map((option, index) => (
+            {(optionsField.value ?? [emptyRadioOption(0)]).map((option, index) => (
                 <RadioOption
                     key={index}
                     index={index}
                     isEditing={isEditing}
                     label={option.label}
-                    value={formik.values.defaultValue === option.value}
+                    value={defaultValueField.value === option.value}
                     onChange={handleOptionChange}
                     onDelete={() => handleOptionRemove(index)}
                 />

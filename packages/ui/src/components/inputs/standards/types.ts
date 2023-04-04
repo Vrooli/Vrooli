@@ -5,7 +5,7 @@ import { FieldData, FieldDataBase } from "forms/types";
  * Handles all parts of creating a standard input, from props, to labels, to validation
  */
 export interface BaseStandardInputProps {
-    fieldName?: string;
+    fieldName: string;
     inputType: InputType;
     isEditing: boolean;
     label?: FieldDataBase['label'];

@@ -1,6 +1,7 @@
 import pkg, { ReportStatus } from '@prisma/client';
 import { GqlModelType, ReportSuggestedAction } from "@shared/consts";
-import { findFirstRel, uppercaseFirstLetter } from "../../builders";
+import { uppercaseFirstLetter } from '@shared/utils';
+import { findFirstRel } from "../../builders";
 import { logger, Trigger } from "../../events";
 import { getLogic } from "../../getters";
 import { PrismaType } from "../../types";

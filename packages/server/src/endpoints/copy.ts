@@ -1,10 +1,9 @@
+import { CopyInput, CopyResult, CopyType } from '@shared/consts';
+import { lowercaseFirstLetter } from '@shared/utils';
 import { gql } from 'apollo-server-express';
-import { CopyInput, CopyResult } from '@shared/consts';
-import { GQLEndpoint } from '../types';
-import { rateLimit } from '../middleware';
-import { CopyType } from '@shared/consts';
 import { copyHelper } from '../actions';
-import { lowercaseFirstLetter } from '../builders';
+import { rateLimit } from '../middleware';
+import { GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     enum CopyType {

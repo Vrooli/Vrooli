@@ -2,7 +2,7 @@
  * Input for entering (and viewing format of) Checkbox data that 
  * must match a certain schema.
  */
-import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { AddIcon, DeleteIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { useField } from 'formik';
@@ -33,6 +33,7 @@ const CheckboxOption = ({
     onChange: (index: number, label: string, defaultValue: boolean) => void,
     onDelete: () => void,
 }) => {
+    const { palette } = useTheme();
 
     const handleDelete = useCallback(() => {
         if (!isEditing) return;
@@ -54,7 +55,7 @@ const CheckboxOption = ({
             <IconButton
                 onClick={handleDelete}
             >
-                <DeleteIcon />
+                <DeleteIcon fill={palette.error.light} />
             </IconButton>
             {isEditing ? (
                 <TextField
@@ -77,6 +78,12 @@ const CheckboxOption = ({
                             onChange={handleCheckboxChange}
                         />
                     }
+                    // Hide label on small screens
+                    sx={{
+                        '.MuiFormControlLabel-label': {
+                            display: { xs: 'none', sm: 'block' },
+                        },
+                    }}
                 />
             </Tooltip>
         </Stack>
@@ -90,11 +97,11 @@ export const CheckboxStandardInput = ({
     const [optionsField, , optionsHelpers] = useField<CheckboxProps['options']>('options');
 
     const handleOptionAdd = useCallback(() => {
-        optionsHelpers.setValue([...optionsField.value, emptyCheckboxOption(optionsField.value.length)]);
+        optionsHelpers.setValue([...(optionsField.value ?? [emptyCheckboxOption(0)]), emptyCheckboxOption(optionsField.value.length)]);
         defaultValueHelpers.setValue([...(defaultValueField.value ?? [false]), false]);
     }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
     const handleOptionRemove = useCallback((index: number) => {
-        const filtered = optionsField.value.filter((_, i) => i !== index);
+        const filtered = (optionsField.value ?? [emptyCheckboxOption(0)]).filter((_, i) => i !== index);
         const defaults = defaultValueField.value?.filter((_, i) => i !== index) ?? [];
         // If there will be no options left, add default
         if (filtered.length === 0) {
@@ -105,7 +112,7 @@ export const CheckboxStandardInput = ({
         defaultValueHelpers.setValue(defaults);
     }, [defaultValueField.value, defaultValueHelpers, optionsField.value, optionsHelpers]);
     const handleOptionChange = useCallback((index: number, label: string, dValue: boolean) => {
-        const options = [...optionsField.value];
+        const options = [...(optionsField.value ?? [emptyCheckboxOption(0)])];
         options[index] = { label };
         optionsHelpers.setValue(options);
         const defaultValue = [...defaultValueField.value ?? [false]];
@@ -115,7 +122,7 @@ export const CheckboxStandardInput = ({
 
     return (
         <Stack direction="column">
-            {optionsField.value.map((option, index) => (
+            {(optionsField.value ?? [emptyCheckboxOption(0)]).map((option, index) => (
                 <CheckboxOption
                     key={index}
                     index={index}

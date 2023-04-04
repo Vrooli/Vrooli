@@ -250,7 +250,7 @@ export interface ResourceListHorizontalInputProps {
     zIndex: number;
 }
 
-export type SelectorProps<T extends string | number | { [x: string]: any }> = {
+export interface SelectorProps<T extends string | number | { [x: string]: any }> {
     addOption?: {
         label: string;
         onSelect: () => void;
@@ -271,6 +271,14 @@ export type SelectorProps<T extends string | number | { [x: string]: any }> = {
     required?: boolean;
     sx?: { [x: string]: any };
     tabIndex?: number;
+}
+
+export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, 'onChange'> {
+    error?: boolean;
+    helperText?: string | boolean | null | undefined;
+    onBlur?: (event: React.FocusEvent<any>) => void;
+    onChange: (value: T) => any;
+    value: T | null;
 }
 
 export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {

@@ -1,5 +1,6 @@
 import { GqlModelType, SessionUser } from "@shared/consts";
-import { lowercaseFirstLetter, shapeHelper, ShapeHelperOutput } from "../builders";
+import { lowercaseFirstLetter } from "@shared/utils";
+import { shapeHelper, ShapeHelperOutput } from "../builders";
 import { PrismaType } from "../types";
 
 type OwnerShapeHelperProps<

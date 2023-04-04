@@ -1,10 +1,10 @@
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { GeneratedInputComponent } from "components/inputs/generated";
 import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
-import { Selector } from "components/inputs/Selector/Selector";
+import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { useField } from "formik";
 import { FieldData } from "forms/types";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { InputTypeOption, InputTypeOptions } from "utils/consts";
 import { BaseStandardInput } from "../BaseStandardInput/BaseStandardInput";
 import { StandardInputProps } from "../types";
@@ -17,7 +17,9 @@ export const StandardInput = ({
     fieldName,
     zIndex,
 }: StandardInputProps) => {
-    const [field, meta, helpers] = useField<FieldData | null>(fieldName);
+    const { palette } = useTheme();
+
+    const [field, , helpers] = useField<FieldData | null>(fieldName);
 
     // Toggle preview/edit mode
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
@@ -29,31 +31,42 @@ export const StandardInput = ({
         setInputType(selected);
     }, []);
 
+    useEffect(() => {
+        if (field.value && field.value.type !== inputType.value) {
+            helpers.setValue({ ...field.value, type: inputType.value as any, props: {} });
+        }
+    }, [inputType, field.value, helpers]);
+
     const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
+    console.log('standardinput field value', field.value)
 
     return (
-        <>
+        <Box sx={{
+            background: palette.background.paper,
+            borderRadius: 2,
+            padding: 2,
+        }}>
             {!disabled && <PreviewSwitch
                 isPreviewOn={isPreviewOn}
                 onChange={onPreviewChange}
                 sx={{ marginBottom: 2 }}
             />}
             {
-                isPreviewOn ?
+                (isPreviewOn || disabled) ?
                     (field.value && <GeneratedInputComponent
                         disabled={true} // Always disabled, since this is a preview
-                        fieldName={fieldName}
-                        inputType={inputType.value}
+                        fieldData={field.value}
                         onUpload={() => { }}
                         zIndex={zIndex}
                     />) :
                     <Box>
-                        <Selector
+                        <SelectorBase<InputTypeOption>
                             fullWidth
                             options={InputTypeOptions}
-                            selected={inputType}
-                            handleChange={handleInputTypeSelect}
+                            value={inputType}
+                            onChange={handleInputTypeSelect}
                             getOptionLabel={(option: InputTypeOption) => option.label}
+                            name="inputType"
                             inputAriaLabel='input-type-selector'
                             label="Type"
                             sx={{ marginBottom: 2 }}
@@ -66,6 +79,6 @@ export const StandardInput = ({
                         />
                     </Box>
             }
-        </>
+        </Box>
     )
 }

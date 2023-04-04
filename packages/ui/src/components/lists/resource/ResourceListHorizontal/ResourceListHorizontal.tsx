@@ -137,7 +137,7 @@ export const ResourceListHorizontal = ({
             {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
             <Box
                 sx={{
-                    borderRadius: '16px',
+                    borderRadius: 2,
                     background: palette.background.default,
                     border: `1px ${palette.text.primary}`,
                     overflow: 'hidden',

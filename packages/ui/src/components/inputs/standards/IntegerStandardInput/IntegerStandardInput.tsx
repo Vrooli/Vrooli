@@ -13,8 +13,8 @@ export const IntegerStandardInput = ({
     const { t } = useTranslation();
 
     return (
-        <Grid container spacing={2}>
-            <Grid item xs={12}>
+        <Grid container spacing={2} alignItems="center" justifyContent="center">
+            <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
                     label={t('DefaultValue')}
@@ -22,7 +22,7 @@ export const IntegerStandardInput = ({
                     tooltip="The default value of the input"
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
                     label={t('Min')}
@@ -30,7 +30,7 @@ export const IntegerStandardInput = ({
                     tooltip="The minimum value of the integer"
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
                     label={t('Max')}
@@ -38,7 +38,7 @@ export const IntegerStandardInput = ({
                     tooltip="The maximum value of the integer"
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
                 <IntegerInput
                     disabled={!isEditing}
                     label={t('Step')}

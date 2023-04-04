@@ -16,7 +16,6 @@ export * from './injectTypenames';
 export * from './isRelationshipArray';
 export * from './isRelationshipObject';
 export * from './linkToVersion';
-export * from './lowercaseFirstLetter';
 export * from './modelToGql';
 export * from './noNull';
 export * from './onlyValidHandles';
@@ -34,5 +33,5 @@ export * from './shapeRelationshipData';
 export * from './timeFrameToPrisma';
 export * from './toPartialGqlInfo';
 export * from './toPartialPrismaSelect';
-export * from './uppercaseFirstLetter';
 export * from './visibilityBuilder';
+
