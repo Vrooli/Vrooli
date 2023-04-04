@@ -1,6 +1,6 @@
 // Defines common props
 import { FetchResult } from "@apollo/client";
-import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, SearchException, Session } from '@shared/consts';
+import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { RoutineStepType } from "utils/consts";
 
@@ -83,16 +83,6 @@ export type AwardDisplay = {
         level: number;
     },
     progress: number;
-}
-
-// Common query input groups
-export type IsCompleteInput = {
-    isComplete?: boolean;
-    isCompleteExceptions?: SearchException[];
-}
-export type IsInternalInput = {
-    isInternal?: boolean;
-    isInternalExceptions?: SearchException[];
 }
 
 /**

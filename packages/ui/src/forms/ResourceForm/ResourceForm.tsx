@@ -1,18 +1,15 @@
-import { Stack, TextField, useTheme } from "@mui/material";
+import { Stack } from "@mui/material";
 import { ResourceUsedFor } from "@shared/consts";
-import { SearchIcon } from "@shared/icons";
 import { CommonKey } from "@shared/translations";
 import { userTranslationValidation } from "@shared/validation";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector } from "components/inputs/Selector/Selector";
 import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
-import { Field } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ResourceFormProps } from "forms/types";
-import { forwardRef, useCallback, useContext, useState } from "react";
+import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -31,7 +28,6 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
     ...props
 }, ref) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // Handle translations
@@ -48,24 +44,8 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
         validationSchema: userTranslationValidation.update({}),
     });
 
-    // Search dialog to find routines, organizations, etc. to link to
-    const [searchOpen, setSearchOpen] = useState(false);
-    const openSearch = useCallback(() => { setSearchOpen(true) }, []);
-    const closeSearch = useCallback((selectedUrl?: string) => {
-        setSearchOpen(false);
-        if (selectedUrl) {
-            props.setFieldValue('link', selectedUrl);
-        }
-    }, [props]);
-
     return (
         <>
-            {/* Search dialog */}
-            <FindObjectDialog
-                isOpen={searchOpen}
-                handleClose={closeSearch}
-                zIndex={zIndex + 1}
-            />
             <BaseForm
                 dirty={dirty}
                 isLoading={isLoading}
@@ -86,29 +66,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                         zIndex={zIndex + 1}
                     />
                     {/* Enter link or search for object */}
-                    <Stack direction="row" spacing={0}>
-                        <Field
-                            fullWidth
-                            name="link"
-                            label={t('Link')}
-                            as={TextField}
-                            sx={{
-                                '& .MuiInputBase-root': {
-                                    borderRadius: '5px 0 0 5px',
-                                }
-                            }}
-                        />
-                        <ColorIconButton
-                            aria-label='find URL'
-                            onClick={openSearch}
-                            background={palette.secondary.main}
-                            sx={{
-                                borderRadius: '0 5px 5px 0',
-                                height: '56px',
-                            }}>
-                            <SearchIcon />
-                        </ColorIconButton>
-                    </Stack>
+                    <LinkInput zIndex={zIndex} />
                     {/* Select resource type */}
                     <Selector
                         name="usedFor"

@@ -2,10 +2,11 @@
  * Label that turns into a text input when clicked. 
  * Stores new text until committed.
  */
-import { Dialog, DialogContent, DialogContentText, Grid, IconButton, Stack, TextField } from '@mui/material';
+import { DialogContent, DialogContentText, IconButton, Stack, TextField } from '@mui/material';
 import { EditIcon } from '@shared/icons';
 import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
 import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { useFormik } from 'formik';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,9 +25,10 @@ export const EditableLabel = ({
     sxs,
     text,
     validationSchema,
+    zIndex,
 }: EditableLabelProps) => {
     const { t } = useTranslation();
-    
+
     /**
      * Random string for unique ID
      */
@@ -71,25 +73,19 @@ export const EditableLabel = ({
     return (
         <>
             {/* Dialog with TextField for editing label */}
-            <Dialog
-                open={active}
-                disableScrollLock={true}
+            <LargeDialog
+                id="edit-label-dialog"
                 onClose={handleCancel}
-                aria-labelledby={titleId}
-                aria-describedby={descriptionAria}
-                sx={{
-                    '& .MuiPaper-root': {
-                        minWidth: 'min(400px, 100%)',
-                        margin: '0 auto',
-                    },
-                }}
+                isOpen={active}
+                titleId={titleId}
+                zIndex={zIndex + 1}
             >
                 <DialogTitle
                     id={titleId}
                     onClose={handleCancel}
                     title={t('EditLabel')}
                 />
-                <DialogContent>
+                <DialogContent sx={{ paddingBottom: '80px' }}>
                     <DialogContentText id={descriptionAria}>
                         <TextField
                             autoFocus
@@ -105,18 +101,16 @@ export const EditableLabel = ({
                     </DialogContentText>
                 </DialogContent>
                 {/* Save and cancel buttons */}
-                <Grid container spacing={1} padding={1}>
-                    <GridSubmitButtons
-                        display="dialog"
-                        errors={formik.errors}
-                        isCreate={false}
-                        loading={formik.isSubmitting}
-                        onCancel={handleCancel}
-                        onSetSubmitting={formik.setSubmitting}
-                        onSubmit={formik.handleSubmit}
-                    />
-                </Grid>
-            </Dialog>
+                <GridSubmitButtons
+                    display="dialog"
+                    errors={formik.errors}
+                    isCreate={false}
+                    loading={formik.isSubmitting}
+                    onCancel={handleCancel}
+                    onSetSubmitting={formik.setSubmitting}
+                    onSubmit={formik.handleSubmit}
+                />
+            </LargeDialog>
             {/* Non-popup elements */}
             <Stack direction="row" spacing={0} alignItems="center" sx={{ ...(sxs?.stack ?? {}) }}>
                 {/* Label */}

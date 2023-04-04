@@ -36,6 +36,7 @@ export interface EditableLabelProps {
     sxs?: { stack?: { [x: string]: any } };
     text: string;
     validationSchema?: StringSchema<string | undefined, any, string | undefined>;
+    zIndex: number;
 }
 
 export interface JsonFormatInputProps {
@@ -181,6 +182,12 @@ export interface LanguageInputProps {
      * All languages that currently have translations for the object being edited.
      */
     languages: string[];
+    zIndex: number;
+}
+
+export interface LinkInputProps {
+    label?: string;
+    name?: string;
     zIndex: number;
 }
 

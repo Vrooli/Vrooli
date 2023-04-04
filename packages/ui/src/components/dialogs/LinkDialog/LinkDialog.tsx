@@ -3,9 +3,7 @@
  */
 import {
     Autocomplete,
-    Box,
-    Dialog,
-    DialogContent,
+    Box, DialogContent,
     Grid,
     Stack,
     TextField,
@@ -21,6 +19,7 @@ import { getTranslation } from 'utils/display/translationTools';
 import { PubSub } from 'utils/pubsub';
 import { NodeShape } from 'utils/shape/models/node';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { LinkDialogProps } from '../types';
 
 const helpText =
@@ -192,15 +191,12 @@ export const LinkDialog = ({
     }, [fromNode, handleClose, nodeFrom, nodeTo, toNode]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="link-dialog"
+            isOpen={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible' },
-                '& .MuiDialog-paper': { overflow: 'visible' }
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -213,7 +209,7 @@ export const LinkDialog = ({
                 {conditions}
                 {deleteOption}
                 {/* Action buttons */}
-                <Grid container spacing={2} mt={2}>
+                <Grid container spacing={2} mt={2} mb={8}>
                     <GridSubmitButtons
                         display="dialog"
                         errors={errors}
@@ -223,6 +219,6 @@ export const LinkDialog = ({
                     />
                 </Grid>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

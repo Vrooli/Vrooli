@@ -3,10 +3,9 @@ import { OrganizationIcon, UserIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 import { exists } from '@shared/utils';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
 import { ListMenu } from 'components/dialogs/ListMenu/ListMenu';
-import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
-import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
-import { ListMenuItemData } from 'components/dialogs/types';
+import { ListMenuItemData, SelectOrCreateObjectType } from 'components/dialogs/types';
 import { userFromSession } from 'components/lists/RelationshipList/RelationshipList';
 import { RelationshipItemOrganization, RelationshipItemUser } from 'components/lists/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
@@ -89,8 +88,8 @@ export function OwnerButton({
         closeOwnerDialog();
     }, [closeOwnerDialog, openOrganizationDialog, openAnotherUserDialog, session, versionHelpers, rootHelpers]);
 
-    // SelectOrCreateDialog
-    const [selectOrCreateType, selectOrCreateHandleAdd, selectOrCreateHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    // FindObjectDialog
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
         if (isOrganizationDialogOpen) return ['Organization', handleOwnerSelect, closeOrganizationDialog];
         else if (isAnotherUserDialogOpen) return ['User', handleOwnerSelect, closeAnotherUserDialog];
         return [null, () => { }, () => { }];
@@ -138,11 +137,12 @@ export function OwnerButton({
                 zIndex={zIndex + 1}
             />
             {/* Popup for selecting organization or user */}
-            {selectOrCreateType && <SelectOrCreateDialog
-                isOpen={Boolean(selectOrCreateType)}
-                handleAdd={selectOrCreateHandleAdd}
-                handleClose={selectOrCreateHandleClose}
-                objectType={selectOrCreateType}
+            {findType && <FindObjectDialog
+                find="Object"
+                isOpen={Boolean(findType)}
+                handleCancel={findHandleClose}
+                handleComplete={findHandleAdd}
+                limitTo={[findType]}
                 zIndex={zIndex + 1}
             />}
             <Stack

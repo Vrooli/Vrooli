@@ -234,6 +234,9 @@ const trySubtitle = (obj: Record<string, any>, langs: readonly string[]) => {
  * @returns The title and subtitle, or blank strings if none found
  */
 const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
+    console.log('tryVersioned 1', JSON.stringify(obj));
+    console.log('tryVersioned 2', obj.versions?.find(v => v.isLatest));
+    console.log('tryVersioned 3', [...(obj.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex));
     // Initialize the title and subtitle
     let title: string | null = null;
     let subtitle: string | null = null;
@@ -242,7 +245,7 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
         obj, // The object itself
         obj.root, // The root object (only found if obj is a version)
         obj.versions?.find(v => v.isLatest), // The latest version (only found if obj is a root object)
-        ...(obj.versions?.sort((a, b) => b.versionIndex - a.versionIndex) ?? []), // All versions, sorted by versionIndex (i.e. newest first)
+        ...([...(obj.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex)), // All versions, sorted by versionIndex (i.e. newest first)
     ]
     // Loop through the objects
     for (const curr of objectsToCheck) {

@@ -16,7 +16,7 @@ export const SideActionButtons = ({
     const bottomNavHeight = display === 'page' ? '56px' : '0px'
     return (
         <Stack direction="row" spacing={2} sx={{
-            position: 'fixed',
+            position: 'absolute',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

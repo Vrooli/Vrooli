@@ -32,7 +32,7 @@ export interface TIDCardProps {
     buttonText: string;
     description: string;
     key: string | number;
-    Icon: SvgComponent;
+    Icon: SvgComponent | null | undefined;
     onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
     title: string;
 }

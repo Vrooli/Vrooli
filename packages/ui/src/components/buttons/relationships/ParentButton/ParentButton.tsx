@@ -3,8 +3,8 @@ import { ProjectIcon, RoutineIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 import { exists } from '@shared/utils';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
-import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
+import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
+import { SelectOrCreateObjectType } from 'components/dialogs/types';
 import { RelationshipItemProjectVersion, RelationshipItemRoutineVersion } from 'components/lists/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { useField } from 'formik';
@@ -75,8 +75,8 @@ export function ParentButton({
         exists(rootHelpers) && rootHelpers.setValue(parent);
     }, [rootField?.value?.id, rootHelpers, versionField?.value?.id, versionHelpers]);
 
-    // SelectOrCreateDialog
-    const [selectOrCreateType, selectOrCreateHandleAdd, selectOrCreateHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+    // FindObjectDialog
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
         if (isParentDialogOpen) return [objectType as SelectOrCreateObjectType, handleParentSelect, closeParentDialog];
         return [null, () => { }, () => { }];
     }, [isParentDialogOpen, objectType, handleParentSelect, closeParentDialog]);
@@ -93,7 +93,7 @@ export function ParentButton({
             const parentName = firstString(getTranslation(parent as RelationshipItemProjectVersion, languages, true).name, 'project');
             return {
                 Icon,
-                tooltip: `Parent: ${parentName}`
+                tooltip: `${t('Parent')}: ${parentName}`
             };
         }
         // If parent is routine, use routine icon
@@ -101,9 +101,9 @@ export function ParentButton({
         const parentName = firstString(getTranslation(parent as RelationshipItemRoutineVersion, languages, true).name, 'routine');
         return {
             Icon,
-            tooltip: `Parent: ${parentName}`
+            tooltip: `${t('Parent')}: ${parentName}`
         };
-    }, [isEditing, languages, rootField?.value, versionField?.value]);
+    }, [isEditing, languages, rootField?.value, t, versionField?.value]);
 
     // If not available, return null
     if (!isAvailable || (!isEditing && !Icon)) return null;
@@ -111,11 +111,12 @@ export function ParentButton({
     return (
         <>
             {/* Popup for selecting organization, user, etc. */}
-            {selectOrCreateType && <SelectOrCreateDialog
-                isOpen={Boolean(selectOrCreateType)}
-                handleAdd={selectOrCreateHandleAdd}
-                handleClose={selectOrCreateHandleClose}
-                objectType={selectOrCreateType}
+            {findType && <FindObjectDialog
+                find="Object"
+                isOpen={Boolean(findType)}
+                handleCancel={findHandleClose}
+                handleComplete={findHandleAdd}
+                limitTo={[findType]}
                 zIndex={zIndex + 1}
             />}
             <Stack
@@ -123,7 +124,7 @@ export function ParentButton({
                 alignItems="center"
                 justifyContent="center"
             >
-                <TextShrink id="parent" sx={{ ...commonLabelProps() }}>Parent</TextShrink>
+                <TextShrink id="parent" sx={{ ...commonLabelProps() }}>{t('Parent')}</TextShrink>
                 <Tooltip title={tooltip}>
                     <ColorIconButton
                         background={palette.primary.light}

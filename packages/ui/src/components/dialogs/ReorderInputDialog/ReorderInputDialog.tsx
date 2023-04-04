@@ -2,9 +2,7 @@
  * Used to create/update a link between two routine nodes
  */
 import {
-    Box,
-    Dialog,
-    DialogContent,
+    Box, DialogContent,
     Grid,
     Stack,
     Typography,
@@ -16,6 +14,7 @@ import { useFormik } from 'formik';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { ReorderInputDialogProps } from '../types';
 
 const titleId = 'reorder-input-output-dialog-title';
@@ -50,15 +49,12 @@ export const ReorderInputDialog = ({
     }, [formik.values.toIndex, handleClose, startIndex]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="reorder-input-dialog"
             onClose={handleCancel}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible' },
-                '& .MuiDialog-paper': { overflow: 'visible' }
-            }}
+            isOpen={isOpen}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -102,6 +98,6 @@ export const ReorderInputDialog = ({
                     />
                 </Grid>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

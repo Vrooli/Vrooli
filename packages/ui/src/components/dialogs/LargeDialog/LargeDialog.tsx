@@ -9,6 +9,7 @@ export const LargeDialog = ({
     onClose,
     titleId,
     zIndex,
+    sxs,
 }: LargeDialogProps) => {
     const { palette } = useTheme();
 
@@ -30,13 +31,14 @@ export const LargeDialog = ({
                         maxWidth: { xs: '100vw', sm: 'calc(100vw - 64px)' },
                         bottom: { xs: 0, sm: 'auto' },
                         top: { xs: 'auto', sm: undefined },
-                        position: { xs: 'absolute', sm: 'inherit' },
+                        position: { xs: 'absolute', sm: 'relative' },
                         display: { xs: 'block', sm: 'inline-block' },
                         background: palette.background.default,
                         color: palette.background.textPrimary,
                         '& > .MuiDialogContent-root': {
                             position: 'relative',
                         },
+                        ...(sxs?.paper ?? {})
                     },
                 }
             }}

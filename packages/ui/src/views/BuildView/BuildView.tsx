@@ -8,9 +8,9 @@ import { BuildEditButtons } from 'components/buttons/BuildEditButtons/BuildEditB
 import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
 import { StatusButton } from 'components/buttons/StatusButton/StatusButton';
 import { StatusMessageArray } from 'components/buttons/types';
+import { FindSubroutineDialog } from 'components/dialogs/FindSubroutineDialog/FindSubroutineDialog';
 import { LinkDialog } from 'components/dialogs/LinkDialog/LinkDialog';
 import { SelectLanguageMenu } from 'components/dialogs/SelectLanguageMenu/SelectLanguageMenu';
-import { SubroutineSelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
 import { SubroutineInfoDialog } from 'components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog';
 import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from 'components/graphs/NodeGraph';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
@@ -996,9 +996,9 @@ export const BuildView = ({
             width: '100%',
         }}>
             {/* Popup for adding new subroutines */}
-            {addSubroutineNode && <SubroutineSelectOrCreateDialog
-                handleAdd={handleSubroutineAdd}
-                handleClose={closeAddSubroutineDialog}
+            {addSubroutineNode && <FindSubroutineDialog
+                handleCancel={closeAddSubroutineDialog}
+                handleComplete={handleSubroutineAdd}
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
                 routineVersionId={routineVersion?.id}

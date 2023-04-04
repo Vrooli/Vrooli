@@ -1,5 +1,5 @@
 import { DialogProps, PopoverProps } from '@mui/material';
-import { Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule } from '@shared/consts';
+import { Api, ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, Note, NoteVersion, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from 'components/text/types';
@@ -62,9 +62,47 @@ export interface DialogTitleProps {
     title?: string;
 }
 
-export interface FindObjectDialogProps {
-    handleClose: (objectLink?: string) => void;
+export type SelectOrCreateObjectType = 'Api' | 'ApiVersion' | 'Note' | 'NoteVersion' | 'Organization' | 'Project' | 'ProjectVersion' | 'Routine' | 'RoutineVersion' | 'SmartContract' | 'SmartContractVersion' | 'Standard' | 'StandardVersion' | 'User';
+export type SelectOrCreateObject = Api |
+    ApiVersion |
+    Note |
+    NoteVersion |
+    Organization |
+    Project |
+    ProjectVersion |
+    Routine |
+    RoutineVersion |
+    SmartContract |
+    SmartContractVersion |
+    Standard |
+    StandardVersion |
+    User;
+export type FindObjectDialogType = 'Url' | 'Object';
+export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
+    /**
+     * Determines the type of data returned when an object is selected
+     */
+    find: Find;
+    handleCancel: () => any;
+    handleComplete: (data: Find extends 'Url' ? string : ObjectType) => any;
     isOpen: boolean;
+    limitTo?: SelectOrCreateObjectType[];
+    /**
+     * If not set, uses "Popular" endpoint to get data
+     */
+    searchData?: {
+        searchType: SearchType | `${SearchType}`;
+        where: { [key: string]: any };
+    }
+    zIndex: number;
+}
+
+export interface FindSubroutineDialogProps {
+    handleCancel: () => any;
+    handleComplete: (nodeId: string, subroutine: RoutineVersion) => any;
+    isOpen: boolean;
+    nodeId: string;
+    routineVersionId: string | null | undefined;
     zIndex: number;
 }
 
@@ -312,6 +350,9 @@ export interface LargeDialogProps {
     onClose: () => any;
     titleId?: string;
     zIndex: number;
+    sxs?: {
+        paper?: { [x: string]: any };
+    }
 };
 
 export interface WalletInstallDialogProps {

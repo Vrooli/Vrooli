@@ -1,7 +1,7 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { EditIcon as CustomIcon, LinkIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { SelectOrCreateDialog } from 'components/dialogs/selectOrCreates';
+import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { noSelect } from 'styles';
@@ -48,11 +48,12 @@ export function StandardVersionSelectSwitch({
     return (
         <>
             {/* Popup for adding/connecting a new standardVersion */}
-            <SelectOrCreateDialog
+            <FindObjectDialog
+                find="Object"
                 isOpen={isCreateDialogOpen}
-                handleAdd={onChange as any}
-                handleClose={closeCreateDialog}
-                objectType="StandardVersion"
+                handleComplete={onChange as any}
+                handleCancel={closeCreateDialog}
+                limitTo={["StandardVersion"]}
                 zIndex={zIndex + 1}
             />
             {/* Main component */}
