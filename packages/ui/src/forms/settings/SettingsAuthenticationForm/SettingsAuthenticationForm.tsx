@@ -20,7 +20,7 @@ export const SettingsAuthenticationForm = ({
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 700px)' },
+                width: { xs: '100%', md: 'min(100%, 500px)' },
                 margin: 'auto',
                 display: 'block',
             }}

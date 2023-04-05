@@ -1,34 +1,46 @@
 import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { BuildIcon, SvgComponent, VisibleIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { useCallback, useMemo } from 'react';
 import { noSelect } from 'styles';
-import { PreviewSwitchProps } from '../types';
+import { ToggleSwitchProps } from '../types';
 
 const grey = {
     400: '#BFC7CF',
     800: '#2F3A45',
 };
 
-export function PreviewSwitch({
+export function ToggleSwitch({
+    checked,
     disabled = false,
-    isPreviewOn,
+    name,
     onChange,
+    OffIcon,
+    OnIcon,
+    label,
+    tooltip,
     sx,
-}: PreviewSwitchProps) {
+}: ToggleSwitchProps) {
     const { palette } = useTheme();
-    const Icon = useMemo<SvgComponent>(() => isPreviewOn ? VisibleIcon : BuildIcon, [isPreviewOn]);
 
-    const handleClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleChange = useCallback(() => {
         if (disabled) return;
-        onChange(!isPreviewOn);
-    }, [disabled, isPreviewOn, onChange]);
+        const customEvent = {
+            target: {
+                name: name,
+                value: !checked,
+                type: "checkbox",
+            },
+        };
+        onChange(customEvent as any);
+    }, [disabled, checked, onChange, name]);
+
+    const Icon = useMemo(() => checked ? OnIcon : OffIcon, [checked, OffIcon, OnIcon]);
 
     return (
-        <Tooltip title={isPreviewOn ? 'Switch to Schema' : 'Switch to Preview'}>
+        <Tooltip title={tooltip}>
             <Stack direction="row" spacing={1} justifyContent="center" sx={{ ...(sx ?? {}) }}>
-                <Box onClick={handleClick}>
-                    <Typography variant="h6" sx={{ ...noSelect }}>{isPreviewOn ? 'Preview' : 'Schema'}</Typography>
+                <Box onClick={handleChange}>
+                    <Typography variant="h6" sx={{ ...noSelect }}>{label}</Typography>
                 </Box>
                 <Box component="span" sx={{
                     display: 'inline-block',
@@ -36,38 +48,43 @@ export function PreviewSwitch({
                     width: '64px',
                     height: '36px',
                     padding: '8px',
+                    filter: disabled ? 'grayscale(0.8)' : 'none',
                 }}>
                     {/* Track */}
                     <Box component="span" sx={{
-                        backgroundColor: palette.mode === 'dark' ? grey[800] : grey[400],
+                        backgroundColor: checked ? palette.primary.main : (palette.mode === 'dark' ? grey[800] : grey[400]),
+                        transition: 'background-color 150ms ease-in-out',
                         borderRadius: '16px',
                         width: '50px',
                         height: '30px',
                         display: 'block',
-                        position: 'absolute', // Added position absolute
-                        top: '50%', // Added top 50%
-                        transform: 'translateY(-50%)', // Added translateY
+                        position: 'absolute',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
                     }}>
                         {/* Thumb */}
-                        <ColorIconButton background={palette.secondary.main} sx={{
+                        <ColorIconButton background={(OnIcon || OffIcon) ? palette.secondary.main : 'white'} sx={{
                             display: 'inline-flex',
                             width: '30px',
                             height: '30px',
                             padding: 0,
                             position: 'absolute',
-                            top: '50%', // Updated top property
-                            transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-                            transform: `translateX(${isPreviewOn ? '20' : '0'}px) translateY(-50%)`, // Added translateY
+                            top: '50%',
+                            boxShadow: 2,
+                            transition: 'transform 150ms ease-in-out',
+                            transform: `translateX(${checked ? '20' : '0'}px) translateY(-50%)`,
                         }}>
-                            <Icon fill="white" width="80%" height="80%" />
+                            {Icon && <Icon fill="white" width="80%" height="80%" />}
                         </ColorIconButton>
                     </Box>
                     {/* Input */}
                     <input
                         type="checkbox"
-                        checked={isPreviewOn}
-                        aria-label="build-preview-toggle"
-                        onClick={handleClick}
+                        checked={checked}
+                        disabled={disabled}
+                        aria-label="toggle-switch"
+                        name={name}
+                        onChange={onChange}
                         style={{
                             position: 'absolute',
                             width: '100%',

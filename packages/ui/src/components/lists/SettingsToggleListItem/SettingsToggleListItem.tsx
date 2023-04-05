@@ -1,4 +1,5 @@
-import { ListItem, Stack, Switch, Typography, useTheme } from "@mui/material";
+import { ListItem, Stack, Typography, useTheme } from "@mui/material";
+import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
 import { useField } from "formik";
 import { SettingsToggleListItemProps } from "../types";
 
@@ -9,7 +10,7 @@ export const SettingsToggleListItem = ({
     title,
 }: SettingsToggleListItemProps) => {
     const { palette } = useTheme();
-    const [field, , helpers] = useField(name);
+    const [field] = useField(name);
 
     return (
         <ListItem
@@ -23,7 +24,10 @@ export const SettingsToggleListItem = ({
                 borderBottom: `1px solid ${palette.divider}`,
             }}
         >
-            <Stack direction="column" spacing={0} sx={{ width: '100%' }}>
+            <Stack direction="column" spacing={0} sx={{
+                width: '100%',
+                color: disabled ? palette.text.disabled : palette.text.primary,
+            }}>
                 <Typography variant="h6" component="div">
                     {title}
                 </Typography>
@@ -31,11 +35,11 @@ export const SettingsToggleListItem = ({
                     {description}
                 </Typography>
             </Stack>
-            <Switch
+            <ToggleSwitch
                 checked={field.value}
-                color="secondary"
                 disabled={disabled}
-                onChange={(e) => helpers.setValue(e.target.checked)}
+                name={name}
+                onChange={field.onChange}
             />
         </ListItem>
     )

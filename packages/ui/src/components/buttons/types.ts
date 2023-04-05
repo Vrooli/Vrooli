@@ -34,7 +34,7 @@ export type CameraButtonProps = {
 
 export interface ColorIconButtonProps extends IconButtonProps {
     background: string;
-    children: JSX.Element | null;
+    children: JSX.Element | null | undefined;
     disabled?: boolean;
     href?: string;
     onClick?: (event: React.MouseEvent<any>) => void;

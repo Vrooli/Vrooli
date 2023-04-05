@@ -12,12 +12,12 @@ import { LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { DeleteIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
+import { useCustomMutation } from 'api';
 import { userDeleteOne } from 'api/generated/endpoints/user_deleteOne';
-import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { PasswordTextField } from 'components/inputs/PasswordTextField/PasswordTextField';
-import { useFormik } from 'formik';
-import { useCallback, useContext, useMemo } from 'react';
+import { Formik } from 'formik';
+import { useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from 'utils/authentication/session';
 import { PubSub } from 'utils/pubsub';
@@ -43,88 +43,84 @@ export const DeleteAccountDialog = ({
     const [, setLocation] = useLocation();
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
-
     const [deleteAccount] = useCustomMutation<Success, UserDeleteInput>(userDeleteOne);
-    const formik = useFormik({
-        initialValues: {
-            password: '',
-            deletePublicData: false,
-        },
-        validationSchema,
-        onSubmit: (values) => {
-            if (!id) {
-                PubSub.get().publishSnack({ messageKey: 'NoUserIdFound', severity: 'Error' });
-                return;
-            }
-            mutationWrapper<Success, UserDeleteInput>({
-                mutation: deleteAccount,
-                input: values,
-                successCondition: (data) => data.success,
-                successMessage: () => ({ key: 'AccountDeleteSuccess' }),
-                onSuccess: () => {
-                    setLocation(LINKS.Home);
-                    close(true);
-                },
-                errorMessage: () => ({ key: 'AccountDeleteFail' }),
-                onError: () => {
-                    close(false);
-                }
-            })
-        },
-    });
-
-    const close = useCallback((wasDeleted?: boolean) => {
-        formik.resetForm();
-        handleClose(wasDeleted ?? false);
-    }, [formik, handleClose]);
 
     return (
         <LargeDialog
             id="delete-account-dialog"
             isOpen={isOpen}
-            onClose={() => { close(); }}
+            onClose={() => { handleClose(false) }}
             titleId={titleId}
             zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 title={`Delete "${name}"`}
-                onClose={() => { close() }}
+                onClose={() => { handleClose(false) }}
             />
-            <DialogContent>
-                <Stack direction="column" spacing={2} mt={2}>
-                    <Typography variant="h6">Are you absolutely certain you want to delete the account of "{name}"?</Typography>
-                    <Typography variant="body1" sx={{ color: palette.background.textSecondary, paddingBottom: 3 }}>This action cannot be undone.</Typography>
-                    <Typography variant="h6">Enter your password to confirm.</Typography>
-                    <PasswordTextField
-                        fullWidth
-                        name="password"
-                        autoComplete="current-password"
-                    />
-                    {/* Is internal checkbox */}
-                    <Tooltip placement={'top'} title="If checked, all public data owned by your account will be deleted. Please consider transferring and/or exporting anything important if you decide to choose this.">
-                        <FormControlLabel
-                            label='Delete public data'
-                            control={
-                                <Checkbox
-                                    id='delete-public-data'
-                                    size="small"
-                                    name='deletePublicData'
-                                    color='secondary'
-                                    checked={formik.values.deletePublicData}
-                                    onChange={formik.handleChange}
-                                />
-                            }
+            <Formik
+                enableReinitialize={true}
+                initialValues={{
+                    password: '',
+                    deletePublicData: false,
+                }}
+                onSubmit={(values, helpers) => {
+                    if (!id) {
+                        PubSub.get().publishSnack({ messageKey: 'NoUserIdFound', severity: 'Error' });
+                        return;
+                    }
+                    mutationWrapper<Success, UserDeleteInput>({
+                        mutation: deleteAccount,
+                        input: values,
+                        successCondition: (data) => data.success,
+                        successMessage: () => ({ key: 'AccountDeleteSuccess' }),
+                        onSuccess: () => {
+                            setLocation(LINKS.Home);
+                            handleClose(true);
+                        },
+                        errorMessage: () => ({ key: 'AccountDeleteFail' }),
+                        onError: () => {
+                            handleClose(false);
+                        }
+                    })
+                }}
+                validationSchema={validationSchema}
+            >
+                {(formik) => <DialogContent>
+                    <Stack direction="column" spacing={2} mt={2}>
+                        <Typography variant="h6">Are you absolutely certain you want to delete the account of "{name}"?</Typography>
+                        <Typography variant="h6" sx={{ color: palette.error.main, paddingBottom: 3 }}><b>This action cannot be undone.</b></Typography>
+                        <Typography variant="h6">Enter your password to confirm.</Typography>
+                        <PasswordTextField
+                            fullWidth
+                            name="password"
+                            autoComplete="current-password"
                         />
-                    </Tooltip>
-                    <Button
-                        disabled={formik.isSubmitting || !formik.isValid}
-                        startIcon={<DeleteIcon />}
-                        color="secondary"
-                        onClick={() => { formik.submitForm() }}
-                    >{t('Delete')}</Button>
-                </Stack>
-            </DialogContent>
+                        {/* Is internal checkbox */}
+                        <Tooltip placement={'top'} title="If checked, all public data owned by your account will be deleted. Please consider transferring and/or exporting anything important if you decide to choose this.">
+                            <FormControlLabel
+                                label='Delete public data'
+                                control={
+                                    <Checkbox
+                                        id='delete-public-data'
+                                        size="small"
+                                        name='deletePublicData'
+                                        color='secondary'
+                                        checked={formik.values.deletePublicData}
+                                        onChange={formik.handleChange}
+                                    />
+                                }
+                            />
+                        </Tooltip>
+                        <Button
+                            disabled={formik.isSubmitting || !formik.isValid}
+                            startIcon={<DeleteIcon />}
+                            color="secondary"
+                            onClick={() => { formik.submitForm() }}
+                        >{t('Delete')}</Button>
+                    </Stack>
+                </DialogContent>}
+            </Formik>
         </LargeDialog>
     )
 }

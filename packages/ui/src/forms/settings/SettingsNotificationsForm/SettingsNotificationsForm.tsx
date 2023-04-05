@@ -1,3 +1,4 @@
+import { Stack } from "@mui/material";
 import { EmailIcon, PhoneIcon } from "@shared/icons";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -29,59 +30,61 @@ export const SettingsNotificationForm = ({
                 display: 'block',
             }}
         >
-            {/* Overall notifications toggle */}
-            <ListContainer>
-                <SettingsToggleListItem
-                    title={t('Notification', { count: 2 })}
-                    description={t('PushNotificationToggleDescription')}
-                    name="enabled"
-                />
-            </ListContainer>
-            {/* Daily limit input */}
-            <IntegerInput
-                disabled={!values.enabled}
-                label={t('DailyLimit')}
-                min={0}
-                name="dailyLimit"
-            // tooltip={t('DailyLimitNotificationDescription')}
-            />
-            {/* Push notifications toggle */}
-            <ListContainer>
-                <SettingsToggleListItem
-                    title={t('PushNotification', { count: 2 })}
-                    description={t('PushNotificationToggleDescription')}
+            <Stack direction="column" spacing={4}>
+                {/* Overall notifications toggle */}
+                <ListContainer>
+                    <SettingsToggleListItem
+                        title={t('Notification', { count: 2 })}
+                        description={t('PushNotificationToggleDescription')}
+                        name="enabled"
+                    />
+                </ListContainer>
+                {/* Daily limit input */}
+                <IntegerInput
                     disabled={!values.enabled}
-                    name="toPush"
+                    label={t('DailyLimit')}
+                    min={0}
+                    name="dailyLimit"
+                // tooltip={t('DailyLimitNotificationDescription')}
                 />
-            </ListContainer>
-            {/* Push Device list */}
-            <Subheader
-                Icon={PhoneIcon}
-                title={t('Device', { count: 2 })} />
-            <PushList
-                handleUpdate={() => { }}
-                list={[]}
-            />
-            {/* Email notifications toggle */}
-            <ListContainer>
-                <SettingsToggleListItem
-                    title={t('EmailNotification', { count: 2 })}
-                    description={t('EmailNotificationToggleDescription')}
-                    disabled={!values.enabled}
-                    name="toEmails"
+                {/* Push notifications toggle */}
+                <ListContainer>
+                    <SettingsToggleListItem
+                        title={t('PushNotification', { count: 2 })}
+                        description={t('PushNotificationToggleDescription')}
+                        disabled={!values.enabled}
+                        name="toPush"
+                    />
+                </ListContainer>
+                {/* Push Device list */}
+                <Subheader
+                    Icon={PhoneIcon}
+                    title={t('Device', { count: 2 })} />
+                <PushList
+                    handleUpdate={() => { }}
+                    list={[]}
                 />
-            </ListContainer>
-            {/* Email list */}
-            <Subheader
-                Icon={EmailIcon}
-                title={t('Email', { count: 2 })} />
-            {/* <EmailList
+                {/* Email notifications toggle */}
+                <ListContainer>
+                    <SettingsToggleListItem
+                        title={t('EmailNotification', { count: 2 })}
+                        description={t('EmailNotificationToggleDescription')}
+                        disabled={!values.enabled}
+                        name="toEmails"
+                    />
+                </ListContainer>
+                {/* Email list */}
+                <Subheader
+                    Icon={EmailIcon}
+                    title={t('Email', { count: 2 })} />
+                {/* <EmailList
                 handleUpdate={updateEmails}
                 list={profile?.emails ?? []}
                 numVerifiedWallets={numVerifiedWallets}
             /> */}
-            {/* Toggle individual categories */}
-            {/* TODO */}
+                {/* Toggle individual categories */}
+                {/* TODO */}
+            </Stack>
             <GridSubmitButtons
                 display={display}
                 errors={props.errors}

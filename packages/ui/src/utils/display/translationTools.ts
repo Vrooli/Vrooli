@@ -652,7 +652,6 @@ export const getTranslationData = <
     touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,
     value: Values[KeyField][0] | undefined
 } => {
-    console.log('getting translation data', field, meta, language)
     if (!field?.value || !Array.isArray(field.value)) return { error: undefined, index: -1, touched: undefined, value: undefined };
     const index = field.value.findIndex(t => t.language === language);
     const value = field.value[index];

@@ -1,6 +1,6 @@
 import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
 import { Comment, CommentFor, StandardVersion, Tag } from '@shared/consts';
-import { SvgComponent } from '@shared/icons';
+import { SvgComponent, SvgProps } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
 import { TagShape } from 'utils/shape/models/tag';
 import { StringSchema } from 'yup';
@@ -303,6 +303,18 @@ export interface TagSelectorBaseProps {
 }
 
 export interface TimezoneSelectorProps extends Omit<SelectorProps<string>, 'getOptionLabel' | 'options'> { }
+
+export interface ToggleSwitchProps {
+    checked: boolean;
+    name?: string;
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    OffIcon?: (props: SvgProps) => JSX.Element;
+    OnIcon?: (props: SvgProps) => JSX.Element;
+    label?: string;
+    tooltip?: string;
+    disabled?: boolean;
+    sx?: object;
+}
 
 export interface TranslatedMarkdownInputProps {
     disabled?: boolean;

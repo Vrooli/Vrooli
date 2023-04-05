@@ -81,7 +81,6 @@ export const SelectLanguageMenu = ({
             query: getAutoTranslation,
             input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
             onSuccess: (data) => {
-                console.log('got translation', data)
                 // Try parse
                 if (data) {
                     console.log('TODO')

@@ -22,7 +22,7 @@ export const LargeDialog = ({
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}
             sx={{
-                zIndex: 1300,
+                zIndex,
                 '& > .MuiDialog-container': {
                     '& > .MuiPaper-root': {
                         zIndex,

@@ -3,11 +3,10 @@
  */
 import {
     Button, Grid,
-    Stack,
-    Switch,
-    Typography
+    Stack, Typography
 } from '@mui/material';
 import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { ToggleSwitch } from 'components/inputs/ToggleSwitch/ToggleSwitch';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useFormik } from 'formik';
 import { useTranslation } from 'react-i18next';
@@ -62,7 +61,7 @@ export const CookieSettingsDialog = ({
             isOpen={isOpen}
             onClose={onCancel}
             titleId={titleId}
-            zIndex={1234}
+            zIndex={30000}
         >
             <TopBar
                 display="dialog"
@@ -70,21 +69,16 @@ export const CookieSettingsDialog = ({
                 titleData={{ titleId, titleKey: 'CookieSettings' }}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: '16px' }}>
-                {/* Description of cookies and why we use them */}
-                <Typography variant="body1" mb={4}>
-                    {t(`CookieSettings`)}
-                </Typography>
                 {/* Strictly necessary */}
                 <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t(`CookieStrictlyNecessary`)}</Typography>
                         <HelpButton markdown={t(`CookieStrictlyNecessaryDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.strictlyNecessary}
                             onChange={formik.handleChange}
                             name="strictlyNecessary"
-                            // Can't turn off
-                            disabled
+                            disabled // Can't turn off
                             sx={{
                                 position: 'absolute',
                                 right: '16px',
@@ -100,10 +94,10 @@ export const CookieSettingsDialog = ({
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t('Performance')}</Typography>
                         <HelpButton markdown={t(`CookiePerformanceDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.performance}
-                            onChange={formik.handleChange}
                             name="performance"
+                            onChange={formik.handleChange}
                             sx={{
                                 position: 'absolute',
                                 right: '16px',
@@ -119,10 +113,10 @@ export const CookieSettingsDialog = ({
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t('Functional')}</Typography>
                         <HelpButton markdown={t(`CookieFunctionalDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.functional}
-                            onChange={formik.handleChange}
                             name="functional"
+                            onChange={formik.handleChange}
                             sx={{
                                 position: 'absolute',
                                 right: '16px',
@@ -138,10 +132,10 @@ export const CookieSettingsDialog = ({
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t('Targeting')}</Typography>
                         <HelpButton markdown={t(`CookieTargetingDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.targeting}
-                            onChange={formik.handleChange}
                             name="targeting"
+                            onChange={formik.handleChange}
                             sx={{
                                 position: 'absolute',
                                 right: '16px',

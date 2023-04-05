@@ -10,7 +10,6 @@ export const TranslatedTextField = ({
 }: TranslatedTextFieldProps) => {
     const [field, meta, helpers] = useField('translations');
     const { value, error, touched } = getTranslationData(field, meta, language);
-    console.log('got translation data', value, error, touched);
 
     const handleBlur = (event) => {
         field.onBlur(event);

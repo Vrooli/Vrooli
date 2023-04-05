@@ -207,7 +207,7 @@ export const SettingsFocusModesView = ({
                                         <EditIcon fill={palette.secondary.main} />
                                     </Box>
                                     {/* Delete */}
-                                    <Box
+                                    {focusModes.length > 1 && <Box
                                         component="a"
                                         onClick={() => handleDelete(focusMode)}
                                         sx={{
@@ -219,7 +219,7 @@ export const SettingsFocusModesView = ({
                                             paddingBottom: '4px',
                                         }}>
                                         <DeleteIcon fill={palette.secondary.main} />
-                                    </Box>
+                                    </Box>}
                                 </Stack>
                             </ListItem>
                         ))}

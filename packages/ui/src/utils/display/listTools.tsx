@@ -198,8 +198,10 @@ const tryTitle = (obj: Record<string, any>, langs: readonly string[]) => {
     return firstString(
         obj.title,
         obj.name,
+        obj.label,
         translations.title,
         translations.name,
+        translations.label,
         obj.handle ? `$${obj.handle}` : null,
     );
 }
@@ -323,7 +325,7 @@ export const getBookmarkFor = (
 ): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
     if (!object) return { bookmarkFor: null, starForId: null };
     // If object does not support bookmarking, return null
-    if (isOfType(object, 'Member')) return { bookmarkFor: null, starForId: null }; //TODO add more types
+    if (isOfType(object, 'BookmarkList', 'Member')) return { bookmarkFor: null, starForId: null }; //TODO add more types
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getBookmarkFor(object.to as ListObjectType);
     // If a run routine, use the routine version

@@ -1,10 +1,11 @@
 import { Box, useTheme } from "@mui/material";
+import { BuildIcon, VisibleIcon } from "@shared/icons";
 import { GeneratedInputComponent } from "components/inputs/generated";
-import { PreviewSwitch } from "components/inputs/PreviewSwitch/PreviewSwitch";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
+import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
 import { useField } from "formik";
 import { FieldData } from "forms/types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { InputTypeOption, InputTypeOptions } from "utils/consts";
 import { BaseStandardInput } from "../BaseStandardInput/BaseStandardInput";
 import { StandardInputProps } from "../types";
@@ -23,7 +24,7 @@ export const StandardInput = ({
 
     // Toggle preview/edit mode
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
-    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
+    const onPreviewChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => { setIsPreviewOn(event.target.checked) }, []);
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
@@ -31,14 +32,8 @@ export const StandardInput = ({
         setInputType(selected);
     }, []);
 
-    useEffect(() => {
-        if (field.value && field.value.type !== inputType.value) {
-            helpers.setValue({ ...field.value, type: inputType.value as any, props: {} });
-        }
-    }, [inputType, field.value, helpers]);
-
     const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
-    console.log('standardinput field value', field.value)
+    console.log('standardinput field value', fieldName, field.value)
 
     return (
         <Box sx={{
@@ -46,9 +41,13 @@ export const StandardInput = ({
             borderRadius: 2,
             padding: 2,
         }}>
-            {!disabled && <PreviewSwitch
-                isPreviewOn={isPreviewOn}
+            {!disabled && <ToggleSwitch
+                checked={isPreviewOn}
                 onChange={onPreviewChange}
+                OffIcon={BuildIcon}
+                OnIcon={VisibleIcon}
+                label={isPreviewOn ? 'Preview' : 'Edit'}
+                tooltip={isPreviewOn ? 'Switch to edit' : 'Switch to preview'}
                 sx={{ marginBottom: 2 }}
             />}
             {

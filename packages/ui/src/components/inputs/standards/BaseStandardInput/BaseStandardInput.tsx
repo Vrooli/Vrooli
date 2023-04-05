@@ -1,6 +1,6 @@
 import { Box, Button, Grid } from '@mui/material';
 import { InputType } from '@shared/consts';
-import { RefreshIcon, SaveIcon } from '@shared/icons';
+import { CompleteIcon, RefreshIcon } from '@shared/icons';
 import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from '@shared/validation';
 import { Formik, useField } from 'formik';
 import { FieldData } from 'forms/types';
@@ -136,15 +136,14 @@ export const BaseStandardInput = ({
         // localStorage.setItem(typeKey, JSON.stringify(newSchema));
     }, [fieldName, inputType, isEditing, storageKey]);
 
-    console.log('basestandardinpug', inputType, defaultValues, field.value?.props);
-
+    console.log('basestandardinpug', fieldName, inputType, defaultValues, field.value?.props);
 
     // useEffect(() => {
-    //     if (!field.value?.props || (field.value?.props && JSON.stringify(field.value.props) !== JSON.stringify(defaultValues))) {
-    //         console.log('setting schema from useeffect', JSON.stringify(field.value?.props), JSON.stringify(defaultValues), JSON.stringify({ ...(field.value ?? {}), props: defaultValues }))
-    //         helpers.setValue({ ...(field.value ?? {}), props: defaultValues });
+    //     if (field.value && field.value.type !== inputType) {
+    //         console.log('standardinput useeffect setting value', JSON.stringify(field.value), field.value?.type, inputType)
+    //         helpers.setValue({ ...field.value, type: inputType as any, props: defaultValues });
     //     }
-    // }, [field.value, helpers, defaultValues]);
+    // }, [inputType, field.value, helpers, defaultValues]);
 
     return (
         <Formik
@@ -154,7 +153,8 @@ export const BaseStandardInput = ({
                 ...(field.value?.props ?? {}),
             }}
             onSubmit={(values) => {
-                if (!fieldName || !field.value || !isEditing) return;
+                console.log('onsubmit 1', fieldName, field.value, values)
+                if (!fieldName || !isEditing) return;
                 const updatedField = { ...field.value, props: values };
                 console.log('should update schema?', updatedField, field.value, JSON.stringify(updatedField) === JSON.stringify(field.value));
                 if (JSON.stringify(updatedField) === JSON.stringify(field.value)) return;
@@ -175,7 +175,7 @@ export const BaseStandardInput = ({
                     fieldName={fieldName}
                 // yup={field.value.yup}
                 />
-                <Grid container spacing={2} sx={{
+                <Grid container spacing={2} mt={2} sx={{
                     padding: 2,
                     paddingTop: 2,
                     marginLeft: 'auto',
@@ -189,8 +189,8 @@ export const BaseStandardInput = ({
                             <Button
                                 disabled={!formik.isValid || !formik.dirty}
                                 fullWidth
-                                startIcon={<SaveIcon />}
-                            >{t('Save')}</Button>
+                                startIcon={<CompleteIcon />}
+                            >{t('Confirm')}</Button>
                         </Box>
                     </Grid>
                     {/* Cancel button */}

@@ -1,3 +1,4 @@
+import { Stack } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
@@ -32,14 +33,18 @@ export const SettingsDisplayForm = ({
             <Subheader
                 help={t('DisplayAccountHelp')}
                 title={t('DisplayAccount')} />
-            <LanguageSelector />
-            <FocusModeSelector />
+            <Stack direction="column" spacing={2} p={1}>
+                <LanguageSelector />
+                <FocusModeSelector />
+            </Stack>
             <Subheader
                 help={t('DisplayDeviceHelp')}
                 title={t('DisplayDevice')} />
-            <ThemeSwitch />
-            <TextSizeButtons />
-            <LeftHandedCheckbox />
+            <Stack direction="column" spacing={2} p={1}>
+                <ThemeSwitch />
+                <TextSizeButtons />
+                <LeftHandedCheckbox />
+            </Stack>
             <GridSubmitButtons
                 display={display}
                 errors={props.errors}
