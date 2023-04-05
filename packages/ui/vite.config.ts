@@ -31,8 +31,6 @@ export default defineConfig({
             { find: '@shared/utils', replacement: path.resolve(__dirname, '../shared/utils/src') },
             { find: '@shared/uuid', replacement: path.resolve(__dirname, '../shared/uuid/src') },
             { find: '@shared/validation', replacement: path.resolve(__dirname, '../shared/validation/src') },
-            // Reduce window for timezone information TODO not working. Might switch to moment-timezone
-            { find: 'timezone-support$', replacement: path.resolve(__dirname, 'node_modules/timezone-support/dist/index-1970-2038.js') },
         ]
     },
     // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds

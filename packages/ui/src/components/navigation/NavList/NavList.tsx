@@ -6,7 +6,7 @@ import { PopupMenu } from 'components/buttons/PopupMenu/PopupMenu';
 import { AccountMenu } from 'components/dialogs/AccountMenu/AccountMenu';
 import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { checkIfLoggedIn } from 'utils/authentication/session';
+import { checkIfLoggedIn, getCurrentUser } from 'utils/authentication/session';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils/navigation/userActions';
 import { SessionContext } from 'utils/SessionContext';
@@ -54,7 +54,7 @@ export const NavList = () => {
             right: '0',
         }}>
             {/* Contact menu */}
-            {!isMobile && <PopupMenu
+            {!isMobile && !getCurrentUser(session).id && <PopupMenu
                 text={t(`Contact`)}
                 variant="text"
                 size="large"

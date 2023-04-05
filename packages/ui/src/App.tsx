@@ -442,9 +442,7 @@ export function App() {
                             onClose={() => setIsWelcomeDialogOpen(false)}
                         />
                         {/* Celebratory confetti. To be used sparingly */}
-                        {
-                            isCelebrating && <AsyncConfetti />
-                        }
+                        {isCelebrating && <AsyncConfetti />}
                         <AlertDialog />
                         <SnackStack />
                         <Box id="content-wrap" sx={{
