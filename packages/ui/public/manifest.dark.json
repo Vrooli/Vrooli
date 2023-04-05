@@ -5,7 +5,9 @@
     "dir": "ltr",
     "lang": "en-US",
     "prefer_related_applications": false,
-    "omnibox": { "keyword" : "vrooli" },
+    "omnibox": {
+        "keyword": "vrooli"
+    },
     "categories": [
         "automation",
         "productivity",
@@ -44,7 +46,7 @@
         "browser"
     ],
     "orientation": "any",
-    "scope": "https://vrooli.com/",
+    "scope": "/",
     "start_url": "/",
     "screenshots": [
         {

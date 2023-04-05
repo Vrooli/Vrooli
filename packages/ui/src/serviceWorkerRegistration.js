@@ -46,7 +46,10 @@ export async function subscribeUserToPush() {
         return null;
     }
     try {
-        const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}service-worker.js`);
+        const registration = await navigator.serviceWorker.register(
+            `${import.meta.env.BASE_URL}service-worker.js`,
+            { scope: import.meta.env.BASE_URL }
+        );
         const subscribeOptions = {
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(

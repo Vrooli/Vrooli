@@ -61,7 +61,7 @@
     "scripts": {
         "build": "tsc && vite build",
         "start-development": "vite",
-        "start-production": "serve dist",
+        "start-production": "serve --config serve.json",
         "analyze": "source-map-explorer dist/assets/*",
         "graphql-generate": "graphql-codegen --config codegen.yml",
         "lint": "eslint src"

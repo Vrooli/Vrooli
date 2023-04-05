@@ -40,7 +40,7 @@
         "browser"
     ],
     "orientation": "any",
-    "scope": "https://vrooli.com/",
+    "scope": "/",
     "start_url": "/",
     "screenshots": [
         {
