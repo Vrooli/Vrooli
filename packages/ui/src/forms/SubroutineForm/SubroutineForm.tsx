@@ -1,6 +1,7 @@
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ResourceList, Session } from "@shared/consts";
 import { CloseIcon, OpenInNewIcon } from "@shared/icons";
+import { exists } from "@shared/utils";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { nodeRoutineListItemValidation, routineVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -21,18 +22,17 @@ import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
-import { exists } from "i18next";
 import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "utils/shape/models/nodeRoutineListItem";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
+import { TagShape } from "utils/shape/models/tag";
 
 export const subroutineInitialValues = (
     session: Session | undefined,
@@ -99,12 +99,15 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
         validationSchema: routineVersionTranslationValidation.update({}),
     });
 
-    const [idField] = useField<string>('id');
-    const [nodesField, , nodesHelpers] = useField<NodeShape[]>('routineVersion.nodes');
-    const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>('routineVersion.nodeLinks');
+    const [indexField] = useField<number>('index');
+    const [isInternalField] = useField<boolean>('routineVersion.root.isInternal');
+    const [listField] = useField<NodeRoutineListShape>('list');
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>('routineVersion.inputs');
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>('routineVersion.outputs');
     const [resourceListField, , resourceListHelpers] = useField<ResourceList>('routineVersion.resourceList');
+    const [tagsField] = useField<TagShape[]>('routineVersion.root.tags');
+    const [versionlabelField] = useField<string>('routineVersion.versionLabel');
+    const [versionsField] = useField<{ versionLabel: string }[]>('routineVersion.root.versions');
 
     /**
      * Navigate to the subroutine's build page
@@ -132,15 +135,15 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     props={{ language }}
                     variant="h5"
                 />
-                <Typography variant="h6" ml={1} mr={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routineList?.items?.length ?? 1)})`}</Typography>
+                <Typography variant="h6" ml={1} mr={1}>{`(${(indexField.value ?? 0) + 1} of ${(listField.value?.items?.length ?? 1)})`}</Typography>
                 {/* Version */}
                 <VersionDisplay
-                    currentVersion={props.values.versionLabel}
+                    currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - "}
-                    versions={subroutine?.routineVersion?.root?.versions ?? []}
+                    versions={versionsField.value ?? []}
                 />
                 {/* Button to open in full page */}
-                {!subroutine?.routineVersion?.root?.isInternal && (
+                {!isInternalField.value && (
                     <Tooltip title="Open in full page">
                         <IconButton onClick={toGraph}>
                             <OpenInNewIcon fill={palette.primary.contrastText} />
@@ -203,7 +206,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                     disabled={!canUpdate}
                                     label={t('Order')}
                                     min={1}
-                                    max={data?.node?.routineList?.items?.length ?? 1}
+                                    max={listField.value?.items?.length ?? 1}
                                     name="index"
                                     tooltip="The order of this subroutine in its parent routine"
                                 />
@@ -255,7 +258,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                             <VersionInput
                                 fullWidth
                                 name="routineVersion.versionLabel"
-                                versions={subroutine?.routineVersion?.root?.versions ?? []}
+                                versions={(versionsField.value ?? []).map(v => v.versionLabel)}
                             />
                         </Grid>
                     }
@@ -287,7 +290,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                                 title={'Resources'}
                                 list={resourceListField.value}
                                 canUpdate={canUpdate}
-                                handleUpdate={handleResourcesUpdate}
+                                handleUpdate={(newList) => { resourceListHelpers.setValue(newList) }}
                                 mutate={false}
                                 zIndex={zIndex}
                             />
@@ -295,11 +298,8 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                     }
                     <Grid item xs={12} marginBottom={4}>
                         {
-                            canUpdate ? <TagSelector
-                                handleTagsUpdate={handleTagsUpdate}
-                                tags={tags}
-                            /> :
-                                <TagList parentId={''} tags={subroutine?.routineVersion?.root?.tags ?? []} />
+                            canUpdate ? <TagSelector name='routineVersion.root.tags' /> :
+                                <TagList parentId={''} tags={(tagsField.value ?? []) as any[]} />
                         }
                     </Grid>
                 </Grid>

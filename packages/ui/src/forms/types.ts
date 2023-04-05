@@ -219,7 +219,7 @@ export interface SwitchProps {
 /**
  * Props for rendering a TagSelector input component
  */
-export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'tags' | 'handleTagsUpdate' | 'zIndex'> {
+export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'tags' | 'handleTagsUpdate' | 'name' | 'zIndex'> {
     defaultValue?: TagShape[];
 }
 

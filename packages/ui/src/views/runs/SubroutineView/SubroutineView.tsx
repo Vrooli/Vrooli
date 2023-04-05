@@ -1,8 +1,8 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
+import { CommentFor, ResourceList, RoutineVersion, Tag } from "@shared/consts";
 import { SuccessIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { uuid } from "@shared/uuid";
+import { exists } from "@shared/utils";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -17,15 +17,18 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { useFormik } from "formik";
+import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { FieldData } from "forms/types";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsToFormik } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";
+import { ResourceListShape } from "utils/shape/models/resourceList";
+import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
 import { SubroutineViewProps } from "../types";
 
@@ -59,6 +62,12 @@ export const SubroutineView = ({
         setInternalRoutineVersion(routineVersion);
     }, [routineVersion]);
     const updateRoutine = useCallback((routineVersion: RoutineVersion) => { setInternalRoutineVersion(routineVersion); }, [setInternalRoutineVersion]);
+
+    const availableLanguages = useMemo<string[]>(() => (internalRoutineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [internalRoutineVersion?.translations]);
+    useEffect(() => {
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
 
     const { description, instructions, name } = useMemo(() => {
         const languages = getUserLanguages(session);
@@ -101,7 +110,7 @@ export const SubroutineView = ({
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? currInput.standardVersion.root.name,
+                name: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? '',
                 standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });
@@ -174,7 +183,7 @@ export const SubroutineView = ({
                 ))}
             </Box>
         )
-    }, [copyInput, formValueMap, palette.background.textPrimary, internalRoutineVersion.inputs, zIndex]);
+    }, [copyInput, formValueMap, palette.background.textPrimary, internalRoutineVersion?.inputs, zIndex]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -188,24 +197,9 @@ export const SubroutineView = ({
         setObject: setInternalRoutineVersion,
     });
 
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-
-    // Handle tags
-    const [tags, setTags] = useState<TagShape[]>([]);
-
-    useEffect(() => {
-        setRelationships({
-            isComplete: internalRoutineVersion?.isComplete ?? false,
-            isPrivate: internalRoutineVersion?.isPrivate ?? false,
-            owner: internalRoutineVersion?.root?.owner ?? null,
-            parent: null,
-            // parent: internalRoutine?.parent ?? null, TODO
-            project: null, //TODO
-        });
-        setResourceList(internalRoutineVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(internalRoutineVersion?.root?.tags ?? []);
-    }, [internalRoutineVersion]);
+    const initialValues = useMemo(() => routineInitialValues(session, internalRoutineVersion), [internalRoutineVersion, session]);
+    const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     return (
         <>
@@ -225,12 +219,13 @@ export const SubroutineView = ({
                     loading={loading}
                     title={name}
                     setLanguage={setLanguage}
+                    translations={internalRoutineVersion?.translations ?? []}
                     zIndex={zIndex}
                 />
                 {/* Resources */}
-                {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                     title={'Resources'}
-                    list={resourceList}
+                    list={resourceList as ResourceList}
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
                     loading={loading}
@@ -265,10 +260,10 @@ export const SubroutineView = ({
                             zIndex={zIndex}
                         />
                         {/* Tags */}
-                        {tags.length > 0 && <TagList
+                        {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
-                            parentId={routineVersion?.root?.id ?? ''}
-                            tags={tags as any[]}
+                            parentId={internalRoutineVersion?.id ?? ''}
+                            tags={tags as Tag[]}
                             sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                         />}
                         {/* Date and version labels */}
@@ -280,7 +275,6 @@ export const SubroutineView = ({
                                 timestamp={internalRoutineVersion?.created_at}
                             />
                             <VersionDisplay
-                                confirmVersionChange={confirmLeave}
                                 currentVersion={internalRoutineVersion}
                                 prefix={" - "}
                                 versions={internalRoutineVersion?.root?.versions}

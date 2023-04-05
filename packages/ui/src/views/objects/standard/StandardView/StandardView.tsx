@@ -47,12 +47,12 @@ export const StandardView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { id, isLoading, object: standardVersion, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
+    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
         query: standardVersionFindOne,
         partialData,
     });
 
-    const availableLanguages = useMemo<string[]>(() => (standardVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standardVersion?.translations]);
+    const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
@@ -60,10 +60,9 @@ export const StandardView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { description, name } = useMemo(() => {
-        const { description } = getTranslation(standardVersion ?? partialData, [language]);
-        const { name } = standardVersion?.root ?? partialData?.root ?? {};
+        const { description, name } = getTranslation(existing ?? partialData, [language]);
         return { description, name };
-    }, [standardVersion, language, partialData]);
+    }, [existing, partialData, language]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
@@ -74,14 +73,14 @@ export const StandardView = ({
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
     const actionData = useObjectActions({
-        object: standardVersion,
+        object: existing,
         objectType: 'Standard',
         openAddCommentDialog,
         setLocation,
         setObject: setStandardVersion,
     });
 
-    const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
+    const initialValues = useMemo(() => standardInitialValues(session, (existing ?? partialData as any)), [existing, partialData, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
@@ -131,6 +130,7 @@ export const StandardView = ({
                     loading={isLoading}
                     title={name}
                     setLanguage={setLanguage}
+                    translations={existing?.translations ?? []}
                     zIndex={zIndex}
                 />
                 {/* Relationships */}
@@ -163,7 +163,7 @@ export const StandardView = ({
                 {/* Tags */}
                 {Array.isArray(tags) && tags!.length > 0 && <TagList
                     maxCharacters={30}
-                    parentId={standardVersion?.id ?? ''}
+                    parentId={existing?.id ?? ''}
                     tags={tags as any[]}
                     sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                 />}
@@ -173,25 +173,25 @@ export const StandardView = ({
                     <DateDisplay
                         loading={isLoading}
                         showIcon={true}
-                        timestamp={standardVersion?.created_at}
+                        timestamp={existing?.created_at}
                     />
                     <VersionDisplay
-                        currentVersion={standardVersion}
+                        currentVersion={existing}
                         prefix={" - "}
-                        versions={standardVersion?.root?.versions}
+                        versions={existing?.root?.versions}
                     />
                 </Stack>
                 {/* Votes, reports, and other basic stats */}
                 {/* <StatsCompact
                 handleObjectUpdate={updateStandard}
                 loading={loading}
-                object={standardVersion}
+                object={existing}
             /> */}
                 {/* Action buttons */}
                 <ObjectActionsRow
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                    object={standardVersion}
+                    object={existing}
                     zIndex={zIndex}
                 />
                 {/* Comments */}
@@ -199,7 +199,7 @@ export const StandardView = ({
                     <CommentContainer
                         forceAddCommentOpen={isAddCommentOpen}
                         language={language}
-                        objectId={standardVersion?.id ?? ''}
+                        objectId={existing?.id ?? ''}
                         objectType={CommentFor.StandardVersion}
                         onAddCommentClose={closeAddCommentDialog}
                         zIndex={zIndex}

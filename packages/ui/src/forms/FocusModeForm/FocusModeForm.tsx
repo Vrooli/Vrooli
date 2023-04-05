@@ -162,13 +162,13 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                         <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsFavorite')}</Typography>
                         <HelpButton markdown={t('TopicsFavoriteHelp')} />
                     </Stack>
-                    <TagSelector />
+                    <TagSelector name="favorites" />
                     <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                         <InvisibleIcon fill={palette.background.textPrimary} />
                         <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsHidden')}</Typography>
                         <HelpButton markdown={t('TopicsHiddenHelp')} />
                     </Stack>
-                    <TagSelector />
+                    <TagSelector name="hidden" />
                 </Stack>
             </BaseForm>
             <GridSubmitButtons

@@ -14,7 +14,7 @@ export const LINKS = {
     Home: '/', // Main dashboard for logged in users
     MyStuff: '/my',
     Note: '/note',
-    Notifications: '/notifications',
+    Notifications: '/inbox',
     Organization: '/org',
     Premium: '/premium',
     Privacy: '/privacy', // Privacy policy

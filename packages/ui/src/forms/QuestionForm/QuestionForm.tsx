@@ -130,7 +130,7 @@ export const QuestionForm = forwardRef<any, QuestionFormProps>(({
                             }}
                         />
                     </Stack>
-                    <TagSelector />
+                    <TagSelector name="tags" />
                 </Stack>
                 <GridSubmitButtons
                     display={display}

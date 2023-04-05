@@ -132,7 +132,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <TagSelector />
+                    <TagSelector name="tags" />
                     <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
                         <FormControlLabel
                             label='Open to new members?'

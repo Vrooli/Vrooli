@@ -8,22 +8,21 @@ import { TagSelectorProps } from '../types';
 
 export const TagSelector = ({
     disabled,
+    name,
     placeholder = 'Enter tags, followed by commas...',
 }: TagSelectorProps) => {
-    const [versionField, , versionHelpers] = useField<(TagShape | Tag)[] | undefined>('tags');
-    const [rootField, , rootHelpers] = useField<(TagShape | Tag)[] | undefined>('root.tags');
+    const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
     const handleTagsUpdate = useCallback((tags: (TagShape | Tag)[]) => {
-        exists(versionHelpers) && versionHelpers.setValue(tags);
-        exists(rootHelpers) && rootHelpers.setValue(tags);
-    }, [rootHelpers, versionHelpers]);
+        exists(helpers) && helpers.setValue(tags);
+    }, [helpers]);
 
     return (
         <TagSelectorBase
             disabled={disabled}
             handleTagsUpdate={handleTagsUpdate}
             placeholder={placeholder}
-            tags={versionField.value ?? rootField.value ?? []}
+            tags={field.value ?? []}
         />
     )
 }

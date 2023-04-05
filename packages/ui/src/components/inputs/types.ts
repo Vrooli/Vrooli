@@ -292,6 +292,7 @@ export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
 
 export interface TagSelectorProps {
     disabled?: boolean;
+    name: string;
     placeholder?: string;
 }
 

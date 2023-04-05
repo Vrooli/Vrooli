@@ -1,5 +1,5 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from '@mui/material';
-import { Session, StandardVersion } from '@shared/consts';
+import { StandardVersion } from '@shared/consts';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 import { uuid } from '@shared/uuid';
 import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
@@ -7,11 +7,9 @@ import { EditableText } from 'components/containers/EditableText/EditableText';
 import { StandardInput } from 'components/inputs/standards/StandardInput/StandardInput';
 import { StandardVersionSelectSwitch } from 'components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch';
 import { useFormik } from 'formik';
-import { FieldData } from 'forms/types';
+import { standardInitialValues } from 'forms/StandardForm/StandardForm';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { linkColors } from 'styles';
-import { getCurrentUser } from 'utils/authentication/session';
-import { InputTypeOptions } from 'utils/consts';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { SessionContext } from 'utils/SessionContext';
 import { updateArray } from 'utils/shape/general';
@@ -19,35 +17,6 @@ import { RoutineVersionInputShape, RoutineVersionInputTranslationShape } from 'u
 import { RoutineVersionOutputTranslationShape } from 'utils/shape/models/routineVersionOutput';
 import { StandardVersionShape } from 'utils/shape/models/standardVersion';
 import { InputOutputListItemProps } from '../types';
-
-const defaultStandardVersion = (
-    item: InputOutputListItemProps['item'],
-    session: Session | undefined,
-    generatedSchema?: FieldData | null,
-): StandardVersionShape => ({
-    id: uuid(),
-    default: JSON.stringify(generatedSchema?.props?.defaultValue ?? null),
-    isComplete: true,
-    isPrivate: false, // TODO not sure if this should be true or false
-    standardType: generatedSchema?.type ?? InputTypeOptions[0].value,
-    props: JSON.stringify(generatedSchema?.props ?? '{}'),
-    yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
-    root: {
-        id: uuid(),
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
-        permissions: JSON.stringify({}),
-        isInternal: true,
-        isPrivate: false, // TODO not sure if this should be true or false
-        tags: [],
-    },
-    translations: [{
-        id: uuid(),
-        language: getUserLanguages(session)[0],
-        name: `${item.name}-schema`,
-    }],
-    versionLabel: '1.0.0',
-})
-
 
 //TODO handle language change somehow
 export const InputOutputListItem = ({
@@ -67,9 +36,9 @@ export const InputOutputListItem = ({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
 
-    const [standardVersion, setStandardVersion] = useState<StandardVersionShape>(item.standardVersion ?? defaultStandardVersion(item, session));
+    const [standardVersion, setStandardVersion] = useState<StandardVersionShape>(item.standardVersion ?? standardInitialValues(session, item.standardVersion as any));
     useEffect(() => {
-        setStandardVersion(item.standardVersion ?? defaultStandardVersion(item, session));
+        setStandardVersion(item.standardVersion ?? standardInitialValues(session, item.standardVersion as any));
     }, [item, session])
 
     const canUpdateStandardVersion = useMemo(() => isEditing && standardVersion.root.isInternal === true, [isEditing, standardVersion.root.isInternal]);
@@ -105,7 +74,7 @@ export const InputOutputListItem = ({
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations as any,
-                standardVersion: !canUpdateStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
+                standardVersion: !canUpdateStandardVersion ? standardVersion : standardInitialValues(session, item.standardVersion as any),
             } as RoutineVersionInputShape);
         },
     });
@@ -122,7 +91,7 @@ export const InputOutputListItem = ({
         if (s && s.root.isInternal === false) {
             setStandardVersion(s as any)
         } else {
-            setStandardVersion(defaultStandardVersion(item, session))
+            setStandardVersion(standardInitialValues(session, item.standardVersion as any));
         }
     }, [item, session]);
 

@@ -15,6 +15,7 @@ import { StandardFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
+import { InputTypeOptions } from "utils/consts";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
@@ -31,7 +32,7 @@ export const standardInitialValues = (
     isComplete: false,
     isPrivate: false,
     isFile: false,
-    standardType: 'JSON',
+    standardType: InputTypeOptions[0].value,
     props: JSON.stringify({}),
     default: JSON.stringify({}),
     yup: JSON.stringify({}),
@@ -158,7 +159,7 @@ export const StandardForm = forwardRef<any, StandardFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <TagSelector />
+                    <TagSelector name="root.tags" />
                     <VersionInput
                         fullWidth
                         versions={versions}

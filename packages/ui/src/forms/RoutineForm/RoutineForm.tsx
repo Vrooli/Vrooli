@@ -231,7 +231,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <TagSelector />
+                    <TagSelector name="root.tags" />
                     <VersionInput
                         fullWidth
                         versions={versions}
