@@ -69,4 +69,22 @@ self.addEventListener('message', (event) => {
     }
 });
 
-// Any other custom service worker logic can go here.
+self.addEventListener('install', (event) => {
+    event.waitUntil(self.skipWaiting());
+});
+
+const CURRENT_CACHE_VERSION = '2023-04-05'; // Change this value to force a cache update
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CURRENT_CACHE_VERSION) {
+                        console.log(`Deleting old cache: ${cacheName}`);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+});
