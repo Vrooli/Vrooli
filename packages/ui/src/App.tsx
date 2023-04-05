@@ -5,6 +5,7 @@ import { getActiveFocusMode } from '@shared/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
 import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { AsyncConfetti } from 'components/AsyncConfetti/AsyncConfett';
 import { BannerChicken } from 'components/BannerChicken/BannerChicken';
 import { AlertDialog } from 'components/dialogs/AlertDialog/AlertDialog';
 import { SnackStack } from 'components/dialogs/snacks';
@@ -16,7 +17,6 @@ import { Footer } from 'components/navigation/Footer/Footer';
 import { PullToRefresh } from 'components/PullToRefresh/PullToRefresh';
 import i18next from 'i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Confetti from 'react-confetti';
 import { Routes } from 'Routes';
 import { getCurrentUser, getSiteLanguage, guestSession } from 'utils/authentication/session';
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
@@ -443,16 +443,7 @@ export function App() {
                         />
                         {/* Celebratory confetti. To be used sparingly */}
                         {
-                            isCelebrating && <Confetti
-                                initialVelocityY={-10}
-                                recycle={false}
-                                confettiSource={{
-                                    x: 0,
-                                    y: 40,
-                                    w: window.innerWidth,
-                                    h: 0
-                                }}
-                            />
+                            isCelebrating && <AsyncConfetti />
                         }
                         <AlertDialog />
                         <SnackStack />
