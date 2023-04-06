@@ -9,28 +9,26 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":f:hr:" opt; do
-    case $opt in
-    f)
-        REINSTALL_MODULES=$OPTARG
+REINSTALL_MODULES=""
+ON_REMOTE=""
+for arg in "$@"; do
+    case $arg in
+    -f | --force)
+        REINSTALL_MODULES="${2}"
+        shift
+        shift
         ;;
-    r)
-        ON_REMOTE=$OPTARG
+    -r | --remote)
+        ON_REMOTE="${2}"
+        shift
+        shift
         ;;
-    h)
+    -h | --help)
         echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE]"
         echo "  -h --help: Show this help message"
         echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
         exit 0
-        ;;
-    \?)
-        echo "Invalid option: -$OPTARG" >&2
-        exit 1
-        ;;
-    :)
-        echo "Option -$OPTARG requires an argument." >&2
-        exit 1
         ;;
     esac
 done

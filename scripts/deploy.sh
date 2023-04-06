@@ -19,27 +19,29 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts "v:d:h" opt; do
-    case $opt in
-    v)
-        VERSION=$OPTARG
+SETUP_ARGS=()
+for arg in "$@"; do
+    case $arg in
+    -v | --version)
+        VERSION="${2}"
+        shift
+        shift
         ;;
-    n)
-        NGINX_LOCATION=$OPTARG
+    -n | --nginx-location)
+        NGINX_LOCATION="${2}"
+        shift
+        shift
         ;;
-    h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
+    -h | --help)
+        echo "Usage: $0 [-v VERSION] [-n NGINX_LOCATION] [-h]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
+        echo "  -n --nginx-location: Nginx proxy location (e.g. \"/root/NginxSSLReverseProxy\")"
         echo "  -h --help: Show this help message"
         exit 0
         ;;
-    \?)
-        echo "Invalid option: -$OPTARG" >&2
-        exit 1
-        ;;
-    :)
-        echo "Option -$OPTARG requires an argument." >&2
-        exit 1
+    *)
+        SETUP_ARGS+=("${arg}")
+        shift
         ;;
     esac
 done
@@ -135,7 +137,7 @@ git pull
 
 # Running setup.sh
 info "Running setup.sh..."
-${HERE}/setup.sh
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}"
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
