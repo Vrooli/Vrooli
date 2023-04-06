@@ -142,8 +142,8 @@ export const TimezoneSelector = ({
                     endAdornment: (
                         <IconButton size="small" aria-label="timezone-select">
                             {open ?
-                                <ArrowDropUpIcon fill={palette.background.textSecondary} /> :
-                                <ArrowDropDownIcon fill={palette.background.textSecondary} />
+                                <ArrowDropUpIcon fill={palette.background.textPrimary} /> :
+                                <ArrowDropDownIcon fill={palette.background.textPrimary} />
                             }
                         </IconButton>
                     ),

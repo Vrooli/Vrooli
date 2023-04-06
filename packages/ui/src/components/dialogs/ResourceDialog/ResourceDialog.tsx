@@ -1,19 +1,15 @@
-import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
-import { DUMMY_ID } from '@shared/uuid';
-import { resourceValidation } from '@shared/validation';
+import { Resource, ResourceCreateInput, ResourceUpdateInput } from '@shared/consts';
 import { resourceCreate } from 'api/generated/endpoints/resource_create';
 import { resourceUpdate } from 'api/generated/endpoints/resource_update';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
 import { Formik } from 'formik';
 import { BaseFormRef } from 'forms/BaseForm/BaseForm';
-import { ResourceForm } from 'forms/ResourceForm/ResourceForm';
-import { useCallback, useContext, useRef } from 'react';
-import { getUserLanguages } from 'utils/display/translationTools';
+import { ResourceForm, resourceInitialValues, transformResourceValues, validateResourceValues } from 'forms/ResourceForm/ResourceForm';
+import { useCallback, useContext, useMemo, useRef } from 'react';
 import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
-import { validateAndGetYupErrors } from 'utils/shape/general';
-import { ResourceShape, shapeResource } from 'utils/shape/models/resource';
+import { shapeResource } from 'utils/shape/models/resource';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { ResourceDialogProps } from '../types';
@@ -37,6 +33,7 @@ export const ResourceDialog = ({
     const session = useContext(SessionContext);
 
     const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => resourceInitialValues(session, listId, partialData as any), [listId, partialData, session]);
     const [addMutation, { loading: addLoading }] = useCustomMutation<Resource, ResourceCreateInput>(resourceCreate);
     const [updateMutation, { loading: updateLoading }] = useCustomMutation<Resource, ResourceUpdateInput>(resourceUpdate);
 
@@ -44,30 +41,6 @@ export const ResourceDialog = ({
         // Confirm dialog is dirty and closed by clicking outside
         formRef.current?.handleClose(onClose, reason !== 'backdropClick');
     }, [onClose]);
-
-    const transformValues = useCallback((values: ResourceShape) => {
-        console.log('transforming', values, index, shapeResource.create(values))
-        return index < 0
-            ? shapeResource.create(values)
-            : shapeResource.update({ ...partialData, list: values.list } as ResourceShape, values)
-
-    }, [index, partialData]);
-
-    const validateFormValues = useCallback(
-        async (values: ResourceShape) => {
-            console.log('validating a', values, resourceValidation.create({}))
-            const transformedValues = transformValues(values);
-            console.log('validating b', transformedValues)
-            const validationSchema = index < 0
-                ? resourceValidation.create({})
-                : resourceValidation.update({});
-            console.log('validating c', validationSchema)
-            const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-            console.log('validating d', result)
-            return result;
-        },
-        [index, transformValues]
-    );
 
     return (
         <>
@@ -87,25 +60,7 @@ export const ResourceDialog = ({
                 />
                 <Formik
                     enableReinitialize={true}
-                    initialValues={{
-                        __typename: 'Resource' as const,
-                        id: DUMMY_ID,
-                        index: 0,
-                        link: '',
-                        list: {
-                            __typename: 'ResourceList' as const,
-                            id: listId
-                        },
-                        usedFor: ResourceUsedFor.Context,
-                        translations: [{
-                            __typename: 'ResourceTranslation' as const,
-                            id: DUMMY_ID,
-                            language: getUserLanguages(session)[0],
-                            description: '',
-                            name: '',
-                        }],
-                        ...partialData,
-                    } as ResourceShape}
+                    initialValues={initialValues}
                     onSubmit={(values, helpers) => {
                         if (mutate) {
                             const onSuccess = (data: Resource) => {
@@ -122,7 +77,7 @@ export const ResourceDialog = ({
                             }
                             mutationWrapper<Resource, ResourceCreateInput | ResourceUpdateInput>({
                                 mutation: isCreating ? addMutation : updateMutation,
-                                input: transformValues(values),
+                                input: transformResourceValues(values, partialData as any),
                                 successMessage: () => ({ key: isCreating ? 'ResourceCreated' : 'ResourceUpdated' }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,
@@ -138,7 +93,7 @@ export const ResourceDialog = ({
                             onClose();
                         }
                     }}
-                    validate={async (values) => await validateFormValues(values)}
+                    validate={async (values) => await validateResourceValues(values, partialData as any)}
                 >
                     {(formik) => <ResourceForm
                         display="dialog"
