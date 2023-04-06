@@ -10,14 +10,14 @@ importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.3.0/workbox
 // You can also remove this file if you'd prefer not to use a
 // service worker, and the Workbox build step will be skipped.
 
-const { clientsClaim, setCacheNameDetails } = workbox.core;
-const { ExpirationPlugin } = workbox.expiration;
-const { createHandlerBoundToURL, precacheAndRoute } = workbox.precaching;
-const { registerRoute } = workbox.routing;
-const { StaleWhileRevalidate } = workbox.strategies;
+const { clientsClaim, setCacheNameDetails } = (workbox.core);
+const { ExpirationPlugin } = (workbox.expiration);
+const { createHandlerBoundToURL, precacheAndRoute } = (workbox.precaching);
+const { registerRoute } = (workbox.routing);
+const { StaleWhileRevalidate } = (workbox.strategies);
 
 // workbox injectManifest placeholder
-self.__WB_MANIFEST = [];
+const precache = self.__WB_MANIFEST ?? [];
 
 clientsClaim();
 
@@ -27,7 +27,7 @@ clientsClaim();
 // Their URLs are injected into the manifest variable below.
 // This variable must be present somewhere in your service worker file,
 // even if you decide not to use precaching. See https://cra.link/PWA
-precacheAndRoute(self.__precacheManifest || []);
+precacheAndRoute(precache);
 
 // Set up App Shell-style routing, so that all navigation requests
 // are fulfilled with your index.html shell. Learn more at

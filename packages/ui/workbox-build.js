@@ -18,7 +18,7 @@ async function buildServiceWorker() {
             globDirectory: './dist',
             globPatterns: ['**/*.{js,css,html,png,jpg,svg,json,md}'],
             modifyURLPrefix: {
-                '': '/',
+                '': './',
             },
         });
 
