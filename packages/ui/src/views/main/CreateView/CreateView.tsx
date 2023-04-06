@@ -4,6 +4,7 @@ import { useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { CardGrid } from 'components/cards/CardGrid/CardGrid';
 import { TIDCard } from 'components/cards/TIDCard/TIDCard';
+import { PageContainer } from 'components/containers/PageContainer/PageContainer';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -76,7 +77,7 @@ export const CreateView = ({
     }, [setLocation]);
 
     return (
-        <>
+        <PageContainer>
             <TopBar
                 display={display}
                 onClose={() => { }}
@@ -96,6 +97,6 @@ export const CreateView = ({
                     />
                 ))}
             </CardGrid>
-        </>
+        </PageContainer>
     )
 };

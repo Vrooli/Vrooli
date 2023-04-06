@@ -118,9 +118,11 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                     ref={ref}
                     style={{
                         display: 'block',
-                        width: 'min(100%, 700px)',
+                        width: 'min(700px, 100vw - 16px)',
                         margin: 'auto',
-                        marginBottom: '64px',
+                        paddingLeft: 'env(safe-area-inset-left)',
+                        paddingRight: 'env(safe-area-inset-right)',
+                        paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
                     }}
                 >
                     <Stack direction="column" spacing={4} sx={{
@@ -182,8 +184,13 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                             marginBottom: 2,
                                                             padding: 1,
                                                         }}>
-                                                        <Stack direction="row" alignItems="flex-start" spacing={2}>
-                                                            <Stack spacing={1}>
+                                                        <Stack
+                                                            direction="row"
+                                                            alignItems="flex-start"
+                                                            spacing={2}
+                                                            sx={{ boxShadow: 6 }}
+                                                        >
+                                                            <Stack spacing={1} sx={{ width: '100%' }}>
                                                                 <Field
                                                                     fullWidth
                                                                     name={`reminderItems[${i}].name`}

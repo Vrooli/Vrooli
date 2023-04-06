@@ -101,7 +101,11 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    paddingBottom: '64px',
+                    width: 'min(100vw - 16px, 700px)',
+                    margin: 'auto',
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)',
+                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
                 }}
             >
                 <TranslatedMarkdownInput

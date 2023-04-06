@@ -79,7 +79,8 @@ export const CommentForm = forwardRef<any, CommentFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    maxWidth: '700px',
+                    width: 'min(700px, 100vw - 16px)',
+                    margin: 'auto',
                     marginBottom: '64px',
                 }}
             >

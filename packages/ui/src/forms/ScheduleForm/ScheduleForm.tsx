@@ -72,8 +72,11 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    maxWidth: '700px',
-                    paddingBottom: '64px',
+                    width: 'min(700px, 100vw - 16px)',
+                    margin: 'auto',
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)',
+                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
@@ -137,8 +140,13 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
                                 marginBottom: 2,
                                 padding: 1,
                             }}>
-                                <Stack direction="row" alignItems="flex-start" spacing={2}>
-                                    <Stack spacing={1}>
+                                <Stack
+                                    direction="row"
+                                    alignItems="flex-start"
+                                    spacing={2}
+                                    sx={{ boxShadow: 6 }}
+                                >
+                                    <Stack spacing={1} sx={{ width: '100%' }}>
                                         <FormControl fullWidth>
                                             <InputLabel>{"Recurrence type"}</InputLabel>
                                             <Select

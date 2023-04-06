@@ -29,45 +29,43 @@ export const TIDCard = ({
                     filter: 'brightness(1.1)',
                     boxShadow: 12,
                 },
+                display: 'flex',
             }}>
             {/* Left of card is icon */}
             {Icon && <Box sx={{
-                float: 'left',
                 width: '75px',
                 height: '100%',
                 padding: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
             }}>
-                <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '100%',
-                    height: '100%',
-                }}>
-                    <Icon width={'50px'} height={'50px'} fill={palette.background.textPrimary} />
-                </Box>
+                <Icon width={'50px'} height={'50px'} fill={palette.background.textPrimary} />
             </Box>}
             {/* Right of card is title and description */}
             <Box sx={{
-                float: 'right',
-                width: Icon ? 'calc(100% - 75px)' : '100%',
+                flexGrow: 1,
                 height: '100%',
                 padding: '1rem',
-                display: 'contents',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
             }}>
-                <Typography variant='h6' component='div'>
-                    {title}
-                </Typography>
-                <Typography variant='body2' color={palette.background.textSecondary}>
-                    {description}
-                </Typography>
+                <Box>
+                    <Typography variant='h6' component='div'>
+                        {title}
+                    </Typography>
+                    <Typography variant='body2' color={palette.background.textSecondary}>
+                        {description}
+                    </Typography>
+                </Box>
                 {/* Bottom of card is button */}
                 <Button
                     size='small'
                     sx={{
                         marginTop: 2,
                         marginLeft: 'auto',
-                        display: 'flex',
+                        alignSelf: 'flex-end',
                     }}
                 >{buttonText}</Button>
             </Box>

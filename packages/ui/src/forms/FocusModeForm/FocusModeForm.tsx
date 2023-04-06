@@ -65,8 +65,11 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    width: 'min(600px, 100vw)',
-                    paddingBottom: '64px',
+                    width: 'min(600px, 100vw - 16px)',
+                    margin: 'auto',
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)',
+                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
                 }}
             >
                 <Stack direction="column" spacing={4} padding={2}>
