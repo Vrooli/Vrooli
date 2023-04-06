@@ -10,7 +10,7 @@ importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.3.0/workbox
 // You can also remove this file if you'd prefer not to use a
 // service worker, and the Workbox build step will be skipped.
 
-const { clientsClaim, setCacheNameDetails } = (workbox.core);
+const { clientsClaim } = (workbox.core);
 const { ExpirationPlugin } = (workbox.expiration);
 const { createHandlerBoundToURL, precacheAndRoute } = (workbox.precaching);
 const { registerRoute } = (workbox.routing);
@@ -36,23 +36,42 @@ const fileExtensionRegexp = new RegExp('/[^/?]+\\.[^/]+$');
 registerRoute(
     // Return false to exempt requests from being fulfilled by index.html.
     ({ request, url }) => {
-        console.log('register route start', request, url)
         // If this isn't a navigation, skip.
         if (request.mode !== 'navigate') {
             return false;
-        } // If this is a URL that starts with /_, skip.
-
+        }
+        // If this is a URL that starts with /_, skip.
         if (url.pathname.startsWith('/_')) {
             return false;
-        } // If this looks like a URL for a resource, because it contains // a file extension, skip.
-
+        }
+        // If this looks like a URL for a resource, because it contains
+        // a file extension, skip.
         if (url.pathname.match(fileExtensionRegexp)) {
             return false;
-        } // Return true to signal that we want to use the handler.
-
+        }
+        // Return true to signal that we want to use the handler.
         return true;
     },
-    createHandlerBoundToURL(self.location.origin + '/index.html')
+    async ({ url, event }) => {
+        try {
+            const handler = createHandlerBoundToURL(self.location.origin + '/index.html');
+            const response = await handler({ event });
+
+            // Clone the response and create a new one without the redirected status. 
+            // Redirects are not allowed in service workers.
+            const clonedResponse = response.clone();
+            const newResponse = new Response(clonedResponse.body, {
+                status: clonedResponse.status,
+                statusText: clonedResponse.statusText,
+                headers: clonedResponse.headers,
+            });
+
+            return newResponse;
+        } catch (error) {
+            console.error(`Error in custom routing function: ${error}`);
+            return Response.error();
+        }
+    }
 );
 
 // An example runtime caching route for requests that aren't handled by the
