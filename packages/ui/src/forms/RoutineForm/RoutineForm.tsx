@@ -197,6 +197,10 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                         objectType={'Routine'}
                         zIndex={zIndex}
                     />
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
                     <Stack direction="column" spacing={2}>
                         <LanguageInput
                             currentLanguage={language}
@@ -227,10 +231,6 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                             minRows={4}
                         />
                     </Stack>
-                    <ResourceListHorizontalInput
-                        isCreate={true}
-                        zIndex={zIndex}
-                    />
                     <TagSelector name="root.tags" />
                     <VersionInput
                         fullWidth

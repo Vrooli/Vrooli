@@ -103,6 +103,10 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         objectType={'Organization'}
                         zIndex={zIndex}
                     />
+                    <ResourceListHorizontalInput
+                        isCreate={true}
+                        zIndex={zIndex}
+                    />
                     <Stack direction="column" spacing={2}>
                         <LanguageInput
                             currentLanguage={language}
@@ -128,10 +132,6 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             name="bio"
                         />
                     </Stack>
-                    <ResourceListHorizontalInput
-                        isCreate={true}
-                        zIndex={zIndex}
-                    />
                     <TagSelector name="tags" />
                     <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
                         <FormControlLabel

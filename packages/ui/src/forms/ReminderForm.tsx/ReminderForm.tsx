@@ -226,13 +226,11 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                 >
                                                                     <DeleteIcon fill={palette.error.light} />
                                                                 </IconButton>
-                                                                <IconButton
-                                                                    edge="end"
-                                                                    size="small"
+                                                                <Box
                                                                     {...provided.dragHandleProps}
                                                                 >
                                                                     <DragIcon fill={palette.background.textPrimary} />
-                                                                </IconButton>
+                                                                </Box>
                                                             </Stack>
                                                         </Stack>
                                                     </Box>
