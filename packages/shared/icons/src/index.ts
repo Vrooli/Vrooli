@@ -45,6 +45,7 @@ export * from './DonateIcon';
 export * from './DownloadIcon';
 export * from './DownvoteTallIcon';
 export * from './DownvoteWideIcon';
+export * from './DragIcon';
 export * from './EditIcon';
 export * from './EllipsisIcon';
 export * from './EmailIcon';
@@ -153,3 +154,4 @@ export * from './WarningIcon';
 export * from './WebsiteIcon';
 export * from './WholeWordIcon';
 export * from './YouTubeIcon';
+

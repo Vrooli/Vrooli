@@ -354,7 +354,7 @@ export const RoutineView = ({
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}

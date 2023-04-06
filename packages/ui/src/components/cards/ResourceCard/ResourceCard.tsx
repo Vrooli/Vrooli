@@ -102,8 +102,8 @@ export const ResourceCard = ({
                 sx={{
                     ...noSelect,
                     boxShadow: 8,
-                    background: (t: any) => t.palette.primary.light,
-                    color: (t: any) => t.palette.primary.contrastText,
+                    background: palette.primary.light,
+                    color: palette.secondary.contrastText,
                     borderRadius: '16px',
                     margin: 0,
                     padding: 1,
@@ -125,7 +125,7 @@ export const ResourceCard = ({
                         <Tooltip title="Edit">
                             <ColorIconButton
                                 id='edit-icon-button'
-                                background={palette.secondary.main}
+                                background='#c5ab17'
                                 sx={{ position: 'absolute', top: 4, left: 4 }}
                             >
                                 <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
@@ -134,7 +134,7 @@ export const ResourceCard = ({
                         <Tooltip title="Delete">
                             <ColorIconButton
                                 id='delete-icon-button'
-                                background={palette.secondary.main}
+                                background={palette.error.main}
                                 sx={{ position: 'absolute', top: 4, right: 4 }}
                             >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />

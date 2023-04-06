@@ -1,7 +1,8 @@
 import { Stack } from "@mui/material";
-import { ResourceUsedFor } from "@shared/consts";
+import { Resource, ResourceUsedFor, Session } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
-import { userTranslationValidation } from "@shared/validation";
+import { DUMMY_ID } from "@shared/uuid";
+import { resourceValidation, userTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
@@ -15,6 +16,47 @@ import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
+import { validateAndGetYupErrors } from "utils/shape/general";
+import { ResourceShape, shapeResource } from "utils/shape/models/resource";
+
+export const resourceInitialValues = (
+    session: Session | undefined,
+    listId: string | undefined,
+    existing?: Resource | null | undefined
+): ResourceShape => ({
+    __typename: 'Resource' as const,
+    id: DUMMY_ID,
+    index: 0,
+    link: '',
+    list: {
+        __typename: 'ResourceList' as const,
+        id: listId ?? DUMMY_ID,
+    },
+    usedFor: ResourceUsedFor.Context,
+    translations: [{
+        __typename: 'ResourceTranslation' as const,
+        id: DUMMY_ID,
+        language: getUserLanguages(session)[0],
+        description: '',
+        name: '',
+    }],
+    ...existing,
+});
+
+export function transformResourceValues(values: ResourceShape, existing?: ResourceShape) {
+    return existing === undefined
+        ? shapeResource.create(values)
+        : shapeResource.update(existing, values)
+}
+
+export const validateResourceValues = async (values: ResourceShape, existing?: ResourceShape) => {
+    const transformedValues = transformResourceValues(values, existing);
+    const validationSchema = existing === undefined
+        ? resourceValidation.create({})
+        : resourceValidation.update({});
+    const result = await validateAndGetYupErrors(validationSchema, transformedValues);
+    return result;
+}
 
 export const ResourceForm = forwardRef<any, ResourceFormProps>(({
     display,
@@ -52,6 +94,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
+                    width: 'min(100%, 550px)',
                     paddingBottom: '64px',
                 }}
             >

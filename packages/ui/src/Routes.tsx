@@ -42,6 +42,7 @@ const { SearchView } = lazily(() => import('./views/SearchView/SearchView'));
 const { StartView } = lazily(() => import('./views/StartView/StartView'));
 const { StatsView } = lazily(() => import('./views/StatsView/StatsView'));
 const { ApiUpsert, ApiView } = lazily(() => import('./views/objects/api'));
+const { BookmarkListView } = lazily(() => import('./views/objects/bookmarkList'));
 const { NoteUpsert, NoteView } = lazily(() => import('./views/objects/note'));
 const { OrganizationUpsert, OrganizationView } = lazily(() => import('./views/objects/organization'));
 const { ProjectUpsert, ProjectView } = lazily(() => import('./views/objects/project'));
@@ -118,6 +119,9 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 </NavRoute>
                 <NavRoute path={LINKS.Awards} {...props}>
                     <AwardsView />
+                </NavRoute>
+                <NavRoute path={`${LINKS.BookmarkList}/:id`} {...props}>
+                    <BookmarkListView />
                 </NavRoute>
                 <NavRoute path={LINKS.Calendar} excludePageContainer {...props}>
                     <CalendarView />

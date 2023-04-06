@@ -111,12 +111,7 @@ export const ResourceListHorizontal = ({
     ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
 
     return (
-        <Box sx={{
-            width: '100%',
-            maxWidth: '700px',
-            marginLeft: 'auto',
-            marginRight: 'auto',
-        }}>
+        <>
             {/* Add resource dialog */}
             {dialog}
             {/* Right-click context menu */}
@@ -135,15 +130,18 @@ export const ResourceListHorizontal = ({
                 zIndex={zIndex + 1}
             />
             {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
-            <Box
+            <Stack
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+                spacing={2}
+                p={1}
                 sx={{
-                    borderRadius: 2,
-                    background: palette.background.default,
-                    border: `1px ${palette.text.primary}`,
-                    overflow: 'hidden',
-                }}
-            >
-                <Stack direction="row" spacing={2} p={1} sx={{
+                    width: '100%',
+                    maxWidth: '700px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    // Custom scrollbar styling
                     overflowX: 'auto',
                     "&::-webkit-scrollbar": {
                         width: 5,
@@ -156,52 +154,52 @@ export const ResourceListHorizontal = ({
                         backgroundColor: "#409590",
                     },
                 }}>
-                    {/* Resources */}
-                    {list?.resources?.map((c: Resource, index) => (
-                        <ResourceCard
-                            canUpdate={canUpdate}
-                            key={`resource-card-${index}`}
-                            index={index}
-                            data={c}
-                            onContextMenu={openContext}
-                            onEdit={openUpdateDialog}
-                            onDelete={onDelete}
-                            aria-owns={Boolean(selectedIndex) ? contextId : undefined}
-                        />
-                    ))}
-                    {
-                        loading && (
-                            <CircularProgress sx={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                color: palette.mode === 'light' ? palette.secondary.light : 'white',
-                            }} />
-                        )
-                    }
-                    {/* Add resource button */}
-                    {canUpdate ? <Tooltip placement="top" title="Add resource">
-                        <Box
-                            onClick={openDialog}
-                            aria-label="Add resource"
-                            sx={{
-                                ...cardRoot,
-                                background: "#cad2e0",
-                                width: '120px',
-                                minWidth: '120px',
-                                height: '120px',
-                                minHeight: '120px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <LinkIcon fill={palette.primary.main} width='56px' height='56px' />
-                        </Box>
-                    </Tooltip> : null}
-                </Stack>
-            </Box>
-        </Box>
+                {/* Resources */}
+                {list?.resources?.map((c: Resource, index) => (
+                    <ResourceCard
+                        canUpdate={canUpdate}
+                        key={`resource-card-${index}`}
+                        index={index}
+                        data={c}
+                        onContextMenu={openContext}
+                        onEdit={openUpdateDialog}
+                        onDelete={onDelete}
+                        aria-owns={Boolean(selectedIndex) ? contextId : undefined}
+                    />
+                ))}
+                {
+                    loading && (
+                        <CircularProgress sx={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            color: palette.mode === 'light' ? palette.secondary.light : 'white',
+                        }} />
+                    )
+                }
+                {/* Add resource button */}
+                {canUpdate ? <Tooltip placement="top" title="Add resource">
+                    <Box
+                        onClick={openDialog}
+                        aria-label="Add resource"
+                        sx={{
+                            ...cardRoot,
+                            background: palette.primary.light,
+                            filter: 'opacity(0.8)',
+                            width: '120px',
+                            minWidth: '120px',
+                            height: '120px',
+                            minHeight: '120px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
+                    </Box>
+                </Tooltip> : null}
+            </Stack>
+        </>
     )
 }

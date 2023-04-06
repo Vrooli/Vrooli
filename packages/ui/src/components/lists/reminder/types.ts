@@ -1,23 +1,26 @@
 import { Reminder, ReminderItem, ReminderList } from "@shared/consts";
-import { ReminderShape } from "utils/shape/models/reminder";
-import { ReminderItemShape } from "utils/shape/models/reminderItem";
 
 export interface ReminderListProps {
     handleUpdate?: (updatedList: ReminderList) => void;
-    list: ReminderList | null | undefined;
+    /**
+     * If no listId is provided, make sure list items have data 
+     * about the list they belong to.
+     */
+    listId?: string | null | undefined;
     loading: boolean;
+    reminders: Reminder[];
     zIndex: number;
 }
 
-export interface ReminderProps {
-    reminder: Reminder | ReminderShape;
+export interface ReminderListItemProps {
     handleDelete: (deletedReminder: Reminder) => void;
     handleUpdate: (updatedReminder: Reminder) => void;
+    reminder: Reminder;
     zIndex: number;
 }
 
-export interface ReminderItemProps {
-    reminderItem: ReminderItem | ReminderItemShape;
+export interface ReminderListSubItemProps {
+    reminderItem: ReminderItem;
     handleDelete: (deletedReminderItem: ReminderItem) => void;
     handleUpdate: (updatedReminderItem: ReminderItem) => void;
 }
