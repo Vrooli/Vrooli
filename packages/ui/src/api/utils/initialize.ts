@@ -1,12 +1,12 @@
-import { useMemo } from 'react';
 import {
     ApolloClient,
     ApolloLink,
     InMemoryCache,
-    NormalizedCacheObject,
+    NormalizedCacheObject
 } from '@apollo/client';
-import { onError } from '@apollo/client/link/error'
+import { onError } from '@apollo/client/link/error';
 import { createUploadLink } from 'apollo-upload-client';
+import { useMemo } from 'react';
 import { removeTypename } from './removeTypename';
 
 let apolloClient: ApolloClient<NormalizedCacheObject>;
@@ -15,7 +15,7 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     // Define link for error handling
     const errorLink = onError(({ graphQLErrors, networkError }) => {
         // Only developers should see these error messages
-        if (process.env.NODE_ENV === 'production') return;
+        if (import.meta.env.PROD) return;
         if (graphQLErrors) {
             graphQLErrors.forEach(({ message, locations, path }) => {
                 console.error('GraphQL error occurred');

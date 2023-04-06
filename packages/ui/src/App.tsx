@@ -288,7 +288,7 @@ export function App() {
                 if (hasErrorCode(error, 'SessionExpired')) {
                     isInvalidSession = true;
                     // Log in development mode
-                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', error);
+                    if (import.meta.env.DEV) console.error('Error: failed to verify session', error);
                 }
                 // If error is something else, notify user
                 if (!isInvalidSession) {

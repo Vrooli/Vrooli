@@ -78,21 +78,27 @@ const isLocalhost = Boolean(
 );
 
 export function register(config) {
-    if (import.meta.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+    console.log('register 1', config, import.meta.env, 'serviceWorker' in navigator);
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+        console.log('register 2');
         // The URL constructor is available in all browsers that support SW.
         const publicUrl = new URL(import.meta.env.BASE_URL, window.location.href);
+        console.log('register 3', publicUrl, 'window.location.origin: ', window.location.origin);
         if (publicUrl.origin !== window.location.origin) {
+            console.log('register 4 - bad origin')
             // Our service worker won't work if PUBLIC_URL/BASE_URL is on a different origin
             // from what our page is served on. This might happen if a CDN is used to
             // serve assets; see https://github.com/facebook/create-react-app/issues/2374
             return;
         }
 
+        console.log('register 5');
         // Function for checking registration of service worker
         const checkRegister = () => {
-            console.log('checking register...');
-            const swUrl = `${import.meta.env.BASE_URL}/service-worker.js`;
+            const swUrl = `${window.location.origin}/service-worker.js`;
+            console.log('register 6 - checking register...', swUrl);
             if (isLocalhost) {
+                console.log('register 7 is localhost');
                 // This is running on localhost. Let's check if a service worker still exists or not.
                 checkValidServiceWorker(swUrl, config);
 
@@ -105,11 +111,13 @@ export function register(config) {
                     );
                 });
             } else {
+                console.log('register 8 is not localhost');
                 // Is not localhost. Just register service worker
                 registerValidSW(swUrl, config);
             }
         }
 
+        console.log('register 9');
         // Check for registration on load and visibility change
         window.addEventListener('load', checkRegister);
         // document.addEventListener('visibilitychange', () => {
