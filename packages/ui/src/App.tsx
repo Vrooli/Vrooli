@@ -1,4 +1,4 @@
-import { Box, CircularProgress, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from '@mui/material';
+import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { getActiveFocusMode } from '@shared/utils';
@@ -7,6 +7,7 @@ import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { AsyncConfetti } from 'components/AsyncConfetti/AsyncConfett';
 import { BannerChicken } from 'components/BannerChicken/BannerChicken';
+import { DiagonalWaveLoader } from 'components/DiagonalWaveLoader/DiagonalWaveLoader';
 import { AlertDialog } from 'components/dialogs/AlertDialog/AlertDialog';
 import { SnackStack } from 'components/dialogs/snacks';
 import { WelcomeDialog } from 'components/dialogs/WelcomeDialog/WelcomeDialog';
@@ -459,7 +460,7 @@ export function App() {
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: 100000,
                                 }}>
-                                    <CircularProgress size={100} />
+                                    <DiagonalWaveLoader size={100} />
                                 </Box>
                             }
                             <Routes sessionChecked={session !== undefined} />

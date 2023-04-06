@@ -1,5 +1,11 @@
 import { SvgProps } from "@shared/icons";
 
+export interface DiagonalWaveLoaderProps {
+    size?: number;
+    color?: string;
+    sx?: { [key: string]: any };
+}
+
 export type PageTab<T extends any> = {
     color?: string,
     href?: string,
