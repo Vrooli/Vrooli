@@ -1,47 +1,83 @@
+import { Button, Typography } from "@mui/material";
+import { RefreshIcon } from "@shared/icons";
 import { Component } from "react";
 import { ErrorBoundaryProps } from "../../views/types";
 
-export interface ErrorBoundaryState {
+interface ErrorBoundaryState {
     hasError: boolean;
+}
+
+interface ErrorBoundaryState {
+    hasError: boolean;
+    error: Error | null;
+    mailToUrl: string;
 }
 
 /**
  * Displays an error message if a child component throws an error.
+ * 
+ * NOTE: Cannot be a functional component. See https://legacy.reactjs.org/docs/error-boundaries.html#introducing-error-boundaries
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false };
+        this.state = { hasError: false, error: null, mailToUrl: 'mailto:official@vrooli.com' };
     }
 
-    static getDerivedStateFromError() {
-        return { hasError: true };
+    static getDerivedStateFromError(error: Error) {
+        const subject = `Error Report: ${error?.name ?? ""}`;
+        const body = `Error message: ${error?.toString() ?? ""}`;
+        const mailToUrl = `mailto:official@vrooli.com?subject=${encodeURIComponent(
+            subject
+        )}&body=${encodeURIComponent(body)}`;
+        return { hasError: true, error, mailToUrl };
     }
+
+    handleRefresh = () => {
+        window.location.reload();
+    };
 
     render() {
-        if (this.state.hasError) {
-            // Show centered error message
+        const { hasError, error, mailToUrl } = this.state;
+        if (hasError) {
             return (
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    paddingLeft: '16px',
-                    paddingRight: '16px',
-                    background: 'white',
-                }}
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        height: "100%",
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        paddingLeft: "16px",
+                        paddingRight: "16px",
+                        backgroundColor: 'white',
+                        color: 'black',
+                    }}
                 >
-                    <div style={{ textAlign: 'center', color: 'black' }}>
-                        <h1>Something went wrong 😔</h1>
-                        <p>Try refreshing the page, or closing and reopening the application. If the problem persists, 
-                            you may contact us at <a href="mailto:official@vrooli.com">official@vrooli.com</a> and we will try to help you as soon as possible.
-                        </p>
+                    <div style={{ textAlign: "center" }}>
+                        <Typography variant="h4">Something went wrong 😔</Typography>
+                        <Typography variant="body1">
+                            {error?.toString() ?? ""}
+                        </Typography>
+                        <Typography variant="body1">
+                            Please try refreshing the page. If the problem persists, you can{" "}
+                            <a href={mailToUrl} target="_blank" rel="noopener noreferrer">
+                                contact us
+                            </a>{" "}
+                            and we will try to help you as soon as possible.
+                        </Typography>
+                        <Button
+                            variant="contained"
+                            startIcon={<RefreshIcon />}
+                            onClick={this.handleRefresh}
+                            sx={{ marginTop: "16px" }}
+                        >
+                            Refresh
+                        </Button>
                     </div>
                 </div>
             );
