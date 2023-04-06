@@ -235,7 +235,7 @@ export const LandingView = ({
                             <Box sx={{
                                 display: 'inline-block',
                                 color: '#ffe768',
-                                textShadow: '0 0 2px #fff, 0 0 3px #fff, 0 0 13px #ffe768, 0 0 42px #ffe768, 0 0 82px #ffe768, 0 0 92px #ffe768, 0 0 102px #ffe768',
+                                filter: 'drop-shadow(0 0 1px #ffe768) drop-shadow(0 0 10px #ffe768) drop-shadow(0 0 41px #ffe768)',
                                 paddingLeft: 2,
                                 transform: 'scale(1.05'
                             }}>
