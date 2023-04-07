@@ -73,7 +73,11 @@ export const ReportForm = forwardRef<any, ReportFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    paddingBottom: '64px',
+                    width: 'min(600px, 100vw - 16px)',
+                    margin: 'auto',
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)',
+                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
                 }}
             >
                 <SelectLanguageMenu

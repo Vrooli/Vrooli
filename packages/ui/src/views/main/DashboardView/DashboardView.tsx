@@ -28,7 +28,8 @@ import { openObject } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
-import { NoteUpsert, ReminderUpsert } from 'views/objects';
+import { NoteUpsert } from 'views/objects/note';
+import { ReminderUpsert } from 'views/objects/reminder';
 import { DashboardViewProps } from '../types';
 
 const zIndex = 200;
@@ -314,7 +315,8 @@ export const DashboardView = ({
                     titleKey="ToDo"
                     options={[['Create', openCreateReminder]]}
                 >
-                    {/* <ReminderList /> */}
+                    {/* <ReminderList
+                    /> */}
                 </TitleContainer>
                 {/* Notes */}
                 <ListTitleContainer

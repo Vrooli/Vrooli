@@ -70,7 +70,7 @@ export const CookieSettingsDialog = ({
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: '16px' }}>
                 {/* Strictly necessary */}
-                <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
+                <Stack direction="column" spacing={2} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t(`CookieStrictlyNecessary`)}</Typography>
                         <HelpButton markdown={t(`CookieStrictlyNecessaryDescription`)} />

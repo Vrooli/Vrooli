@@ -1,6 +1,7 @@
 import { Resource } from "@shared/consts";
 import { SvgComponent } from "@shared/icons";
 import { LineGraphProps } from "components/graphs/types";
+import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
 import { AwardDisplay } from "types";
 
 export interface AwardCardProps {
@@ -22,6 +23,8 @@ export interface LineGraphCardProps extends Omit<LineGraphProps, 'dims'> {
 export interface ResourceCardProps {
     canUpdate: boolean;
     data: Resource;
+    dragProps: DraggableProvidedDraggableProps;
+    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
     index: number;
     onContextMenu: (target: EventTarget, index: number) => void;
     onEdit: (index: number) => void;

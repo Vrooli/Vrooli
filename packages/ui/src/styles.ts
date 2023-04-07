@@ -61,7 +61,7 @@ export const linkColors = (palette: Palette) => ({
 
 export const greenNeonText = {
     color: '#fff',
-    textShadow: '0 0 7px #fff, 0 0 10px #fff, 0 0 21px #0fa, 0 0 42px #0fa, 0 0 82px #0fa, 0 0 92px #0fa, 0 0 102px #0fa',
+    filter: 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #0fa) drop-shadow(0 0 4px #0fa) drop-shadow(0 0 32px #0fa) drop-shadow(0 0 21px #0fa)',
 }
 
 export const iconButtonProps = {

@@ -3,7 +3,7 @@ import { SvgComponent } from "@shared/icons";
 import { CommonKey } from "@shared/translations";
 import { BaseViewProps } from "views/types";
 
-export type SettingsPageType = 'Profile' | 'Privacy' | 'Authentication' | 'Display' | 'Notification' | 'Schedule';
+export type SettingsPageType = 'Profile' | 'Privacy' | 'Authentication' | 'Display' | 'Notification' | 'FocusMode';
 export type SettingsData = {
     title: SettingsPageType,
     description: CommonKey,

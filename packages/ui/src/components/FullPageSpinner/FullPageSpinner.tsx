@@ -1,4 +1,5 @@
-import { Box, CircularProgress } from "@mui/material"
+import { Box } from "@mui/material"
+import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader"
 
 export const FullPageSpinner = () => {
     return (
@@ -9,7 +10,7 @@ export const FullPageSpinner = () => {
             transform: 'translate(-50%, -50%)',
             zIndex: 100000,
         }}>
-            <CircularProgress size={100} />
+            <DiagonalWaveLoader size={100} />
         </Box>
     )
 }

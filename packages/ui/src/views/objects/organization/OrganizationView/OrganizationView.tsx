@@ -120,13 +120,13 @@ export const OrganizationView = ({
         if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
+            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : palette.secondary.dark, // Custom color for resources
             index: i,
-            // Icon: tab.Icon,
+            Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
-    }, [permissions.canUpdate, resources, t]);
+    }, [palette.secondary.dark, permissions.canUpdate, resources, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 

@@ -9,6 +9,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm.tsx/ReminderForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { getCurrentUser } from "utils/authentication/session";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -49,6 +50,9 @@ export const ReminderUpsert = ({
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
+                    console.log('ON SUBMIT 1', values);
+                    console.log('ON SUBMIT 2', transformReminderValues(values, existing));
+                    console.log('ONSUBMIT 3', getCurrentUser(session));
                     if (!isCreate && !existing) {
                         PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
                         return;

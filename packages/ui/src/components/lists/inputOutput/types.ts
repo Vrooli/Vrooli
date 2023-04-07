@@ -1,3 +1,4 @@
+import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 
@@ -11,6 +12,8 @@ export interface InputOutputContainerProps {
 }
 
 export interface InputOutputListItemProps {
+    dragProps: DraggableProvidedDraggableProps;
+    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
     index: number;
     isEditing: boolean;
     isInput: boolean;
@@ -19,7 +22,6 @@ export interface InputOutputListItemProps {
     handleOpen: (index: number) => void;
     handleClose: (index: number) => void;
     handleDelete: (index: number) => void;
-    handleReorder: (index: number) => void;
     handleUpdate: (index: number, updatedItem: RoutineVersionInputShape | RoutineVersionOutputShape) => void;
     language: string;
     zIndex: number;

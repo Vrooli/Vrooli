@@ -90,8 +90,11 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                 ref={ref}
                 style={{
                     display: 'block',
-                    maxWidth: '700px',
+                    width: 'min(700px, 100vw - 16px)',
                     margin: 'auto',
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)',
+                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -101,6 +104,10 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                     <RelationshipList
                         isEditing={true}
                         objectType={'Organization'}
+                        zIndex={zIndex}
+                    />
+                    <ResourceListHorizontalInput
+                        isCreate={true}
                         zIndex={zIndex}
                     />
                     <Stack direction="column" spacing={2}>
@@ -128,10 +135,6 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                             name="bio"
                         />
                     </Stack>
-                    <ResourceListHorizontalInput
-                        isCreate={true}
-                        zIndex={zIndex}
-                    />
                     <TagSelector name="tags" />
                     <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
                         <FormControlLabel

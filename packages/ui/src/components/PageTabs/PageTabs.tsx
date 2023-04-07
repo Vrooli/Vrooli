@@ -43,7 +43,12 @@ export const PageTabs = <T extends any>({
                     // If icon is provided, use it. Otherwise, use the label
                     const contents: { [x: string]: any } = {};
                     if (Icon) {
-                        contents.icon = <Icon fill={isMobile ? palette.primary.contrastText : palette.mode === 'dark' ? palette.primary.contrastText : palette.primary.main} />;
+                        contents.icon = <Icon fill={color ?? (isMobile ?
+                            palette.primary.contrastText :
+                            palette.mode === 'dark' ?
+                                palette.primary.contrastText :
+                                palette.primary.main)
+                        } />;
                     } else {
                         contents.label = <span style={{ color: color ?? 'default' }}>{label}</span>;
                     }

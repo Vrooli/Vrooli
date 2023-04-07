@@ -4,6 +4,7 @@ export const LINKS = {
     About: '/about',
     Api: '/api',
     Awards: '/awards',
+    BookmarkList: '/bookmarks',
     Calendar: '/calendar',
     Comment: '/comment',
     Create: '/create',

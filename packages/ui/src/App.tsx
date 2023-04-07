@@ -1,11 +1,13 @@
-import { Box, CircularProgress, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from '@mui/material';
+import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { getActiveFocusMode } from '@shared/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
 import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { AsyncConfetti } from 'components/AsyncConfetti/AsyncConfett';
 import { BannerChicken } from 'components/BannerChicken/BannerChicken';
+import { DiagonalWaveLoader } from 'components/DiagonalWaveLoader/DiagonalWaveLoader';
 import { AlertDialog } from 'components/dialogs/AlertDialog/AlertDialog';
 import { SnackStack } from 'components/dialogs/snacks';
 import { WelcomeDialog } from 'components/dialogs/WelcomeDialog/WelcomeDialog';
@@ -16,7 +18,6 @@ import { Footer } from 'components/navigation/Footer/Footer';
 import { PullToRefresh } from 'components/PullToRefresh/PullToRefresh';
 import i18next from 'i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Confetti from 'react-confetti';
 import { Routes } from 'Routes';
 import { getCurrentUser, getSiteLanguage, guestSession } from 'utils/authentication/session';
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from 'utils/cookies';
@@ -288,7 +289,7 @@ export function App() {
                 if (hasErrorCode(error, 'SessionExpired')) {
                     isInvalidSession = true;
                     // Log in development mode
-                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', error);
+                    if (import.meta.env.DEV) console.error('Error: failed to verify session', error);
                 }
                 // If error is something else, notify user
                 if (!isInvalidSession) {
@@ -442,18 +443,7 @@ export function App() {
                             onClose={() => setIsWelcomeDialogOpen(false)}
                         />
                         {/* Celebratory confetti. To be used sparingly */}
-                        {
-                            isCelebrating && <Confetti
-                                initialVelocityY={-10}
-                                recycle={false}
-                                confettiSource={{
-                                    x: 0,
-                                    y: 40,
-                                    w: window.innerWidth,
-                                    h: 0
-                                }}
-                            />
-                        }
+                        {isCelebrating && <AsyncConfetti />}
                         <AlertDialog />
                         <SnackStack />
                         <Box id="content-wrap" sx={{
@@ -470,7 +460,7 @@ export function App() {
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: 100000,
                                 }}>
-                                    <CircularProgress size={100} />
+                                    <DiagonalWaveLoader size={100} />
                                 </Box>
                             }
                             <Routes sessionChecked={session !== undefined} />

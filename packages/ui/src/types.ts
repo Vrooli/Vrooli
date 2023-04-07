@@ -178,8 +178,13 @@ export interface CalendarEventOption {
 export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
 
 declare global {
-    // Enable Nami integration
-    interface Window { cardano: any; }
+    interface Window {
+        // Enable Nami integration
+        cardano: any;
+        // Enable speech recognition
+        SpeechRecognition: any
+        webkitSpeechRecognition: any
+    }
     // Add ID to EventTarget
     interface EventTarget { id?: string; }
 }

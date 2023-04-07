@@ -1,5 +1,5 @@
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, Success } from '@shared/consts';
+import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, MaxObjects, Success } from '@shared/consts';
 import { AddIcon, DeleteIcon, EditIcon } from "@shared/icons";
 import { mutationWrapper } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
@@ -9,7 +9,7 @@ import { FocusModeDialog } from "components/dialogs/FocusModeDialog/FocusModeDia
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { t } from "i18next";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { multiLineEllipsis } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
@@ -28,6 +28,12 @@ export const SettingsFocusModesView = ({
             setFocusModes(getCurrentUser(session).focusModes ?? []);
         }
     }, [session]);
+
+    const canAdd = useMemo(() => {
+        const { hasPremium } = getCurrentUser(session);
+        const max = hasPremium ? MaxObjects.FocusMode.User.premium : MaxObjects.FocusMode.User.noPremium;
+        return focusModes.length < max;
+    }, [focusModes.length, session]);
 
     // Handle delete
     const [deleteMutation] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
@@ -94,6 +100,10 @@ export const SettingsFocusModesView = ({
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingFocusMode, setEditingFocusMode] = useState<FocusMode | null>(null);
     const handleAdd = () => {
+        if (!canAdd) {
+            PubSub.get().publishSnack({ message: 'Max reached', severity: 'Error' });
+            return;
+        }
         setIsDialogOpen(true);
     };
     const handleUpdate = (focusMode: FocusMode) => {
@@ -139,7 +149,7 @@ export const SettingsFocusModesView = ({
                 }}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                         <Typography component="h2" variant="h4">{t('FocusMode', { count: 2 })}</Typography>
-                        <Tooltip title="Add new" placement="top">
+                        <Tooltip title={canAdd ? "Add new" : 'Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode.'} placement="top">
                             <IconButton
                                 size="medium"
                                 onClick={handleAdd}
@@ -147,7 +157,7 @@ export const SettingsFocusModesView = ({
                                     padding: 1,
                                 }}
                             >
-                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
+                                <AddIcon fill={canAdd ? palette.secondary.main : palette.grey[500]} width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

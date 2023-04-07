@@ -10,7 +10,7 @@ import { BaseFormRef } from 'forms/BaseForm/BaseForm';
 import { ScheduleForm } from 'forms/ScheduleForm/ScheduleForm';
 import { useCallback, useRef } from 'react';
 import { PubSub } from 'utils/pubsub';
-import { toDatetimeLocal, validateAndGetYupErrors } from 'utils/shape/general';
+import { validateAndGetYupErrors } from 'utils/shape/general';
 import { ScheduleShape, shapeSchedule } from 'utils/shape/models/schedule';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';
@@ -80,10 +80,8 @@ export const ScheduleDialog = ({
                     initialValues={{
                         __typename: 'Schedule' as const,
                         id: DUMMY_ID,
-                        // Default to nearest hour
-                        startTime: toDatetimeLocal(new Date(Math.ceil(Date.now() / 3600000) * 3600000)),
-                        // Default to hour after start time
-                        endTime: toDatetimeLocal(new Date(Math.ceil(Date.now() / 3600000) * 3600000 + 3600000)),
+                        startTime: null,
+                        endTime: null,
                         // Default to current timezone
                         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                         exceptions: [],

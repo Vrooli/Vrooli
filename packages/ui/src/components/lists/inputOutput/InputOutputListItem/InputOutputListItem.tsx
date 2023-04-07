@@ -1,6 +1,6 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from '@mui/material';
 import { StandardVersion } from '@shared/consts';
-import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
+import { DeleteIcon, DragIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
 import { uuid } from '@shared/uuid';
 import { routineVersionInputValidation, routineVersionOutputValidation } from '@shared/validation';
 import { EditableText } from 'components/containers/EditableText/EditableText';
@@ -8,7 +8,7 @@ import { StandardInput } from 'components/inputs/standards/StandardInput/Standar
 import { StandardVersionSelectSwitch } from 'components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch';
 import { useFormik } from 'formik';
 import { standardInitialValues } from 'forms/StandardForm/StandardForm';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { linkColors } from 'styles';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { SessionContext } from 'utils/SessionContext';
@@ -19,7 +19,9 @@ import { StandardVersionShape } from 'utils/shape/models/standardVersion';
 import { InputOutputListItemProps } from '../types';
 
 //TODO handle language change somehow
-export const InputOutputListItem = ({
+export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
+    dragProps,
+    dragHandleProps,
     isEditing,
     index,
     isInput,
@@ -28,11 +30,10 @@ export const InputOutputListItem = ({
     handleOpen,
     handleClose,
     handleDelete,
-    handleReorder,
     handleUpdate,
     language,
     zIndex,
-}: InputOutputListItemProps) => {
+}, ref) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
 
@@ -95,11 +96,6 @@ export const InputOutputListItem = ({
         }
     }, [item, session]);
 
-    const openReorderDialog = useCallback((e: any) => {
-        e.stopPropagation();
-        handleReorder(index);
-    }, [index, handleReorder]);
-
     return (
         <Box
             id={`${isInput ? 'input' : 'output'}-item-${index}`}
@@ -109,6 +105,8 @@ export const InputOutputListItem = ({
                 overflow: 'hidden',
                 flexGrow: 1,
             }}
+            ref={ref}
+            {...dragProps}
         >
             {/* Top bar, with expand/collapse icon */}
             <Container
@@ -179,9 +177,11 @@ export const InputOutputListItem = ({
                     </Box>
                 )}
                 {/* Show reorder icon if editing */}
-                {isEditing && <IconButton onClick={openReorderDialog} sx={{ marginLeft: 'auto' }}>
-                    <ReorderIcon />
-                </IconButton>}
+                {isEditing && (
+                    <Box {...dragHandleProps} sx={{ marginLeft: 'auto' }}>
+                        <DragIcon />
+                    </Box>
+                )}
                 <IconButton sx={{ marginLeft: isEditing ? 'unset' : 'auto' }}>
                     {isOpen ?
                         <ExpandMoreIcon fill={palette.secondary.contrastText} /> :
@@ -260,4 +260,4 @@ export const InputOutputListItem = ({
             </Collapse>
         </Box >
     )
-}
+})
