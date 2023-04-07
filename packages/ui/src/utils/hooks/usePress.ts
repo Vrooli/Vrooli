@@ -78,22 +78,24 @@ export const usePress = ({
     // Stores if click was a right click
     const isRightClick = useRef<boolean>(false);
     // Stores if object is currently being pressed
-    const isPressed = useRef<boolean>(false);
+    const isPressing = useRef<boolean>(false);
     // Stores if object is currently being hovered
-    const isHovered = useRef<boolean>(false);
+    const isHovering = useRef<boolean>(false);
+    // Stores if object is currently being dragged
+    const isDragging = useRef<boolean>(false);
 
     const hover = useCallback((event: React.MouseEvent | React.TouchEvent) => {
         // Ignore if pressing or already hovered
-        if (isPressed.current || isHovered.current) return;
+        if (isPressing.current || isHovering.current) return;
         // Cancel if already triggered
         if (hoverTimeout.current) {
-            clearTimeout(hoverTimeout.current); 
+            clearTimeout(hoverTimeout.current);
             hoverTimeout.current = undefined;
-        }  
+        }
         // Set timeout. Hover delay is longer than press delay
         hoverTimeout.current = setTimeout(() => {
             if (target.current) onHover?.(target.current);
-            isHovered.current = true;
+            isHovering.current = true;
         }, hoverDelay);
         // Store target
         target.current = event.target ?? event.currentTarget as React.MouseEvent['target'];
@@ -105,8 +107,8 @@ export const usePress = ({
             clearTimeout(hoverTimeout.current);
             pressTimeout.current = undefined;
         }
-        // Set isPressed to true
-        isPressed.current = true;
+        // Set isPressing to true
+        isPressing.current = true;
         // Check if right click
         if (isMouseEvent(event)) {
             isRightClick.current = event.button === 2;
@@ -136,10 +138,11 @@ export const usePress = ({
         const position = getPosition(event);
         lastPosition.current = position;
         const distance = Math.sqrt(Math.pow(position.x - startPosition.current.x, 2) + Math.pow(position.y - startPosition.current.y, 2));
-        // If the distance is too far (i.e. a drag), cancel the press
+        // If the distance is too far (i.e. a drag), cancel the press and set isDragging to true
         if (distance > MAX_TRAVEL_DISTANCE) {
             clearTimeout(pressTimeout.current);
             pressTimeout.current = undefined;
+            isDragging.current = true;
         }
     }, []);
 
@@ -154,22 +157,23 @@ export const usePress = ({
             hoverTimeout.current = undefined;
         }
         // If hover was triggered, trigger hoverEnd
-        if (isHovered.current) {
+        if (isHovering.current) {
             if (target.current) onHoverEnd?.(target.current);
-            isHovered.current = false;
+            isHovering.current = false;
         }
-        // Calculate distatnce travelled
+        // Calculate distance travelled
         const travelDistance = Math.sqrt(
             Math.pow(lastPosition.current.x - startPosition.current.x, 2) +
             Math.pow(lastPosition.current.y - startPosition.current.y, 2)
         );
         // Check if short click or right click
         if (
-            isPressed.current &&
+            isPressing.current &&
             longPressTriggered.current === false &&
             travelDistance < MAX_TRAVEL_DISTANCE &&
-            shouldTriggerClick && 
+            shouldTriggerClick &&
             !longPressTriggered.current &&
+            !isDragging.current &&
             target.current
         ) {
             if (isRightClick.current) {
@@ -180,7 +184,8 @@ export const usePress = ({
         }
         // Reset state and remove event listeners
         longPressTriggered.current = false;
-        isPressed.current = false;
+        isPressing.current = false;
+        isDragging.current = false;
         if (shouldPreventDefault && target.current && isTouchEvent(event)) {
             target.current.removeEventListener("touchend", preventDefaultTouch as any);
         }
@@ -189,10 +194,10 @@ export const usePress = ({
     return {
         onMouseDown: e => start(e),
         onMouseEnter: e => hover(e),
-        onMouseLeave: e => clear(e),
+        onMouseLeave: e => clear(e, false),
         onMouseMove: e => move(e),
-        onMouseUp: e => clear(e),
-        onTouchEnd: e => clear(e),
+        onMouseUp: e => clear(e, true),
+        onTouchEnd: e => clear(e, true),
         onTouchMove: e => move(e),
         onTouchStart: e => start(e),
     };

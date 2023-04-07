@@ -3,7 +3,7 @@ import { SearchIcon } from "@shared/icons";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { Field, useField } from "formik";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { LinkInputProps } from "../types";
@@ -16,6 +16,7 @@ export const LinkInput = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
+    const textFieldRef = useRef<HTMLDivElement | null>(null);
     const [field, , helpers] = useField<string>(name);
 
     // Search dialog to find objects. to link to
@@ -71,6 +72,7 @@ export const LinkInput = ({
                         name={name}
                         label={label ?? t('Link')}
                         as={TextField}
+                        ref={textFieldRef}
                         sx={{
                             '& .MuiInputBase-root': {
                                 borderRadius: '5px 0 0 5px',
@@ -83,7 +85,7 @@ export const LinkInput = ({
                         background={palette.secondary.main}
                         sx={{
                             borderRadius: '0 5px 5px 0',
-                            height: '56px',
+                            height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                         }}>
                         <SearchIcon />
                     </ColorIconButton>

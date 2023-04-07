@@ -67,7 +67,7 @@ export const CookiesSnack = ({
                     </IconButton>
                 </Stack>
                 {/* Title */}
-                <Typography variant="h6" sx={{ mt: 2 }}>
+                <Typography variant="body1" sx={{ mt: 2 }}>
                     This site uses cookies to give you the best experience. Please accept or reject our cookie policy so we can stop asking :)
                 </Typography>
                 {/* Buttons */}

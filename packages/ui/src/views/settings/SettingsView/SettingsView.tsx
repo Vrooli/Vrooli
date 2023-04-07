@@ -45,8 +45,8 @@ export const displaySettingsData: SettingsData[] = [
         Icon: NotificationsCustomizedIcon,
     },
     {
-        title: 'Schedule',
-        description: 'ScheduleSettingsDescription',
+        title: 'FocusMode',
+        description: 'FocusModeSettingsDescription',
         link: 'SettingsFocusModes',
         Icon: HistoryIcon,
     },

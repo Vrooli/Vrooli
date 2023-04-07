@@ -86,7 +86,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
         ]);
     };
 
-    const handleDragEnd = (result: DropResult) => {
+    const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
 
         const newReminderItems = Array.from(reminderItemsField.value);
@@ -111,7 +111,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
 
     return (
         <>
-            <DragDropContext onDragEnd={handleDragEnd}>
+            <DragDropContext onDragEnd={onDragEnd}>
                 <BaseForm
                     dirty={dirty}
                     isLoading={isLoading}

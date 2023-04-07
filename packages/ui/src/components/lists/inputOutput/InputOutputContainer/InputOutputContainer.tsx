@@ -109,13 +109,11 @@ export const InputOutputContainer = ({
         handleUpdate(combined as any);
     }, [sortedList, t, isInput, language, handleUpdate]);
 
-    const handleDragEnd = (result: DropResult) => {
+    const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
-
         const newList = Array.from(sortedList);
         const [reorderedItem] = newList.splice(result.source.index, 1);
         newList.splice(result.destination.index, 0, reorderedItem);
-
         handleUpdate(newList as any);
     };
 
@@ -131,7 +129,7 @@ export const InputOutputContainer = ({
     return (
         <>
             {/* Main content */}
-            <DragDropContext onDragEnd={handleDragEnd}>
+            <DragDropContext onDragEnd={onDragEnd}>
                 <ContentCollapse
                     id={`${type}-container`}
                     helpText={t(`${isInput ? 'Input' : 'Output'}ContainerHelp`)}

@@ -3,7 +3,7 @@ import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "@shared/icons";
 import { calculateVersionsFromString, meetsMinVersion } from "@shared/validation";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { useField } from 'formik';
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { getMinimumVersion } from "utils/shape/general";
 import { VersionInputProps } from "../types";
 
@@ -16,6 +16,8 @@ export const VersionInput = ({
     ...props
 }: VersionInputProps) => {
     const { palette } = useTheme();
+
+    const textFieldRef = useRef<HTMLDivElement | null>(null);
 
     const [field, meta, helpers] = useField(name);
     const [internalValue, setInternalValue] = useState<string>(field.value);
@@ -74,6 +76,7 @@ export const VersionInput = ({
                 onChange={handleChange}
                 error={meta.touched && !!meta.error}
                 helperText={meta.touched && meta.error}
+                ref={textFieldRef}
                 sx={{
                     '& .MuiInputBase-root': {
                         borderRadius: '5px 0 0 5px',
@@ -88,7 +91,7 @@ export const VersionInput = ({
                     sx={{
                         borderRadius: '0',
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
-                        height: '56px',
+                        height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
                     <BumpMajorIcon />
                 </ColorIconButton>
@@ -101,7 +104,7 @@ export const VersionInput = ({
                     sx={{
                         borderRadius: '0',
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
-                        height: '56px',
+                        height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
                     <BumpModerateIcon />
                 </ColorIconButton>
@@ -113,7 +116,7 @@ export const VersionInput = ({
                     onClick={bumpMinor}
                     sx={{
                         borderRadius: '0 5px 5px 0',
-                        height: '56px',
+                        height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
                     }}>
                     <BumpMinorIcon />
                 </ColorIconButton>

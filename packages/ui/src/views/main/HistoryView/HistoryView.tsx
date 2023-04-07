@@ -1,3 +1,4 @@
+import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, VisibleIcon } from '@shared/icons';
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { SearchList } from 'components/lists/SearchList/SearchList';
@@ -12,6 +13,7 @@ import { HistoryViewProps } from '../types';
 
 // Tab data type
 type BaseParams = {
+    Icon: (props: SvgProps) => JSX.Element,
     titleKey: CommonKey;
     searchType: SearchType;
     tabType: HistoryPageTabOption;
@@ -20,21 +22,25 @@ type BaseParams = {
 
 // Data for each tab
 const tabParams: BaseParams[] = [{
+    Icon: VisibleIcon,
     titleKey: 'View',
     searchType: SearchType.View,
     tabType: HistoryPageTabOption.Viewed,
     where: {},
 }, {
+    Icon: BookmarkFilledIcon,
     titleKey: 'Bookmark',
     searchType: SearchType.BookmarkList,
     tabType: HistoryPageTabOption.Bookmarked,
     where: {},
 }, {
+    Icon: RoutineActiveIcon,
     titleKey: 'Active',
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsActive,
     where: {},
 }, {
+    Icon: RoutineCompleteIcon,
     titleKey: 'Complete',
     searchType: SearchType.RunProjectOrRunRoutine,
     tabType: HistoryPageTabOption.RunsCompleted,
@@ -54,6 +60,7 @@ export const HistoryView = ({
     const tabs = useMemo<PageTab<HistoryPageTabOption>[]>(() => {
         return tabParams.map((tab, i) => ({
             index: i,
+            Icon: tab.Icon,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
             value: tab.tabType,
         }));

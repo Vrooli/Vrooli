@@ -10,7 +10,7 @@ import { DeleteIcon, EditIcon } from '@shared/icons';
 import { openLink, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { forwardRef, useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from 'utils/display/getResourceIcon';
@@ -23,14 +23,16 @@ import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
 import { ResourceCardProps } from '../types';
 
-export const ResourceCard = ({
+export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     canUpdate,
     data,
+    dragProps,
+    dragHandleProps,
     index,
     onContextMenu,
     onEdit,
     onDelete,
-}: ResourceCardProps) => {
+}, ref) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -95,6 +97,9 @@ export const ResourceCard = ({
     return (
         <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${data.link}`}>
             <Box
+                ref={ref}
+                {...dragProps}
+                {...dragHandleProps}
                 {...pressEvents}
                 component="a"
                 href={href}
@@ -170,4 +175,4 @@ export const ResourceCard = ({
             </Box>
         </Tooltip>
     )
-}
+})

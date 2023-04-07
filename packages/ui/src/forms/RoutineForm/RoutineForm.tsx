@@ -1,10 +1,9 @@
-import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip, Typography } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
 import { Node, NodeLink, RoutineVersion, Session } from "@shared/consts";
 import { RoutineIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { routineVersionTranslationValidation, routineVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
@@ -14,6 +13,7 @@ import { TranslatedTextField } from "components/inputs/TranslatedTextField/Trans
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { Subheader } from "components/text/Subheader/Subheader";
 import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { RoutineFormProps } from "forms/types";
@@ -261,10 +261,10 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
                     {/* Selector for single-step or multi-step routine */}
                     <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
                         {/* Title with help text */}
-                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} mb={2} >
-                            <Typography variant="h4" component="h4">Use Subroutines?</Typography>
-                            <HelpButton markdown={helpTextSubroutines} />
-                        </Stack >
+                        <Subheader
+                            title="Use subroutines?"
+                            help={helpTextSubroutines}
+                        />
                         {/* Yes/No buttons */}
                         <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
                             <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? 'outlined' : 'contained'}>Yes</Button>

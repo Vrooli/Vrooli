@@ -117,6 +117,8 @@ export * from './ReorderIcon';
 export * from './ReplyIcon';
 export * from './ReportIcon';
 export * from './ResearchIcon';
+export * from './RoutineActiveIcon';
+export * from './RoutineCompleteIcon';
 export * from './RoutineIcon';
 export * from './RoutineIncompleteIcon';
 export * from './RoutineInvalidIcon';

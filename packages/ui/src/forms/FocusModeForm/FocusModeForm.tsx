@@ -1,12 +1,12 @@
-import { Box, Button, ListItem, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { Schedule } from "@shared/consts";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "@shared/icons";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";
 import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
+import { Subheader } from "components/text/Subheader/Subheader";
 import { Field, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { FocusModeFormProps } from "forms/types";
@@ -160,17 +160,17 @@ export const FocusModeForm = forwardRef<any, FocusModeFormProps>(({
                         isCreate={true}
                         zIndex={zIndex}
                     />
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <HeartFilledIcon fill={palette.background.textPrimary} />
-                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsFavorite')}</Typography>
-                        <HelpButton markdown={t('TopicsFavoriteHelp')} />
-                    </Stack>
+                    <Subheader
+                        Icon={HeartFilledIcon}
+                        title={t('TopicsFavorite')}
+                        help={t('TopicsFavoriteHelp')}
+                    />
                     <TagSelector name="favorites" />
-                    <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                        <InvisibleIcon fill={palette.background.textPrimary} />
-                        <Typography component="h2" variant="h5" textAlign="center" ml={1}>{t('TopicsHidden')}</Typography>
-                        <HelpButton markdown={t('TopicsHiddenHelp')} />
-                    </Stack>
+                    <Subheader
+                        Icon={InvisibleIcon}
+                        title={t('TopicsHidden')}
+                        help={t('TopicsHiddenHelp')}
+                    />
                     <TagSelector name="hidden" />
                 </Stack>
             </BaseForm>
