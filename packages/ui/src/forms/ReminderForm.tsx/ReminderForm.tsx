@@ -11,6 +11,7 @@ import { ReminderFormProps } from "forms/types";
 import { forwardRef, useCallback } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
 import { useTranslation } from "react-i18next";
+import { getCurrentUser } from "utils/authentication/session";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
 
@@ -29,6 +30,10 @@ export const reminderInitialValues = (
     reminderList: {
         __typename: 'ReminderList' as const,
         id: reminderListId ?? DUMMY_ID,
+        // If there's no reminderListId, add additional fields to create a new reminderList
+        ...(reminderListId === undefined && {
+            focusMode: getCurrentUser(session)?.activeFocusMode?.mode,
+        })
     },
     reminderItems: [],
     ...existing,

@@ -1,5 +1,4 @@
 import { exists } from "@shared/utils"
-import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner"
 import { Form } from "formik"
 import { BaseFormProps } from "forms/types"
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react"
@@ -44,7 +43,17 @@ export const BaseForm = forwardRef<BaseFormRef, BaseFormProps>(({
             justifyContent: 'center',
             ...(style ?? {})
         }}>
-            {isLoading ? <FullPageSpinner /> : children}
+            {/* When loading, display a dark overlay */}
+            {isLoading && <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                zIndex: 1
+            }} />}
+            {children}
         </Form>
     )
 })

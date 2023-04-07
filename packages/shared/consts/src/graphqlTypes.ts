@@ -5761,7 +5761,8 @@ export type ReminderCreateInput = {
   index: Scalars['Int'];
   name: Scalars['String'];
   reminderItemsCreate?: InputMaybe<Array<ReminderItemCreateInput>>;
-  reminderListConnect: Scalars['ID'];
+  reminderListConnect?: InputMaybe<Scalars['ID']>;
+  reminderListCreate?: InputMaybe<ReminderListCreateInput>;
 };
 
 export type ReminderEdge = {

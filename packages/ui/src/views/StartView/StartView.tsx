@@ -11,6 +11,7 @@ import {
     Typography
 } from '@mui/material';
 import { EmailLogInInput, LINKS, Session } from '@shared/consts';
+import { EmailIcon, WalletIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
 import { useCustomMutation } from 'api/hooks';
@@ -201,18 +202,21 @@ export const StartView = ({
             {/* Main content */}
             <Box sx={{
                 display: 'flex',
+                flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'center',
                 textAlign: 'center',
+                height: 'calc(100vh - 128px)', // Minus double the app bar height
                 marginTop: 4,
             }}>
                 <Box sx={{
-                    width: 'min(calc(100vw - 16px), 500px)',
+                    width: 'min(calc(100vw - 16px), 400px)',
                 }}>
                     <Box sx={{
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
+                        marginBottom: 2,
                     }}>
                         <Typography
                             variant="h6"
@@ -228,8 +232,18 @@ export const StartView = ({
                         direction="column"
                         spacing={2}
                     >
-                        <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>{t('Wallet')}</Button>
-                        <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>{t('Email')}</Button>
+                        <Button
+                            fullWidth
+                            onClick={openWalletConnectDialog}
+                            startIcon={<WalletIcon />}
+                            sx={{ ...buttonProps }}
+                        >{t('Wallet')}</Button>
+                        <Button
+                            fullWidth
+                            onClick={toEmailLogIn}
+                            startIcon={<EmailIcon />}
+                            sx={{ ...buttonProps }}
+                        >{t('Email')}</Button>
                     </Stack>
                 </Box>
             </Box>

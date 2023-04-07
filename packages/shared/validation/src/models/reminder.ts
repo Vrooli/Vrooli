@@ -1,6 +1,7 @@
 import * as yup from 'yup';
 import { description, id, index, name, opt, req, YupModel, yupObj } from '../utils';
 import { reminderItemValidation } from './reminderItem';
+import { reminderListValidation } from './reminderList';
 
 export const reminderValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -10,9 +11,9 @@ export const reminderValidation: YupModel = {
         dueDate: opt(yup.date()),
         index: opt(index),
     }, [
-        ['reminderList', ['Connect'], 'one', 'req'],
+        ['reminderList', ['Connect', 'Create'], 'one', 'req', reminderListValidation, ['reminders']],
         ['reminderItems', ['Create'], 'many', 'opt', reminderItemValidation],
-    ], [], o),
+    ], [['reminderListConnect', 'reminderListCreate']], o),
     update: ({ o }) => yupObj({
         id: req(id),
         name: opt(name),
