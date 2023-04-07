@@ -1,5 +1,6 @@
-import { Button, Typography } from "@mui/material";
+import { Button, Stack, Typography } from "@mui/material";
 import { RefreshIcon } from "@shared/icons";
+import { stringifySearchParams } from "@shared/route";
 import { Component } from "react";
 import { ErrorBoundaryProps } from "../../views/types";
 
@@ -27,9 +28,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     static getDerivedStateFromError(error: Error) {
         const subject = `Error Report: ${error?.name ?? ""}`;
         const body = `Error message: ${error?.toString() ?? ""}`;
-        const mailToUrl = `mailto:official@vrooli.com?subject=${encodeURIComponent(
-            subject
-        )}&body=${encodeURIComponent(body)}`;
+        const mailToUrl = `mailto:official@vrooli.com${stringifySearchParams({ body, subject })}`;
         return { hasError: true, error, mailToUrl };
     }
 
@@ -58,9 +57,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         color: 'black',
                     }}
                 >
-                    <div style={{ textAlign: "center" }}>
+                    <Stack direction="column" spacing={2} style={{ textAlign: "center" }}>
                         <Typography variant="h4">Something went wrong 😔</Typography>
-                        <Typography variant="body1">
+                        <Typography variant="body1" style={{ color: "red" }}>
                             {error?.toString() ?? ""}
                         </Typography>
                         <Typography variant="body1">
@@ -78,7 +77,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         >
                             Refresh
                         </Button>
-                    </div>
+                    </Stack>
                 </div>
             );
         }

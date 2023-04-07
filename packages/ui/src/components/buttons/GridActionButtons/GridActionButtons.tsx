@@ -23,6 +23,7 @@ export const GridActionButtons = ({
             position: { xs: display === 'page' ? 'sticky' : 'fixed', sm: 'sticky' },
             // Displayed directly above BottomNav (pages only), which is only visible on mobile
             bottom: { xs: display === 'page' ? 'calc(56px + env(safe-area-inset-bottom))' : 0, md: 0 },
+            paddingBottom: display === 'page' ? undefined : 'env(safe-area-inset-bottom)',
             // Background has transparent blur gradient when used for a page, 
             // and a solid color when used for a dialog
             background: display === 'page' ? 'transparent' : palette.primary.dark,
