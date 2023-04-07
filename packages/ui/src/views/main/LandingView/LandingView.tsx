@@ -365,7 +365,7 @@ export const LandingView = ({
                             Our ultimate goal is to transition the world to a fully automated, post-capitalist economy. Here's how:
                         </Typography>
                         <ul style={{ textAlign: 'left', zIndex: 6 }}>
-                            <li>Foster a decentralized, collaborative AI ecosystemt</li>
+                            <li>Foster a decentralized, collaborative AI ecosystem</li>
                             <li>Prioritize ethical and socially responsible AI development</li>
                             <li>Democratize access to AI-driven automation for all</li>
                         </ul>

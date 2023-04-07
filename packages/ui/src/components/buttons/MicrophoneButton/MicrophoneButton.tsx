@@ -29,7 +29,40 @@ export const MicrophoneButton = ({
 
     useEffect(() => {
         if (!isListening) onTranscriptChange(transcript);
-    }, [isListening, transcript, onTranscriptChange]);
+
+        // Handle the 'end' event, which is triggered when the speech recognition service has
+        // disconnected, to stop the microphone.
+        const handleEnd = () => {
+            if (isListening) stopListening();
+        };
+
+        // Handle the 'nomatch' event, which is triggered when the speech recognition service
+        // returns a final result with no significant recognition, to stop the microphone.
+        const handleNoMatch = () => {
+            if (isListening) stopListening();
+        };
+
+        // Check if the browser supports SpeechRecognition or webkitSpeechRecognition
+        if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+            // Create a new instance of SpeechRecognition or webkitSpeechRecognition
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            // Add event listeners for 'end' and 'nomatch' events
+            recognition.addEventListener('end', handleEnd);
+            recognition.addEventListener('nomatch', handleNoMatch);
+        }
+
+        // Clean up event listeners on unmount
+        return () => {
+            if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+                // Create a new instance of SpeechRecognition or webkitSpeechRecognition
+                const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                // Remove event listeners for 'end' and 'nomatch' events
+                recognition.removeEventListener('end', handleEnd);
+                recognition.removeEventListener('nomatch', handleNoMatch);
+            }
+        };
+    }, [isListening, transcript, onTranscriptChange, stopListening]);
+
 
     const Icon = useMemo(() => {
         if (status === 'On') return MicrophoneOnIcon;
