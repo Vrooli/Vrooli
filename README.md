@@ -6,11 +6,8 @@
 &nbsp;&nbsp;
 
 [![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com)][website]
-[![YouTube Channel Views](https://img.shields.io/youtube/channel/views/UC4qvcwbFxx06vBD3wKjXscg?logo=youtube&logoColor=red&style=for-the-badge)][youtube]
 [![Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][twitter]
 [![Discord](https://img.shields.io/discord/880439923876974643?&style=for-the-badge)][discord]
-[![Join the Movement](https://img.shields.io/badge/-Join%20The%20Movement-gray.svg?colorB=733ace&style=for-the-badge)][start]
-<br/>
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
 # [<img align="top" alt="YouTube" width="50px" src="./docs/assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
@@ -113,8 +110,7 @@ To achieve this grand vision, we must think from first principles. What properti
 
 ## 🔗 Quick Links
 - [Motivations and goals](https://www.youtube.com/watch?v=hBHaPYi5esQ)
-- [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4/edit?usp=sharing)
-- [Fund6 proposal](https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088)
+- [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/13Nag4UFxfuz-rVofhNEtqhZ63wOklzPjpbanGv_Po0Y/edit?usp=sharing)
 - [Join the discussion on Discord!](https://discord.com/invite/VyrDFzbmmF)
 - [Follow us on Twitter!](https://twitter.com/VrooliOfficial)
 
@@ -163,16 +159,12 @@ To achieve this grand vision, we must think from first principles. What properti
     - Continual improvements and bug fixes, to ensure Vrooli is as best as can be.
 
 ## 🥞 Development Stack
-[<img align="left" alt="Cardano" width="26px" src="./docs/assets/cardano.svg" style="padding-right:10px;" />](https://cardano.org/)
 [<img align="left" alt="React" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" style="padding-right:10px;" />](https://reactjs.org/)
 [<img align="left" alt="GraphQL" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" style="padding-right:10px;" />](https://graphql.org/)
-[<img align="left" alt="HTML5" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/html5/html5-original.svg" style="padding-right:10px;" />](https://developer.mozilla.org/en-US/docs/Glossary/HTML5)
-[<img align="left" alt="CSS3" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/css3/css3-original.svg" style="padding-right:10px;" />](https://developer.mozilla.org/en-US/docs/Web/CSS)
-[<img align="left" alt="JavaScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" style="padding-right:10px;" />](https://www.javascript.com/)
 [<img align="left" alt="typeScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" style="padding-right:10px;" />](https://www.typescriptlang.org/)
 [<img align="left" alt="Node.js" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" style="padding-right:10px;" />](https://nodejs.org/)
 [<img align="left" alt="PostgreSQL" width="26px" src="./docs/assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/)
-[<img align="left" alt="MongoDB" width="26px" src="./docs/assets/mongodb.svg" style="padding-right:10px;" />](https://www.mongodb.com/)
+[<img align="left" alt="Cardano" width="26px" src="./docs/assets/cardano.svg" style="padding-right:10px;" />](https://cardano.org/)
 [<img align="left" alt="Docker" width="26px" src="./docs/assets/docker.svg" style="padding-right:10px;" />](https://www.docker.com/)
 [<img align="left" alt="Visual Studio Code" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" style="padding-right:10px;" />](https://code.visualstudio.com/)
 [<img align="left" alt="GitHub" width="26px" src="./docs/assets/github.svg" style="padding-right:10px;" />](https://github.com/)
