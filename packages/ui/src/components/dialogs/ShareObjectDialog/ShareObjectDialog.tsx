@@ -2,14 +2,18 @@
  * Dialog for sharing an object
  */
 import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
-import { ShareObjectDialogProps } from '../types';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { useMemo } from 'react';
-import { getDeviceInfo, getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
-import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { ColorIconButton, LargeDialog } from 'components';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import QRCode from "react-qr-code";
+import { getDeviceInfo } from 'utils/display/device';
+import usePress from 'utils/hooks/usePress';
+import { getObjectUrl, ObjectType } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { ShareObjectDialogProps } from '../types';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -91,10 +95,10 @@ export const ShareObjectDialog = ({
             titleId={titleId}
             zIndex={zIndex}
         >
-            <DialogTitle
-                id={titleId}
-                title={t('Share')}
+            <TopBar
+                display="dialog"
                 onClose={onClose}
+                titleData={{ titleId, titleKey: 'Share' }}
             />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">

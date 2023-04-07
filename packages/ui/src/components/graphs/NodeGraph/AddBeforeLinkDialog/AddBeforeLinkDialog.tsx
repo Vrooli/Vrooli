@@ -1,14 +1,15 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { AddBeforeLinkDialogProps } from '../types';
-import { ListMenuItemData } from 'components/dialogs/types';
-import { useCallback, useMemo } from 'react';
-import { Dialog, DialogContent, List, ListItem, ListItemText } from '@mui/material';
-import { getTranslation, getUserLanguages } from 'utils';
-import { DialogTitle } from 'components/dialogs';
-import { useTranslation } from 'react-i18next';
+import { DialogContent, List, ListItem, ListItemText } from '@mui/material';
 import { NodeLink } from '@shared/consts';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
+import { ListMenuItemData } from 'components/dialogs/types';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useCallback, useContext, useMemo } from 'react';
+import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
+import { AddBeforeLinkDialogProps } from '../types';
 
 const titleId = 'add-before-link-dialog-title';
 
@@ -19,10 +20,9 @@ export const AddBeforeLinkDialog = ({
     nodeId,
     nodes,
     links,
-    session,
     zIndex,
 }: AddBeforeLinkDialogProps) => {
-    const { t } = useTranslation();
+    const session = useContext(SessionContext);
 
     /**
      * Gets the name of a node from its id
@@ -43,18 +43,17 @@ export const AddBeforeLinkDialog = ({
     }));
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="add-link-before-dialog"
             onClose={handleClose}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-            }}
+            isOpen={isOpen}
+            titleId={titleId}
+            zIndex={zIndex}
         >
-            <DialogTitle
-                id={titleId}
+            <TopBar
+                display="dialog"
                 onClose={handleClose}
-                title={t('LinkSelect')}
+                titleData={{ titleId, titleKey: 'LinkSelect' }}
             />
             <DialogContent>
                 <List>
@@ -65,6 +64,6 @@ export const AddBeforeLinkDialog = ({
                     ))}
                 </List>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

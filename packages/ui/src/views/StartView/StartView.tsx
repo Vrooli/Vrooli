@@ -4,38 +4,37 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { useLocation } from '@shared/route';
 import {
     Box,
-    Button,
-    Dialog,
-    Stack,
+    Button, Stack,
     SxProps,
-    Typography,
+    Typography
 } from '@mui/material';
-import { Forms, PubSub, useReactSearch } from 'utils';
-import { LINKS, EmailLogInInput, Session } from '@shared/consts';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { DialogTitle, HelpButton, TopBar, WalletInstallDialog, WalletSelectDialog } from 'components';
-import {
-    LogInForm,
-    ForgotPasswordForm,
-    SignUpForm,
-    ResetPasswordForm,
-} from 'forms';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { StartViewProps } from '../types';
-import { hasErrorCode } from 'api/utils';
-import { getCurrentUser } from 'utils/authentication';
-import { subscribeUserToPush } from 'serviceWorkerRegistration';
+import { EmailLogInInput, LINKS, Session } from '@shared/consts';
+import { EmailIcon, WalletIcon } from '@shared/icons';
+import { useLocation } from '@shared/route';
 import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
-import { authGuestLogIn } from 'api/generated/endpoints/auth_guestLogIn';
+import { useCustomMutation } from 'api/hooks';
+import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
+import { WalletInstallDialog } from 'components/dialogs/WalletInstallDialog/WalletInstallDialog';
+import { WalletSelectDialog } from 'components/dialogs/WalletSelectDialog/WalletSelectDialog';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from 'forms/auth';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { subscribeUserToPush } from 'serviceWorkerRegistration';
+import { getCurrentUser } from 'utils/authentication/session';
+import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
+import { Forms } from 'utils/consts';
+import { useReactSearch } from 'utils/hooks/useReactSearch';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { StartViewProps } from '../types';
 
 const helpText =
-    `Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.\n\nChoose **ENTER AS GUEST** if you only want to view the site or execute existing routines.`
+    `Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.`
 
 const buttonProps: SxProps = {
     height: '4em',
@@ -45,8 +44,8 @@ const emailTitleId = 'email-login-dialog-title';
 
 export const StartView = ({
     display = 'page',
-    session,
 }: StartViewProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
@@ -58,25 +57,24 @@ export const StartView = ({
     }), [search]);
 
     const [emailLogIn] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
-    const [guestLogIn] = useCustomMutation<Session, undefined>(authGuestLogIn);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);
     const handleFormChange = useCallback((type: Forms = Forms.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
-    const [Form, formTitle] = useMemo(() => {
+    const Form = useMemo(() => {
         switch (popupForm) {
             case Forms.ForgotPassword:
-                return [ForgotPasswordForm, t('ForgotPassword')];
+                return ForgotPasswordForm;
             case Forms.LogIn:
-                return [LogInForm, t('LogIn')];
+                return LogInForm;
             case Forms.ResetPassword:
-                return [ResetPasswordForm, t('ResetPassword')];
+                return ResetPasswordForm;
             case Forms.SignUp:
-                return [SignUpForm, t('SignUp')];
+                return SignUpForm;
             default:
-                return [LogInForm, t('LogIn')];
+                return LogInForm;
         }
-    }, [popupForm, t])
+    }, [popupForm])
 
     /**
      * If verification code supplied
@@ -158,16 +156,6 @@ export const StartView = ({
         }
     }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect])
 
-    const requestGuestToken = useCallback(() => {
-        mutationWrapper<Session, never>({
-            mutation: guestLogIn,
-            onSuccess: (data) => {
-                PubSub.get().publishSession(data)
-                setLocation(redirect ?? LINKS.Welcome);
-            },
-        })
-    }, [guestLogIn, setLocation, redirect]);
-
     const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
         setConnectOpen(false);
         if (providerKey) {
@@ -191,26 +179,22 @@ export const StartView = ({
                 onClose={closeWalletInstallDialog}
                 zIndex={connectOpen ? 201 : 200}
             />
-            <Dialog
-                open={emailPopupOpen}
-                disableScrollLock={true}
+            <LargeDialog
+                id="email-auth-dialog"
+                isOpen={emailPopupOpen}
                 onClose={closeEmailPopup}
-                aria-labelledby={emailTitleId}
+                titleId={emailTitleId}
+                zIndex={201}
             >
-                <DialogTitle
-                    id={emailTitleId}
-                    title={formTitle}
+                <Form
                     onClose={closeEmailPopup}
+                    onFormChange={handleFormChange}
                 />
-                <Box sx={{ padding: 1 }}>
-                    <Form onFormChange={handleFormChange} />
-                </Box>
-            </Dialog>
+            </LargeDialog>
             {/* App bar */}
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Start',
                 }}
@@ -218,18 +202,21 @@ export const StartView = ({
             {/* Main content */}
             <Box sx={{
                 display: 'flex',
+                flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'center',
                 textAlign: 'center',
+                height: 'calc(100vh - 128px)', // Minus double the app bar height
                 marginTop: 4,
             }}>
                 <Box sx={{
-                    width: 'min(calc(100vw - 16px), 500px)',
+                    width: 'min(calc(100vw - 16px), 400px)',
                 }}>
                     <Box sx={{
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
+                        marginBottom: 2,
                     }}>
                         <Typography
                             variant="h6"
@@ -245,9 +232,18 @@ export const StartView = ({
                         direction="column"
                         spacing={2}
                     >
-                        <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>{t('Wallet')}</Button>
-                        <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>{t('Email')}</Button>
-                        <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>{t('EnterAsGuest')}</Button>
+                        <Button
+                            fullWidth
+                            onClick={openWalletConnectDialog}
+                            startIcon={<WalletIcon />}
+                            sx={{ ...buttonProps }}
+                        >{t('Wallet')}</Button>
+                        <Button
+                            fullWidth
+                            onClick={toEmailLogIn}
+                            startIcon={<EmailIcon />}
+                            sx={{ ...buttonProps }}
+                        >{t('Email')}</Button>
                     </Stack>
                 </Box>
             </Box>

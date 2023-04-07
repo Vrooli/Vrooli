@@ -2,7 +2,7 @@ import { IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ReportIcon } from "@shared/icons";
 import { useLocation } from "@shared/route";
 import { useCallback, useMemo } from "react";
-import { getObjectSlug, getObjectUrlBase } from "utils";
+import { getObjectSlug, getObjectUrlBase } from "utils/navigation/openObject";
 import { ReportsLinkProps } from "../types";
 
 /**

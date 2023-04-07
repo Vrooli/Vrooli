@@ -10,19 +10,24 @@ import { AwardCardProps } from '../types';
 
 export const AwardCard = ({
     award,
+    isEarned,
 }: AwardCardProps) => {
     const { palette } = useTheme();
 
-    // Display next tier
+    // Display highest earned tier or next tier,
+    // depending on isEarned
     const { title, description, level } = useMemo(() => {
-        // If next tier exists, display that
-        if (award.nextTier) return award.nextTier
-        // If not, but earned tier exists, then we must be at the top tier already
-        if (award.earnedTier) return award.earnedTier
-        // Otherwise, award invalid
+        // If not earned, display next tier
+        if (!isEarned) {
+            if (award.nextTier) return award.nextTier
+            // Default to earned tier if no next tier
+            if (award.earnedTier) return award.earnedTier
+        }
+        // If earned, display earned tier
+        else if (award.earnedTier) return award.earnedTier
+        // If here, award invalid
         return { title: '', description: '', level: 0 }
-    }, [award]);
-    console.log('award card', award);
+    }, [award.earnedTier, award.nextTier, isEarned]);
 
     // Calculate percentage complete
     const percentage = useMemo(() => {
@@ -35,33 +40,37 @@ export const AwardCard = ({
         <Card sx={{
             width: '100%',
             height: '100%',
-            boxShadow: 6,
-            background: palette.primary.light,
+            background: isEarned ? palette.secondary.main : palette.primary.light,
             color: palette.primary.contrastText,
             borderRadius: '16px',
             margin: 0,
         }}>
-            <CardContent
-                sx={{
-                    display: 'contents',
-                }}
-            >
+            <CardContent sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                height: '100%',
+            }}>
                 <Typography
                     variant="h6"
                     component="h2"
                     textAlign="center"
-                    sx={{
-                        marginBottom: '10px'
-                    }}
+                    mb={2}
                 >{title}</Typography>
+                <Typography
+                    variant="body2"
+                    component="p"
+                    textAlign="center"
+                    mb={4}
+                >{description}</Typography>
                 {/* Display progress */}
                 {percentage >= 0 && <>
                     <LinearProgress
                         variant="determinate"
                         value={percentage}
                         sx={{
-                            marginLeft: 2,
-                            marginRight: 2,
+                            margin: 2,
+                            marginBottom: 1,
                             height: '12px',
                             borderRadius: '12px',
                         }}
@@ -70,9 +79,6 @@ export const AwardCard = ({
                         variant="body2"
                         component="p"
                         textAlign="center"
-                        sx={{
-                            marginBottom: 1,
-                        }}
                     >
                         {award.progress} / {level} ({percentage}%)
                     </Typography>

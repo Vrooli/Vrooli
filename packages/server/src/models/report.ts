@@ -1,25 +1,24 @@
-import { reportValidation } from "@shared/validation";
-import { MaxObjects, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
-import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
-import { CustomError, Trigger } from "../events";
-import { UserModel } from "./user";
+import { MaxObjects, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou } from '@shared/consts';
+import { reportValidation } from "@shared/validation";
 import { selPad } from "../builders";
-import { CommentModel } from "./comment";
-import { OrganizationModel } from "./organization";
-import { TagModel } from "./tag";
 import { SelectWrap } from "../builders/types";
+import { CustomError } from "../events";
+import { PrismaType } from "../types";
+import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";
+import { CommentModel } from "./comment";
 import { IssueModel } from "./issue";
 import { NoteVersionModel } from "./noteVersion";
+import { OrganizationModel } from "./organization";
 import { PostModel } from "./post";
 import { ProjectVersionModel } from "./projectVersion";
 import { RoutineVersionModel } from "./routineVersion";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardVersionModel } from "./standardVersion";
-import { getSingleTypePermissions } from "../validators";
+import { TagModel } from "./tag";
+import { ModelLogic } from "./types";
+import { UserModel } from "./user";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] } = {
     ApiVersion: "apiVersion",
@@ -192,13 +191,13 @@ export const ReportModel: ModelLogic<{
             id: true,
             createdBy: 'User',
         }),
-        permissionResolvers: ({ data, isAdmin }) => ({
-            canConnect: () => data.status !== 'Open',
-            canDisconnect: () => false,
-            canDelete: () => isAdmin && data.status !== 'Open',
+        permissionResolvers: ({ data, isAdmin, isLoggedIn }) => ({
+            canConnect: () => isLoggedIn && data.status !== 'Open',
+            canDisconnect: () => isLoggedIn,
+            canDelete: () => isLoggedIn && isAdmin && data.status !== 'Open',
             canRead: () => true,
-            canRespond: () => data.status === 'Open',
-            canUpdate: () => isAdmin && data.status !== 'Open',
+            canRespond: () => isLoggedIn && data.status === 'Open',
+            canUpdate: () => isLoggedIn && isAdmin && data.status !== 'Open',
         }),
         owner: (data) => ({
             User: data.createdBy,

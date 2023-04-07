@@ -1,17 +1,19 @@
 import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
+import { FocusModeShape } from "./focusMode";
 import { ReminderShape, shapeReminder } from "./reminder";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type ReminderListShape = Pick<ReminderList, 'id'> & {
-    userSchedule?: { id: string } | null,
+    __typename?: 'ReminderList';
+    focusMode?: { id: string } | FocusModeShape | null,
     reminders?: ReminderShape[] | null,
 }
 
 export const shapeReminderList: ShapeModel<ReminderListShape, ReminderListCreateInput, ReminderListUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, 'id'),
-        ...createRel(d, 'userSchedule', ['Connect'], 'one'),
+        ...createRel(d, 'focusMode', ['Connect'], 'one'),
         ...createRel(d, 'reminders', ['Create'], 'many', shapeReminder, (r) => ({ ...r, reminderList: { id: d.id } })),
     }),
     update: (o, u, a) => shapeUpdate(u, {

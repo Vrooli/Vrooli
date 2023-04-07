@@ -1,7 +1,7 @@
 /**
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import {
     alpha,
     Box,
@@ -11,15 +11,16 @@ import {
     styled,
     SwipeableDrawer,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { RunStepsDialogProps } from '../types';
-import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
-import { RoutineStep } from 'types';
-import { locationArraysMatch, routineVersionHasSubroutines, RoutineStepType } from 'utils';
-import { addSearchParams, useLocation } from '@shared/route';
-import { MenuTitle } from '../MenuTitle/MenuTitle';
 import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from '@shared/icons';
+import { addSearchParams, useLocation } from '@shared/route';
+import React, { useCallback, useMemo, useState } from 'react';
+import { RoutineStep } from 'types';
+import { RoutineStepType } from 'utils/consts';
+import { locationArraysMatch, routineVersionHasSubroutines } from 'utils/runUtils';
+import { MenuTitle } from '../MenuTitle/MenuTitle';
+import { RunStepsDialogProps } from '../types';
 
 interface StyledTreeItemProps {
     children?: React.ReactNode;

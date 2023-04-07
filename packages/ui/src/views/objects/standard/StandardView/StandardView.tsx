@@ -1,19 +1,32 @@
-import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
-import { useLocation } from '@shared/route';
-import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton, TopBar } from "components";
-import { StandardViewProps } from "../types";
-import { defaultRelationships, defaultResourceList, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, standardVersionToFieldData, TagShape, useObjectActions, useObjectFromUrl } from "utils";
-import { uuid } from '@shared/uuid';
-import { FieldData, FieldDataJSON } from "forms/types";
-import { useFormik } from "formik";
-import { PreviewSwitch, RelationshipButtons } from "components/inputs";
-import { RelationshipsObject } from "components/inputs/types";
-import { smallHorizontalScrollbar } from "components/lists/styles";
+import { Box, Palette, Stack, useTheme } from "@mui/material";
+import { CommentFor, FindVersionInput, StandardVersion } from "@shared/consts";
 import { EditIcon } from "@shared/icons";
+import { useLocation } from '@shared/route';
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
-import { GeneratedInputComponent } from "components/inputs/generated";
+import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
+import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
+import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
+import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { ResourceListHorizontal } from "components/lists/resource";
+import { smallHorizontalScrollbar } from "components/lists/styles";
+import { TagList } from "components/lists/TagList/TagList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { ObjectTitle } from "components/text/ObjectTitle/ObjectTitle";
+import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
+import { standardInitialValues } from "forms/StandardForm/StandardForm";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ObjectAction } from "utils/actions/objectActions";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
+import { ResourceListShape } from "utils/shape/models/resourceList";
+import { RoutineShape } from "utils/shape/models/routine";
+import { TagShape } from "utils/shape/models/tag";
+import { StandardViewProps } from "../types";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -28,46 +41,28 @@ const containerProps = (palette: Palette) => ({
 export const StandardView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: StandardViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { id, isLoading, object: standardVersion, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
+    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useObjectFromUrl<StandardVersion, FindVersionInput>({
         query: standardVersionFindOne,
         partialData,
     });
 
-    const availableLanguages = useMemo<string[]>(() => (standardVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standardVersion?.translations]);
+    const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const schema = useMemo<FieldData | null>(() => (standardVersion ? standardVersionToFieldData({
-        fieldName: 'preview',
-        description: getTranslation(standardVersion, [language]).description,
-        helpText: null,
-        props: standardVersion.props,
-        name: standardVersion.root.name,
-        standardType: standardVersion.standardType,
-        yup: standardVersion.yup,
-    }) : null), [language, standardVersion]);
-    const previewFormik = useFormik({
-        initialValues: {
-            preview: JSON.stringify((schema as FieldDataJSON)?.props?.format),
-        },
-        enableReinitialize: true,
-        onSubmit: () => { },
-    });
-
     const { description, name } = useMemo(() => {
-        const { description } = getTranslation(standardVersion ?? partialData, [language]);
-        const { name } = standardVersion?.root ?? partialData?.root ?? {};
+        const { description, name } = getTranslation(existing ?? partialData, [language]);
         return { description, name };
-    }, [standardVersion, language, partialData]);
+    }, [existing, partialData, language]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
@@ -78,46 +73,22 @@ export const StandardView = ({
     const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
     const actionData = useObjectActions({
-        object: standardVersion,
+        object: existing,
         objectType: 'Standard',
         openAddCommentDialog,
-        session,
         setLocation,
         setObject: setStandardVersion,
     });
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
-    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
-
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
-    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
-
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
-
-    // Handle tags
-    const [tags, setTags] = useState<TagShape[]>((partialData?.root?.tags as TagShape[] | undefined) ?? []);
-
-    useEffect(() => {
-        setRelationships({
-            isComplete: false, //TODO
-            isPrivate: standardVersion?.isPrivate ?? false,
-            owner: standardVersion?.root?.owner ?? null,
-            parent: null,
-            // parent: standard?.parent ?? null, TODO
-            project: null // TODO
-        });
-        setResourceList(standardVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(standardVersion?.root?.tags ?? []);
-    }, [standardVersion]);
+    const initialValues = useMemo(() => standardInitialValues(session, (existing ?? partialData as any)), [existing, partialData, session]);
+    const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     return (
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Standard',
                 }}
@@ -155,76 +126,44 @@ export const StandardView = ({
                 </Stack>
                 <ObjectTitle
                     language={language}
+                    languages={availableLanguages}
                     loading={isLoading}
                     title={name}
-                    session={session}
                     setLanguage={setLanguage}
-                    translations={standardVersion?.translations ?? partialData?.translations ?? []}
+                    translations={existing?.translations ?? []}
                     zIndex={zIndex}
                 />
                 {/* Relationships */}
-                <RelationshipButtons
+                <RelationshipList
                     isEditing={false}
                     objectType={'Routine'}
-                    onRelationshipsChange={onRelationshipsChange}
-                    relationships={relationships}
-                    session={session}
                     zIndex={zIndex}
                 />
                 {/* Resources */}
-                {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                {Array.isArray(resourceList?.resources) && resourceList!.resources.length > 0 && <ResourceListHorizontal
                     title={'Resources'}
-                    list={resourceList}
+                    list={resourceList as any}
                     canUpdate={false}
                     handleUpdate={() => { }} // Intentionally blank
                     loading={isLoading}
-                    session={session}
                     zIndex={zIndex}
                 />}
                 {/* Box with description */}
                 <Box sx={containerProps(palette)}>
-                    <TextCollapse session={session} title="Description" text={description} loading={isLoading} loadingLines={2} />
+                    <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                 </Box>
                 {/* Box with standard */}
                 <Stack direction="column" spacing={4} sx={containerProps(palette)}>
-                    {/* Build/Preview switch */}
-                    <PreviewSwitch
-                        isPreviewOn={isPreviewOn}
-                        onChange={onPreviewChange}
+                    <StandardInput
+                        disabled={true}
+                        fieldName="preview"
+                        zIndex={zIndex}
                     />
-                    {
-                        isPreviewOn ?
-                            schema ? <GeneratedInputComponent
-                                disabled={true}
-                                fieldData={schema}
-                                formik={previewFormik}
-                                session={session}
-                                onUpload={() => { }}
-                                zIndex={zIndex}
-                            /> :
-                                <Box sx={{
-                                    minHeight: 'min(300px, 25vh)',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                }}>
-                                    <CircularProgress color="secondary" />
-                                </Box> :
-                            <BaseStandardInput
-                                fieldName="preview"
-                                inputType={schema?.type ?? InputType.TextField}
-                                isEditing={false}
-                                schema={schema}
-                                onChange={() => { }} // Intentionally blank
-                                storageKey={''} // Intentionally blank
-                            />
-                    }
                 </Stack>
                 {/* Tags */}
-                {tags.length > 0 && <TagList
+                {Array.isArray(tags) && tags!.length > 0 && <TagList
                     maxCharacters={30}
-                    parentId={standardVersion?.id ?? ''}
-                    session={session}
+                    parentId={existing?.id ?? ''}
                     tags={tags as any[]}
                     sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
                 />}
@@ -234,27 +173,25 @@ export const StandardView = ({
                     <DateDisplay
                         loading={isLoading}
                         showIcon={true}
-                        timestamp={standardVersion?.created_at}
+                        timestamp={existing?.created_at}
                     />
                     <VersionDisplay
-                        currentVersion={standardVersion}
+                        currentVersion={existing}
                         prefix={" - "}
-                        versions={standardVersion?.root?.versions}
+                        versions={existing?.root?.versions}
                     />
                 </Stack>
                 {/* Votes, reports, and other basic stats */}
                 {/* <StatsCompact
                 handleObjectUpdate={updateStandard}
                 loading={loading}
-                object={standardVersion}
-                session={session}
+                object={existing}
             /> */}
                 {/* Action buttons */}
                 <ObjectActionsRow
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
-                    object={standardVersion}
-                    session={session}
+                    object={existing}
                     zIndex={zIndex}
                 />
                 {/* Comments */}
@@ -262,10 +199,9 @@ export const StandardView = ({
                     <CommentContainer
                         forceAddCommentOpen={isAddCommentOpen}
                         language={language}
-                        objectId={standardVersion?.id ?? ''}
+                        objectId={existing?.id ?? ''}
                         objectType={CommentFor.StandardVersion}
                         onAddCommentClose={closeAddCommentDialog}
-                        session={session}
                         zIndex={zIndex}
                     />
                 </Box>

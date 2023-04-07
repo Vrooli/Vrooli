@@ -9,12 +9,12 @@ export const bookmarkListValidation: YupModel = {
         id: req(id),
         label: req(label),
     }, [
-        ['bookmarks', ['Connect', 'Create'], 'many', 'opt', bookmarkValidation],
+        ['bookmarks', ['Connect', 'Create'], 'many', 'opt', bookmarkValidation, ['list']],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         label: opt(label),
     }, [
-        ['bookmarks', ['Connect', 'Create', 'Update', 'Delete'], 'many', 'opt', bookmarkValidation],
+        ['bookmarks', ['Connect', 'Create', 'Update', 'Delete'], 'many', 'opt', bookmarkValidation, ['list']],
     ], [], o),
 }

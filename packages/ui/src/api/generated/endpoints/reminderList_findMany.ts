@@ -1,11 +1,7 @@
 import gql from 'graphql-tag';
-import { Label_list } from '../fragments/Label_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
+import { Schedule_common } from '../fragments/Schedule_common';
 
-export const reminderListFindMany = gql`${Label_list}
-${Organization_nav}
-${User_nav}
+export const reminderListFindMany = gql`${Schedule_common}
 
 query reminderLists($input: ReminderListSearchInput!) {
   reminderLists(input: $input) {
@@ -15,6 +11,19 @@ query reminderLists($input: ReminderListSearchInput!) {
             id
             created_at
             updated_at
+            focusMode {
+                labels {
+                    id
+                    color
+                    label
+                }
+                schedule {
+                    ...Schedule_common
+                }
+                id
+                name
+                description
+            }
             reminders {
                 id
                 created_at
@@ -34,20 +43,6 @@ query reminderLists($input: ReminderListSearchInput!) {
                     index
                     isComplete
                 }
-            }
-            userSchedule {
-                labels {
-                    ...Label_list
-                }
-                id
-                name
-                description
-                timeZone
-                eventStart
-                eventEnd
-                recurring
-                recurrStart
-                recurrEnd
             }
         }
     }

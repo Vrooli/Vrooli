@@ -1,16 +1,31 @@
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLinkShape, PubSub, usePromptBeforeUnload, getRoutineVersionStatus, NodeRoutineListShape, NodeRoutineListItemShape } from 'utils';
+import { Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion } from '@shared/consts';
+import { CloseIcon } from '@shared/icons';
 import { keepSearchParams, useLocation } from '@shared/route';
 import { exists, isEqual } from '@shared/utils';
-import { BuildViewProps } from '../types';
 import { uuid, uuidValidate } from '@shared/uuid';
+import { BuildEditButtons } from 'components/buttons/BuildEditButtons/BuildEditButtons';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { StatusButton } from 'components/buttons/StatusButton/StatusButton';
 import { StatusMessageArray } from 'components/buttons/types';
-import { BuildEditButtons, StatusButton } from 'components/buttons';
+import { FindSubroutineDialog } from 'components/dialogs/FindSubroutineDialog/FindSubroutineDialog';
+import { LinkDialog } from 'components/dialogs/LinkDialog/LinkDialog';
+import { SelectLanguageMenu } from 'components/dialogs/SelectLanguageMenu/SelectLanguageMenu';
+import { SubroutineInfoDialog } from 'components/dialogs/SubroutineInfoDialog/SubroutineInfoDialog';
+import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from 'components/graphs/NodeGraph';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
-import { CloseIcon } from '@shared/icons';
-import { Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion } from '@shared/consts';
+import { LanguageInput } from 'components/inputs/LanguageInput/LanguageInput';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BuildAction, Status } from 'utils/consts';
+import { usePromptBeforeUnload } from 'utils/hooks/usePromptBeforeUnload';
+import { PubSub } from 'utils/pubsub';
+import { getRoutineVersionStatus } from 'utils/runUtils';
+import { deleteArrayIndex, updateArray } from 'utils/shape/general';
+import { NodeShape } from 'utils/shape/models/node';
+import { NodeLinkShape } from 'utils/shape/models/nodeLink';
+import { NodeRoutineListShape } from 'utils/shape/models/nodeRoutineList';
+import { NodeRoutineListItemShape } from 'utils/shape/models/nodeRoutineListItem';
+import { BuildViewProps } from '../types';
 
 const helpText =
     `## What am I looking at?\nThis is the **Build** page. Here you can create and edit multi-step routines.\n\n## What is a routine?\nA *routine* is simply a process for completing a task, which takes inputs, performs some action, and outputs some results. By connecting multiple routines together, you can perform arbitrarily complex tasks.\n\nAll valid multi-step routines have a *start* node and at least one *end* node. Each node inbetween stores a list of subroutines, which can be optional or required.\n\nWhen a user runs the routine, they traverse the routine graph from left to right. Each subroutine is rendered as a page, with components such as TextFields for each input. Where the graph splits, users are given a choice of which subroutine to go to next.\n\n## How do I build a multi-step routine?\nIf you are starting from scratch, you will see a *start* node, a *routine list* node, and an *end* node.\n\nYou can press the routine list node to toggle it open/closed. The *open* stats allows you to select existing subroutines from Vrooli, or create a new one.\n\nEach link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.\n\nYou also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.`
@@ -39,9 +54,7 @@ export const BuildView = ({
     handleSubmit,
     isEditing,
     loading,
-    owner,
     routineVersion,
-    session,
     translationData,
     zIndex = 200,
 }: BuildViewProps) => {
@@ -674,7 +687,7 @@ export const BuildView = ({
         // Node containing routine list data with ID nodeId
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
-        const routineList: NodeRoutineListShape = changedRoutineVersion.nodes[nodeIndex].routineList!;
+        const routineList: NodeRoutineListShape = changedRoutineVersion.nodes[nodeIndex].routineList! as NodeRoutineListShape;
         const items = [...routineList.items];
         // Find subroutines matching old and new index
         const aIndex = items.findIndex(r => r.index === oldIndex);
@@ -960,8 +973,7 @@ export const BuildView = ({
                 handleAdd={translationData.handleAddLanguage}
                 handleDelete={translationData.handleDeleteLanguage}
                 handleCurrent={translationData.setLanguage}
-                session={session}
-                translations={translationData.translations}
+                languages={translationData.languages}
                 zIndex={zIndex}
             />
         )
@@ -969,12 +981,11 @@ export const BuildView = ({
             <SelectLanguageMenu
                 currentLanguage={translationData.language}
                 handleCurrent={translationData.setLanguage}
-                session={session}
-                translations={translationData.translations}
+                languages={translationData.languages}
                 zIndex={zIndex}
             />
         )
-    }, [translationData, isEditing, session, zIndex]);
+    }, [translationData, isEditing, zIndex]);
 
     return (
         <Box sx={{
@@ -985,14 +996,12 @@ export const BuildView = ({
             width: '100%',
         }}>
             {/* Popup for adding new subroutines */}
-            {addSubroutineNode && <SubroutineSelectOrCreateDialog
-                handleAdd={handleSubroutineAdd}
-                handleClose={closeAddSubroutineDialog}
+            {addSubroutineNode && <FindSubroutineDialog
+                handleCancel={closeAddSubroutineDialog}
+                handleComplete={handleSubroutineAdd}
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
-                owner={owner}
                 routineVersionId={routineVersion?.id}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for "Add after" dialog */}
@@ -1003,7 +1012,6 @@ export const BuildView = ({
                 nodes={changedRoutineVersion.nodes}
                 links={changedRoutineVersion.nodeLinks}
                 nodeId={addAfterLinkNode}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for "Add before" dialog */}
@@ -1014,7 +1022,6 @@ export const BuildView = ({
                 nodes={changedRoutineVersion.nodes}
                 links={changedRoutineVersion.nodeLinks}
                 nodeId={addBeforeLinkNode}
-                session={session}
                 zIndex={zIndex + 3}
             />}
             {/* Popup for creating new links */}
@@ -1025,8 +1032,8 @@ export const BuildView = ({
                 isOpen={isLinkDialogOpen}
                 language={translationData.language}
                 link={undefined}
-                nodeFrom={linkDialogFrom}
-                nodeTo={linkDialogTo}
+                nodeFrom={linkDialogFrom as NodeShape}
+                nodeTo={linkDialogTo as NodeShape}
                 routineVersion={changedRoutineVersion}
                 zIndex={zIndex + 3}
             // partial={ }
@@ -1045,11 +1052,10 @@ export const BuildView = ({
                 data={openedSubroutine}
                 defaultLanguage={translationData.language}
                 isEditing={isEditing}
-                handleUpdate={handleSubroutineUpdate}
+                handleUpdate={handleSubroutineUpdate as any}
                 handleReorder={handleSubroutineReorder}
                 handleViewFull={handleSubroutineViewFull}
                 open={Boolean(openedSubroutine)}
-                session={session}
                 onClose={closeRoutineInfo}
                 zIndex={zIndex + 3}
             />

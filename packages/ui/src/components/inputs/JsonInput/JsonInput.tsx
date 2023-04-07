@@ -1,27 +1,29 @@
 /**
  * Input for creating a JSON schema.
  */
-import { useEffect, useMemo, useState } from 'react';
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { JsonInputProps } from '../types';
-import { HelpButton, StatusButton } from 'components/buttons';
-import { isJson, jsonHelpText, jsonToMarkdown, Status } from 'utils';
-import Markdown from 'markdown-to-jsx';
 import { InvisibleIcon, VisibleIcon } from '@shared/icons';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { StatusButton } from 'components/buttons/StatusButton/StatusButton';
+import { useField } from 'formik';
+import Markdown from 'markdown-to-jsx';
+import { useEffect, useMemo, useState } from 'react';
+import { Status } from 'utils/consts';
+import { isJson, jsonHelpText, jsonToMarkdown } from 'utils/shape/general';
+import { JsonInputProps } from '../types';
 
 export const JsonInput = ({
-    id,
     disabled = false,
-    error = false,
     format,
-    helperText,
+    index,
     minRows = 4,
-    onChange,
+    name,
     placeholder = '',
-    value,
     variables,
 }: JsonInputProps) => {
     const { palette } = useTheme();
+
+    const [field, meta, helpers] = useField<string | null>(name);
 
     /**
      * If value not set, defaults to format with variables 
@@ -29,12 +31,12 @@ export const JsonInput = ({
      */
     useEffect(() => {
         if (disabled) return;
-        if ((value ?? '').length > 0 || !format) return;
+        if ((field.value ?? '').length > 0 || !format) return;
         // Initialize with stringified format
         let changedFormat: string = JSON.stringify(format);
         // If variables not set, return stringified format
         if (!variables) {
-            onChange(changedFormat);
+            helpers.setValue(changedFormat);
             return;
         }
         // Loop through variables and replace all instances of them in format
@@ -45,7 +47,7 @@ export const JsonInput = ({
             // Find locations of variables in format
             // TODO
         }
-    }, [disabled, format, onChange, value, variables]);
+    }, [disabled, format, field.value, helpers, variables]);
 
     /**
      * Uses format, variables, and value
@@ -57,9 +59,9 @@ export const JsonInput = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const togglePreview = () => setIsPreviewOn(!isPreviewOn);
     const { previewMarkdown, isValueValid } = useMemo(() => ({
-        previewMarkdown: jsonToMarkdown(value),
-        isValueValid: isJson(value),
-    }), [value]);
+        previewMarkdown: jsonToMarkdown(field.value),
+        isValueValid: isJson(field.value),
+    }), [field.value]);
 
     return (
         <Stack direction="column" spacing={0}>
@@ -105,25 +107,30 @@ export const JsonInput = ({
                         color: isValueValid ? palette.background.textPrimary : palette.error.main,
                     }}>
                         {
-                            previewMarkdown ? 
-                                <Markdown>{previewMarkdown}</Markdown> : 
-                                <p>{`Error: Invalid JSON - ${value}`}</p>
+                            previewMarkdown ?
+                                <Markdown>{previewMarkdown}</Markdown> :
+                                <p>{`Error: Invalid JSON - ${field.value}`}</p>
                         }
                     </Box> :
                     <TextField
-                        id={`markdown-input-${id}`}
+                        id={`markdown-input-${name}`}
+                        autoFocus={index === 0}
                         disabled={disabled}
+                        error={meta.touched && !!meta.error}
+                        name={name}
                         placeholder={placeholder}
                         rows={minRows}
-                        value={value ?? ''}
-                        onChange={(e) => { onChange(e.target.value) }}
+                        value={field.value ?? ''}
+                        onBlur={field.onBlur}
+                        onChange={field.onChange}
+                        tabIndex={index}
                         style={{
                             minWidth: '-webkit-fill-available',
                             maxWidth: '-webkit-fill-available',
                             minHeight: '50px',
                             maxHeight: '800px',
                             background: 'transparent',
-                            borderColor: error ? 'red' : 'unset',
+                            borderColor: (meta.touched && !!meta.error) ? 'red' : 'unset',
                             borderRadius: '0 0 0.5rem 0.5rem',
                             borderTop: 'none',
                             fontFamily: 'inherit',
@@ -134,13 +141,8 @@ export const JsonInput = ({
             {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
              parts of the JSON, and an input for entering the currently-selected section of JSON */}
             {/* TODO */}
-            {/* Helper text label */}
-            {
-                helperText &&
-                <Typography variant="body1" sx={{ color: 'red' }}>
-                    {helperText}
-                </Typography>
-            }
+            {/* Error message */}
+            {meta.touched && !!meta.error && <Typography variant="body1" sx={{ color: 'red' }}>{meta.error}</Typography>}
         </Stack>
     );
 }

@@ -2,7 +2,9 @@ import { QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResp
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type QuizQuestionResponseShape = Pick<QuizQuestionResponse, 'id'>
+export type QuizQuestionResponseShape = Pick<QuizQuestionResponse, 'id'> & {
+    __typename?: 'QuizQuestionResponse';
+}
 
 export const shapeQuizQuestionResponse: ShapeModel<QuizQuestionResponseShape, QuizQuestionResponseCreateInput, QuizQuestionResponseUpdateInput> = {
     create: (d) => ({}) as any,

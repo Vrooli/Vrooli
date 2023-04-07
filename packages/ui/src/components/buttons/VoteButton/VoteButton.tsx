@@ -1,21 +1,23 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getCurrentUser } from 'utils/authentication';
-import { VoteButtonProps } from '../types';
 import { Success } from '@shared/consts';
-import { ObjectActionComplete, useVoter } from 'utils';
+import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { ObjectActionComplete } from 'utils/actions/objectActions';
+import { getCurrentUser } from 'utils/authentication/session';
+import { useVoter } from 'utils/hooks/useVoter';
+import { SessionContext } from 'utils/SessionContext';
+import { VoteButtonProps } from '../types';
 
 export const VoteButton = ({
     direction = "column",
     disabled = false,
-    session,
     score,
     isUpvoted,
     objectId,
     voteFor,
     onChange,
 }: VoteButtonProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -50,7 +52,7 @@ export const VoteButton = ({
         else if (wasUpvoted === null) newScore += (isUpvoted ? 1 : -1);
         // If new vote is null, then score is changing by 1. This is the last case
         else newScore += (wasUpvoted ? -1 : 1);
-        onChange(isUpvoted, newScore) 
+        onChange(isUpvoted, newScore)
     }, [internalIsUpvoted, onChange, score]);
 
     const { handleVote: mutate } = useVoter({

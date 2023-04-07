@@ -4,8 +4,8 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { LineGraph } from 'components';
-import { useDimensions } from 'utils';
+import { LineGraph } from 'components/graphs/LineGraph/LineGraph';
+import { useDimensions } from 'utils/hooks/useDimensions';
 import { LineGraphCardProps } from '../types';
 
 export const LineGraphCard = ({
@@ -36,11 +36,15 @@ export const LineGraphCard = ({
                     component="h2"
                     textAlign="center"
                     sx={{
-                        marginBottom: '10px'
+                        marginBottom: 2,
+                        marginTop: 1,
                     }}
                 >{title}</Typography>
                 <LineGraph
-                    dims={dimensions}
+                    dims={{
+                        width: dimensions.width,
+                        height: 250,
+                    }}
                     {...lineGraphProps}
                 />
             </CardContent>

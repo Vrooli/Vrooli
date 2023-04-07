@@ -10,7 +10,7 @@ source "${HERE}/keylessSsh.sh"
 error_codes='(9999|0192|4200)'
 
 # Read arguments
-while getopts ":h:i:l:m:v" opt; do
+while getopts "hi:l:m:v:" opt; do
     case $opt in
     i)
         INTERVAL=$OPTARG

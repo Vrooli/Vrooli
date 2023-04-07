@@ -1,11 +1,11 @@
+import { Count, FindByIdInput, Notification, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, NotificationSortBy, Success } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
-import { FindByIdInput, NotificationSortBy, Notification, NotificationSearchInput, Success, Count, NotificationSettingsUpdateInput, NotificationSettings } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { readManyHelper, readOneHelper } from '../actions';
-import { CustomError } from '../events';
 import { assertRequestFrom } from '../auth';
+import { CustomError } from '../events';
+import { rateLimit } from '../middleware';
 import { parseNotificationSettings, updateNotificationSettings } from '../notify';
+import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     enum NotificationSortBy {
@@ -57,9 +57,9 @@ export const typeDef = gql`
     }
 
     type NotificationSettings {
-        includedEmails: [ID!]
-        includedSms: [ID!]
-        includedPush: [ID!]
+        includedEmails: [Email!]
+        includedSms: [Phone!]
+        includedPush: [PushDevice!]
         toEmails: Boolean
         toSms: Boolean
         toPush: Boolean

@@ -2,12 +2,17 @@ import { ProjectVersion, ProjectVersionCreateInput, ProjectVersionTranslation, P
 import { ShapeModel } from "types";
 import { ProjectShape, shapeProject } from "./project";
 import { ProjectVersionDirectoryShape, shapeProjectVersionDirectory } from "./projectVersionDirectory";
+import { ResourceListShape } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, 'id' | 'language' | 'description' | 'name'>
+export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'ProjectVersionTranslation';
+}
 
 export type ProjectVersionShape = Pick<ProjectVersion, 'id' | 'isComplete' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
+    __typename?: 'ProjectVersion';
     directoryListings?: ProjectVersionDirectoryShape[] | null;
+    resourceList?: { id: string } | ResourceListShape | null;
     root?: { id: string } | ProjectShape | null;
     suggestedNextByProject?: { id: string }[] | null;
     translations?: ProjectVersionTranslationShape[] | null;

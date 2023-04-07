@@ -26,6 +26,7 @@ mutation standardCreate($input: StandardCreateInput!) {
             language
             description
             jsonVariable
+            name
         }
     }
     versions {
@@ -81,6 +82,7 @@ mutation standardCreate($input: StandardCreateInput!) {
             language
             description
             jsonVariable
+            name
         }
         id
         created_at

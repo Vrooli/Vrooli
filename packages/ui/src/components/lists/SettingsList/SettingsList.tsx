@@ -1,9 +1,9 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, useTheme } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
 import { LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWindowSize } from 'utils';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { accountSettingsData, displaySettingsData } from 'views/settings';
 
 export const SettingsList = () => {
@@ -74,16 +74,16 @@ export const SettingsList = () => {
         }}>
             <List>
                 {/* Account-related items */}
-                <ListItemButton onClick={toggleAccountList}>
+                <ListItem onClick={toggleAccountList}>
                     <ListItemText primary={t(`Account`)} />
-                </ListItemButton>
+                </ListItem>
                 <List component="div">
                     {accountList}
                 </List>
                 {/* Display-related items */}
-                <ListItemButton onClick={toggleDisplayList}>
+                <ListItem onClick={toggleDisplayList}>
                     <ListItemText primary={t(`Display`)} />
-                </ListItemButton>
+                </ListItem>
                 <List component="div">
                     {displayList}
                 </List>

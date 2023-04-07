@@ -1,23 +1,21 @@
 /**
  * Displays all search options for an organization
  */
-import {
-    Box,
-    Button,
-    Dialog,
-    Grid,
-    useTheme
-} from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
-import { AdvancedSearchDialogProps } from '../types';
-import { useFormik } from 'formik';
-import { FieldData, FormSchema } from 'forms/types';
-import { generateDefaultProps, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, convertSearchForFormik, searchTypeToParams } from 'utils';
-import { DialogTitle, GeneratedGrid, GridActionButtons, LargeDialog } from 'components';
-import { CancelIcon, SearchIcon } from '@shared/icons';
-import { useTranslation } from 'react-i18next';
+import { Box, Button, Grid, useTheme } from '@mui/material';
+import { CancelIcon, RefreshIcon, SearchIcon } from '@shared/icons';
 import { parseSearchParams } from '@shared/route';
+import { GridActionButtons } from 'components/buttons/GridActionButtons/GridActionButtons';
+import { GeneratedGrid } from 'components/inputs/generated';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { Formik } from 'formik';
+import { generateDefaultProps, generateYupSchema } from 'forms/generators';
+import { FieldData, FormSchema } from 'forms/types';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { convertFormikForSearch, convertSearchForFormik } from 'utils/search/inputToSearch';
+import { searchTypeToParams } from 'utils/search/objectToSearch';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { AdvancedSearchDialogProps } from '../types';
 
 const titleId = 'advanced-search-dialog-title';
 
@@ -26,7 +24,6 @@ export const AdvancedSearchDialog = ({
     handleSearch,
     isOpen,
     searchType,
-    session,
     zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
@@ -64,31 +61,6 @@ export const AdvancedSearchDialog = ({
     // Generate yup validation schema
     const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
 
-    /**
-     * Controls updates and validation of form
-     */
-    const formik = useFormik({
-        initialValues,
-        enableReinitialize: true,
-        validationSchema,
-        onSubmit: (values) => {
-            if (schema) {
-                const searchValue = convertFormikForSearch(values, schema);
-                handleSearch(searchValue);
-            }
-            handleClose();
-        },
-    });
-    useEffect(() => {
-        console.log('schema changed', schema);
-    }, [schema])
-    useEffect(() => {
-        console.log('formik changed', formik);
-    }, [formik])
-    useEffect(() => {
-        console.log('session changed', session);
-    }, [session])
-
     return (
         <LargeDialog
             id="advanced-search-dialog"
@@ -97,48 +69,72 @@ export const AdvancedSearchDialog = ({
             titleId={titleId}
             zIndex={zIndex}
         >
-            <DialogTitle
-                id={titleId}
-                title={t(`AdvancedSearch`)}
+            <TopBar
+                display="dialog"
                 onClose={handleClose}
+                titleData={{ titleId, titleKey: 'AdvancedSearch' }}
             />
-            <form onSubmit={formik.handleSubmit} style={{ paddingBottom: '64px' }}>
-                <Box sx={{
-                    padding: { xs: 1, sm: 2 },
-                    margin: 'auto',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    {schema && <GeneratedGrid
-                        childContainers={schema.containers}
-                        fields={schema.fields}
-                        formik={formik}
-                        layout={schema.formLayout}
-                        onUpload={() => { }}
-                        session={session}
-                        theme={theme}
-                        zIndex={zIndex}
-                    />}
-                </Box>
-                {/* Search/Cancel buttons */}
-                <GridActionButtons display="dialog">
-                    <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
-                        <Button
-                            fullWidth
-                            startIcon={<SearchIcon />}
-                            type="submit"
-                        >{t(`Search`)}</Button>
-                    </Grid>
-                    <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
-                        <Button
-                            fullWidth
-                            startIcon={<CancelIcon />}
-                            onClick={handleClose}
-                        >{t(`Cancel`)}</Button>
-                    </Grid>
-                </GridActionButtons>
-            </form>
+            <Formik
+                enableReinitialize={true}
+                initialValues={initialValues}
+                onSubmit={(values) => {
+                    if (schema) {
+                        const searchValue = convertFormikForSearch(values, schema);
+                        handleSearch(searchValue);
+                    }
+                    handleClose();
+                }}
+                validationSchema={validationSchema}
+            >
+                {(formik) => <>
+                    {/* Reset search button */}
+                    <Button
+                        onClick={() => { formik.resetForm(); }}
+                        startIcon={<RefreshIcon />}
+                        sx={{
+                            display: 'flex',
+                            margin: 'auto',
+                            marginTop: 2,
+                            marginBottom: 2,
+                        }}
+                    >{t(`Reset`)}</Button>
+                    <Box sx={{
+                        margin: 'auto',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        paddingBottom: '64px',
+                    }}>
+                        {/* Search options */}
+                        {schema && <GeneratedGrid
+                            childContainers={schema.containers}
+                            fields={schema.fields}
+                            layout={schema.formLayout}
+                            onUpload={() => { }}
+                            theme={theme}
+                            zIndex={zIndex}
+                        />}
+                    </Box>
+                    {/* Search/Cancel buttons */}
+                    <GridActionButtons display="dialog">
+                        <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
+                            <Button
+                                fullWidth
+                                startIcon={<SearchIcon />}
+                                type="submit"
+                                onClick={formik.handleSubmit as any}
+                            >{t(`Search`)}</Button>
+                        </Grid>
+                        <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
+                            <Button
+                                fullWidth
+                                startIcon={<CancelIcon />}
+                                onClick={handleClose}
+                            >{t(`Cancel`)}</Button>
+                        </Grid>
+                    </GridActionButtons>
+                </>}
+            </Formik>
         </LargeDialog>
     )
 }

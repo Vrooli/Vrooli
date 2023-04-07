@@ -1,23 +1,26 @@
 import { Box, useTheme } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookmarkButtonProps } from '../types';
-import { uuidValidate } from '@shared/uuid';
+import { Bookmark, BookmarkFor } from '@shared/consts';
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from '@shared/icons';
-import { getCurrentUser } from 'utils/authentication';
-import { PubSub } from 'utils';
-import { documentNodeWrapper } from 'api/utils';
+import { uuidValidate } from '@shared/uuid';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { ObjectActionComplete } from 'utils/actions/objectActions';
+import { getCurrentUser } from 'utils/authentication/session';
+import { useBookmarker } from 'utils/hooks/useBookmarker';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { BookmarkButtonProps } from '../types';
 
 export const BookmarkButton = ({
     disabled = false,
     isBookmarked = false,
     objectId,
     onChange,
-    session,
     showBookmarks = true,
     bookmarkFor,
     bookmarks,
     sxs,
 }: BookmarkButtonProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -26,11 +29,32 @@ export const BookmarkButton = ({
     const [internalIsBookmarked, setInternalIsBookmarked] = useState<boolean | null>(isBookmarked ?? null);
     useEffect(() => setInternalIsBookmarked(isBookmarked ?? false), [isBookmarked]);
 
-    // const { handleBookmark } = useBookmarker({
-    //     objectId: id,
-    //     objectType: objectType as BookmarkFor,
-    //     onActionComplete
-    // });
+    const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
+        console.log('action complete', action, data)
+        switch (action) {
+            // When a bookmark is created, we assign a list automatically. 
+            // So we must show a snackbar to inform the user that the bookmark was created, 
+            // with an option to change the list.
+            case ObjectActionComplete.Bookmark:
+                const listName = (data as Bookmark).list.label;
+                PubSub.get().publishSnack({
+                    message: `Added to list "${listName}"`,
+                    buttonKey: 'Change',
+                    buttonClicked: () => {
+                        console.log('TODO')
+                    },
+                    severity: 'Success',
+                });
+                break;
+            // When bookmark is removed, we don't need to do anything
+        }
+    }, []);
+
+    const { handleBookmark } = useBookmarker({
+        objectId,
+        objectType: bookmarkFor as BookmarkFor,
+        onActionComplete,
+    });
 
     const handleClick = useCallback((event: any) => {
         console.log('bookmark button click', objectId, internalIsBookmarked, userId, bookmarkFor);
@@ -42,26 +66,9 @@ export const BookmarkButton = ({
         event.preventDefault();
         // If objectId is not valid, return
         if (!uuidValidate(objectId)) return;
-        // If not isBookmarked, add to default bookmark
-        //TODO
-        // Show snack message that bookmark was added, with option to set label
-        //TODO
-        // Else if isBookmarked, query for bookmarks on this object
-        //TODO
-        // If there is only one bookmark, delete it
-        //TODO
-        // If there are multiple, open dialog to select which bookmark to delete
-        //TODO
-        // Send star mutation
-        // documentNodeWrapper<Success, StarInput>({
-        //     node: starStar,
-        //     input: { isBookmarked, bookmarkFor, forConnect: objectId },
-        //     onSuccess: () => { 
-        //         if (onChange) onChange(isBookmarked, event) 
-        //         PubSub.get().publishSnack({ messageKey: isBookmarked ? 'FavoritesAdded' : 'FavoritesRemoved', severity: 'Success' });
-        //     },
-        // })
-    }, [userId, internalIsBookmarked, bookmarkFor, objectId, onChange]);
+        // Call handleBookmark
+        handleBookmark(isBookmarked);
+    }, [objectId, internalIsBookmarked, userId, bookmarkFor, handleBookmark]);
 
     const Icon = internalIsBookmarked ? BookmarkFilledIcon : BookmarkOutlineIcon;
     const fill = useMemo<string>(() => {

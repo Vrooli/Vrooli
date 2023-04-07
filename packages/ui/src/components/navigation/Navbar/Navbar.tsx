@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { LINKS, BUSINESS_NAME } from '@shared/consts';
-import { AppBar, Box, useTheme, Stack } from '@mui/material';
-import { NavList } from '../NavList/NavList';
+import { AppBar, Box, Stack, useTheme } from '@mui/material';
+import { BUSINESS_NAME, LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { NavbarProps } from '../types';
-import { HideOnScroll } from '..';
-import { noSelect } from 'styles'
-import { Header } from 'components/text';
+import { Header } from 'components/text/Header/Header';
+import { useCallback, useEffect, useMemo } from 'react';
+import { noSelect } from 'styles';
+import { useDimensions } from 'utils/hooks/useDimensions';
+import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { HideOnScroll } from '../HideOnScroll/HideOnScroll';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
-import { NavbarLogoState } from '../types';
-import { useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
+import { NavList } from '../NavList/NavList';
+import { NavbarLogoState, NavbarProps } from '../types';
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -29,7 +30,6 @@ import { useDimensions, useIsLeftHanded, useWindowSize } from 'utils';
  * content is inside the navbar on small screens, and below the navbar on large screens.
  */
 export const Navbar = ({
-    session,
     shouldHideTitle = false,
     title,
     help,
@@ -77,7 +77,7 @@ export const Navbar = ({
     ), [isLeftHanded, isMobile, logoState, toHome]);
 
     return (
-        <Box sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
+        <Box id='navbar' sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
             <HideOnScroll>
                 <AppBar
                     onClick={scrollToTop}
@@ -87,7 +87,7 @@ export const Navbar = ({
                         background: palette.primary.dark,
                         minHeight: '64px!important',
                         position: 'fixed', // Allows items to be displayed below the navbar
-                        zIndex: 100,
+                        zIndex: 300,
                     }}>
                     {/* <Toolbar> */}
                     <Stack direction="row" spacing={0} alignItems="center" sx={{
@@ -100,7 +100,7 @@ export const Navbar = ({
                             marginRight: 'auto',
                             maxHeight: '100%',
                         }}>
-                            <NavList session={session} />
+                            <NavList />
                         </Box>}
                         {/* Account menu displayed on  */}
                         {/* Title displayed here on mobile */}
@@ -109,7 +109,7 @@ export const Navbar = ({
                             marginLeft: 'auto',
                             maxHeight: '100%',
                         }}>
-                            <NavList session={session} />
+                            <NavList />
                         </Box>}
                     </Stack>
                     {/* "below" displayed inside AppBar on mobile */}

@@ -1,14 +1,19 @@
 import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, NodeEndShape, NodeRoutineListShape, shapeNodeEnd, shapeNodeRoutineList, shapeUpdate, updatePrims, updateRel } from "utils";
+import { NodeEndShape, shapeNodeEnd } from "./nodeEnd";
+import { NodeRoutineListShape, shapeNodeRoutineList } from "./nodeRoutineList";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'>
+export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'> & {
+    __typename?: 'NodeTranslation';
+}
 
 export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'nodeType'> & {
+    __typename?: 'Node';
     // loop?: LoopShape | null
     end?: NodeEndShape | null;
     routineList?: NodeRoutineListShape | null;
-    routineVersion: { id: string };
+    routineVersion: { __typename?: 'RoutineVersion', id: string };
     translations: NodeTranslationShape[];
 }
 

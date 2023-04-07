@@ -1,10 +1,10 @@
 // Used to display popular/search results of a particular object type
 import { Box, Collapse, IconButton, Stack, Typography, useTheme } from '@mui/material';
-import { ContentCollapseProps } from '../types';
-import { HelpButton } from 'components';
-import { useCallback, useEffect, useState } from 'react';
 import { ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ContentCollapseProps } from '../types';
 
 export function ContentCollapse({
     children,
@@ -36,6 +36,12 @@ export function ContentCollapse({
     // Calculate fill color
     const fillColor = sxs?.root?.color ?? (Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary);
 
+    const titleText = useMemo(() => {
+        if (titleKey) return t(titleKey, { ...titleVariables, defaultValue: title ?? '' });
+        if (title) return title;
+        return '';
+    }, [title, titleKey, titleVariables, t]);
+
     return (
         <Box id={id} sx={{
             color: Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary,
@@ -43,7 +49,7 @@ export function ContentCollapse({
         }}>
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
-                <Typography component={titleComponent ?? 'h6'} variant="h6">{t(titleKey!, {...titleVariables, defaultValue: title ?? '' })}</Typography>
+                <Typography component={titleComponent ?? 'h6'} variant="h6">{titleText}</Typography>
                 {helpText && <HelpButton markdown={helpText} />}
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}

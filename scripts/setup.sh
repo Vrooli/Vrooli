@@ -1,5 +1,5 @@
 #!/bin/bash
-# Sets up NPM, Yarn, global dependencies, and anything else 
+# Sets up NPM, Yarn, global dependencies, and anything else
 # required to get the project up and running.
 #
 # Arguments (all optional):
@@ -9,28 +9,26 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":f:h:r" opt; do
-    case $opt in
-    f)
-        REINSTALL_MODULES=$OPTARG
+REINSTALL_MODULES=""
+ON_REMOTE=""
+for arg in "$@"; do
+    case $arg in
+    -f | --force)
+        REINSTALL_MODULES="${2}"
+        shift
+        shift
         ;;
-    r)
-        ON_REMOTE=$OPTARG
+    -r | --remote)
+        ON_REMOTE="${2}"
+        shift
+        shift
         ;;
-    h)
+    -h | --help)
         echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE]"
         echo "  -h --help: Show this help message"
         echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
         exit 0
-        ;;
-    \?)
-        echo "Invalid option: -$OPTARG" >&2
-        exit 1
-        ;;
-    :)
-        echo "Option -$OPTARG requires an argument." >&2
-        exit 1
         ;;
     esac
 done
@@ -48,6 +46,7 @@ fi
 if [ "${ON_REMOTE}" = "y" ] || [ "${ON_REMOTE}" = "Y" ] || [ "${ON_REMOTE}" = "yes" ] || [ "${ON_REMOTE}" = "Yes" ]; then
     header "Enabling PasswordAuthentication"
     sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+    sudo sed -i 's/PubkeyAuthentication no/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
     sudo service sshd restart
 else
     # Otherwise, make sure mailx is installed. This may be used by some scripts which
@@ -70,7 +69,7 @@ header "Installing Yarn"
 npm install -g yarn
 
 header "Installing global dependencies"
-yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.10.1 vite
+yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.11.0 vite
 
 # If reinstalling modules, delete all node_modules directories
 if [ -z "${REINSTALL_MODULES}" ]; then
@@ -93,5 +92,5 @@ cd "${HERE}/.." && yarn cache clean && yarn
 header "Generating type models for Prisma"
 cd "${HERE}/../packages/server" && yarn prisma-generate
 
-info "Done! You may need to restart your editor for syntax highlighting to work correctly." 
+info "Done! You may need to restart your editor for syntax highlighting to work correctly."
 info "If you haven't already, copy .env-example to .env and edit it to match your environment."

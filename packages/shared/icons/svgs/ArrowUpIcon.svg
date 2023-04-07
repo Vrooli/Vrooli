@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="ArrowUpIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="ArrowDownIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="color:#000000;fill:#000000;stroke-linecap:round;-inkscape-stroke:none"
+       d="m 12.003906,21.902344 c 0.590186,3.56e-4 1.068716,-0.478173 1.06836,-1.06836 V 5.527344 l 5.488281,4.835937 c 0.442156,0.390782 1.117469,0.348793 1.507812,-0.09375 C 20.45865,9.826852 20.415785,9.1515 19.972656,8.761719 L 12.620343,2.304175 c -0.135516,-0.09817 -0.37015,-0.194783 -0.616437,-0.206519 -0.227121,0.01747 -0.4427,0.107128 -0.601232,0.205909 -0.04928,0.01281 -7.37533,6.458156 -7.37533,6.458156 -0.443128,0.389782 -0.485992,1.065133 -0.0957,1.507812 0.390344,0.442543 1.065656,0.484531 1.507812,0.09375 L 10.9375,5.517578 v 15.316406 c -3.56e-4,0.589424 0.476983,1.067637 1.066406,1.06836 z"
+       id="path7270"
+       sodipodi:nodetypes="ccccccccccccccc" />
+  </g>
+</svg>

@@ -1,12 +1,11 @@
-import { MaxObjects, RunRoutineStepStatus } from "@shared/consts";
-import { RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { RunRoutineModel } from "./runRoutine";
-import { SelectWrap } from "../builders/types";
-import { defaultPermissions } from "../utils";
+import { MaxObjects, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from "@shared/consts";
 import { runRoutineStepValidation } from "@shared/validation";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
+import { RunRoutineModel } from "./runRoutine";
+import { ModelLogic } from "./types";
 
 // const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
 //     return {
@@ -85,7 +84,7 @@ export const RunRoutineStepModel: ModelLogic<{
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ['name'],
-        owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),
+        owner: (data, userId) => RunRoutineModel.validate!.owner(data.runRoutine as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => RunRoutineModel.validate!.isPublic(data.runRoutine as any, languages),
         visibility: {

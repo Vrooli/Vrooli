@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
 import { projectVersionDirectoryValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
+import { ModelLogic } from "./types";
 
 const __typename = 'ProjectVersionDirectory' as const;
 const suppFields = [] as const;
@@ -88,8 +88,8 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
         isPublic: (data, languages) => ProjectVersionModel.validate!.isPublic(data.projectVersion as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ProjectVersionModel.validate!.owner(data.projectVersion as any),
-        permissionResolvers: (params) => defaultPermissions(params),
+        owner: (data, userId) => ProjectVersionModel.validate!.owner(data.projectVersion as any, userId),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             projectVersion: 'ProjectVersion',

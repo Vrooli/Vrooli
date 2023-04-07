@@ -1,5 +1,5 @@
-import { COOKIE, UserSchedule, ValueOf } from "@shared/consts";
-import { getDeviceInfo } from "./display";
+import { ActiveFocusMode, COOKIE, FocusMode, ValueOf } from "@shared/consts";
+import { getDeviceInfo } from "./display/device";
 
 /**
  * Handles storing and retrieving cookies, which may or 
@@ -12,7 +12,8 @@ export const Cookies = {
     FontSize: 'fontSize',
     Language: 'language',
     IsLeftHanded: 'isLeftHanded',
-    Schedule: 'schedule',
+    FocusModeActive: 'focusModeActive',
+    FocusModeAll: 'focusModeAll',
 }
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -124,14 +125,14 @@ export const getCookieIsLeftHanded = (): boolean | null =>
 export const setCookieIsLeftHanded = (isLeftHanded: boolean) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.IsLeftHanded, isLeftHanded));
 
-type ScheduleCookie = {
-    scheduleId: string;
-    stopWhen: 'automatic' | 'manual' | 'endOfCustomTime' | 'nextScheduleStart';
-    stopTime: number;
-}
+export const getCookieActiveFocusMode = (): ActiveFocusMode | null =>
+    onlyIfCookieAllowed('functional', () => getCookie(Cookies.FocusModeActive, (value: any): value is ActiveFocusMode => typeof value === 'object'));
 
-export const getCookieSchedule = (): ScheduleCookie | null =>
-    onlyIfCookieAllowed('functional', () => getCookie(Cookies.Schedule, (value: any): value is UserSchedule => typeof value === 'object'));
+export const setCookieActiveFocusMode = (focusMode: ActiveFocusMode | null) =>
+    onlyIfCookieAllowed('functional', () => setCookie(Cookies.FocusModeActive, focusMode));
 
-export const setCookieSchedule = (schedule: ScheduleCookie) =>
-    onlyIfCookieAllowed('functional', () => setCookie(Cookies.Schedule, schedule));
+export const getCookieAllFocusModes = (): FocusMode[] | null =>
+    onlyIfCookieAllowed('functional', () => getCookie(Cookies.FocusModeAll, (value: any): value is FocusMode[] => Array.isArray(value)));
+
+export const setCookieAllFocusModes = (modes: FocusMode[]) =>
+    onlyIfCookieAllowed('functional', () => setCookie(Cookies.FocusModeAll, modes));

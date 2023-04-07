@@ -45,7 +45,7 @@ export const StatsSmartContractModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsSmartContractSortBy.DateUpdatedDesc,
+        defaultSort: StatsSmartContractSortBy.PeriodStartAsc,
         sortBy: StatsSmartContractSortBy,
         searchFields: {
             periodTimeFrame: true,
@@ -61,7 +61,7 @@ export const StatsSmartContractModel: ModelLogic<{
             smartContract: 'SmartContract',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => SmartContractModel.validate!.owner(data.smartContract as any),
+        owner: (data, userId) => SmartContractModel.validate!.owner(data.smartContract as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_smart_contractSelect>(data, [
             ['smartContract', 'SmartContract'],

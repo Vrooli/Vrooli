@@ -1,6 +1,6 @@
 import { RunRoutine, RunRoutineYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const runRoutineYou: GqlPartial<RunRoutineYou> = {
     __typename: 'RunRoutineYou',
@@ -34,7 +34,7 @@ export const runRoutine: GqlPartial<RunRoutine> = {
         wasRunAutomaticaly: true,
         organization: { __use: 0 },
         routineVersion: async () => rel((await import('./routineVersion')).routineVersion, 'nav', { omit: 'you' }),
-        runRoutineSchedule: async () => rel((await import('./runRoutineSchedule')).runRoutineSchedule, 'full', { omit: 'runRoutine' }),
+        schedule: async () => rel((await import('./schedule')).schedule, 'full', { omit: 'runRoutine' }),
         user: { __use: 1 },
         you: () => rel(runRoutineYou, 'full'),
     },

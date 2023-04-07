@@ -2,17 +2,18 @@
  * Contains new comment input, and list of Reddit-style comments.
  */
 import { Button, Stack, useTheme } from '@mui/material';
-import { CommentContainerProps } from '../types';
-import { CommentCreateInput } from 'components/inputs';
-import { useFindMany, useWindowSize } from 'utils';
-import { useCallback, useEffect, useState } from 'react';
-import { CommentThread } from 'components/lists/comment';
-import { uuidValidate } from '@shared/uuid';
-import { SearchButtons } from 'components/buttons';
+import { Comment, CommentThread as ThreadType } from '@shared/consts';
 import { CreateIcon } from '@shared/icons';
-import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
-import { CommentThread as ThreadType, Comment } from '@shared/consts';
+import { uuidValidate } from '@shared/uuid';
+import { SearchButtons } from 'components/buttons/SearchButtons/SearchButtons';
+import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
+import { CommentThread } from 'components/lists/comment';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFindMany } from 'utils/hooks/useFindMany';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
+import { CommentContainerProps } from '../types';
 
 export function CommentContainer({
     forceAddCommentOpen,
@@ -21,7 +22,6 @@ export function CommentContainer({
     objectId,
     objectType,
     onAddCommentClose,
-    session,
     zIndex,
 }: CommentContainerProps) {
     const { breakpoints } = useTheme();
@@ -39,11 +39,10 @@ export function CommentContainer({
         sortBy,
         sortByOptions,
         timeFrame,
-    } = useFindMany<ThreadType>({ 
+    } = useFindMany<ThreadType>({
         canSearch: uuidValidate(objectId),
         searchType: 'Comment',
         resolve: (result) => result.threads,
-        session,
         where: {
             [`${objectType.toLowerCase()}Id`]: objectId,
         },
@@ -88,14 +87,14 @@ export function CommentContainer({
         <ContentCollapse isOpen={isOpen} title="Comments">
             {/* Add comment */}
             {
-                isAddCommentOpen && <CommentCreateInput
-                    handleClose={handleAddCommentClose}
+                isAddCommentOpen && <CommentUpsertInput
+                    comment={undefined}
                     language={language}
                     objectId={objectId}
                     objectType={objectType}
-                    onCommentAdd={onCommentAdd}
+                    onCancel={handleAddCommentClose}
+                    onCompleted={onCommentAdd}
                     parent={null} // parent is the thread. This is a top-level comment, so no parent
-                    session={session}
                     zIndex={zIndex}
                 />
             }
@@ -105,7 +104,6 @@ export function CommentContainer({
                     advancedSearchParams={advancedSearchParams}
                     advancedSearchSchema={advancedSearchSchema}
                     searchType="Comment"
-                    session={session}
                     setAdvancedSearchParams={setAdvancedSearchParams}
                     setSortBy={setSortBy}
                     setTimeFrame={setTimeFrame}
@@ -122,7 +120,6 @@ export function CommentContainer({
                             canOpen={true}
                             data={thread}
                             language={language}
-                            session={session}
                             zIndex={zIndex}
                         />
                     ))}

@@ -1,26 +1,27 @@
 import { Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, FormLabel } from "@mui/material";
+import { useField } from "formik";
 import { CheckboxProps } from "forms/types";
 import { useMemo } from "react";
-import { updateArray } from "utils";
+import { updateArray } from "utils/shape/general";
 import { GeneratedInputComponentProps } from "../types";
 
 export const GeneratedCheckbox = ({
     disabled,
     fieldData,
-    formik,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering checkbox');
+    const [field, meta] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as CheckboxProps, [fieldData.props]);
-    const hasError: boolean = formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName]);
-    const errorText: string | null = hasError ? formik.errors[fieldData.fieldName] : null;
+
+    console.log('rendering checkbox');
 
     return (
         <FormControl
             key={`field-${fieldData.fieldName}-${index}`}
             disabled={disabled}
             required={fieldData.yup?.required}
-            error={hasError}
+            error={meta.touched && !!meta.error}
+            name={fieldData.fieldName}
             component="fieldset"
             variant="standard"
             sx={{ m: 3 }}
@@ -32,8 +33,8 @@ export const GeneratedCheckbox = ({
                         <FormControlLabel
                             control={
                                 <Checkbox
-                                    checked={(Array.isArray(formik.values[fieldData.fieldName]) && formik.values[fieldData.fieldName].length > index) ? formik.values[fieldData.fieldName][index] === props.options[index] : false}
-                                    onChange={(event) => { formik.setFieldValue(fieldData.fieldName, updateArray(formik.values[fieldData.fieldName], index, !props.options[index])) }}
+                                    checked={(Array.isArray(field.value?.[fieldData.fieldName]) && field.value[fieldData.fieldName].length > index) ? field.value[fieldData.fieldName][index] === props.options[index] : false}
+                                    onChange={(event) => { field.onChange(updateArray(field.value[fieldData.fieldName], index, !props.options[index])) }}
                                     name={`${fieldData.fieldName}-${index}`}
                                     id={`${fieldData.fieldName}-${index}`}
                                     value={props.options[index]}
@@ -44,7 +45,7 @@ export const GeneratedCheckbox = ({
                     ))
                 }
             </FormGroup>
-            {errorText && <FormHelperText>{errorText}</FormHelperText>}
+            {meta.touched && !!meta.error && <FormHelperText>{meta.error}</FormHelperText>}
         </FormControl>
     )
 }

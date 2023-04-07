@@ -1,11 +1,9 @@
 import gql from 'graphql-tag';
-import { Label_full } from '../fragments/Label_full';
-import { Label_list } from '../fragments/Label_list';
+import { Schedule_common } from '../fragments/Schedule_common';
 import { Session_full } from '../fragments/Session_full';
 import { Wallet_common } from '../fragments/Wallet_common';
 
-export const authWalletComplete = gql`${Label_full}
-${Label_list}
+export const authWalletComplete = gql`${Schedule_common}
 ${Session_full}
 ${Wallet_common}
 

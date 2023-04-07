@@ -74,6 +74,7 @@ query standardVersion($input: FindVersionInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         stats {
@@ -126,6 +127,7 @@ query standardVersion($input: FindVersionInput!) {
         language
         description
         jsonVariable
+        name
     }
     id
     created_at

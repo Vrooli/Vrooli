@@ -1,6 +1,7 @@
-import { DialogTitle, Navbar } from 'components';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
 import { useMemo } from 'react';
-import { getTranslatedTitleAndHelp } from 'utils/display';
+import { getTranslatedTitleAndHelp } from 'utils/display/translationTools';
+import { Navbar } from '../Navbar/Navbar';
 import { TopBarProps } from '../types';
 
 /**
@@ -10,14 +11,14 @@ export const TopBar = ({
     below,
     display,
     onClose,
-    session,
     titleData,
 }: TopBarProps) => {
     const { title, help } = useMemo(() => getTranslatedTitleAndHelp(titleData), [titleData]);
-    const titleId = useMemo(() => Math.random().toString(36).substring(2, 15), []);
+    const titleId = useMemo(() => titleData?.titleId ?? Math.random().toString(36).substring(2, 15), [titleData?.titleId]);
 
     if (display === 'dialog') return (
         <DialogTitle
+            below={below}
             id={titleId}
             title={title}
             onClose={onClose}
@@ -27,7 +28,6 @@ export const TopBar = ({
         <Navbar
             below={below}
             help={help}
-            session={session}
             shouldHideTitle={titleData?.hideOnDesktop}
             title={title}
         />

@@ -1,10 +1,13 @@
 import { Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, shapeUpdate, updatePrims, createRel, updateRel } from "utils";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type TagTranslationShape = Pick<TagTranslation, 'id' | 'language' | 'description'>
+export type TagTranslationShape = Pick<TagTranslation, 'id' | 'language' | 'description'> & {
+    __typename?: 'TagTranslation';
+}
 
 export type TagShape = Pick<Tag, 'tag'> & {
+    __typename?: 'Tag';
     anonymous?: boolean | null;
     translations?: TagTranslationShape[] | null;
 }

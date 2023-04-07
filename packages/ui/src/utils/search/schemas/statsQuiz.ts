@@ -10,4 +10,4 @@ export const statsQuizSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 })
 
-export const statsQuizSearchParams = () => toParams(statsQuizSearchSchema(), statsQuizFindMany, StatsQuizSortBy, StatsQuizSortBy.DateUpdatedDesc);
+export const statsQuizSearchParams = () => toParams(statsQuizSearchSchema(), statsQuizFindMany, StatsQuizSortBy, StatsQuizSortBy.PeriodStartAsc);

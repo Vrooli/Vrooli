@@ -3,17 +3,16 @@
  */
 import {
     Autocomplete,
-    Box,
-    Dialog,
-    DialogContent,
+    Box, DialogContent,
     Grid,
     Stack,
     TextField,
     Typography,
     useTheme
 } from '@mui/material';
-import { GridSubmitButtons } from 'components/buttons';
-import { DialogTitle } from 'components/dialogs';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MoveNodeMenuProps } from '../types';
@@ -106,7 +105,7 @@ export const MoveNodeMenu = ({
             {/* "From" stack */}
             <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
                 <Typography variant="h6">
-                    From
+                    {t('From')}
                 </Typography>
                 {/* Column TextField (Disabled) */}
                 <TextField
@@ -141,7 +140,7 @@ export const MoveNodeMenu = ({
             {/* "To" stack */}
             <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
                 <Typography variant="h6">
-                    To
+                    {t('To')}
                 </Typography>
                 {/* Column selector */}
                 <Autocomplete
@@ -173,18 +172,15 @@ export const MoveNodeMenu = ({
                 />
             </Stack>
         </Stack>
-    ), [palette.background.textPrimary, fromColumnIndex, fromRowIndex, availableColumns, toColumnIndex, availableRows, toRowIndex, handleToColumnSelect, handleToRowSelect]);
+    ), [palette.background.textPrimary, t, fromColumnIndex, fromRowIndex, availableColumns, toColumnIndex, availableRows, toRowIndex, handleToColumnSelect, handleToRowSelect]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="move-node-dialog"
+            isOpen={isOpen}
             onClose={() => { handleClose() }}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible' },
-                '& .MuiDialog-paper': { overflow: 'visible' }
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -204,6 +200,6 @@ export const MoveNodeMenu = ({
                     />
                 </Grid>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

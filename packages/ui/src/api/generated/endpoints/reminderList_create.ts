@@ -1,17 +1,26 @@
 import gql from 'graphql-tag';
-import { Label_list } from '../fragments/Label_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
+import { Schedule_common } from '../fragments/Schedule_common';
 
-export const reminderListCreate = gql`${Label_list}
-${Organization_nav}
-${User_nav}
+export const reminderListCreate = gql`${Schedule_common}
 
 mutation reminderListCreate($input: ReminderListCreateInput!) {
   reminderListCreate(input: $input) {
     id
     created_at
     updated_at
+    focusMode {
+        labels {
+            id
+            color
+            label
+        }
+        schedule {
+            ...Schedule_common
+        }
+        id
+        name
+        description
+    }
     reminders {
         id
         created_at
@@ -31,20 +40,6 @@ mutation reminderListCreate($input: ReminderListCreateInput!) {
             index
             isComplete
         }
-    }
-    userSchedule {
-        labels {
-            ...Label_list
-        }
-        id
-        name
-        description
-        timeZone
-        eventStart
-        eventEnd
-        recurring
-        recurrStart
-        recurrEnd
     }
   }
 }`;

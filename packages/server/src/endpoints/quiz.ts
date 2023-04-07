@@ -1,8 +1,8 @@
+import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, QuizSortBy, Quiz, QuizSearchInput, QuizCreateInput, QuizUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum QuizSortBy {
@@ -60,7 +60,6 @@ export const typeDef = gql`
         randomizeQuestionOrder: Boolean!
         score: Int!
         bookmarks: Int!
-        views: Int!
         attempts: [QuizAttempt!]!
         attemptsCount: Int!
         createdBy: User

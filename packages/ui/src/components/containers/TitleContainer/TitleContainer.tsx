@@ -1,9 +1,9 @@
 // Used to display popular/search results of a particular object type
 import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { TitleContainerProps } from '../types';
-import { clickSize } from 'styles';
-import { HelpButton } from 'components';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
 import { useTranslation } from 'react-i18next';
+import { clickSize } from 'styles';
+import { TitleContainerProps } from '../types';
 
 export function TitleContainer({
     id,
@@ -26,8 +26,8 @@ export function TitleContainer({
             <Box id={id} display="flex" justifyContent="center">
                 <Box
                     sx={{
-                        boxShadow: 12,
-                        borderRadius: '8px',
+                        boxShadow: 4,
+                        borderRadius: { xs: 0, sm: 2 },
                         overflow: 'overlay',
                         background: palette.background.paper,
                         width: 'min(100%, 700px)',
@@ -49,8 +49,8 @@ export function TitleContainer({
                     >
                         {/* Title */}
                         <Stack direction="row" justifyContent="center" alignItems="center">
-                            <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, {...titleVariables, defaultValue: titleKey })}</Typography>
-                            {Boolean(helpKey) ? <HelpButton markdown={t(helpKey!, {...helpVariables, defaultValue: helpKey })} /> : null}
+                            <Typography component="h2" variant="h4" textAlign="center">{t(titleKey, { ...titleVariables, defaultValue: titleKey })}</Typography>
+                            {Boolean(helpKey) ? <HelpButton markdown={t(helpKey!, { ...helpVariables, defaultValue: helpKey })} /> : null}
                         </Stack>
                     </Box>
                     {/* Main content */}

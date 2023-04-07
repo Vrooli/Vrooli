@@ -3,7 +3,7 @@ import { exists } from "@shared/utils";
 import { mutationWrapper, useCustomMutation } from "api";
 import { voteVote } from "api/generated/endpoints/vote_vote";
 import { useCallback } from "react";
-import { ObjectActionComplete } from "utils/actions";
+import { ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
 
 type UseVoterProps = {
@@ -27,10 +27,10 @@ export const useVoter = ({
     const handleVote = useCallback((isUpvote: boolean | null) => {
         // Validate objectId and objectType
         if (!objectId) {
-            PubSub.get().publishSnack({ messageKey: `CouldNotRead${objectType}`, severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
             return;
         }
-        if(!hasVotingSupport) {
+        if (!hasVotingSupport) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: 'Error' });
             return;
         }

@@ -3,28 +3,37 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { firstString, getDisplay, getResourceIcon, getResourceType, getResourceUrl, getUserLanguages, PubSub, usePress } from 'utils';
-import { useCallback, useMemo, useState } from 'react';
-import { openLink, useLocation } from '@shared/route';
-import { ResourceCardProps } from '../types';
-import { multiLineEllipsis, noSelect } from 'styles';
-import { DeleteIcon, EditIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
 import { ResourceUsedFor } from '@shared/consts';
-import { useTranslation } from 'react-i18next';
+import { DeleteIcon, EditIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { forwardRef, useCallback, useContext, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { multiLineEllipsis, noSelect } from 'styles';
+import { getResourceIcon } from 'utils/display/getResourceIcon';
+import { getDisplay } from 'utils/display/listTools';
+import { firstString } from 'utils/display/stringTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import usePress from 'utils/hooks/usePress';
+import { getResourceType, getResourceUrl } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { ResourceCardProps } from '../types';
 
-export const ResourceCard = ({
+export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     canUpdate,
     data,
+    dragProps,
+    dragHandleProps,
     index,
     onContextMenu,
     onEdit,
     onDelete,
-    session,
-}: ResourceCardProps) => {
+}, ref) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -88,6 +97,9 @@ export const ResourceCard = ({
     return (
         <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${data.link}`}>
             <Box
+                ref={ref}
+                {...dragProps}
+                {...dragHandleProps}
                 {...pressEvents}
                 component="a"
                 href={href}
@@ -95,8 +107,8 @@ export const ResourceCard = ({
                 sx={{
                     ...noSelect,
                     boxShadow: 8,
-                    background: (t: any) => t.palette.primary.light,
-                    color: (t: any) => t.palette.primary.contrastText,
+                    background: palette.primary.light,
+                    color: palette.secondary.contrastText,
                     borderRadius: '16px',
                     margin: 0,
                     padding: 1,
@@ -118,7 +130,7 @@ export const ResourceCard = ({
                         <Tooltip title="Edit">
                             <ColorIconButton
                                 id='edit-icon-button'
-                                background={palette.secondary.main}
+                                background='#c5ab17'
                                 sx={{ position: 'absolute', top: 4, left: 4 }}
                             >
                                 <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
@@ -127,7 +139,7 @@ export const ResourceCard = ({
                         <Tooltip title="Delete">
                             <ColorIconButton
                                 id='delete-icon-button'
-                                background={palette.secondary.main}
+                                background={palette.error.main}
                                 sx={{ position: 'absolute', top: 4, right: 4 }}
                             >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
@@ -163,4 +175,4 @@ export const ResourceCard = ({
             </Box>
         </Tooltip>
     )
-}
+})

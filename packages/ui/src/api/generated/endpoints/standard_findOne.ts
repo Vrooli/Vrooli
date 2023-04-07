@@ -26,6 +26,7 @@ query standard($input: FindByIdInput!) {
             language
             description
             jsonVariable
+            name
         }
     }
     versions {
@@ -81,6 +82,7 @@ query standard($input: FindByIdInput!) {
             language
             description
             jsonVariable
+            name
         }
         id
         created_at

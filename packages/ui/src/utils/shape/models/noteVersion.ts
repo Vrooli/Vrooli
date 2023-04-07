@@ -1,12 +1,17 @@
 import { NoteVersion, NoteVersionCreateInput, NoteVersionTranslation, NoteVersionTranslationCreateInput, NoteVersionTranslationUpdateInput, NoteVersionUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { NoteShape, shapeNote } from "./note";
+import { ResourceListShape } from "./resourceList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type NoteVersionTranslationShape = Pick<NoteVersionTranslation, 'id' | 'language' | 'description' | 'name' | 'text'>
+export type NoteVersionTranslationShape = Pick<NoteVersionTranslation, 'id' | 'language' | 'description' | 'name' | 'text'> & {
+    __typename?: 'NoteVersionTranslation';
+}
 
 export type NoteVersionShape = Pick<NoteVersion, 'id' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
+    __typename?: 'NoteVersion';
     directoryListings?: { id: string }[] | null;
+    resourceList?: { id: string } | ResourceListShape | null;
     root?: { id: string } | NoteShape | null;
     translations?: NoteVersionTranslationShape[] | null;
 }

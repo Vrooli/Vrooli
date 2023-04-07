@@ -1,12 +1,11 @@
 import { Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { useCallback, useState } from 'react';
-import { TextSizeButtonsProps } from '../types';
-import { noSelect } from 'styles';
 import { BumpModerateIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PubSub } from 'utils';
+import { noSelect } from 'styles';
 import { getCookieFontSize } from 'utils/cookies';
+import { PubSub } from 'utils/pubsub';
 
 const smallestFontSize = 10;
 const largestFontSize = 20;
@@ -14,9 +13,7 @@ const largestFontSize = 20;
 /**
  * Updates the font size of the entire app
  */
-export function TextSizeButtons({
-    session,
-}: TextSizeButtonsProps) {
+export function TextSizeButtons() {
     const { palette } = useTheme();
     const { t } = useTranslation();
 

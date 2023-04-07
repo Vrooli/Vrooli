@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { BuildIcon } from "@shared/icons";
 import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "@shared/route";
-import { AdvancedSearchDialog } from "components/dialogs";
+import { AdvancedSearchDialog } from "components/dialogs/AdvancedSearchDialog/AdvancedSearchDialog";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { searchButtonStyle } from "../styles";
@@ -12,7 +12,6 @@ export const AdvancedSearchButton = ({
     advancedSearchSchema,
     searchType,
     setAdvancedSearchParams,
-    session,
     zIndex,
 }: AdvancedSearchButtonProps) => {
     const { palette } = useTheme();
@@ -64,7 +63,6 @@ export const AdvancedSearchButton = ({
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
                 searchType={searchType}
-                session={session}
                 zIndex={zIndex + 1}
             />
             {advancedSearchParams && <Tooltip title={t(`SeeAllSearchSettings`)} placement="top">

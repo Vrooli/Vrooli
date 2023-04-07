@@ -1,8 +1,8 @@
-import { ListMenuItemData } from "components/dialogs/types";
-import { getYou, ListObjectType } from "utils/display";
-import { BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, BookmarkFilledIcon, BookmarkOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
 import { Session } from "@shared/consts";
-import { checkIfLoggedIn } from "utils/authentication";
+import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
+import { ListMenuItemData } from "components/dialogs/types";
+import { checkIfLoggedIn } from "utils/authentication/session";
+import { getYou, ListObjectType } from "utils/display/listTools";
 
 /**
  * All available actions an object can possibly have

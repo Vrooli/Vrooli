@@ -1,9 +1,9 @@
 
+import { FindByIdInput, PullRequest, PullRequestCreateInput, PullRequestFromObjectType, PullRequestSearchInput, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, PullRequestUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, PullRequestSortBy, PullRequestToObjectType, PullRequestStatus, PullRequest, PullRequestSearchInput, PullRequestCreateInput, PullRequestUpdateInput, PullRequestFromObjectType } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
 import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
@@ -36,6 +36,7 @@ export const typeDef = gql`
 
     enum PullRequestStatus {
         Open
+        Canceled
         Merged
         Rejected
     }
@@ -180,6 +181,7 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req })
             // TODO make sure to set hasBeenClosedOrRejected to true if status is closed or rejected
+            // TODO 2 permissions for this differ from normal objects. Some fields can be updated by creator, and some by owner of object the pull request is for. Probably need to make custom endpoints like for transfers
         },
     }
 }

@@ -1,23 +1,25 @@
 /**
  * Displays a list of push devices for the user to manage
  */
-import { PushListProps } from '../types';
-import { useCallback } from 'react';
 import { Button, Stack, useTheme } from '@mui/material';
-import { useCustomMutation } from 'api/hooks';
-import { mutationWrapper } from 'api/utils';
-import { getDeviceInfo, PubSub, updateArray } from 'utils';
-import { useFormik } from 'formik';
-import { PushListItem } from '../PushListItem/PushListItem';
-import { AddIcon } from '@shared/icons';
 import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from '@shared/consts';
+import { AddIcon } from '@shared/icons';
 import { pushDeviceValidation } from '@shared/validation';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 import { pushDeviceCreate } from 'api/generated/endpoints/pushDevice_create';
 import { pushDeviceUpdate } from 'api/generated/endpoints/pushDevice_update';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { ListContainer } from 'components/containers';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { ListContainer } from 'components/containers/ListContainer/ListContainer';
+import { useFormik } from 'formik';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { requestNotificationPermission, subscribeUserToPush } from 'serviceWorkerRegistration'
+import { requestNotificationPermission, subscribeUserToPush } from 'serviceWorkerRegistration';
+import { getDeviceInfo } from 'utils/display/device';
+import { PubSub } from 'utils/pubsub';
+import { updateArray } from 'utils/shape/general';
+import { PushListItem } from '../PushListItem/PushListItem';
+import { PushListProps } from '../types';
 
 //TODO copied from emaillist. need to rewrite
 export const PushList = ({
@@ -103,6 +105,7 @@ export const PushList = ({
             <ListContainer
                 emptyText={t(`NoPushDevices`, { ns: 'error' })}
                 isEmpty={list.length === 0}
+                sx={{ maxWidth: '500px' }}
             >
                 {/* Push device list */}
                 {list.map((device: PushDevice, index) => (

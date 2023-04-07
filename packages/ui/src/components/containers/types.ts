@@ -1,7 +1,7 @@
 import { TextFieldProps } from "@mui/material";
-import { CommentFor, Session } from "@shared/consts";
+import { CommentFor } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
-import { MarkdownInputProps } from "components/inputs/types";
+import { MarkdownInputProps, TranslatedMarkdownInputProps, TranslatedTextFieldProps } from "components/inputs/types";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;
@@ -10,7 +10,6 @@ export interface CommentContainerProps {
     objectId: string;
     objectType: CommentFor;
     onAddCommentClose?: () => void;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -32,6 +31,7 @@ export interface ListContainerProps {
     children: JSX.Element | JSX.Element[];
     emptyText?: string;
     isEmpty?: boolean;
+    sx?: { [x: string]: any };
 }
 
 export interface ListTitleContainerProps extends TitleContainerProps {
@@ -64,27 +64,39 @@ export interface TextCollapseProps {
     loading?: boolean;
     loadingLines?: number;
     onOpenChange?: (isOpen: boolean) => void;
-    session: Session | undefined;
     title?: string | null;
     text?: string | null;
 }
 
-export interface EditableTextCollapseProps {
-    helpText?: string;
+export type EditTextComponent = 'Markdown' | 'TranslatedMarkdown' | 'TranslatedTextField' | 'TextField';
+
+interface BaseEditableTextProps<T extends EditTextComponent> {
+    component: T;
     isEditing: boolean;
+    name: string;
+    showOnNoText?: boolean;
+    variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'subtitle1' | 'subtitle2' | 'body1' | 'body2';
+}
+
+interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends BaseEditableTextProps<T> {
+    helpText?: string;
     isOpen?: boolean;
     onOpenChange?: (isOpen: boolean) => void;
-    /**
-     * Props for TextField
-     */
-    propsTextField?: TextFieldProps;
-    /**
-     * Props for MarkdownInput. If not set, assumes TextField is used.
-     */
-    propsMarkdownInput?: MarkdownInputProps;
-    showOnNoText?: boolean;
     title?: string | null;
-    text?: string | null;
+}
+
+export type PropsByComponentType = {
+    Markdown: Omit<MarkdownInputProps, 'name'>;
+    TranslatedMarkdown: Omit<TranslatedMarkdownInputProps, 'name'>;
+    TranslatedTextField: Omit<TranslatedTextFieldProps, 'name'>;
+    TextField: Omit<TextFieldProps, 'error' | 'helpText' | 'name' | 'onBlur' | 'onChange' | 'value'>;
+};
+
+export type EditableTextProps<T extends EditTextComponent> = BaseEditableTextProps<T> & {
+    props?: PropsByComponentType[T];
+}
+export type EditableTextCollapseProps<T extends EditTextComponent> = BaseEditableTextCollapseProps<T> & {
+    props?: PropsByComponentType[T];
 }
 
 export interface PageContainerProps {

@@ -45,7 +45,7 @@ export const StatsApiModel: ModelLogic<{
         countFields: {},
     },
     search: {
-        defaultSort: StatsApiSortBy.DateUpdatedDesc,
+        defaultSort: StatsApiSortBy.PeriodStartAsc,
         sortBy: StatsApiSortBy,
         searchFields: {
             periodTimeFrame: true,
@@ -61,7 +61,7 @@ export const StatsApiModel: ModelLogic<{
             api: 'Api',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => ApiModel.validate!.owner(data.api as any),
+        owner: (data, userId) => ApiModel.validate!.owner(data.api as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_apiSelect>(data, [
             ['api', 'Api'],

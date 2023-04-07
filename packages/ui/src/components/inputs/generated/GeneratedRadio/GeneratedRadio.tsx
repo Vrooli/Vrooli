@@ -1,4 +1,5 @@
 import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from "@mui/material";
+import { useField } from "formik";
 import { RadioProps } from "forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
@@ -6,10 +7,10 @@ import { GeneratedInputComponentProps } from "../types";
 export const GeneratedRadio = ({
     disabled,
     fieldData,
-    formik,
     index,
 }: GeneratedInputComponentProps) => {
     console.log('rendering radio');
+    const [field] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as RadioProps, [fieldData.props]);
 
     return (
@@ -25,10 +26,10 @@ export const GeneratedRadio = ({
                 row={props.row}
                 id={fieldData.fieldName}
                 name={fieldData.fieldName}
-                value={formik.values[fieldData.fieldName] ?? props.defaultValue}
+                value={field.value ?? props.defaultValue}
                 defaultValue={props.defaultValue}
-                onBlur={formik.handleBlur}
-                onChange={formik.handleChange}
+                onBlur={field.onBlur}
+                onChange={field.onChange}
                 tabIndex={index}
             >
                 {

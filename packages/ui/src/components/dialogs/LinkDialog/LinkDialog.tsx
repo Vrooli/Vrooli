@@ -3,22 +3,24 @@
  */
 import {
     Autocomplete,
-    Box,
-    Dialog,
-    DialogContent,
+    Box, DialogContent,
     Grid,
     Stack,
     TextField,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { DialogTitle, GridSubmitButtons } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LinkDialogProps } from '../types';
-import { getTranslation, NodeShape, PubSub } from 'utils';
-import { uuid } from '@shared/uuid';
 import { NodeType } from '@shared/consts';
+import { uuid } from '@shared/uuid';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getTranslation } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
+import { NodeShape } from 'utils/shape/models/node';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { LinkDialogProps } from '../types';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
@@ -189,15 +191,12 @@ export const LinkDialog = ({
     }, [fromNode, handleClose, nodeFrom, nodeTo, toNode]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="link-dialog"
+            isOpen={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleId}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible' },
-                '& .MuiDialog-paper': { overflow: 'visible' }
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
@@ -210,7 +209,7 @@ export const LinkDialog = ({
                 {conditions}
                 {deleteOption}
                 {/* Action buttons */}
-                <Grid container spacing={2} mt={2}>
+                <Grid container spacing={2} mt={2} mb={8}>
                     <GridSubmitButtons
                         display="dialog"
                         errors={errors}
@@ -220,6 +219,6 @@ export const LinkDialog = ({
                     />
                 </Grid>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

@@ -1,11 +1,11 @@
 import { Count, GqlModelType } from '@shared/consts';
+import { reqArr } from '@shared/validation';
+import { modelToGql, selectHelper } from "../builders";
+import { CustomError } from '../events';
+import { getLogic } from "../getters";
 import { cudInputsToMaps, getAuthenticatedData } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
-import { modelToGraphQL, selectHelper } from "../builders";
-import { getLogic } from "../getters";
-import { reqArr } from '@shared/validation';
-import { CustomError } from '../events';
 
 /**
  * Performs create, update, and delete operations. 
@@ -34,7 +34,6 @@ export async function cudHelper<
     updateMany,
     userData,
 }: CUDHelperInput): Promise<CUDResult<GqlModel>> {
-    console.log('cudhelper a', objectType);
     // Get functions for manipulating model logic
     const { delegate, mutate, validate } = getLogic(['delegate', 'mutate', 'validate'], objectType, userData.languages, 'cudHelper')
     // Initialize results
@@ -48,7 +47,6 @@ export async function cudHelper<
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Group create and update data by action and type
-    console.log('cudhelper b');
     const { idsByAction, idsByType, inputsByType } = await cudInputsToMaps({
         createMany,
         updateMany,
@@ -58,7 +56,6 @@ export async function cudHelper<
         languages: userData.languages,
     });
     const preMap: { [x: string]: any } = {};
-    console.log('cudhelper c', JSON.stringify(inputsByType), '\n\n');
     // For each type, calculate pre-shape data (if applicable). 
     // This often also doubles as a way to perform custom input validation
     for (const [type, inputs] of Object.entries(inputsByType)) {
@@ -66,14 +63,11 @@ export async function cudHelper<
         preMap[type] = {};
         const { mutate } = getLogic(['mutate'], type as GqlModelType, userData.languages, 'preshape type');
         if (mutate.shape.pre) {
-            console.log('getting pre shape', type)
             const { Create: createList, Update: updateList, Delete: deleteList } = inputs;
             const preResult = await mutate.shape.pre({ createList, updateList: updateList as any, deleteList, prisma, userData });
-            console.log('got pre shape', type, JSON.stringify(preResult), '\n\n');
             preMap[type] = preResult;
         }
     }
-    console.log('cudhelper d');
     // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
     const shapedCreate: { [x: string]: any }[] = [];
     const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
@@ -81,7 +75,6 @@ export async function cudHelper<
     if (createMany && mutate.shape.create) {
         for (const create of createMany) { shapedCreate.push(await mutate.shape.create({ data: create, preMap, prisma, userData })) }
     }
-    console.log('cudhelper e');
     // Shape update
     if (updateMany && mutate.shape.update) {
         for (const update of updateMany) {
@@ -89,17 +82,12 @@ export async function cudHelper<
             shapedUpdate.push({ where: update.where, data: shaped });
         }
     }
-    console.log('cudhelper f');
     // Query for all authentication data
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
-    console.log('cudhelper g');
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, userData);
-    console.log('cudhelper h');
     // Max objects check
     maxObjectsCheck(authDataById, idsByAction, prisma, userData);
-    console.log('cudhelper i');
-    console.log('cudhelper j');
     if (shapedCreate.length > 0) {
         for (const data of shapedCreate) {
             // Create
@@ -115,15 +103,11 @@ export async function cudHelper<
                 throw new CustomError('0415', 'InternalError', userData.languages, { error, data, select, objectType });
             }
             // Convert
-            console.log('cudhelper j.0 select', JSON.stringify(select), '\n\n');
-            console.log('cudhelper j.1', JSON.stringify(createResult), '\n\n');
-            const converted = modelToGraphQL<GqlModel>(createResult, partialInfo);
-            console.log('cudhelper j.2', JSON.stringify(converted), '\n\n');
+            const converted = modelToGql<GqlModel>(createResult, partialInfo);
             created.push(converted as any);
         }
         // Filter authDataById to only include objects which were created
         createAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => created.map(c => c.id).includes(id)));
-        console.log('cudhelper j.3', JSON.stringify(createAuthData));
         // Call onCreated
         mutate.trigger?.onCreated && await mutate.trigger.onCreated({
             authData: createAuthData,
@@ -132,9 +116,7 @@ export async function cudHelper<
             prisma,
             userData
         });
-        console.log('cudhelper j.4');
     }
-    console.log('cudhelper k');
     if (shapedUpdate.length > 0) {
         for (const update of shapedUpdate) {
             // Update
@@ -151,7 +133,7 @@ export async function cudHelper<
                 throw new CustomError('0416', 'InternalError', userData.languages, { error, update, select, objectType });
             }
             // Convert
-            const converted = modelToGraphQL<GqlModel>(updateResult, partialInfo);
+            const converted = modelToGql<GqlModel>(updateResult, partialInfo);
             updated.push(converted as any);
         }
         // Filter authDataById to only include objects which were updated
@@ -165,7 +147,6 @@ export async function cudHelper<
             updateInput: updateMany!.map(u => u.data), userData
         });
     }
-    console.log('cudhelper l');
     if (deleteMany && deleteMany.length > 0) {
         // Call beforeDeleted
         let beforeDeletedData: any;
@@ -173,7 +154,6 @@ export async function cudHelper<
             beforeDeletedData = await mutate.trigger.beforeDeleted({ deletingIds: deleteMany, prisma, userData });
         }
         // Delete
-        let deleted: any = {};
         let where = { id: { in: deleteMany } };
         try {
             deleted = await delegate(prisma).deleteMany({
@@ -192,7 +172,6 @@ export async function cudHelper<
             userData
         });
     }
-    console.log('cudhelper m');
     // Perform custom triggers for mutate.trigger.onCommon
     if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
         mutate.trigger?.onCommon && await mutate.trigger.onCommon({
@@ -208,7 +187,6 @@ export async function cudHelper<
             userData
         });
     }
-    console.log('cudhelper n');
     // For each type, calculate post-shape data (if applicable)
     for (const type in inputsByType) {
         const { mutate } = getLogic(['mutate'], type as GqlModelType, userData.languages, 'postshape type');
@@ -222,7 +200,6 @@ export async function cudHelper<
             });
         }
     }
-    console.log('finished cudHelper');
     return {
         created: createMany ? created : undefined,
         updated: updateMany ? updated : undefined,

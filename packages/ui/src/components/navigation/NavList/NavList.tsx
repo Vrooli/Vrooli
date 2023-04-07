@@ -1,17 +1,16 @@
-import {
-    AccountMenu,
-    ContactInfo,
-    PopupMenu
-} from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
-import { openLink, useLocation } from '@shared/route';
-import React, { useCallback, useMemo, useState } from 'react';
-import { NavListProps } from '../types';
 import { LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
+import { PopupMenu } from 'components/buttons/PopupMenu/PopupMenu';
+import { AccountMenu } from 'components/dialogs/AccountMenu/AccountMenu';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { checkIfLoggedIn } from 'utils/authentication';
+import { checkIfLoggedIn, getCurrentUser } from 'utils/authentication/session';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils/navigation/userActions';
+import { SessionContext } from 'utils/SessionContext';
+import { ContactInfo } from '../ContactInfo/ContactInfo';
 
 const navItemStyle = (palette: Palette) => ({
     background: 'transparent',
@@ -23,9 +22,8 @@ const navItemStyle = (palette: Palette) => ({
     },
 })
 
-export const NavList = ({
-    session,
-}: NavListProps) => {
+export const NavList = () => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -56,19 +54,18 @@ export const NavList = ({
             right: '0',
         }}>
             {/* Contact menu */}
-            {!isMobile && <PopupMenu
+            {!isMobile && !getCurrentUser(session).id && <PopupMenu
                 text={t(`Contact`)}
                 variant="text"
                 size="large"
                 sx={navItemStyle(palette)}
             >
-                <ContactInfo session={session} />
+                <ContactInfo />
             </PopupMenu>}
             {/* Account menu */}
             <AccountMenu
                 anchorEl={accountMenuAnchor}
                 onClose={closeAccountMenu}
-                session={session}
             />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({

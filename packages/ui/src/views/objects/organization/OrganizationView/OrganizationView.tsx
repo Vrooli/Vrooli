@@ -1,18 +1,30 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, FindByIdOrHandleInput, LINKS, Organization, ResourceList, VisibilityType } from "@shared/consts";
+import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { LINKS, FindByIdOrHandleInput, Organization, ResourceList, BookmarkFor, VisibilityType } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
-import { OrganizationViewProps } from "../types";
-import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, SearchType, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
-import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
-import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
-import { useTranslation } from "react-i18next";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { ResourceListVertical } from "components/lists/resource";
+import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchListGenerator } from "components/lists/types";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { placeholderColor, toSearchListData } from "utils/display/listTools";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SearchType } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
+import { OrganizationViewProps } from "../types";
 
 enum TabOptions {
     Resource = "Resource",
@@ -48,9 +60,9 @@ const tabParams: TabParams[] = [{
 export const OrganizationView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: OrganizationViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -87,7 +99,6 @@ export const OrganizationView = ({
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList as any}
-            session={session}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!organization) return;
@@ -100,7 +111,7 @@ export const OrganizationView = ({
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [isLoading, organization, permissions.canUpdate, resourceList, session, setOrganization, zIndex]);
+    ) : null, [isLoading, organization, permissions.canUpdate, resourceList, setOrganization, zIndex]);
 
     // Handle tabs
     const tabs = useMemo<PageTab<TabOptions>[]>(() => {
@@ -109,13 +120,13 @@ export const OrganizationView = ({
         if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
+            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : palette.secondary.dark, // Custom color for resources
             index: i,
-            // Icon: tab.Icon,
+            Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
-    }, [permissions.canUpdate, resources, t]);
+    }, [palette.secondary.dark, permissions.canUpdate, resources, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
@@ -138,7 +149,6 @@ export const OrganizationView = ({
     const actionData = useObjectActions({
         object: organization,
         objectType: 'Organization',
-        session,
         setLocation,
         setObject: setOrganization,
     });
@@ -258,7 +268,6 @@ export const OrganizationView = ({
                     <ReportsLink object={organization} />
                     <BookmarkButton
                         disabled={!permissions.canBookmark}
-                        session={session}
                         objectId={organization?.id ?? ''}
                         bookmarkFor={BookmarkFor.Organization}
                         isBookmarked={organization?.you?.isBookmarked ?? false}
@@ -268,7 +277,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, organization, bio, zIndex, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, isLoading, permissions.canUpdate, permissions.canBookmark, name, handle, organization, bio, zIndex, actionData]);
 
     /**
      * Opens add new page
@@ -284,7 +293,6 @@ export const OrganizationView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Organization',
                 }}
@@ -295,7 +303,6 @@ export const OrganizationView = ({
                 anchorEl={moreMenuAnchor}
                 object={organization as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -315,8 +322,7 @@ export const OrganizationView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
-                        translations={organization?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>
@@ -340,7 +346,6 @@ export const OrganizationView = ({
                                 id="organization-view-list"
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}
-                                session={session}
                                 take={20}
                                 where={where}
                                 zIndex={zIndex}

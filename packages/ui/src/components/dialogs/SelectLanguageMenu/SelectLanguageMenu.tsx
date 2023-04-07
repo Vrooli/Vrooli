@@ -1,14 +1,17 @@
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { ListMenuItemData, SelectLanguageMenuProps } from '../types';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils';
-import { FixedSizeList } from 'react-window';
-import { ListMenu, MenuTitle } from 'components';
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
+import { Translate, TranslateInput } from '@shared/consts';
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from '@shared/icons';
+import { translateTranslate } from 'api/generated/endpoints/translate_translate';
 import { useCustomLazyQuery } from 'api/hooks';
 import { queryWrapper } from 'api/utils';
-import { Translate, TranslateInput } from '@shared/consts';
-import { translateTranslate } from 'api/generated/endpoints/translate_translate';
+import { MouseEvent, useCallback, useContext, useMemo, useState } from 'react';
+import { FixedSizeList } from 'react-window';
+import { AllLanguages, getLanguageSubtag, getUserLanguages } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { ListMenu } from '../ListMenu/ListMenu';
+import { MenuTitle } from '../MenuTitle/MenuTitle';
+import { ListMenuItemData, SelectLanguageMenuProps } from '../types';
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
@@ -53,12 +56,13 @@ export const SelectLanguageMenu = ({
     handleDelete,
     handleCurrent,
     isEditing = false,
-    session,
+    languages,
     sxs,
-    translations,
     zIndex,
 }: SelectLanguageMenuProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
+
     const [searchString, setSearchString] = useState('');
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
@@ -68,7 +72,7 @@ export const SelectLanguageMenu = ({
     const [getAutoTranslation] = useCustomLazyQuery<Translate, TranslateInput>(translateTranslate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
-        const sourceTranslation = translations.find(t => t.language === source);
+        const sourceTranslation = languages.find(l => l === source);
         if (!sourceTranslation) {
             PubSub.get().publishSnack({ messageKey: 'CouldNotFindTranslation', severity: 'Error' })
             return;
@@ -77,7 +81,6 @@ export const SelectLanguageMenu = ({
             query: getAutoTranslation,
             input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
             onSuccess: (data) => {
-                console.log('got translation', data)
                 // Try parse
                 if (data) {
                     console.log('TODO')
@@ -87,19 +90,16 @@ export const SelectLanguageMenu = ({
             },
             errorMessage: () => ({ key: 'FailedToTranslate' }),
         })
-    }, [getAutoTranslation, translations]);
+    }, [getAutoTranslation, languages]);
 
     // Menu for selecting language to auto-translate from
     const translateSourceOptions = useMemo<ListMenuItemData<string>[]>(() => {
-        // Filter translations to those which have at least one non-empty translation string
-        const enteredLanguages: string[] = translations
-            .filter((translation) => Object.entries(translation).some(([key, value]) => !['type', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0))
-            .map((translation) => translation.language);
-        // Find all languages which support auto-translations in selected languages
-        const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => enteredLanguages?.indexOf(l) !== -1);
+        // Find all languages which support auto-translations in selected languages.
+        // Filter languages that already have a translation
+        const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => languages?.indexOf(l) !== -1);
         // Convert to list menu item data
         return autoTranslateLanguagesFiltered.map(l => ({ label: AllLanguages[l], value: l }));
-    }, [translations]);
+    }, [languages]);
     const [translateSourceAnchor, setTranslateSourceAnchor] = useState<any>(null);
     const openTranslateSource = useCallback((ev: React.MouseEvent<any>, targetLanguage: string) => {
         // Stop propagation so that the list item is not selected
@@ -122,7 +122,7 @@ export const SelectLanguageMenu = ({
     const languageOptions = useMemo<Array<[string, string]>>(() => {
         // Find user languages
         const userLanguages = getUserLanguages(session);
-        const selected = translations.map((translation) => getLanguageSubtag(translation.language));
+        const selected = languages.map((l) => getLanguageSubtag(l));
         // Sort selected languages. Selected languages which are also user languages are first.
         const sortedSelectedLanguages = selected.sort((a, b) => {
             const aIndex = userLanguages.indexOf(a);
@@ -152,7 +152,7 @@ export const SelectLanguageMenu = ({
             options = options.filter((o: [string, string]) => o[1].toLowerCase().includes(searchString.toLowerCase()));
         }
         return options;
-    }, [isEditing, searchString, session, translations]);
+    }, [isEditing, searchString, session, languages]);
 
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -261,13 +261,13 @@ export const SelectLanguageMenu = ({
                         {(props) => {
                             const { index, style } = props;
                             const option: [string, string] = languageOptions[index];
-                            const isSelected = option[0] === currentLanguage || translations.some((translation) => getLanguageSubtag(translation.language) === getLanguageSubtag(option[0]));
+                            const isSelected = option[0] === currentLanguage || languages.some((l) => getLanguageSubtag(l) === getLanguageSubtag(option[0]));
                             const isCurrent = option[0] === currentLanguage;
                             // Can delete if selected, editing, and there are more than 1 selected languages
-                            const canDelete = isSelected && isEditing && translations.length > 1;
+                            const canDelete = isSelected && isEditing && languages.length > 1;
                             // Can auto-translate if the language is not selected, is in auto-translate languages, and one of 
                             // the existing translations is in the auto-translate languages.
-                            const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 &&  autoTranslateLanguages.includes(option[0] as any);
+                            const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 && autoTranslateLanguages.includes(option[0] as any);
                             return (
                                 <ListItem
                                     key={index}

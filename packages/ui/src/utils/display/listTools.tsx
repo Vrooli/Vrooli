@@ -1,18 +1,18 @@
-import { AutocompleteOption, NavigableObject } from "types";
-import { getTranslation, getUserLanguages } from "./translationTools";
-import { displayDate, firstString } from "./stringTools";
-import { ObjectListItem } from "components";
-import { DotNotation, GqlModelType, Session, BookmarkFor } from "@shared/consts";
-import { valueFromDot } from "utils/shape";
-import { exists, isOfType } from "@shared/utils";
-import { SearchListGenerator } from "components/lists/types";
-import { SearchType } from "utils/search";
+import { BookmarkFor, DotNotation, GqlModelType } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
+import { exists, isOfType } from "@shared/utils";
+import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
+import { SearchListGenerator } from "components/lists/types";
+import { AutocompleteOption, NavigableObject } from "types";
+import { SearchType } from "utils/search/objectToSearch";
+import { valueFromDot } from "utils/shape/general";
+import { displayDate, firstString } from "./stringTools";
+import { getTranslation, getUserLanguages } from "./translationTools";
 
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(
 export type ListObjectType = {
-    __typename: `${GqlModelType}`;
+    __typename: `${GqlModelType}` | 'CalendarEvent';
     completedAt?: number | null;
     startedAt?: number | null;
     name?: string | null;
@@ -198,8 +198,10 @@ const tryTitle = (obj: Record<string, any>, langs: readonly string[]) => {
     return firstString(
         obj.title,
         obj.name,
+        obj.label,
         translations.title,
         translations.name,
+        translations.label,
         obj.handle ? `$${obj.handle}` : null,
     );
 }
@@ -234,6 +236,9 @@ const trySubtitle = (obj: Record<string, any>, langs: readonly string[]) => {
  * @returns The title and subtitle, or blank strings if none found
  */
 const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
+    console.log('tryVersioned 1', JSON.stringify(obj));
+    console.log('tryVersioned 2', obj.versions?.find(v => v.isLatest));
+    console.log('tryVersioned 3', [...(obj.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex));
     // Initialize the title and subtitle
     let title: string | null = null;
     let subtitle: string | null = null;
@@ -242,7 +247,7 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
         obj, // The object itself
         obj.root, // The root object (only found if obj is a version)
         obj.versions?.find(v => v.isLatest), // The latest version (only found if obj is a root object)
-        ...(obj.versions?.sort((a, b) => b.versionIndex - a.versionIndex) ?? []), // All versions, sorted by versionIndex (i.e. newest first)
+        ...([...(obj.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex)), // All versions, sorted by versionIndex (i.e. newest first)
     ]
     // Loop through the objects
     for (const curr of objectsToCheck) {
@@ -267,6 +272,7 @@ export const getDisplay = (
     object: ListObjectType | null | undefined,
     languages?: readonly string[]
 ): { title: string, subtitle: string } => {
+    console.log('getDisplay start', object)
     if (!object) return { title: '', subtitle: '' };
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
@@ -319,7 +325,7 @@ export const getBookmarkFor = (
 ): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
     if (!object) return { bookmarkFor: null, starForId: null };
     // If object does not support bookmarking, return null
-    if (isOfType(object, 'Member')) return { bookmarkFor: null, starForId: null }; //TODO add more types
+    if (isOfType(object, 'BookmarkList', 'Member')) return { bookmarkFor: null, starForId: null }; //TODO add more types
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getBookmarkFor(object.to as ListObjectType);
     // If a run routine, use the routine version
@@ -345,7 +351,7 @@ export function listToAutocomplete(
     languages: readonly string[]
 ): AutocompleteOption[] {
     return objects.map(o => ({
-        __typename: o.__typename,
+        __typename: o.__typename as any,
         id: o.id,
         isBookmarked: getYou(o).isBookmarked,
         label: getDisplay(o, languages).title,
@@ -371,7 +377,7 @@ export interface ListToListItemProps {
     /**
      * List of dummy items types to display while loading
      */
-    dummyItems?: string[];
+    dummyItems?: (GqlModelType | `${GqlModelType}`)[];
     /**
      * True if update button should be hidden
      */
@@ -388,10 +394,6 @@ export interface ListToListItemProps {
      * Whether the list is loading
      */
     loading: boolean,
-    /**
-     * Current session
-     */
-    session: Session | undefined,
     zIndex: number,
 }
 
@@ -406,7 +408,6 @@ export function listToListItems({
     hideUpdateButton,
     items,
     loading,
-    session,
     zIndex,
 }: ListToListItemProps): JSX.Element[] {
     let listItems: JSX.Element[] = [];
@@ -420,8 +421,7 @@ export function listToListItems({
                 hideUpdateButton={hideUpdateButton}
                 index={i}
                 loading={true}
-                objectType={'Routine'}
-                session={session}
+                objectType={dummyItems[i]}
                 zIndex={zIndex}
             />);
         }
@@ -438,8 +438,7 @@ export function listToListItems({
             hideUpdateButton={hideUpdateButton}
             index={i}
             loading={false}
-            objectType={curr.__typename}
-            session={session}
+            objectType={curr.__typename as any}
             zIndex={zIndex}
         />);
     }

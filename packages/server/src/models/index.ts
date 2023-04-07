@@ -7,6 +7,8 @@ import { BookmarkModel } from './bookmark';
 import { BookmarkListModel } from './bookmarkList';
 import { CommentModel } from './comment';
 import { EmailModel } from './email';
+import { FocusModeModel } from './focusMode';
+import { FocusModeFilterModel } from './focusModeFilter';
 import { IssueModel } from './issue';
 import { LabelModel } from './label';
 import { MeetingModel } from './meeting';
@@ -54,12 +56,13 @@ import { RoutineVersionModel } from './routineVersion';
 import { RoutineVersionInputModel } from './routineVersionInput';
 import { RoutineVersionOutputModel } from './routineVersionOutput';
 import { RunProjectModel } from './runProject';
-import { RunProjectScheduleModel } from './runProjectSchedule';
 import { RunProjectStepModel } from './runProjectStep';
 import { RunRoutineModel } from './runRoutine';
 import { RunRoutineInputModel } from './runRoutineInput';
-import { RunRoutineScheduleModel } from './runRoutineSchedule';
 import { RunRoutineStepModel } from './runRoutineStep';
+import { ScheduleModel } from './schedule';
+import { ScheduleExceptionModel } from './scheduleException';
+import { ScheduleRecurrenceModel } from './scheduleRecurrence';
 import { SmartContractModel } from './smartContract';
 import { SmartContractVersionModel } from './smartContractVersion';
 import { StandardModel } from './standard';
@@ -77,8 +80,6 @@ import { TagModel } from './tag';
 import { TransferModel } from './transfer';
 import { ModelLogic } from './types';
 import { UserModel } from './user';
-import { UserScheduleModel } from './userSchedule';
-import { UserScheduleFilterModel } from './userScheduleFilter';
 import { ViewModel } from './view';
 import { VoteModel } from './vote';
 import { WalletModel } from './wallet';
@@ -95,6 +96,8 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     BookmarkList: BookmarkListModel,
     Comment: CommentModel,
     Email: EmailModel,
+    FocusMode: FocusModeModel,
+    FocusModeFilter: FocusModeFilterModel,
     Issue: IssueModel,
     Label: LabelModel,
     Meeting: MeetingModel,
@@ -142,12 +145,13 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     RoutineVersionInput: RoutineVersionInputModel,
     RoutineVersionOutput: RoutineVersionOutputModel,
     RunProject: RunProjectModel,
-    RunProjectSchedule: RunProjectScheduleModel,
     RunProjectStep: RunProjectStepModel,
     RunRoutine: RunRoutineModel,
     RunRoutineInput: RunRoutineInputModel,
-    RunRoutineSchedule: RunRoutineScheduleModel,
     RunRoutineStep: RunRoutineStepModel,
+    Schedule: ScheduleModel,
+    ScheduleException: ScheduleExceptionModel,
+    ScheduleRecurrence: ScheduleRecurrenceModel,
     SmartContract: SmartContractModel,
     SmartContractVersion: SmartContractVersionModel,
     Standard: StandardModel,
@@ -164,8 +168,6 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     Tag: TagModel,
     Transfer: TransferModel,
     User: UserModel,
-    UserSchedule: UserScheduleModel,
-    UserScheduleFilter: UserScheduleFilterModel,
     Vote: VoteModel,
     View: ViewModel,
     Wallet: WalletModel,
@@ -179,7 +181,8 @@ export * from './bookmark';
 export * from './bookmarkList';
 export * from './comment';
 export * from './email';
-export * from './routineVersionInput';
+export * from './focusMode';
+export * from './focusModeFilter';
 export * from './issue';
 export * from './label';
 export * from './meeting';
@@ -199,7 +202,6 @@ export * from './noteVersion';
 export * from './notification';
 export * from './notificationSubscription';
 export * from './organization';
-export * from './routineVersionOutput';
 export * from './payment';
 export * from './phone';
 export * from './post';
@@ -228,12 +230,13 @@ export * from './routineVersion';
 export * from './routineVersionInput';
 export * from './routineVersionOutput';
 export * from './runProject';
-export * from './runProjectSchedule';
 export * from './runProjectStep';
 export * from './runRoutine';
 export * from './runRoutineInput';
-export * from './runRoutineSchedule';
 export * from './runRoutineStep';
+export * from './schedule';
+export * from './scheduleException';
+export * from './scheduleRecurrence';
 export * from './smartContract';
 export * from './smartContractVersion';
 export * from './standard';
@@ -247,13 +250,10 @@ export * from './statsSite';
 export * from './statsSmartContract';
 export * from './statsStandard';
 export * from './statsUser';
-export * from './runRoutineStep';
-export * from './runRoutineInput';
 export * from './tag';
 export * from './transfer';
 export * from './user';
-export * from './userSchedule';
-export * from './userScheduleFilter';
 export * from './view';
 export * from './vote';
 export * from './wallet';
+

@@ -1,14 +1,15 @@
 import { Slider, SliderProps } from "@mui/material";
+import { useField } from "formik";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 
 export const GeneratedSlider = ({
     disabled,
     fieldData,
-    formik,
     index,
 }: GeneratedInputComponentProps) => {
     console.log('rendering slider');
+    const [field] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as SliderProps, [fieldData.props]);
 
     return (
@@ -18,11 +19,12 @@ export const GeneratedSlider = ({
             key={`field-${fieldData.fieldName}-${index}`}
             min={props.min}
             max={props.max}
+            name={fieldData.fieldName}
             step={props.step}
             valueLabelDisplay={props.valueLabelDisplay}
-            value={formik.values[fieldData.fieldName]}
-            onBlur={formik.handleBlur}
-            onChange={formik.handleChange}
+            value={field.value ?? props.defaultValue}
+            onBlur={field.onBlur}
+            onChange={field.onChange}
             tabIndex={index}
         />
     );

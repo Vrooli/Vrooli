@@ -1,7 +1,7 @@
 import { SxProps } from '@mui/material';
 
 export const cardRoot: SxProps = {
-    boxShadow: 12,
+    boxShadow: 6,
     background: (t: any) => t.palette.primary.light,
     color: (t: any) => t.palette.primary.contrastText,
     borderRadius: '16px',

@@ -5,12 +5,13 @@ export const reminderListValidation: YupModel = {
     create: ({ o }) => yupObj({
         id: req(id),
     }, [
-        ['userSchedule', ['Connect'], 'one', 'opt'],
-        ['reminders', ['Create'], 'many', 'opt', reminderValidation],
+        ['focusMode', ['Connect'], 'one', 'opt'],
+        ['reminders', ['Create'], 'many', 'opt', reminderValidation, ['reminderList']],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
     }, [
-        ['reminders', ['Create', 'Update', 'Delete'], 'many', 'opt', reminderValidation],
+        ['focusMode', ['Connect'], 'one', 'opt'],
+        ['reminders', ['Create', 'Update', 'Delete'], 'many', 'opt', reminderValidation, ['reminderList']],
     ], [], o),
 }

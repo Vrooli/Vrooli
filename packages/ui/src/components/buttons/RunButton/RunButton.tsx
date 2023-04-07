@@ -1,12 +1,17 @@
-import { Box, Dialog, Tooltip, useTheme } from "@mui/material";
+import { Box, Tooltip, useTheme } from "@mui/material";
 import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine } from "@shared/consts";
 import { PlayIcon } from "@shared/icons";
 import { parseSearchParams, setSearchParams, useLocation } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
-import { PopoverWithArrow, RunPickerMenu, UpTransition } from "components/dialogs";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
 import { useCallback, useMemo, useState } from "react";
-import { getProjectVersionStatus, getRoutineVersionStatus, PubSub, Status, uuidToBase36 } from "utils";
-import { RunView } from "views";
+import { Status } from "utils/consts";
+import { uuidToBase36 } from "utils/navigation/urlTools";
+import { PubSub } from "utils/pubsub";
+import { getProjectVersionStatus, getRoutineVersionStatus } from "utils/runUtils";
+import { RunView } from "views/runs";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
 
@@ -22,7 +27,6 @@ export const RunButton = ({
     isBuildGraphOpen,
     isEditing,
     runnableObject,
-    session,
     zIndex,
 }: RunButtonProps) => {
     const { palette } = useTheme();
@@ -31,8 +35,8 @@ export const RunButton = ({
     // Check object status to see if it is valid and complete
     const status = useMemo<Status>(() => {
         if (!runnableObject) return Status.Invalid;
-        return (runnableObject.__typename === GqlModelType.ProjectVersion ? 
-            getProjectVersionStatus(runnableObject as ProjectVersion) : 
+        return (runnableObject.__typename === GqlModelType.ProjectVersion ?
+            getProjectVersionStatus(runnableObject as ProjectVersion) :
             getRoutineVersionStatus(runnableObject as RoutineVersion)).status;
     }, [runnableObject]);
 
@@ -121,23 +125,19 @@ export const RunButton = ({
                 Routine cannot be run because it is invalid.
             </PopoverWithArrow>
             {/* Run dialog */}
-            <Dialog
-                fullScreen
+            <LargeDialog
                 id="run-routine-view-dialog"
                 onClose={runStop}
-                open={isRunOpen}
-                TransitionComponent={UpTransition}
-                sx={{
-                    zIndex: zIndex + 3,
-                }}
+                isOpen={isRunOpen}
+                titleId=""
+                zIndex={zIndex + 3}
             >
                 {runnableObject && <RunView
                     handleClose={runStop}
                     runnableObject={runnableObject}
-                    session={session}
                     zIndex={zIndex + 3}
                 />}
-            </Dialog>
+            </LargeDialog>
             {/* Chooses which run to use */}
             <RunPickerMenu
                 anchorEl={selectRunAnchor}
@@ -146,7 +146,6 @@ export const RunButton = ({
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 runnableObject={runnableObject}
-                session={session}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">

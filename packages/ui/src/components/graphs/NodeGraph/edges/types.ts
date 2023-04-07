@@ -1,5 +1,4 @@
 import { NodeLink } from "@shared/consts";
-import { NodeLinkShape } from "utils";
 
 export type Point = {
     x: number;

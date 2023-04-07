@@ -1,31 +1,18 @@
-import { BoxProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
-import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, StandardVersion, Tag, User } from '@shared/consts';
+import { BoxProps, SwitchProps, TextFieldProps } from '@mui/material';
+import { Comment, CommentFor, StandardVersion, Tag } from '@shared/consts';
+import { SvgComponent, SvgProps } from '@shared/icons';
 import { JSONVariable } from 'forms/types';
-import { ChangeEvent, FocusEventHandler } from 'react';
-import { VersionInfo } from 'types';
-import { ObjectType, TagShape } from 'utils';
+import { TagShape } from 'utils/shape/models/tag';
 import { StringSchema } from 'yup';
 
-export interface CommentCreateInputProps {
-    handleClose: () => void;
+export interface CommentUpsertInputProps {
+    comment: Comment | undefined;
     language: string;
     objectId: string;
     objectType: CommentFor;
-    onCommentAdd: (comment: Comment) => any;
+    onCancel: () => void;
+    onCompleted: (comment: Comment) => any;
     parent: Comment | null;
-    session: Session | undefined;
-    zIndex: number;
-}
-
-export interface CommentUpdateInputProps {
-    comment: Comment;
-    handleClose: () => void;
-    language: string;
-    objectId: string;
-    objectType: CommentFor;
-    onCommentUpdate: (comment: Comment) => any;
-    parent: Comment | null;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -49,6 +36,7 @@ export interface EditableLabelProps {
     sxs?: { stack?: { [x: string]: any } };
     text: string;
     validationSchema?: StringSchema<string | undefined, any, string | undefined>;
+    zIndex: number;
 }
 
 export interface JsonFormatInputProps {
@@ -120,9 +108,7 @@ export interface JsonFormatInputProps {
 }
 
 export interface JsonInputProps {
-    id: string;
     disabled?: boolean;
-    error?: boolean;
     /**
      * JSON string representing the format that the 
      * input should follow. 
@@ -158,30 +144,26 @@ export interface JsonInputProps {
      * }
      */
     format?: { [x: string]: any }
-    helperText?: string | null | undefined;
+    index?: number;
     minRows?: number;
-    onChange: (newText: string) => any;
+    name: string;
     placeholder?: string;
     /**
-     * JSON string representing the value of the input
-     */
-    value: string | null;
-    /**
-     * Dictionary which describes variables (e.g. <name>, <age>) in
-     * the format JSON. 
-     * Each variable can have a label, helper text, a type, and accepted values.
-     * ex: {
-     *  "policy_id": {
-     *      "label": "Policy ID",
-     *      "helperText": "Human-readable name of the policy.",
-     *  },
-     *  "721": {
-     *      "label": "721",
-     *      "helperText": "The transaction_metadatum_label that describes the type of data. 
-     *      721 is the number for NFTs.",
-     *   }
-     * }
-     */
+      * Dictionary which describes variables (e.g. <name>, <age>) in
+      * the format JSON. 
+      * Each variable can have a label, helper text, a type, and accepted values.
+      * ex: {
+      *  "policy_id": {
+      *      "label": "Policy ID",
+      *      "helperText": "Human-readable name of the policy.",
+      *  },
+      *  "721": {
+      *      "label": "721",
+      *      "helperText": "The transaction_metadatum_label that describes the type of data. 
+      *      721 is the number for NFTs.",
+      *   }
+      * }
+      */
     variables?: { [x: string]: JSONVariable };
 }
 
@@ -196,28 +178,40 @@ export interface LanguageInputProps {
     handleAdd: (language: string) => any;
     handleDelete: (language: string) => void;
     handleCurrent: (language: string) => void;
-    session: Session | undefined;
-    translations: { language: string }[];
+    /**
+     * All languages that currently have translations for the object being edited.
+     */
+    languages: string[];
     zIndex: number;
 }
 
-export interface LanguageSelectorProps {
-    session: Session | undefined;
+export interface LinkInputProps {
+    label?: string;
+    name?: string;
+    zIndex: number;
 }
 
-export interface LeftHandedCheckboxProps {
-    session: Session | undefined;
+export interface MarkdownInputProps {
+    autoFocus?: boolean;
+    disabled?: boolean;
+    minRows?: number;
+    name: string;
+    placeholder?: string;
+    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+    tabIndex?: number;
 }
 
-export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
-    id: string;
+export type MarkdownInputBaseProps = Omit<TextFieldProps, 'onChange'> & {
+    autoFocus?: boolean;
     disabled?: boolean;
     error?: boolean;
-    helperText?: string | null | undefined;
+    helperText?: string | boolean | null | undefined;
     minRows?: number;
+    name: string;
     onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
     onChange: (newText: string) => any;
     placeholder?: string;
+    tabIndex?: number;
     value: string;
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
 }
@@ -225,15 +219,9 @@ export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
 export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;
     autoFocus?: boolean;
-    error?: boolean;
-    helperText?: string | null | undefined;
     fullWidth?: boolean;
-    id?: string;
     label?: string;
-    name?: string;
-    onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
-    onChange: (e: ChangeEvent<any>) => any;
-    value: string;
+    name: string;
 }
 
 export type PreviewSwitchProps = Omit<BoxProps, 'onChange'> & {
@@ -245,85 +233,57 @@ export type PreviewSwitchProps = Omit<BoxProps, 'onChange'> & {
 export interface IntegerInputProps extends BoxProps {
     autoFocus?: boolean;
     disabled?: boolean;
-    error?: boolean;
-    handleChange: (newValue: number) => any;
-    helperText?: string | null | undefined;
-    id: string;
     key?: string;
     initial?: number;
     label?: string;
     max?: number;
     min?: number;
+    name: string;
     step?: number;
     tooltip?: string;
-    value: number;
 }
 
-export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &
-{
-    translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'Organization';
-};
-export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
-    __typename: 'User';
-}
-export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
-{
-    root: Pick<Project, '__typename' | 'id' | 'handle' | 'owner'>;
-    translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'ProjectVersion';
-};
-export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
-{
-    root: Pick<Routine, '__typename' | 'id' | 'owner'>;
-    translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    __typename: 'RoutineVersion';
-};
-
-export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
-export type RelationshipProject = RelationshipItemProjectVersion | null;
-export type RelationshipParent = RelationshipItemProjectVersion | RelationshipItemRoutineVersion | null;
-
-export type RelationshipsObject = {
-    isComplete: boolean;
-    isPrivate: boolean;
-    owner: RelationshipOwner;
-    parent: RelationshipParent;
-    project: RelationshipProject;
-}
-
-export interface RelationshipButtonsProps {
-    isEditing: boolean;
-    isFormDirty?: boolean;
-    objectType: ObjectType;
-    onRelationshipsChange: (relationships: Partial<RelationshipsObject>) => void;
-    relationships: RelationshipsObject;
-    session: Session | undefined;
+export interface ResourceListHorizontalInputProps {
+    disabled?: boolean;
+    isCreate: boolean;
+    isLoading?: boolean;
     zIndex: number;
 }
 
-export type SelectorProps<T extends string | number | { [x: string]: any }> = SelectProps & {
-    color?: string;
+export interface SelectorProps<T extends string | number | { [x: string]: any }> {
+    addOption?: {
+        label: string;
+        onSelect: () => void;
+    };
+    autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
+    getOptionDescription?: (option: T) => string | null | undefined;
+    getOptionIcon?: (option: T) => SvgComponent;
     getOptionLabel: (option: T) => string;
-    handleChange: (selected: T, event: SelectChangeEvent<any>) => any;
     inputAriaLabel?: string;
     label?: string;
     multiple?: false;
+    name: string;
     noneOption?: boolean;
+    onChange?: (value: T | null) => any;
     options: T[];
     required?: boolean;
-    selected: T | null | undefined;
     sx?: { [x: string]: any };
+    tabIndex?: number;
+}
+
+export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, 'onChange'> {
+    error?: boolean;
+    helperText?: string | boolean | null | undefined;
+    onBlur?: (event: React.FocusEvent<any>) => void;
+    onChange: (value: T) => any;
+    value: T | null;
 }
 
 export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
-    session: Session | undefined;
     selected: {
-        root: {
-            name: Standard['name']
-        }
+        translations: StandardVersion['translations'];
     } | null;
     onChange: (value: StandardVersion | null) => any;
     disabled?: boolean;
@@ -332,42 +292,61 @@ export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
 
 export interface TagSelectorProps {
     disabled?: boolean;
+    name: string;
+    placeholder?: string;
+}
+
+export interface TagSelectorBaseProps {
+    disabled?: boolean;
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
     placeholder?: string;
-    session: Session | undefined;
     tags: (TagShape | Tag)[];
 }
 
-export interface TextSizeButtonsProps {
-    session: Session | undefined;
+export interface TimezoneSelectorProps extends Omit<SelectorProps<string>, 'getOptionLabel' | 'options'> { }
+
+export interface ToggleSwitchProps {
+    checked: boolean;
+    name?: string;
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    OffIcon?: (props: SvgProps) => JSX.Element;
+    OnIcon?: (props: SvgProps) => JSX.Element;
+    label?: string;
+    tooltip?: string;
+    disabled?: boolean;
+    sx?: object;
 }
 
-export interface ThemeSwitchProps {
-    showText?: boolean;
-    theme: 'light' | 'dark';
-    onChange: (theme: 'light' | 'dark') => any;
+export interface TranslatedMarkdownInputProps {
+    disabled?: boolean;
+    language: string;
+    minRows?: number;
+    name: string;
+    placeholder?: string;
+    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
+}
+
+export interface TranslatedTextFieldProps {
+    fullWidth?: boolean;
+    label?: string;
+    language: string;
+    maxRows?: number;
+    minRows?: number;
+    multiline?: boolean;
+    name: string;
+    placeholder?: string;
 }
 
 export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange' | 'value'> & {
     autoFocus?: boolean;
-    error?: boolean;
-    helperText?: string | null | undefined;
     fullWidth?: boolean;
-    id?: string;
     /**
      * Label for input component, NOT the version label.
      */
     label?: string;
     name?: string;
-    onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
-    onChange: (newVersion: VersionInfo) => any;
-    /**
-     * Info for the version being created/edited. A change in the versionLabel 
-     * will trigger a new version to be created.
-     */
-    versionInfo: Partial<VersionInfo>;
     /**
      * Existing versions of the object. Used to determine mimum version number.
      */
-    versions: VersionInfo[];
+    versions: string[];
 }

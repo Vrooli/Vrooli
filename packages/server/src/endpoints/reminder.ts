@@ -1,8 +1,8 @@
+import { FindByIdInput, Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, ReminderSortBy, Reminder, ReminderSearchInput, ReminderCreateInput, ReminderUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum ReminderSortBy {
@@ -22,7 +22,8 @@ export const typeDef = gql`
         description: String
         dueDate: Date
         index: Int!
-        reminderListConnect: ID!
+        reminderListConnect: ID
+        reminderListCreate: ReminderListCreateInput
         reminderItemsCreate: [ReminderItemCreateInput!]
     }
     input ReminderUpdateInput {

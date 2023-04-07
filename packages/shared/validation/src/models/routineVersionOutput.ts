@@ -1,4 +1,5 @@
 import { bool, description, id, index, instructions, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { standardVersionValidation } from "./standardVersion";
 
 export const routineVersionOutputTranslationValidation: YupModel = transRel({
     create: {
@@ -19,7 +20,7 @@ export const routineVersionOutputValidation: YupModel = {
         name: opt(name),
     }, [
         ['routineVersion', ['Connect'], 'one', 'req'],
-        ['standardVersion', ['Connect', 'Create'], 'one', 'req'],
+        ['standardVersion', ['Connect', 'Create'], 'one', 'req', standardVersionValidation],
         ['translations', ['Create'], 'many', 'opt', routineVersionOutputTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
@@ -28,7 +29,7 @@ export const routineVersionOutputValidation: YupModel = {
         isRequired: opt(bool),
         name: opt(name),
     }, [
-        ['standardVersion', ['Connect', 'Create', 'Disconnect'], 'one', 'req'],
+        ['standardVersion', ['Connect', 'Create', 'Disconnect'], 'one', 'req', standardVersionValidation],
         ['translations', ['Create'], 'many', 'opt', routineVersionOutputTranslationValidation],
     ], [], o),
 }

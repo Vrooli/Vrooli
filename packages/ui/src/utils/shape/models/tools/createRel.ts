@@ -49,12 +49,16 @@ export const createRel = <
     console.log('createRel START', item, relation, relTypes, isOneToOne, shape, preShape)
     // Check if shape is required
     if (relTypes.includes('Create')) {
-        if (!shape) throw new Error('Model is required if relTypes includes "Create"');
+        if (!shape) throw new Error(`Model is required if relTypes includes "Create": ${relation}`);
     }
     // Find relation data in item
     const relationData = item[relation];
     // If relation data is undefined, return empty object
     if (relationData === undefined) return {} as any;
+    // If relation data is null, this is only valid for 
+    // disconnects, so return empty object (since we don't deal
+    // with disconnects here)
+    if (relationData === null) return {} as any;
     // Initialize result
     const result: { [x: string]: any } = {};
     // Make preShape a function, if not provided 
@@ -63,19 +67,24 @@ export const createRel = <
     for (const t of relTypes) {
         // If type is connect, add IDs to result
         if (t === 'Connect') {
-            // Ignore items which have more than just an ID, since they must be creates instead
+            // If create is an option, ignore items which have more than just an ID (or __typename), since they must be creates instead
+            console.log('createRel connect 1', relationData)
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
-            filteredRelationData = filteredRelationData.filter((x) => Object.values(x).length === 1);
+            console.log('createRel connect 2', filteredRelationData)
+            filteredRelationData = relTypes.includes('Create') ?
+                filteredRelationData.filter((x) => Object.keys(x).every((k) => ['id', '__typename'].includes(k))) :
+                filteredRelationData;
+            console.log('createRel connect 3', filteredRelationData, shape?.idField ?? 'id')
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === 'one' ?
-                (relationData as any)[shape!.idField ?? 'id'] :
-                (relationData as any).map((x: any) => x[shape!.idField ?? 'id']);
+                (relationData as any)[shape?.idField ?? 'id'] :
+                (relationData as any).map((x: any) => x[shape?.idField ?? 'id']);
         }
         else if (t === 'Create') {
-            // Ignore items which only have an ID, since they must be connects instead
+            // Ignore items which only have an ID (or __typename), since they must be connects instead
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
             console.log('createRel in Create 1', filteredRelationData)
-            filteredRelationData = filteredRelationData.filter((x) => Object.values(x).length > 1);
+            filteredRelationData = filteredRelationData.filter((x) => Object.keys(x).some((k) => !['id', '__typename'].includes(k)));
             console.log('createRel in Create 2', filteredRelationData)
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === 'one' ?
@@ -84,6 +93,7 @@ export const createRel = <
             console.log('createRel in Create 3', result)
         }
     }
+    console.log('createRel END', result)
     // Return result
     return result as any;
 };

@@ -2,7 +2,9 @@ import { RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@share
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type RunProjectShape = Pick<RunProject, 'id'>
+export type RunProjectShape = Pick<RunProject, 'id'> & {
+    __typename?: 'RunProject';
+}
 
 export const shapeRunProject: ShapeModel<RunProjectShape, RunProjectCreateInput, RunProjectUpdateInput> = {
     create: (d) => ({}) as any,

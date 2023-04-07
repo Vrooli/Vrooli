@@ -1,10 +1,12 @@
 import { LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
+import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
 import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption } from "types";
-import { getCurrentUser } from "utils/authentication";
+import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { clearSearchHistory, HistorySearchPageTabOption, PreSearchItem, SearchPageTabOption } from "utils/search";
+import { clearSearchHistory } from "utils/search/clearSearchHistory";
+import { HistoryPageTabOption, SearchPageTabOption } from "utils/search/objectToSearch";
+import { PreSearchItem } from "utils/search/siteToSearch";
 
 export interface ShortcutItem {
     label: string;
@@ -140,17 +142,17 @@ export const shortcuts: PreSearchItem[] = [
     {
         label: 'SearchRun',
         keywords: searchKeywords,
-        value: `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Runs}`,
+        value: `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`,
     },
     {
         label: 'SearchView',
         keywords: [...searchKeywords, 'SearchViewed'],
-        value: `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
+        value: `${LINKS.History}?type=${HistoryPageTabOption.Viewed}`,
     },
     {
         label: 'SearchBookmark',
         keywords: [...searchKeywords, 'SearchBookmarked'],
-        value: `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`,
+        value: `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`,
     },
     // { //TODO should be possible to replicate with normal advanced search
     //     label: 'Search your actively developing projects and routines',

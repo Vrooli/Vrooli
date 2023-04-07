@@ -1,9 +1,10 @@
 import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
 import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from '@shared/icons';
-import { TranscriptDialog } from 'components/dialogs';
+import { TranscriptDialog } from 'components/dialogs/TranscriptDialog/TranscriptDialog';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PubSub, useSpeech } from 'utils';
+import { useSpeech } from 'utils/hooks/useSpeech';
+import { PubSub } from 'utils/pubsub';
 import { MicrophoneButtonProps } from '../types';
 
 type MicrophoneStatus = 'On' | 'Off' | 'Disabled';
@@ -28,7 +29,40 @@ export const MicrophoneButton = ({
 
     useEffect(() => {
         if (!isListening) onTranscriptChange(transcript);
-    }, [isListening, transcript, onTranscriptChange]);
+
+        // Handle the 'end' event, which is triggered when the speech recognition service has
+        // disconnected, to stop the microphone.
+        const handleEnd = () => {
+            if (isListening) stopListening();
+        };
+
+        // Handle the 'nomatch' event, which is triggered when the speech recognition service
+        // returns a final result with no significant recognition, to stop the microphone.
+        const handleNoMatch = () => {
+            if (isListening) stopListening();
+        };
+
+        // Check if the browser supports SpeechRecognition or webkitSpeechRecognition
+        if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+            // Create a new instance of SpeechRecognition or webkitSpeechRecognition
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            // Add event listeners for 'end' and 'nomatch' events
+            recognition.addEventListener('end', handleEnd);
+            recognition.addEventListener('nomatch', handleNoMatch);
+        }
+
+        // Clean up event listeners on unmount
+        return () => {
+            if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+                // Create a new instance of SpeechRecognition or webkitSpeechRecognition
+                const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                // Remove event listeners for 'end' and 'nomatch' events
+                recognition.removeEventListener('end', handleEnd);
+                recognition.removeEventListener('nomatch', handleNoMatch);
+            }
+        };
+    }, [isListening, transcript, onTranscriptChange, stopListening]);
+
 
     const Icon = useMemo(() => {
         if (status === 'On') return MicrophoneOnIcon;

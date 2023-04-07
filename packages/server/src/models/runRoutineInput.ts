@@ -1,13 +1,13 @@
-import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { RunRoutineModel } from "./runRoutine";
+import { MaxObjects, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from '@shared/consts';
+import { runRoutineInputValidation } from '@shared/validation';
+import { RoutineVersionInputModel } from ".";
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { RoutineVersionInputModel } from ".";
+import { PrismaType } from "../types";
 import { defaultPermissions } from '../utils';
-import { runRoutineInputValidation } from '@shared/validation';
+import { RunRoutineModel } from "./runRoutine";
+import { ModelLogic } from "./types";
 
 const __typename = 'RunRoutineInput' as const;
 const suppFields = [] as const;
@@ -95,7 +95,7 @@ export const RunRoutineInputModel: ModelLogic<{
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ['data'],
-        owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),
+        owner: (data, userId) => RunRoutineModel.validate!.owner(data.runRoutine as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => RunRoutineModel.validate!.isPublic(data.runRoutine as any, languages),
         visibility: {

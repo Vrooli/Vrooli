@@ -1,14 +1,22 @@
 // Used to display popular/search results of a particular object type
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { ResourceListItemProps } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useCallback, useMemo } from 'react';
 import { ResourceUsedFor } from '@shared/consts';
-import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
-import { openLink, useLocation } from '@shared/route';
-import { firstString, getDisplay, getResourceIcon, getResourceUrl, getUserLanguages, PubSub, ResourceType, usePress } from 'utils';
-import { TextLoading } from 'components';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
+import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
+import { TextLoading } from 'components/lists/TextLoading/TextLoading';
+import { useCallback, useContext, useMemo } from 'react';
+import { multiLineEllipsis } from 'styles';
+import { ResourceType } from 'utils/consts';
+import { getResourceIcon } from 'utils/display/getResourceIcon';
+import { getDisplay } from 'utils/display/listTools';
+import { firstString } from 'utils/display/stringTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import usePress from 'utils/hooks/usePress';
+import { getResourceUrl } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { ResourceListItemProps } from '../types';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -30,8 +38,8 @@ export function ResourceListItem({
     handleEdit,
     index,
     loading,
-    session,
 }: ResourceListItemProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);

@@ -165,6 +165,7 @@ query projectVersion($input: FindVersionInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         parentDirectory {

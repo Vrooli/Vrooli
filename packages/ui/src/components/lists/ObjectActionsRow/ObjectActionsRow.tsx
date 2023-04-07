@@ -1,9 +1,13 @@
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { EllipsisIcon } from "@shared/icons";
-import { ObjectActionMenu } from "components/dialogs";
-import React, { useCallback, useMemo, useState } from "react";
-import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction } from "utils";
-import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
+import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import React, { useCallback, useContext, useMemo, useState } from "react";
+import { getActionsDisplayData, getAvailableActions, ObjectAction } from "utils/actions/objectActions";
+import { getDisplay } from "utils/display/listTools";
+import { getUserLanguages } from "utils/display/translationTools";
+import { SessionContext } from "utils/SessionContext";
+import { ObjectActionsRowObject, ObjectActionsRowProps } from "../types";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',
@@ -25,9 +29,9 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     actionData,
     exclude,
     object,
-    session,
     zIndex,
 }: ObjectActionsRowProps<T>) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
 
     const { actionsDisplayed, actionsExtra } = useMemo(() => {
@@ -95,6 +99,12 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 justifyContent: 'space-between',
             }}
         >
+            {/* Action dialogs */}
+            <ObjectActionDialogs
+                {...actionData}
+                object={object}
+                zIndex={zIndex + 1}
+            />
             {/* Displayed actions */}
             {actions}
             {/* Overflow menu */}
@@ -104,7 +114,6 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 exclude={[...(exclude ?? []), ...actionsDisplayed]}
                 object={object}
                 onClose={closeOverflowMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />}
         </Stack>

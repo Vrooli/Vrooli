@@ -1,6 +1,6 @@
-import { BannerChickenProps } from "components/types"
-import { useMemo, useState } from "react"
-import { getCurrentUser } from "utils/authentication"
+import { useContext, useMemo, useState } from "react";
+import { getCurrentUser } from "utils/authentication/session";
+import { SessionContext } from "utils/SessionContext";
 
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 
@@ -9,9 +9,8 @@ import { getCurrentUser } from "utils/authentication"
  * NOTE: If we call this "BannerAd", ad blockers will cause the whole site to break. 
  * Hence the name "BannerChicken".
  */
-export const BannerChicken = ({
-    session
-}: BannerChickenProps) => {
+export const BannerChicken = () => {
+    const session = useContext(SessionContext);
     const [adDisplayed, setAdDisplayed] = useState<boolean | null>(null);
 
     const adFrequency = useMemo(() => {

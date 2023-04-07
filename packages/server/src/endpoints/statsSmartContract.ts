@@ -1,13 +1,13 @@
-import { gql } from 'apollo-server-express';
-import { GQLEndpoint } from '../types';
-import { rateLimit } from '../middleware';
-import { readManyHelper } from '../actions';
 import { StatsSmartContractSearchInput, StatsSmartContractSearchResult } from '@shared/consts';
+import { gql } from 'apollo-server-express';
+import { readManyHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     enum StatsSmartContractSortBy {
-        DateUpdatedAsc
-        DateUpdatedDesc
+        PeriodStartAsc
+        PeriodStartDesc
     }
 
     input StatsSmartContractSearchInput {

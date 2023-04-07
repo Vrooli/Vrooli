@@ -1,8 +1,9 @@
-import { Session } from "@shared/consts";
 import { SvgProps } from "@shared/icons";
 
-export interface BannerChickenProps {
-    session: Session | undefined;
+export interface DiagonalWaveLoaderProps {
+    size?: number;
+    color?: string;
+    sx?: { [key: string]: any };
 }
 
 export type PageTab<T extends any> = {
@@ -23,4 +24,12 @@ export interface PageTabsProps<T extends any> {
     fullWidth?: boolean,
     onChange: (event: React.ChangeEvent<{}>, value: any) => void,
     tabs: PageTab<T>[],
+}
+
+export interface TwinklingStarsProps {
+    amount?: number;
+    size?: number;
+    color?: string;
+    speed?: number;
+    sx?: { [key: string]: any };
 }

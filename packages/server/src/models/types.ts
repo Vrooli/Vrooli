@@ -1,9 +1,9 @@
 import { Count, DotNotation, GqlModelType, ObjectLimit, SessionUser } from "@shared/consts";
-import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
-import { SortMap } from "../utils/sortMap";
+import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
+import { SortMap } from "../utils/sortMap";
 import { QueryAction } from "../utils/types";
 
 export type ModelLogicType = {
@@ -291,10 +291,11 @@ export type Validator<
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
-    permissionResolvers: ({ data, isAdmin, isDeleted, isPublic }: {
+    permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic }: {
         data: Model['PrismaModel'],
         isAdmin: boolean,
         isDeleted: boolean,
+        isLoggedIn: boolean,
         isPublic: boolean,
     }) => { [x in keyof Omit<Model['GqlPermission'], 'type'>]: () => any } & { [x in Exclude<QueryAction, 'Create'> as `can${x}`]: () => boolean | Promise<boolean> };
     /**
@@ -325,7 +326,7 @@ export type Validator<
     /**
      * Permissions data for the object's owner
      */
-    owner: (data: Model['PrismaModel']) => {
+    owner: (data: Model['PrismaModel'], userId: string) => {
         Organization?: ({ id: string } & { [x: string]: any }) | null;
         User?: ({ id: string } & { [x: string]: any }) | null;
     }

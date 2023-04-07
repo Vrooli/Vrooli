@@ -1,7 +1,7 @@
 import { Box, IconButton, useTheme } from "@mui/material";
 import { RefreshIcon } from "@shared/icons";
 import { useEffect, useRef, useState } from "react";
-import { getDeviceInfo } from "utils";
+import { getDeviceInfo } from "utils/display/device";
 
 /**
  * Pull-to-refresh component. Needed because iOS PWAs don't support this natively.

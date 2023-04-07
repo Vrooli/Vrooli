@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
 import { Stack } from '@mui/material';
-import { getDeviceInfo, PubSub, TranslatedSnackMessage, translateSnackMessage, UntranslatedSnackMessage } from 'utils';
 import { uuid } from '@shared/uuid';
-import { BasicSnack } from '../BasicSnack/BasicSnack';
-import { BasicSnackProps } from '../types';
-import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getDeviceInfo } from 'utils/display/device';
+import { translateSnackMessage } from 'utils/display/translationTools';
+import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from 'utils/pubsub';
+import { BasicSnack, SnackSeverity } from '../BasicSnack/BasicSnack';
+import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
+import { BasicSnackProps } from '../types';
 
 /**
  * Displays a stack of snack messages. 
@@ -43,7 +45,7 @@ export const SnackStack = () => {
                     message: (o as UntranslatedSnackMessage).message ? 
                         (o as UntranslatedSnackMessage).message : 
                         translateSnackMessage((o as TranslatedSnackMessage).messageKey, (o as TranslatedSnackMessage).messageVariables).message,
-                    severity: o.severity,
+                    severity: o.severity as SnackSeverity,
                 }];
                 // Filter out same ids
                 newSnacks = newSnacks.filter((snack, index, self) => { return self.findIndex((s) => s.id === snack.id) === index; });

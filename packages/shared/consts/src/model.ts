@@ -27,11 +27,19 @@ export enum InputType {
 
 export enum ViewFor {
     Api = "Api",
+    ApiVersion = "ApiVersion",
     Note = "Note",
+    NoteVersion = "NoteVersion",
     Organization = "Organization",
     Project = "Project",
+    ProjectVersion = "ProjectVersion",
+    Question = "Question",
     Routine = "Routine",
+    RoutineVersion = "RoutineVersion",
+    SmartContract = "SmartContract",
+    SmartContractVersion = "SmartContractVersion",
     Standard = "Standard",
+    StandardVersion = "StandardVersion",
     User = "User",
 }
 

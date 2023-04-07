@@ -1,32 +1,37 @@
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { CommentThreadItemProps } from '../types';
-import { useCallback, useMemo, useState } from 'react';
-import { TextLoading } from '../..';
-import { displayDate, getTranslation, getUserLanguages, getYou, ObjectType, PubSub } from 'utils';
-import { CommentCreateInput } from 'components/inputs';
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReportFor, Success, VoteFor } from '@shared/consts';
+import { DeleteIcon, ReplyIcon } from '@shared/icons';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
-import { CommentFor, DeleteOneInput, DeleteType, ReportFor, BookmarkFor, Success, VoteFor } from '@shared/consts';
-import { OwnerLabel } from 'components/text';
+import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
+import { ReportButton } from 'components/buttons/ReportButton/ReportButton';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { ReportButton, BookmarkButton, VoteButton } from 'components/buttons';
-import { DeleteIcon, ReplyIcon } from '@shared/icons';
-import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
-import { getCurrentUser } from 'utils/authentication';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { VoteButton } from 'components/buttons/VoteButton/VoteButton';
+import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
+import { TextLoading } from 'components/lists/TextLoading/TextLoading';
+import { OwnerLabel } from 'components/text/OwnerLabel/OwnerLabel';
+import { useCallback, useContext, useMemo, useState } from 'react';
+import { getCurrentUser } from 'utils/authentication/session';
+import { getYou } from 'utils/display/listTools';
+import { displayDate } from 'utils/display/stringTools';
+import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { ObjectType } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { CommentThreadItemProps } from '../types';
 
 export function CommentThreadItem({
     data,
-    handleCommentAdd,
     handleCommentRemove,
-    handleCommentUpdate,
+    handleCommentUpsert,
     isOpen,
     language,
     loading,
     object,
-    session,
     zIndex,
 }: CommentThreadItemProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
 
     const { objectId, objectType } = useMemo(() => ({
@@ -68,12 +73,16 @@ export function CommentThreadItem({
         });
     }, [data, deleteMutation, handleCommentRemove]);
 
-    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(false);
-    const [commentToUpdate, setCommentToUpdate] = useState<Comment | null>(null);
-    const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
-    const handleAddCommentClose = useCallback(() => setIsAddCommentOpen(false), []);
-    const handleUpdateCommentOpen = useCallback((comment: Comment) => { setCommentToUpdate(comment) }, []);
-    const handleUpdateCommentClose = useCallback(() => { setCommentToUpdate(null) }, []);
+    const [isUpsertCommentOpen, setIsUpsertCommentOpen] = useState<boolean>(false);
+    const [commentToUpdate, setCommentToUpdate] = useState<Comment | undefined>(undefined);
+    const handleUpsertCommentOpen = useCallback((comment?: Comment) => {
+        comment && setCommentToUpdate(comment);
+        setIsUpsertCommentOpen(true)
+    }, []);
+    const handleUpsertCommentClose = useCallback(() => {
+        setCommentToUpdate(undefined);
+        setIsUpsertCommentOpen(false)
+    }, []);
 
     return (
         <>
@@ -104,7 +113,6 @@ export function CommentThreadItem({
                                 {objectType && <OwnerLabel
                                     objectType={objectType as unknown as ObjectType}
                                     owner={data?.owner}
-                                    session={session}
                                     sxs={{
                                         label: {
                                             color: palette.background.textPrimary,
@@ -147,7 +155,6 @@ export function CommentThreadItem({
                         <VoteButton
                             direction="row"
                             disabled={!canVote}
-                            session={session}
                             objectId={data?.id ?? ''}
                             voteFor={VoteFor.Comment}
                             isUpvoted={isUpvoted}
@@ -155,7 +162,6 @@ export function CommentThreadItem({
                             onChange={() => { }}
                         />
                         {canBookmark && <BookmarkButton
-                            session={session}
                             objectId={data?.id ?? ''}
                             bookmarkFor={BookmarkFor.Comment}
                             isBookmarked={isBookmarked ?? false}
@@ -163,7 +169,7 @@ export function CommentThreadItem({
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
-                                onClick={handleAddCommentOpen}
+                                onClick={() => { handleUpsertCommentOpen() }}
                             >
                                 <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
@@ -172,7 +178,6 @@ export function CommentThreadItem({
                         {canReport && <ReportButton
                             forId={data?.id ?? ''}
                             reportFor={objectType as any as ReportFor}
-                            session={session}
                             zIndex={zIndex}
                         />}
                         {canDelete && <Tooltip title="Delete" placement='top'>
@@ -184,30 +189,16 @@ export function CommentThreadItem({
                             </IconButton>
                         </Tooltip>}
                     </Stack>}
-                    {/* Add comment */}
+                    {/* Add/Update comment */}
                     {
-                        isAddCommentOpen && objectId && objectType && <CommentCreateInput
-                            handleClose={handleAddCommentClose}
+                        isUpsertCommentOpen && objectId && objectType && <CommentUpsertInput
+                            comment={commentToUpdate}
                             language={language}
                             objectId={objectId}
                             objectType={objectType}
-                            onCommentAdd={handleCommentAdd}
+                            onCancel={handleUpsertCommentClose}
+                            onCompleted={handleCommentUpsert}
                             parent={(object as any) ?? null}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    }
-                    {/* Update comment */}
-                    {
-                        commentToUpdate && objectId && objectType && <CommentUpdateInput
-                            comment={commentToUpdate as any}
-                            handleClose={handleUpdateCommentClose}
-                            language={language}
-                            objectId={objectId}
-                            objectType={objectType}
-                            onCommentUpdate={handleCommentUpdate}
-                            parent={(object as any) ?? null}
-                            session={session}
                             zIndex={zIndex}
                         />
                     }

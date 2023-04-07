@@ -2,14 +2,18 @@
  * Search list for a single object type
  */
 import { Box, Button } from "@mui/material";
-import { ListContainer, SearchButtons, SiteSearchBar } from "components";
-import { useCallback, useEffect, useMemo } from "react";
 import { PlusIcon } from '@shared/icons';
-import { SearchListProps } from "../types";
-import { listToListItems, openObject, useFindMany } from "utils";
 import { useLocation } from '@shared/route';
+import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
+import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { SiteSearchBar } from "components/inputs/search";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { NavigableObject } from "types";
+import { listToListItems } from "utils/display/listTools";
+import { useFindMany } from "utils/hooks/useFindMany";
+import { openObject } from "utils/navigation/openObject";
+import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({
     beforeNavigation,
@@ -19,10 +23,11 @@ export function SearchList<DataType extends NavigableObject>({
     id,
     searchPlaceholder,
     take = 20,
+    resolve,
     searchType,
+    sxs,
     onScrolledFar,
     where,
-    session,
     zIndex,
 }: SearchListProps) {
     const [, setLocation] = useLocation();
@@ -47,8 +52,8 @@ export function SearchList<DataType extends NavigableObject>({
         timeFrame,
     } = useFindMany<DataType>({
         canSearch,
+        resolve,
         searchType,
-        session,
         take,
         where,
     });
@@ -60,9 +65,8 @@ export function SearchList<DataType extends NavigableObject>({
         items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: `${searchType}-list-item`,
         loading,
-        session: session,
         zIndex,
-    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, session, zIndex])
+    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -98,7 +102,15 @@ export function SearchList<DataType extends NavigableObject>({
 
     return (
         <>
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 1,
+                    ...(sxs?.search ?? {})
+                }}
+            >
                 <SiteSearchBar
                     id={`search-bar-${id}`}
                     placeholder={searchPlaceholder}
@@ -107,7 +119,6 @@ export function SearchList<DataType extends NavigableObject>({
                     value={searchString}
                     onChange={handleSearch}
                     onInputChange={onInputSelect}
-                    session={session}
                     sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
             </Box>
@@ -115,7 +126,6 @@ export function SearchList<DataType extends NavigableObject>({
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
                 searchType={searchType}
-                session={session}
                 setAdvancedSearchParams={setAdvancedSearchParams}
                 setSortBy={setSortBy}
                 setTimeFrame={setTimeFrame}

@@ -1,32 +1,21 @@
-import { resourceListValidation } from "@shared/validation";
-import { MaxObjects, ResourceListSortBy } from "@shared/consts";
-import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
+import { MaxObjects, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput } from "@shared/consts";
+import { uppercaseFirstLetter } from "@shared/utils";
+import { resourceListValidation } from "@shared/validation";
+import { findFirstRel, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { getLogic } from "../getters";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
+import { ApiModel } from "./api";
+import { FocusModeModel } from "./focusMode";
 import { OrganizationModel } from "./organization";
+import { PostModel } from "./post";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
-import { StandardModel } from "./standard";
-import { bestLabel, defaultPermissions, oneIsPublic, translationShapeHelper } from "../utils";
-import { SelectWrap } from "../builders/types";
-import { ApiModel } from "./api";
-import { PostModel } from "./post";
-import { UserScheduleModel } from "./userSchedule";
 import { SmartContractModel } from "./smartContract";
-import { shapeHelper } from "../builders";
-
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) => {
-    return {
-        id: data.id,
-        // organization: data.organizationId ? { connect: { id: data.organizationId } } : undefined,
-        // project: data.projectId ? { connect: { id: data.projectId } } : undefined,
-        // routine: data.routineId ? { connect: { id: data.routineId } } : undefined,
-        // user: data.userId ? { connect: { id: data.userId } } : undefined,
-        // resources: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'resources', objectType: 'Resource', prisma, userData }),
-        // translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-    }
-}
+import { StandardModel } from "./standard";
+import { ModelLogic } from "./types";
 
 const __typename = 'ResourceList' as const;
 const suppFields = [] as const;
@@ -62,7 +51,7 @@ export const ResourceListModel: ModelLogic<{
             routineVersion: 'RoutineVersion',
             smartContractVersion: 'SmartContractVersion',
             standardVersion: 'StandardVersion',
-            userSchedule: 'UserSchedule',
+            focusMode: 'FocusMode',
         },
         prismaRelMap: {
             __typename,
@@ -74,7 +63,7 @@ export const ResourceListModel: ModelLogic<{
             routineVersion: 'RoutineVersion',
             smartContractVersion: 'SmartContractVersion',
             standardVersion: 'StandardVersion',
-            userSchedule: 'UserSchedule',
+            focusMode: 'FocusMode',
         },
         countFields: {},
     },
@@ -89,7 +78,7 @@ export const ResourceListModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'resourceList', data, ...rest })),
                 ...(await shapeHelper({ relation: 'smartContractVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'SmartContractVersion', parentRelationshipName: 'resourceList', data, ...rest })),
                 ...(await shapeHelper({ relation: 'standardVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'StandardVersion', parentRelationshipName: 'resourceList', data, ...rest })),
-                ...(await shapeHelper({ relation: 'userSchedule', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'UserSchedule', parentRelationshipName: 'resourceList', data, ...rest })),
+                ...(await shapeHelper({ relation: 'focusMode', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'FocusMode', parentRelationshipName: 'resourceList', data, ...rest })),
                 ...(await shapeHelper({ relation: 'resources', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Resource', parentRelationshipName: 'list', data, ...rest })),
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
             }),
@@ -114,7 +103,7 @@ export const ResourceListModel: ModelLogic<{
             standardVersionId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
-            userScheduleId: true,
+            focusModeId: true,
         },
         searchStringQuery: () => ({
             OR: [
@@ -135,23 +124,33 @@ export const ResourceListModel: ModelLogic<{
             routineVersion: 'RoutineVersion',
             smartContractVersion: 'SmartContractVersion',
             standardVersion: 'StandardVersion',
-            userSchedule: 'UserSchedule',
+            focusMode: 'FocusMode',
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => ({
-            Organization: data.organization,
-            User: (data.userSchedule as any)?.user,
-        }), // TODO this is incorrect. Should be owner of apiVersion, organization, post, etc.
+        owner: (data, userId) => {
+            const [resourceOnType, resourceOnData] = findFirstRel(data, [
+                'apiVersion',
+                'focusMode',
+                'organization',
+                'post',
+                'projectVersion',
+                'routineVersion',
+                'smartContractVersion',
+                'standardVersion',
+            ])
+            const { validate } = getLogic(['validate'], uppercaseFirstLetter(resourceOnType!) as any, ['en'], 'ResourceListModel.validate.owner');
+            return validate.owner(resourceOnData, userId);
+        },
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [
             ['apiVersion', 'Api'],
+            ['focusMode', 'FocusMode'],
             ['organization', 'Organization'],
             ['post', 'Post'],
             ['projectVersion', 'Project'],
             ['routineVersion', 'Routine'],
             ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
-            ['userSchedule', 'UserSchedule'],
         ], languages),
         visibility: {
             private: {},
@@ -159,13 +158,13 @@ export const ResourceListModel: ModelLogic<{
             owner: (userId) => ({
                 OR: [
                     { apiVersion: ApiModel.validate!.visibility.owner(userId) },
+                    { focusMode: FocusModeModel.validate!.visibility.owner(userId) },
                     { organization: OrganizationModel.validate!.visibility.owner(userId) },
                     { post: PostModel.validate!.visibility.owner(userId) },
                     { project: ProjectModel.validate!.visibility.owner(userId) },
                     { routineVersion: RoutineModel.validate!.visibility.owner(userId) },
                     { smartContractVersion: SmartContractModel.validate!.visibility.owner(userId) },
                     { standardVersion: StandardModel.validate!.visibility.owner(userId) },
-                    { userSchedule: UserScheduleModel.validate!.visibility.owner(userId) },
                 ]
             }),
         }

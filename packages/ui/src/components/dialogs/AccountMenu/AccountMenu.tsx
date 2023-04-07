@@ -9,27 +9,36 @@ import {
     ListItemText,
     SwipeableDrawer,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
 import { Stack } from '@mui/system';
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
-import { AccountMenuProps } from '../types';
-import { noSelect } from 'styles';
-import { LanguageSelector, LeftHandedCheckbox, TextSizeButtons, ThemeSwitch } from 'components/inputs';
-import React, { useCallback, useMemo, useState } from 'react';
-import { useCustomMutation } from 'api/hooks';
-import { HistorySearchPageTabOption, PubSub, shapeProfile, useIsLeftHanded, useWindowSize } from 'utils';
-import { mutationWrapper } from 'api/utils';
-import { useFormik } from 'formik';
 import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
-import { getCurrentUser, guestSession } from 'utils/authentication';
-import { ContactInfo } from 'components/navigation';
 import { userValidation } from '@shared/validation';
-import { userProfileUpdate } from 'api/generated/endpoints/user_profileUpdate';
-import { useTranslation } from 'react-i18next';
-import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCurrentAccount';
 import { authLogOut } from 'api/generated/endpoints/auth_logOut';
+import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCurrentAccount';
+import { userProfileUpdate } from 'api/generated/endpoints/user_profileUpdate';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { FocusModeSelector } from 'components/inputs/FocusModeSelector/FocusModeSelector';
+import { LanguageSelector } from 'components/inputs/LanguageSelector/LanguageSelector';
+import { LeftHandedCheckbox } from 'components/inputs/LeftHandedCheckbox/LeftHandedCheckbox';
+import { TextSizeButtons } from 'components/inputs/TextSizeButtons/TextSizeButtons';
+import { ThemeSwitch } from 'components/inputs/ThemeSwitch/ThemeSwitch';
+import { ContactInfo } from 'components/navigation/ContactInfo/ContactInfo';
+import { useFormik } from 'formik';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
+import { getCurrentUser, guestSession } from 'utils/authentication/session';
+import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { PubSub } from 'utils/pubsub';
+import { HistoryPageTabOption } from 'utils/search/objectToSearch';
+import { SessionContext } from 'utils/SessionContext';
+import { shapeProfile } from 'utils/shape/models/profile';
+import { AccountMenuProps } from '../types';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -37,8 +46,8 @@ const MAX_ACCOUNTS = 10;
 export const AccountMenu = ({
     anchorEl,
     onClose,
-    session,
 }: AccountMenuProps) => {
+    const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -67,6 +76,7 @@ export const AccountMenu = ({
         enableReinitialize: true,
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
+            console.log('formik submit')
             // If not logged in, do nothing
             if (!userId) {
                 return;
@@ -147,7 +157,7 @@ export const AccountMenu = ({
         handleOpen(event, LINKS.Settings);
     }, [handleOpen]);
     const handleOpenBookmarks = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        handleOpen(event, `${LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Bookmarked}`);
+        handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`);
     }, [handleOpen]);
     const handleOpenHistory = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleOpen(event, LINKS.History);
@@ -214,7 +224,7 @@ export const AccountMenu = ({
                     aria-label="close"
                     edge="end"
                     onClick={handleClose}
-                    sx={{ 
+                    sx={{
                         marginLeft: (isMobile && isLeftHanded) ? 'unset' : 'auto',
                         marginRight: (isMobile && isLeftHanded) ? 'auto' : 'unset',
                     }}
@@ -257,22 +267,18 @@ export const AccountMenu = ({
                 <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>{t(`Display`)}</Typography>
                 {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
-            <Collapse in={isDisplaySettingsOpen} sx={{ display: 'inline-block' }}>
-                <Box sx={{
+            <Collapse in={isDisplaySettingsOpen} sx={{ display: 'inline-block', minHeight: 'auto!important' }}>
+                <Stack direction="column" spacing={2} sx={{
                     minWidth: 'fit-content',
                     height: 'fit-content',
                     padding: 1,
                 }}>
-                    <ThemeSwitch
-                        theme={formik.values.theme as 'light' | 'dark'}
-                        onChange={(t) => formik.setFieldValue('theme', t)}
-                    />
-                    <TextSizeButtons session={session} />
-                    <LeftHandedCheckbox session={session} />
-                    <LanguageSelector session={session} />
-                    {/* Focus mode */}
-                    {/* TODO */}
-                </Box>
+                    <ThemeSwitch />
+                    <TextSizeButtons />
+                    <LeftHandedCheckbox />
+                    <LanguageSelector />
+                    <FocusModeSelector />
+                </Stack>
             </Collapse>
             <Divider sx={{ background: palette.background.textSecondary }} />
             {/* List of quick links */}
@@ -331,7 +337,7 @@ export const AccountMenu = ({
                 {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
             </Stack>
             <Collapse in={isAdditionalResourcesOpen} sx={{ display: 'inline-block' }}>
-                <ContactInfo session={session} />
+                <ContactInfo />
             </Collapse>
         </SwipeableDrawer>
     )

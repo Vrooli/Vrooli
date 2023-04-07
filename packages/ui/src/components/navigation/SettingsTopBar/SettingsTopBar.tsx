@@ -1,8 +1,9 @@
 import { Box } from '@mui/material';
 import { useLocation } from '@shared/route';
-import { SettingsSearchBar } from 'components/inputs';
-import { useCallback, useMemo, useState } from 'react';
-import { PreSearchItem, translateSearchItems } from 'utils';
+import { SettingsSearchBar } from 'components/inputs/search';
+import { useCallback, useContext, useMemo, useState } from 'react';
+import { PreSearchItem, translateSearchItems } from 'utils/search/siteToSearch';
+import { SessionContext } from 'utils/SessionContext';
 import { TopBar } from '../TopBar/TopBar';
 import { SettingsTopBarProps } from '../types';
 
@@ -49,9 +50,9 @@ const searchItems: PreSearchItem[] = [
 export const SettingsTopBar = ({
     display,
     onClose,
-    session,
     titleData,
 }: SettingsTopBarProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
 
@@ -67,7 +68,6 @@ export const SettingsTopBar = ({
         <TopBar
             display={display}
             onClose={onClose}
-            session={session}
             titleData={titleData}
             // Search bar to find settings
             below={<Box sx={{
@@ -83,7 +83,6 @@ export const SettingsTopBar = ({
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
                     options={searchOptions}
-                    session={session}
                 />
             </Box>}
         />

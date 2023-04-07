@@ -1,11 +1,12 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
-import { useCallback, useMemo } from "react";
-import { multiLineEllipsis } from "styles";
-import { getTranslation, getUserLanguages } from "utils";
-import { DecisionViewProps } from "../types";
-import { OpenInNewIcon } from "@shared/icons";
 import { Node, NodeLink, NodeType } from "@shared/consts";
-import { TopBar } from "components";
+import { OpenInNewIcon } from "@shared/icons";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useCallback, useContext, useMemo } from "react";
+import { multiLineEllipsis } from "styles";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { SessionContext } from "utils/SessionContext";
+import { DecisionViewProps } from "../types";
 
 type Decision = {
     node: Node;
@@ -18,9 +19,9 @@ export const DecisionView = ({
     display = 'page',
     handleDecisionSelect,
     nodes,
-    session,
     zIndex,
 }: DecisionViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
 
     /**
@@ -51,7 +52,6 @@ export const DecisionView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Decision',
                     helpKey: 'DecisionHelp',

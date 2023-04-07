@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconButton, Button, useTheme, Palette, Box, Typography } from '@mui/material';
+import { Box, Button, IconButton, Palette, Typography, useTheme } from '@mui/material';
 import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, SvgComponent, WarningIcon } from '@shared/icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BasicSnackProps } from '../types';
 
 export enum SnackSeverity {
@@ -74,7 +74,7 @@ export const BasicSnack = ({
 
     useEffect(() => {
         // Log snack errors if in development
-        if (process.env.NODE_ENV === 'development' && data) {
+        if (import.meta.env.DEV && data) {
             if (severity === 'Error') console.error('Snack data', data);
             else console.info('Snack data', data);
         }

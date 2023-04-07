@@ -1,5 +1,5 @@
 import pkg, { PeriodType, QuizAttemptStatus } from '@prisma/client';
-import { CustomError } from '../../events';
+import { logger } from '../../events';
 import { PrismaType } from '../../types';
 const { PrismaClient } = pkg;
 
@@ -709,7 +709,7 @@ export const logUserStats = async (
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        throw new CustomError('0426', 'InternalError', ['en'], { error });
+        logger.error('Caught error logging user statistics', { trace: '0426', periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();

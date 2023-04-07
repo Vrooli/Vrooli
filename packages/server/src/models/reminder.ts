@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { reminderValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
-import { ReminderListModel } from "./reminderList";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
+import { ReminderListModel } from "./reminderList";
+import { ModelLogic } from "./types";
 
 const __typename = 'Reminder' as const;
 const suppFields = [] as const;
@@ -52,7 +52,7 @@ export const ReminderModel: ModelLogic<{
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
                 index: data.index,
-                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'ReminderList', parentRelationshipName: 'reminders', data, ...rest })),
+                ...(await shapeHelper({ relation: 'reminderList', relTypes: ['Connect', 'Create'], isOneToOne: true, isRequired: true, objectType: 'ReminderList', parentRelationshipName: 'reminders', data, ...rest })),
                 ...(await shapeHelper({ relation: 'reminderItems', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'ReminderItem', parentRelationshipName: 'reminder', data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
@@ -86,8 +86,8 @@ export const ReminderModel: ModelLogic<{
         isPublic: (data, languages) => ReminderListModel.validate!.isPublic(data.reminderList as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ReminderListModel.validate!.owner(data.reminderList as any),
-        permissionResolvers: (params) => defaultPermissions(params),
+        owner: (data, userId) => ReminderListModel.validate!.owner(data.reminderList as any, userId),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             reminderList: 'ReminderList',

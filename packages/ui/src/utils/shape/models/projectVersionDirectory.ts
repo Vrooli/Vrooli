@@ -2,7 +2,9 @@ import { ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVer
 import { ShapeModel } from "types";
 import { shapeUpdate } from "./tools";
 
-export type ProjectVersionDirectoryShape = Pick<ProjectVersionDirectory, 'id'>
+export type ProjectVersionDirectoryShape = Pick<ProjectVersionDirectory, 'id'> & {
+    __typename?: 'ProjectVersionDirectory';
+}
 
 export const shapeProjectVersionDirectory: ShapeModel<ProjectVersionDirectoryShape, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput> = {
     create: (d) => ({}) as any,

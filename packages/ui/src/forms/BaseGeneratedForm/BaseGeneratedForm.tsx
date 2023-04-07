@@ -1,18 +1,17 @@
 // Converts JSON into a MUI form
+import { useTheme } from '@mui/material';
+import { GeneratedGrid } from 'components/inputs/generated';
+import { useFormik } from 'formik';
+import { generateDefaultProps, generateYupSchema } from 'forms/generators';
+import { FieldData } from 'forms/types';
 import { useCallback, useMemo, useState } from 'react';
 import { BaseGeneratedFormProps } from '../types';
-import { useFormik } from 'formik';
-import { FieldData } from 'forms/types';
-import { generateDefaultProps, generateYupSchema } from 'forms/generators';
-import { useTheme } from '@mui/material';
-import { GeneratedGrid } from 'components';
 
 /**
  * Form component that is generated from a JSON schema
  */
 export const BaseGeneratedForm = ({
     schema,
-    session,
     onSubmit,
     zIndex,
 }: BaseGeneratedFormProps) => {
@@ -62,10 +61,8 @@ export const BaseGeneratedForm = ({
             {schema && <GeneratedGrid
                 childContainers={schema.containers}
                 fields={schema.fields}
-                formik={formik}
                 layout={schema.formLayout}
                 onUpload={onUpload}
-                session={session}
                 theme={theme}
                 zIndex={zIndex}
             />}

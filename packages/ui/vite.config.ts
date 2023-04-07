@@ -1,10 +1,11 @@
-import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
+import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [react()],
+    assetsInclude: ['**/*.md'],
     server: {
         host: true,
         port: 3000,
@@ -13,6 +14,7 @@ export default defineConfig({
         alias: [
             // Set up absolute imports for each top-level folder and file in the src directory
             { find: 'api', replacement: path.resolve(__dirname, './src/api') },
+            { find: 'assets', replacement: path.resolve(__dirname, './src/assets') },
             { find: 'components', replacement: path.resolve(__dirname, './src/components') },
             { find: 'forms', replacement: path.resolve(__dirname, './src/forms') },
             { find: 'tools', replacement: path.resolve(__dirname, './src/tools') },

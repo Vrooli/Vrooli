@@ -1,14 +1,14 @@
-import { Prisma, run_routine, RunStatus } from "@prisma/client";
-import { CustomError, Trigger } from "../events";
-import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString, MaxObjects } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { OrganizationModel } from "./organization";
-import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { defaultPermissions, oneIsPublic } from "../utils";
-import { GraphQLInfo, SelectWrap } from "../builders/types";
-import { getSingleTypePermissions } from "../validators";
+import { Prisma, RunStatus, run_routine } from "@prisma/client";
+import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, RunRoutineYou, SessionUser } from '@shared/consts';
 import { runRoutineValidation } from "@shared/validation";
+import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
+import { GraphQLInfo, SelectWrap } from "../builders/types";
+import { CustomError, Trigger } from "../events";
+import { PrismaType } from "../types";
+import { defaultPermissions, oneIsPublic } from "../utils";
+import { getSingleTypePermissions } from "../validators";
+import { OrganizationModel } from "./organization";
+import { ModelLogic } from "./types";
 
 const __typename = 'RunRoutine' as const;
 type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
@@ -70,7 +70,7 @@ export const RunRoutineModel: ModelLogic<{
             organization: 'Organization',
             routineVersion: 'RoutineVersion',
             runProject: 'RunProject',
-            runRoutineSchedule: 'RunRoutineSchedule',
+            schedule: 'Schedule',
             steps: 'RunRoutineStep',
             user: 'User',
         },
@@ -80,7 +80,7 @@ export const RunRoutineModel: ModelLogic<{
             organization: 'Organization',
             routineVersion: 'Routine',
             runProject: 'RunProject',
-            runRoutineSchedule: 'RunRoutineSchedule',
+            schedule: 'Schedule',
             steps: 'RunRoutineStep',
             user: 'User',
         },
@@ -171,7 +171,7 @@ export const RunRoutineModel: ModelLogic<{
          */
         async complete(prisma: PrismaType, userData: SessionUser, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
-            const partial = toPartialGraphQLInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
+            const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
             let run: run_routine | null;
             // Check if run is being created or updated
             if (input.exists) {
@@ -250,7 +250,7 @@ export const RunRoutineModel: ModelLogic<{
                 });
             }
             // Convert to GraphQL
-            let converted: any = modelToGraphQL(run, partial);
+            let converted: any = modelToGql(run, partial);
             // Add supplemental fields
             converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
             // Handle trigger
@@ -264,7 +264,7 @@ export const RunRoutineModel: ModelLogic<{
          */
         async cancel(prisma: PrismaType, userData: SessionUser, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
-            const partial = toPartialGraphQLInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
+            const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
             // Find in database
             let object = await prisma.run_routine.findFirst({
                 where: {
@@ -284,7 +284,7 @@ export const RunRoutineModel: ModelLogic<{
                 ...selectHelper(partial)
             });
             // Convert to GraphQL
-            let converted: any = modelToGraphQL(updated, partial);
+            let converted: any = modelToGql(updated, partial);
             // Add supplemental fields
             converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
             // Return converted object

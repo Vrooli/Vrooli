@@ -7,16 +7,16 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { UnlinkedNodesDialogProps } from '../types';
-import { noSelect } from 'styles';
-import { useCallback } from 'react';
-import { EndNode, RedirectNode, RoutineListNode } from 'components';
-import { getTranslation } from 'utils';
-import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
 import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
+import { EndNode, RedirectNode, RoutineListNode } from 'components/graphs/NodeGraph';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
+import { getTranslation } from 'utils/display/translationTools';
+import { UnlinkedNodesDialogProps } from '../types';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -42,7 +42,7 @@ export const UnlinkedNodesDialog = ({
             key: `unlinked-node-${node.id}`,
             label: getTranslation(node, [language], false).name ?? null,
             labelVisible: false,
-            scale: 0.8,
+            scale: -0.5,
             zIndex,
         }
         // Determine node to display based on nodeType
@@ -58,7 +58,7 @@ export const UnlinkedNodesDialog = ({
             case NodeType.Redirect:
                 return <RedirectNode
                     {...nodeProps}
-                    node={node as Node}//as NodeRedirect}
+                    node={node as any}//as NodeRedirect}
                 />
             case NodeType.RoutineList:
                 return <RoutineListNode
@@ -123,9 +123,7 @@ export const UnlinkedNodesDialog = ({
                         {nodes.map((node) => (
                             <Box key={node.id} sx={{ display: 'flex', alignItems: 'center' }}>
                                 {/* Miniature version of node */}
-                                <Box sx={{
-                                    height: '50px',
-                                }}>
+                                <Box>
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}

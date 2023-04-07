@@ -1,8 +1,8 @@
-import { TextCollapseProps } from '../types';
-import { ContentCollapse } from 'components';
+import { LinearProgress } from '@mui/material';
 import Markdown from 'markdown-to-jsx';
 import { useMemo } from 'react';
-import { LinearProgress } from '@mui/material';
+import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
+import { TextCollapseProps } from '../types';
 
 export function TextCollapse({
     helpText,
@@ -10,11 +10,9 @@ export function TextCollapse({
     loading,
     loadingLines,
     onOpenChange,
-    session,
     title,
     text,
 }: TextCollapseProps) {
-
     const lines = useMemo(() => {
         if (!loading) return null;
         return Array.from({ length: loadingLines ?? 1 }, (_, i) => (

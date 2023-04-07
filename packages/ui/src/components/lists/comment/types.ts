@@ -1,4 +1,4 @@
-import { Comment, CommentThread, Session } from "@shared/consts";
+import { Comment, CommentThread } from "@shared/consts";
 import { NavigableObject } from "types";
 
 export interface CommentConnectorProps {
@@ -11,15 +11,13 @@ export interface CommentThreadProps {
     canOpen: boolean;
     data: CommentThread | null;
     language: string;
-    session: Session | undefined;
     zIndex: number;
 }
 
 export interface CommentThreadItemProps {
     data: Comment | null;
-    handleCommentAdd: (comment: Comment) => void;
     handleCommentRemove: (comment: Comment) => void;
-    handleCommentUpdate: (comment: Comment) => void;
+    handleCommentUpsert: (comment: Comment) => void;
     isOpen: boolean;
     language: string;
     loading: boolean;
@@ -27,6 +25,5 @@ export interface CommentThreadItemProps {
      * Object which has a comment, not the comment itself or the comment thread
      */
     object: NavigableObject | null | undefined;
-    session: Session | undefined;
     zIndex;
 }

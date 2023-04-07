@@ -1,13 +1,13 @@
+import { Prisma } from "@prisma/client";
 import { MaxObjects, Node, NodeCreateInput, NodeUpdateInput } from '@shared/consts';
 import { nodeValidation } from "@shared/validation";
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { Prisma } from "@prisma/client";
-import { CustomError } from "../events";
-import { RoutineModel } from "./routine";
-import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
-import { SelectWrap } from "../builders/types";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { CustomError } from "../events";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
+import { RoutineModel } from "./routine";
+import { ModelLogic } from "./types";
 
 const __typename = 'Node' as const;
 const MAX_NODES_IN_ROUTINE = 100;
@@ -100,7 +100,7 @@ export const NodeModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ routineVersion: 'RoutineVersion' }),
         permissionResolvers: defaultPermissions,
-        owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),
+        owner: (data, userId) => RoutineModel.validate!.owner(data.routineVersion as any, userId),
         isDeleted: (data, languages) => RoutineModel.validate!.isDeleted(data.routineVersion as any, languages),
         isPublic: (data, languages) => RoutineModel.validate!.isPublic(data.routineVersion as any, languages),
         visibility: {

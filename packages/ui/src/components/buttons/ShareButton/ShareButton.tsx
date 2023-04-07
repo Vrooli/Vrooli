@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
 import { IconButton, Tooltip, useTheme } from '@mui/material';
-import { ShareButtonProps } from '../types';
 import { ShareIcon } from '@shared/icons';
-import { ShareObjectDialog } from 'components/dialogs';
+import { ShareObjectDialog } from 'components/dialogs/ShareObjectDialog/ShareObjectDialog';
+import { useCallback, useState } from 'react';
+import { ShareButtonProps } from '../types';
 
 export const ShareButton = ({
     object,

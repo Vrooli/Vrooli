@@ -1,21 +1,30 @@
-import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { ApiVersion, BookmarkFor, FindVersionInput, ResourceList } from "@shared/consts";
+import { ApiIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { ApiVersion, ResourceList, BookmarkFor, FindVersionInput } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SelectLanguageMenu, BookmarkButton, TopBar } from "components";
-import { ApiViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
-import { ResourceListVertical } from "components/lists";
-import { EditIcon, EllipsisIcon, ApiIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { apiVersionFindOne } from "api/generated/endpoints/apiVersion_findOne";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { ResourceListVertical } from "components/lists/resource";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { placeholderColor } from "utils/display/listTools";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SessionContext } from "utils/SessionContext";
+import { ApiViewProps } from "../types";
 
 export const ApiView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: ApiViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -52,7 +61,6 @@ export const ApiView = ({
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList as any}
-            session={session}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!apiVersion) return;
@@ -65,7 +73,7 @@ export const ApiView = ({
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [resourceList, permissions.canUpdate, session, isLoading, zIndex, apiVersion, setApiVersion]);
+    ) : null, [resourceList, permissions.canUpdate, isLoading, zIndex, apiVersion, setApiVersion]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -78,7 +86,6 @@ export const ApiView = ({
     const actionData = useObjectActions({
         object: apiVersion,
         objectType: 'ApiVersion',
-        session,
         setLocation,
         setObject: setApiVersion,
     });
@@ -179,7 +186,6 @@ export const ApiView = ({
                     <ReportsLink object={apiVersion} />
                     <BookmarkButton
                         disabled={!canBookmark}
-                        session={session}
                         objectId={apiVersion?.id ?? ''}
                         bookmarkFor={BookmarkFor.Api}
                         isBookmarked={apiVersion?.root?.you?.isBookmarked ?? false}
@@ -189,14 +195,13 @@ export const ApiView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, name, apiVersion, summary, zIndex, canBookmark, session, actionData]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, profileColors, openMoreMenu, isLoading, permissions.canUpdate, name, apiVersion, summary, zIndex, canBookmark, actionData]);
 
     return (
         <>
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Api',
                 }}
@@ -207,7 +212,6 @@ export const ApiView = ({
                 anchorEl={moreMenuAnchor}
                 object={apiVersion as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -226,8 +230,7 @@ export const ApiView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
-                        translations={apiVersion?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>

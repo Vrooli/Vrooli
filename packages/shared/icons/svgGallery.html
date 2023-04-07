@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG Gallery</title>
+<style>
+  body { font-family: Arial, sans-serif; background-color: #f0f0f0; }
+  h1 { text-align: center; }
+  .container { display: flex; flex-wrap: wrap; justify-content: center; }
+  .item { padding: 15px; text-align: center; }
+  .item img { max-width: 100%; height: auto; }
+</style>
+<script>
+  function resizeIcons() {
+    var size = document.getElementById("sizeSlider").value;
+    var icons = document.getElementsByTagName("img");
+    for (var i = 0; i < icons.length; i++) {
+      icons[i].style.width = size + "px";
+    }
+  }
+
+  function changeBackgroundColor() {
+    var color = document.getElementById("colorPicker").value;
+    document.body.style.backgroundColor = color;
+  }
+
+  function searchIcons() {
+    var input = document.getElementById("searchInput");
+    var filter = input.value.toUpperCase();
+    var items = document.getElementsByClassName("item");
+
+    for (var i = 0; i < items.length; i++) {
+      var fileName = items[i].getElementsByTagName("p")[0].innerHTML;
+      if (fileName.toUpperCase().indexOf(filter) > -1) {
+        items[i].style.display = "block";
+      } else {
+        items[i].style.display = "none";
+      }
+    }
+  }
+</script>
+</head>
+<body>
+<h1>SVG Gallery</h1>
+<div style="text-align: center;">
+  <label for="sizeSlider">Icon size:</label>
+  <input type="range" id="sizeSlider" name="sizeSlider" min="50" max="300" value="100" onchange="resizeIcons()" style="width: 50%;">
+  <br>
+  <label for="colorPicker">Background color:</label>
+  <input type="color" id="colorPicker" name="colorPicker" value="#f0f0f0" onchange="changeBackgroundColor()">
+  <br>
+  <label for="searchInput">Search:</label>
+  <input type="text" id="searchInput" name="searchInput" onkeyup="searchIcons()" placeholder="Search for icons...">
+</div>
+<div class="container">
+  <div class="item">
+    <img src="svgs/ActionIcon.svg" alt="ActionIcon.svg">
+    <p>ActionIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AddEndNodeAfterIcon.svg" alt="AddEndNodeAfterIcon.svg">
+    <p>AddEndNodeAfterIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AddIcon.svg" alt="AddIcon.svg">
+    <p>AddIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AddIncomingLinkIcon.svg" alt="AddIncomingLinkIcon.svg">
+    <p>AddIncomingLinkIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AddLinkIcon.svg" alt="AddLinkIcon.svg">
+    <p>AddLinkIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AddOutgoingLinkIcon.svg" alt="AddOutgoingLinkIcon.svg">
+    <p>AddOutgoingLinkIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AddRoutineListAfterIcon.svg" alt="AddRoutineListAfterIcon.svg">
+    <p>AddRoutineListAfterIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AddRoutineListBeforeIcon.svg" alt="AddRoutineListBeforeIcon.svg">
+    <p>AddRoutineListBeforeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ApiIcon.svg" alt="ApiIcon.svg">
+    <p>ApiIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ArrowDownIcon.svg" alt="ArrowDownIcon.svg">
+    <p>ArrowDownIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ArrowDropDownIcon.svg" alt="ArrowDropDownIcon.svg">
+    <p>ArrowDropDownIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ArrowDropUpIcon.svg" alt="ArrowDropUpIcon.svg">
+    <p>ArrowDropUpIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ArrowLeftIcon.svg" alt="ArrowLeftIcon.svg">
+    <p>ArrowLeftIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ArrowRightIcon.svg" alt="ArrowRightIcon.svg">
+    <p>ArrowRightIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ArrowUpIcon.svg" alt="ArrowUpIcon.svg">
+    <p>ArrowUpIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ArticleIcon.svg" alt="ArticleIcon.svg">
+    <p>ArticleIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/AwardIcon.svg" alt="AwardIcon.svg">
+    <p>AwardIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BoldIcon.svg" alt="BoldIcon.svg">
+    <p>BoldIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BookmarkFilledIcon.svg" alt="BookmarkFilledIcon.svg">
+    <p>BookmarkFilledIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BookmarkOutlineIcon.svg" alt="BookmarkOutlineIcon.svg">
+    <p>BookmarkOutlineIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BranchIcon.svg" alt="BranchIcon.svg">
+    <p>BranchIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BuildIcon.svg" alt="BuildIcon.svg">
+    <p>BuildIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BumpMajorIcon.svg" alt="BumpMajorIcon.svg">
+    <p>BumpMajorIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BumpMinorIcon.svg" alt="BumpMinorIcon.svg">
+    <p>BumpMinorIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/BumpModerateIcon.svg" alt="BumpModerateIcon.svg">
+    <p>BumpModerateIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CameraOpen.svg" alt="CameraOpen.svg">
+    <p>CameraOpen.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CancelIcon.svg" alt="CancelIcon.svg">
+    <p>CancelIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CaseSensitiveIcon.svg" alt="CaseSensitiveIcon.svg">
+    <p>CaseSensitiveIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CelebrateIcon.svg" alt="CelebrateIcon.svg">
+    <p>CelebrateIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CloseIcon.svg" alt="CloseIcon.svg">
+    <p>CloseIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CommentIcon.svg" alt="CommentIcon.svg">
+    <p>CommentIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CompleteAllIcon.svg" alt="CompleteAllIcon.svg">
+    <p>CompleteAllIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CompleteIcon.svg" alt="CompleteIcon.svg">
+    <p>CompleteIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CompressIcon.svg" alt="CompressIcon.svg">
+    <p>CompressIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CopyIcon.svg" alt="CopyIcon.svg">
+    <p>CopyIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CreateAccountIcon.svg" alt="CreateAccountIcon.svg">
+    <p>CreateAccountIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/CreateIcon.svg" alt="CreateIcon.svg">
+    <p>CreateIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DarkModeIcon.svg" alt="DarkModeIcon.svg">
+    <p>DarkModeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DefaultSocialIcon.svg" alt="DefaultSocialIcon.svg">
+    <p>DefaultSocialIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DeleteIcon.svg" alt="DeleteIcon.svg">
+    <p>DeleteIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DeleteNodeIcon.svg" alt="DeleteNodeIcon.svg">
+    <p>DeleteNodeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DevelopIcon.svg" alt="DevelopIcon.svg">
+    <p>DevelopIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DisplaySettingsIcon.svg" alt="DisplaySettingsIcon.svg">
+    <p>DisplaySettingsIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DonateIcon.svg" alt="DonateIcon.svg">
+    <p>DonateIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DownloadIcon.svg" alt="DownloadIcon.svg">
+    <p>DownloadIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DownvoteTallIcon.svg" alt="DownvoteTallIcon.svg">
+    <p>DownvoteTallIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/DownvoteWideIcon.svg" alt="DownvoteWideIcon.svg">
+    <p>DownvoteWideIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/EditIcon.svg" alt="EditIcon.svg">
+    <p>EditIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/EllipsisIcon.svg" alt="EllipsisIcon.svg">
+    <p>EllipsisIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ErrorIcon.svg" alt="ErrorIcon.svg">
+    <p>ErrorIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ExpandLessIcon.svg" alt="ExpandLessIcon.svg">
+    <p>ExpandLessIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ExpandMoreIcon.svg" alt="ExpandMoreIcon.svg">
+    <p>ExpandMoreIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/Header1Icon.svg" alt="Header1Icon.svg">
+    <p>Header1Icon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/Header2Icon.svg" alt="Header2Icon.svg">
+    <p>Header2Icon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/Header3Icon.svg" alt="Header3Icon.svg">
+    <p>Header3Icon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/HeaderIcon.svg" alt="HeaderIcon.svg">
+    <p>HeaderIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/HeartFilledIcon.svg" alt="HeartFilledIcon.svg">
+    <p>HeartFilledIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/HeartOutlineIcon.svg" alt="HeartOutlineIcon.svg">
+    <p>HeartOutlineIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/HelpIcon.svg" alt="HelpIcon.svg">
+    <p>HelpIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/HistoryIcon.svg" alt="HistoryIcon.svg">
+    <p>HistoryIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/HomeIcon.svg" alt="HomeIcon.svg">
+    <p>HomeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/IdeaIcon.svg" alt="IdeaIcon.svg">
+    <p>IdeaIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/InfoIcon.svg" alt="InfoIcon.svg">
+    <p>InfoIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/InvisibleIcon.svg" alt="InvisibleIcon.svg">
+    <p>InvisibleIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ItalicIcon.svg" alt="ItalicIcon.svg">
+    <p>ItalicIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/LanguageIcon.svg" alt="LanguageIcon.svg">
+    <p>LanguageIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/LargeCookieIcon.svg" alt="LargeCookieIcon.svg">
+    <p>LargeCookieIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/LearnIcon.svg" alt="LearnIcon.svg">
+    <p>LearnIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/LightModeIcon.svg" alt="LightModeIcon.svg">
+    <p>LightModeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/LinkIcon.svg" alt="LinkIcon.svg">
+    <p>LinkIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ListBulletIcon.svg" alt="ListBulletIcon.svg">
+    <p>ListBulletIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ListIcon.svg" alt="ListIcon.svg">
+    <p>ListIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ListNumberIcon.svg" alt="ListNumberIcon.svg">
+    <p>ListNumberIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/LogInIcon.svg" alt="LogInIcon.svg">
+    <p>LogInIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/LogOutIcon.svg" alt="LogOutIcon.svg">
+    <p>LogOutIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/Microphone.svg" alt="Microphone.svg">
+    <p>Microphone.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MicrophoneOffIcon.svg" alt="MicrophoneOffIcon.svg">
+    <p>MicrophoneOffIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MicrophoneOnIcon.svg" alt="MicrophoneOnIcon.svg">
+    <p>MicrophoneOnIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MinusIcon.svg" alt="MinusIcon.svg">
+    <p>MinusIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MoveDownIcon.svg" alt="MoveDownIcon.svg">
+    <p>MoveDownIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MoveLeftIcon.svg" alt="MoveLeftIcon.svg">
+    <p>MoveLeftIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MoveLeftRightIcon.svg" alt="MoveLeftRightIcon.svg">
+    <p>MoveLeftRightIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MoveNodeIcon.svg" alt="MoveNodeIcon.svg">
+    <p>MoveNodeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MoveRightIcon.svg" alt="MoveRightIcon.svg">
+    <p>MoveRightIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MoveUpDownIcon.svg" alt="MoveUpDownIcon.svg">
+    <p>MoveUpDownIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/MoveUpIcon.svg" alt="MoveUpIcon.svg">
+    <p>MoveUpIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/NoteIcon.svg" alt="NoteIcon.svg">
+    <p>NoteIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/NotificationsAllIcon.svg" alt="NotificationsAllIcon.svg">
+    <p>NotificationsAllIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/NotificationsCustomizedIcon.svg" alt="NotificationsCustomizedIcon.svg">
+    <p>NotificationsCustomizedIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/NotificationsOffIcon.svg" alt="NotificationsOffIcon.svg">
+    <p>NotificationsOffIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/OpenInNewIcon.svg" alt="OpenInNewIcon.svg">
+    <p>OpenInNewIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/OpenThreadIcon.svg" alt="OpenThreadIcon.svg">
+    <p>OpenThreadIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/OrganizationIcon.svg" alt="OrganizationIcon.svg">
+    <p>OrganizationIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/PauseIcon.svg" alt="PauseIcon.svg">
+    <p>PauseIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/PhoneIcon.svg" alt="PhoneIcon.svg">
+    <p>PhoneIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/PlayIcon.svg" alt="PlayIcon.svg">
+    <p>PlayIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/PlusIcon.svg" alt="PlusIcon.svg">
+    <p>PlusIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/PremiumIcon.svg" alt="PremiumIcon.svg">
+    <p>PremiumIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ProfileIcon.svg" alt="ProfileIcon.svg">
+    <p>ProfileIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ProjectIcon.svg" alt="ProjectIcon.svg">
+    <p>ProjectIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RedoIcon.svg" alt="RedoIcon.svg">
+    <p>RedoIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RefreshIcon.svg" alt="RefreshIcon.svg">
+    <p>RefreshIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RegexIcon.svg" alt="RegexIcon.svg">
+    <p>RegexIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ReminderIcon.svg" alt="ReminderIcon.svg">
+    <p>ReminderIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ReorderIcon.svg" alt="ReorderIcon.svg">
+    <p>ReorderIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ReportIcon.svg" alt="ReportIcon.svg">
+    <p>ReportIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ResearchIcon.svg" alt="ResearchIcon.svg">
+    <p>ResearchIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RoutineIcon.svg" alt="RoutineIcon.svg">
+    <p>RoutineIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RoutineIncompleteIcon.svg" alt="RoutineIncompleteIcon.svg">
+    <p>RoutineIncompleteIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RoutineInvalidIcon.svg" alt="RoutineInvalidIcon.svg">
+    <p>RoutineInvalidIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/RoutineValidIcon.svg" alt="RoutineValidIcon.svg">
+    <p>RoutineValidIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/SaveIcon.svg" alt="SaveIcon.svg">
+    <p>SaveIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/SearchIcon.svg" alt="SearchIcon.svg">
+    <p>SearchIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/SettingsIcon.svg" alt="SettingsIcon.svg">
+    <p>SettingsIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ShareIcon.svg" alt="ShareIcon.svg">
+    <p>ShareIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ShortcutIcon.svg" alt="ShortcutIcon.svg">
+    <p>ShortcutIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/SmartContractIcon.svg" alt="SmartContractIcon.svg">
+    <p>SmartContractIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/StandardIcon.svg" alt="StandardIcon.svg">
+    <p>StandardIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/StarFilledIcon.svg" alt="StarFilledIcon.svg">
+    <p>StarFilledIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/StarOutlineIcon.svg" alt="StarOutlineIcon.svg">
+    <p>StarOutlineIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/StatsIcon.svg" alt="StatsIcon.svg">
+    <p>StatsIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/StrikethroughIcon.svg" alt="StrikethroughIcon.svg">
+    <p>StrikethroughIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/SuccessIcon.svg" alt="SuccessIcon.svg">
+    <p>SuccessIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/TagIcon.svg" alt="TagIcon.svg">
+    <p>TagIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/ThoughtIcon.svg" alt="ThoughtIcon.svg">
+    <p>ThoughtIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/UndoIcon.svg" alt="UndoIcon.svg">
+    <p>UndoIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/UnlinkNodeIcon.svg" alt="UnlinkNodeIcon.svg">
+    <p>UnlinkNodeIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/UnlinkedNodesIcon.svg" alt="UnlinkedNodesIcon.svg">
+    <p>UnlinkedNodesIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/UpvoteTallIcon.svg" alt="UpvoteTallIcon.svg">
+    <p>UpvoteTallIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/UpvoteWideIcon.svg" alt="UpvoteWideIcon.svg">
+    <p>UpvoteWideIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/UserIcon.svg" alt="UserIcon.svg">
+    <p>UserIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/VisibleIcon.svg" alt="VisibleIcon.svg">
+    <p>VisibleIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/WalletIcon.svg" alt="WalletIcon.svg">
+    <p>WalletIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/WarningIcon.svg" alt="WarningIcon.svg">
+    <p>WarningIcon.svg</p>
+  </div>
+  <div class="item">
+    <img src="svgs/WholeWordIcon.svg" alt="WholeWordIcon.svg">
+    <p>WholeWordIcon.svg</p>
+  </div>
+</div>
+</body>
+</html>

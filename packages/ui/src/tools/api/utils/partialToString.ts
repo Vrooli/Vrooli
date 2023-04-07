@@ -92,7 +92,7 @@ ${' '.repeat(indent)}}`;
         let fragmentsString = '';
         fragments = await fragmentsToString(__define)
         // Filter out fragments not found in the tag
-        fragments = fragmentsNeeded(fragments, tag);
+        fragments = fragmentsNeeded(fragments, tag); //TODO for morning: commenting this out fixes bookmarklist findMany, but breaks many other things. For example, projectList findOne now adds Api_list fragment (among others), when that's not needed
         // Sort fragments by name, just because it looks nicer
         fragments.sort(([a], [b]) => a.localeCompare(b))
         // For every fragment, add reference to it in the tag

@@ -1,4 +1,4 @@
-import { Resource, ResourceList, Session } from "@shared/consts";
+import { Resource, ResourceList } from "@shared/consts";
 
 export interface ResourceListHorizontalProps {
     title?: string;
@@ -6,18 +6,15 @@ export interface ResourceListHorizontalProps {
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
     loading?: boolean;
-    session: Session | undefined;
     mutate?: boolean;
     zIndex: number;
 }
 
 export interface ResourceListVerticalProps {
-    title?: string;
     canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null | undefined;
     loading: boolean;
-    session: Session | undefined;
     mutate: boolean;
     zIndex: number;
 }
@@ -30,7 +27,6 @@ export interface ResourceListItemProps {
     handleDelete: (index: number) => void;
     index: number;
     loading: boolean;
-    session: Session | undefined;
 }
 
 export interface ResourceListItemContextMenuProps {

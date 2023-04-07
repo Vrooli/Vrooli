@@ -1,16 +1,14 @@
 import { InputType } from "@shared/consts";
-import { CheckboxProps, DropzoneProps, FieldData, FieldDataBase, JsonProps, MarkdownProps, IntegerInputProps, RadioProps, SwitchProps, TextFieldProps } from "forms/types";
+import { FieldData, FieldDataBase } from "forms/types";
 
 /**
  * Handles all parts of creating a standard input, from props, to labels, to validation
  */
 export interface BaseStandardInputProps {
-    fieldName?: string;
+    fieldName: string;
     inputType: InputType;
     isEditing: boolean;
     label?: FieldDataBase['label'];
-    onChange: (newSchema: FieldData) => void;
-    schema: FieldData | null;
     storageKey: string;
     yup?: FieldData['yup'];
 }
@@ -18,52 +16,26 @@ export interface BaseStandardInputProps {
 /**
  * Used for components that set the "prop" values of a standard input.
  */
-interface StandardInputCommonProps<InputType> extends Omit<BaseStandardInputProps, 'fieldName' | 'inputType' | 'label' | 'onChange' | 'schema' | 'storageKey' | 'yup'> {
-    onPropsChange: (newProps: Partial<InputType>) => void;
+interface StandardInputCommonProps extends Omit<BaseStandardInputProps, 'inputType' | 'label' | 'storageKey' | 'yup'> { }
+
+export interface CheckboxStandardInputProps extends StandardInputCommonProps { };
+
+export interface DropzoneStandardInputProps extends StandardInputCommonProps { };
+
+export interface JsonStandardInputProps extends StandardInputCommonProps { };
+
+export interface MarkdownStandardInputProps extends StandardInputCommonProps { };
+
+export interface IntegerStandardInputProps extends StandardInputCommonProps { };
+
+export interface RadioStandardInputProps extends StandardInputCommonProps { };
+
+export interface SwitchStandardInputProps extends StandardInputCommonProps { };
+
+export interface TextFieldStandardInputProps extends StandardInputCommonProps { };
+
+export interface StandardInputProps {
+    disabled?: boolean;
+    fieldName: string;
+    zIndex: number;
 }
-
-export interface CheckboxStandardInputProps extends StandardInputCommonProps<CheckboxProps> {
-    color?: CheckboxProps['color'];
-    defaultValue?: CheckboxProps['defaultValue'];
-    options: CheckboxProps['options'];
-    row?: CheckboxProps['row'];
-};
-
-export interface DropzoneStandardInputProps extends StandardInputCommonProps<DropzoneProps> {
-    defaultValue?: DropzoneProps['defaultValue'];
-};
-
-export interface JsonStandardInputProps extends StandardInputCommonProps<JsonProps> {
-    defaultValue?: JsonProps['defaultValue'];
-    format?: JsonProps['format'];
-    variables?: JsonProps['variables'];
-};
-
-export interface MarkdownStandardInputProps extends StandardInputCommonProps<MarkdownProps> {
-    defaultValue?: MarkdownProps['defaultValue'];
-};
-
-export interface IntegerStandardInputProps extends StandardInputCommonProps<IntegerInputProps> {
-    defaultValue?: IntegerInputProps['defaultValue'];
-    max?: IntegerInputProps['max'];
-    min?: IntegerInputProps['min'];
-    step?: IntegerInputProps['step'];
-};
-
-export interface RadioStandardInputProps extends StandardInputCommonProps<RadioProps> {
-    defaultValue?: RadioProps['defaultValue'];
-    options: RadioProps['options'];
-    row?: RadioProps['row'];
-};
-
-export interface SwitchStandardInputProps extends StandardInputCommonProps<SwitchProps> {
-    defaultValue?: SwitchProps['defaultValue'];
-    size?: SwitchProps['size'];
-    color?: SwitchProps['color'];
-};
-
-export interface TextFieldStandardInputProps extends StandardInputCommonProps<TextFieldProps> {
-    defaultValue?: TextFieldProps['defaultValue'];
-    autoComplete?: TextFieldProps['autoComplete'];
-    maxRows?: TextFieldProps['maxRows'];
-};

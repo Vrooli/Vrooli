@@ -1,17 +1,14 @@
 import { Checkbox, Stack, Typography } from '@mui/material';
 import { useCallback, useState } from 'react';
-import { LeftHandedCheckboxProps } from '../types';
-import { noSelect } from 'styles';
 import { useTranslation } from 'react-i18next';
-import { PubSub } from 'utils';
+import { noSelect } from 'styles';
 import { getCookieIsLeftHanded } from 'utils/cookies';
+import { PubSub } from 'utils/pubsub';
 
 /**
  * Updates the font size of the entire app
  */
-export function LeftHandedCheckbox({
-    session,
-}: LeftHandedCheckboxProps) {
+export function LeftHandedCheckbox() {
     const { t } = useTranslation();
 
     const [isLeftHanded, setIsLeftHanded] = useState(getCookieIsLeftHanded() ?? false);

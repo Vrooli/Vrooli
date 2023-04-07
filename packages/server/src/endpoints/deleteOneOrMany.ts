@@ -1,9 +1,8 @@
+import { Count, DeleteManyInput, DeleteOneInput, DeleteType, Success } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { Count, DeleteManyInput, DeleteOneInput, Success } from '@shared/consts';
-import { GQLEndpoint } from '../types';
-import { rateLimit } from '../middleware';
-import { DeleteType } from '@shared/consts';
 import { deleteManyHelper, deleteOneHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     enum DeleteType {
@@ -12,10 +11,13 @@ export const typeDef = gql`
         Bookmark
         Comment
         Email
+        FocusMode
         Issue
         Meeting
         MeetingInvite
         Node
+        Note
+        NoteVersion
         Organization
         Post
         Project
@@ -28,16 +30,17 @@ export const typeDef = gql`
         Reminder
         ReminderList
         Report
+        Resource
         Routine
         RoutineVersion
         RunProject
         RunRoutine
+        Schedule
         SmartContract
         SmartContractVersion
         Standard
         StandardVersion
         Transfer
-        UserSchedule
         Wallet
     }   
 

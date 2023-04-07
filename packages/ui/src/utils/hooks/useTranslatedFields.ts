@@ -1,7 +1,6 @@
-import { FormikProps } from "formik";
-import { useCallback, useMemo, useState } from "react";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeTranslation } from "utils/display";
-import { booleanSpread, stringSpread } from "utils/shape";
+import { useField } from "formik";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, removeTranslation } from "utils/display/translationTools";
 import * as yup from 'yup';
 
 /**
@@ -13,68 +12,50 @@ import * as yup from 'yup';
  * @param validationSchema The validation schema to use for error messages
  * @returns An object containing the translated fields, touched status, and error messages
  */
-export function useTranslatedFields<
-    FormikField extends keyof Object & string,
-    Fields extends keyof Object[FormikField][0] & string,
-    Object extends { [P1 in FormikField]: { [P2 in Fields]?: string | null | undefined }[] }
->({
+export function useTranslatedFields({
     defaultLanguage,
     fields,
-    formik,
-    formikField,
     validationSchema,
 }: {
     defaultLanguage: string,
-    fields: readonly Fields[],
-    formik: FormikProps<Object>,
-    formikField: FormikField,
+    fields: readonly string[],
     validationSchema: yup.ObjectSchema<any>
 }) {
     // Language state
     const [language, setLanguage] = useState<string>(defaultLanguage);
 
     // Get the translated fields, touched status, and error messages
-    const translations = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik as any, formikField, language);
-        return {
-            ...stringSpread(value, fields),
-            ...stringSpread(error, fields, 'error'),
-            ...booleanSpread(touched, fields, 'touched'),
-            errorsWithTranslations: getFormikErrorsWithTranslations(formik as any, formikField, validationSchema),
-        }
-    }, [fields, formik, formikField, language, validationSchema]);
+    const [field, meta, helpers] = useField('translations');
+    const translationErrors = useMemo(() => getFormikErrorsWithTranslations(field, meta, validationSchema) as any, [field, meta, validationSchema]);
 
     // Find languages with translations
-    const languages = useMemo(() => formik.values[formikField].map(t => (t as any).language), [formik.values, formikField]);
+    const languages = useMemo(() => field.value.map((t: any) => t.language), [field.value]);
+
+    // Set language to first language if it's empty
+    useEffect(() => {
+        if (languages.length === 0 && field.value.length > 0) {
+            setLanguage(field.value[0].language);
+        }
+    }, [field.value, languages.length, setLanguage])
 
     // Functions for adding, removing, blurring, etc.
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
-        addEmptyTranslation(formik as any, formikField, newLanguage);
-    }, [formik, formikField]);
+        addEmptyTranslation(field, meta, helpers, newLanguage);
+    }, [field, helpers, meta]);
     const handleDeleteLanguage = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         setLanguage(newLanguages[0]);
-        removeTranslation(formik as any, formikField, language);
-    }, [formik, formikField, languages]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik as any, formikField, e, language)
-    }, [formik, formikField, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik as any, formikField, e, language)
-    }, [formik, formikField, language]);
+        removeTranslation(field, meta, helpers, language);
+    }, [field, helpers, languages, meta]);
 
     return {
         handleAddLanguage,
         handleDeleteLanguage,
         language,
         languages,
-        onTranslationBlur,
-        onTranslationChange,
         setLanguage,
-        translations,
+        translationErrors,
     }
 }

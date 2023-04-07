@@ -1,7 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, SubscribableObject } from '@shared/consts';
+import { notificationSubscriptionValidation } from "@shared/validation";
+import { noNull } from "../builders";
+import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
+import { defaultPermissions } from "../utils";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
 import { IssueModel } from "./issue";
@@ -14,12 +17,10 @@ import { QuestionModel } from "./question";
 import { QuizModel } from "./quiz";
 import { ReportModel } from "./report";
 import { RoutineModel } from "./routine";
+import { ScheduleModel } from "./schedule";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
-import { defaultPermissions } from "../utils";
-import { notificationSubscriptionValidation } from "@shared/validation";
-import { noNull } from "../builders";
 
 export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs['create'] } = {
     Api: 'api',
@@ -34,6 +35,7 @@ export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.not
     Quiz: 'quiz',
     Report: 'report',
     Routine: 'routine',
+    Schedule: 'schedule',
     SmartContract: 'smartContract',
     Standard: 'standard',
 }
@@ -72,6 +74,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
             quiz: { select: QuizModel.display.select() },
             report: { select: ReportModel.display.select() },
             routine: { select: RoutineModel.display.select() },
+            schedule: { select: ScheduleModel.display.select() },
             smartContract: { select: SmartContractModel.display.select() },
             standard: { select: StandardModel.display.select() },
         }),
@@ -89,7 +92,8 @@ export const NotificationSubscriptionModel: ModelLogic<{
             if (select.quiz) return QuizModel.display.label(select.quiz as any, languages)
             if (select.report) return ReportModel.display.label(select.report as any, languages)
             if (select.routine) return RoutineModel.display.label(select.routine as any, languages)
-            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages)   
+            if (select.schedule) return ScheduleModel.display.label(select.schedule as any, languages)
+            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages)
             if (select.standard) return SmartContractModel.display.label(select.standard as any, languages)
             return '';
         },
@@ -110,6 +114,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
                 quiz: 'Quiz',
                 report: 'Report',
                 routine: 'Routine',
+                schedule: 'Schedule',
                 smartContract: 'SmartContract',
                 standard: 'Standard',
             },
@@ -128,6 +133,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
             quiz: 'Quiz',
             report: 'Report',
             routine: 'Routine',
+            schedule: 'Schedule',
             smartContract: 'SmartContract',
             standard: 'Standard',
             subscriber: 'User',
@@ -166,15 +172,16 @@ export const NotificationSubscriptionModel: ModelLogic<{
                 { api: ApiModel.search!.searchStringQuery() },
                 { comment: CommentModel.search!.searchStringQuery() },
                 { issue: IssueModel.search!.searchStringQuery() },
-                { meeting: MeetingModel.search!.searchStringQuery()},
+                { meeting: MeetingModel.search!.searchStringQuery() },
                 { note: NoteModel.search!.searchStringQuery() },
                 { organization: OrganizationModel.search!.searchStringQuery() },
                 { project: ProjectModel.search!.searchStringQuery() },
-                { pullRequest: PullRequestModel.search!.searchStringQuery()},
+                { pullRequest: PullRequestModel.search!.searchStringQuery() },
                 { question: QuestionModel.search!.searchStringQuery() },
                 { quiz: QuizModel.search!.searchStringQuery() },
-                { report: ReportModel.search!.searchStringQuery()},
+                { report: ReportModel.search!.searchStringQuery() },
                 { routine: RoutineModel.search!.searchStringQuery() },
+                { schedule: ScheduleModel.search!.searchStringQuery() },
                 { smartContract: SmartContractModel.search!.searchStringQuery() },
                 { standard: StandardModel.search!.searchStringQuery() },
             ]

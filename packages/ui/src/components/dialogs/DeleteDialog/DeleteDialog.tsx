@@ -6,16 +6,17 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { DeleteDialogProps } from '../types';
-import { useCallback, useState } from 'react';
-import { mutationWrapper } from 'api/utils';
-import { useCustomMutation } from 'api/hooks';
-import { LINKS, DeleteOneInput, Success } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { DialogTitle, LargeDialog } from 'components';
+import { DeleteOneInput, LINKS, Success } from '@shared/consts';
 import { DeleteIcon } from '@shared/icons';
+import { useLocation } from '@shared/route';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { DeleteDialogProps } from '../types';
 
 export const DeleteDialog = ({
     handleClose,
@@ -62,10 +63,12 @@ export const DeleteDialog = ({
             onClose={() => { close(); }}
             zIndex={zIndex}
         >
-            <DialogTitle
-                id=''
-                title=''
+            <TopBar
+                display="dialog"
                 onClose={() => { close() }}
+                titleData={{
+                    titleKey: 'Delete',
+                }}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>
@@ -81,11 +84,11 @@ export const DeleteDialog = ({
                         helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
                         sx={{ paddingBottom: 2 }}
                     />
-                    <Button 
-                    startIcon={<DeleteIcon />} 
-                    color="secondary" 
-                    onClick={handleDelete}
-                    disabled={nameInput.trim() !== objectName.trim()}
+                    <Button
+                        startIcon={<DeleteIcon />}
+                        color="secondary"
+                        onClick={handleDelete}
+                        disabled={nameInput.trim() !== objectName.trim()}
                     >{t('Delete')}</Button>
                 </Stack>
             </DialogContent>

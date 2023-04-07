@@ -5,11 +5,14 @@
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
 import { Box, Stack, useTheme } from '@mui/material';
-import { NodeColumn, NodeEdge } from 'components';
-import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NodeGraphProps } from '../types';
-import { firstString, PubSub, usePinchZoom } from 'utils';
 import { Node, NodeType } from '@shared/consts';
+import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { firstString } from 'utils/display/stringTools';
+import { usePinchZoom } from 'utils/hooks/usePinchZoom';
+import { PubSub } from 'utils/pubsub';
+import { NodeEdge } from '../edges';
+import { NodeColumn } from '../NodeColumn/NodeColumn';
+import { NodeGraphProps } from '../types';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor

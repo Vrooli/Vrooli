@@ -1,8 +1,8 @@
-import { DraggableNodeProps } from '../types';
 import { Box } from '@mui/material';
 import { useCallback, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-import { PubSub } from 'utils';
+import { PubSub } from 'utils/pubsub';
+import { DraggableNodeProps } from '../types';
 
 type DragRefs = {
     graphStartScroll: { scrollLeft: number, scrollTop: number } | null;

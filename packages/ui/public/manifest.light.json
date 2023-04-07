@@ -1,11 +1,13 @@
 {
-    "name": "Vrooli - Productivity, Decentralized",
+    "name": "Vrooli",
     "short_name": "Vrooli",
     "description": "Vrooli is a decentralized productivity platform that allows you to manage your tasks, projects, and teams in one place.",
     "dir": "ltr",
     "lang": "en-US",
     "prefer_related_applications": false,
-    "omnibox": { "keyword" : "vrooli" },
+    "omnibox": {
+        "keyword": "vrooli"
+    },
     "categories": [
         "automation",
         "productivity"
@@ -29,7 +31,7 @@
             "purpose": "maskable"
         }
     ],
-    "background_color": "#002784",
+    "background_color": "#072c6a",
     "display": "standalone",
     "display_override": [
         "standalone",
@@ -38,7 +40,7 @@
         "browser"
     ],
     "orientation": "any",
-    "scope": "https://vrooli.com/",
+    "scope": "/",
     "start_url": "/",
     "screenshots": [
         {

@@ -1,9 +1,9 @@
-import { PubSub } from "utils";
 import { ApolloError, DocumentNode } from '@apollo/client';
+import { CommonKey, ErrorKey } from "@shared/translations";
+import { exists } from "@shared/utils";
+import { PubSub } from 'utils/pubsub';
 import { errorToCode } from './errorParser';
 import { initializeApollo } from "./initialize";
-import { exists } from "@shared/utils";
-import { CommonKey, ErrorKey } from "@shared/translations";
 
 // Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
 // If you're wondering why, it prevents us from having to define the input fields in 

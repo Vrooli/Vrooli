@@ -1,11 +1,10 @@
-import { ViewSortBy } from '@shared/consts';
+import { View, ViewSearchInput, ViewSearchResult, ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
+import { readManyHelper } from '../actions';
 import { assertRequestFrom } from '../auth/request';
 import { Context, rateLimit } from '../middleware';
 import { FindManyResult, GQLEndpoint, IWrap, UnionResolver } from '../types';
-import { View, ViewSearchInput, ViewSearchResult } from '@shared/consts';
-import { readManyHelper } from '../actions';
 import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
@@ -62,7 +61,7 @@ export const resolvers: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
+            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { byId: userData.id } });
         },
     },
 }

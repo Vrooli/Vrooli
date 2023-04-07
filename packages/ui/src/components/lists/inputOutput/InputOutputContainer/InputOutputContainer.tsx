@@ -1,13 +1,16 @@
 import { Stack, Tooltip, useTheme } from '@mui/material';
-import { ColorIconButton, ContentCollapse } from 'components';
-import { InputOutputContainerProps } from '../types';
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { RoutineVersionInputShape, RoutineVersionOutputShape, updateArray } from 'utils';
-import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
-import { uuid } from '@shared/uuid';
 import { AddIcon } from '@shared/icons';
-import { ReorderInputDialog } from 'components/dialogs/ReorderInputDialog/ReorderInputDialog';
+import { uuid } from '@shared/uuid';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { ContentCollapse } from 'components/containers/ContentCollapse/ContentCollapse';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
 import { useTranslation } from 'react-i18next';
+import { updateArray } from 'utils/shape/general';
+import { RoutineVersionInputShape } from 'utils/shape/models/routineVersionInput';
+import { RoutineVersionOutputShape } from 'utils/shape/models/routineVersionOutput';
+import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
+import { InputOutputContainerProps } from '../types';
 
 interface AddButtonProps {
     index: number;
@@ -47,7 +50,6 @@ export const InputOutputContainer = ({
     isInput,
     language,
     list,
-    session,
     zIndex,
 }: InputOutputContainerProps) => {
     const { palette } = useTheme();
@@ -57,7 +59,7 @@ export const InputOutputContainer = ({
         return list;
         // TODO when index added in schema.prisma, sort by index
         //return list.sort((a, b) => a. - b.index);
-    } , [list]);
+    }, [list]);
 
     const type = useMemo(() => isInput ? 'input' : 'output', [isInput]);
     // Store open/close state of each sortedList item
@@ -107,12 +109,13 @@ export const InputOutputContainer = ({
         handleUpdate(combined as any);
     }, [sortedList, t, isInput, language, handleUpdate]);
 
-    const onItemReorder = useCallback((fromIndex: number, toIndex: number) => {
-        const newList = [...sortedList];
-        const [removed] = newList.splice(fromIndex, 1);
-        newList.splice(toIndex, 0, removed);
+    const onDragEnd = (result: DropResult) => {
+        if (!result.destination) return;
+        const newList = Array.from(sortedList);
+        const [reorderedItem] = newList.splice(result.source.index, 1);
+        newList.splice(result.destination.index, 0, reorderedItem);
         handleUpdate(newList as any);
-    }, [handleUpdate, sortedList]);
+    };
 
     const onItemUpdate = useCallback((index: number, updatedItem: RoutineVersionInputShape | RoutineVersionOutputShape) => {
         handleUpdate(updateArray(sortedList, index, updatedItem));
@@ -123,83 +126,79 @@ export const InputOutputContainer = ({
         handleUpdate([...sortedList.filter((_, i) => i !== index)]);
     }, [handleUpdate, sortedList, isOpenArray]);
 
-    // Move item dialog
-    const [moveStartIndex, setMoveStartIndex] = useState<number>(-1);
-    const openMoveDialog = useCallback((index: number) => { setMoveStartIndex(index); }, []);
-    const closeMoveDialog = useCallback((toIndex?: number) => {
-        if (toIndex !== undefined && toIndex >= 0) {
-            onItemReorder(moveStartIndex, toIndex);
-            // If the item was open, open the new item
-            if (isOpenArray[moveStartIndex]) {
-                handleOpen(toIndex);
-            }
-        }
-        setMoveStartIndex(-1);
-    }, [onItemReorder, moveStartIndex, isOpenArray, handleOpen]);
-
     return (
         <>
-            {/* Dialog for reordering item */}
-            <ReorderInputDialog
-                isInput={isInput}
-                handleClose={closeMoveDialog}
-                listLength={sortedList.length}
-                startIndex={moveStartIndex}
-                zIndex={zIndex + 1}
-            />
             {/* Main content */}
-            <ContentCollapse
-                id={`${type}-container`}
-                helpText={t(`${isInput ? 'Input' : 'Output'}ContainerHelp`)}
-                title={isInput ? 'Inputs' : 'Outputs'}
-                sxs={{
-                    titleContainer: {
-                        display: 'flex',
-                        justifyContent: 'center'
-                    },
-                    root: {
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        boxShadow: 2,
-                        borderRadius: 2,
-                        padding: 0,
-                        overflow: 'overlay',
-                    }
-                }}
-            >
-                <Stack direction="column" sx={{
-                    background: palette.background.default,
-                }}>
-                    {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
-                    {sortedList.map((item, index) => (
-                        <Fragment key={index}>
-                            <InputOutputListItem
-                                key={`${type}-item-${item.id}`}
-                                index={index}
-                                isInput={isInput}
-                                isOpen={isOpenArray.length > index && isOpenArray[index]}
-                                item={item}
-                                isEditing={isEditing}
-                                handleOpen={handleOpen}
-                                handleClose={handleClose}
-                                handleDelete={onItemDelete}
-                                handleReorder={openMoveDialog}
-                                handleUpdate={onItemUpdate}
-                                language={language}
-                                session={session}
-                                zIndex={zIndex}
-                            />
-                        </Fragment>
-                    ))}
-                    {/* Show add button at bottom of sortedList */}
-                    {isEditing && <AddButton
-                        key={`add-${type}-item-${sortedList.length}`}
-                        index={sortedList.length}
-                        isInput={isInput}
-                        handleAdd={onItemAdd}
-                    />}
-                </Stack>
-            </ContentCollapse>
+            <DragDropContext onDragEnd={onDragEnd}>
+                <ContentCollapse
+                    id={`${type}-container`}
+                    helpText={t(`${isInput ? 'Input' : 'Output'}ContainerHelp`)}
+                    title={isInput ? 'Inputs' : 'Outputs'}
+                    sxs={{
+                        titleContainer: {
+                            display: 'flex',
+                            justifyContent: 'center'
+                        },
+                        root: {
+                            background: palette.primary.dark,
+                            color: palette.primary.contrastText,
+                            boxShadow: 2,
+                            borderRadius: 2,
+                            padding: 0,
+                            overflow: 'overlay',
+                        }
+                    }}
+                >
+                    <Droppable droppableId="inputOutputItems">
+                        {(provided) => (
+                            <Stack
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                direction="column"
+                                sx={{
+                                    background: palette.background.default,
+                                }}>
+                                {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
+                                {sortedList.map((item, index) => (
+                                    <Draggable
+                                        key={item.id}
+                                        draggableId={String(item.id)}
+                                        index={index}
+                                    >
+                                        {(provided) => (
+                                            <InputOutputListItem
+                                                key={`${type}-item-${item.id}`}
+                                                ref={provided.innerRef}
+                                                dragProps={provided.draggableProps}
+                                                dragHandleProps={provided.dragHandleProps}
+                                                index={index}
+                                                isInput={isInput}
+                                                isOpen={isOpenArray.length > index && isOpenArray[index]}
+                                                item={item}
+                                                isEditing={isEditing}
+                                                handleOpen={handleOpen}
+                                                handleClose={handleClose}
+                                                handleDelete={onItemDelete}
+                                                handleUpdate={onItemUpdate}
+                                                language={language}
+                                                zIndex={zIndex}
+                                            />
+                                        )}
+                                    </Draggable>
+                                ))}
+                                {/* Show add button at bottom of sortedList */}
+                                {isEditing && <AddButton
+                                    key={`add-${type}-item-${sortedList.length}`}
+                                    index={sortedList.length}
+                                    isInput={isInput}
+                                    handleAdd={onItemAdd}
+                                />}
+                                {provided.placeholder}
+                            </Stack>
+                        )}
+                    </Droppable>
+                </ContentCollapse>
+            </DragDropContext>
         </>
     )
 }

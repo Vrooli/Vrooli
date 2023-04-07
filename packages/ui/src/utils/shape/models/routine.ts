@@ -1,11 +1,16 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { TagShape, createPrims, updatePrims, shapeUpdate, updateRel, createRel, shapeTag, updateOwner, createOwner, shapeLabel, LabelShape, RoutineVersionShape, shapeRoutineVersion, createVersion, updateVersion } from "utils";
+import { LabelShape, shapeLabel } from "./label";
+import { RoutineVersionShape, shapeRoutineVersion } from "./routineVersion";
+import { shapeTag, TagShape } from "./tag";
+import { createOwner, createPrims, createRel, createVersion, shapeUpdate, updateOwner, updatePrims, updateRel, updateVersion } from "./tools";
+import { OwnerShape } from "./types";
 
 
 export type RoutineShape = Pick<Routine, 'id' | 'isInternal' | 'isPrivate' | 'permissions'> & {
+    __typename?: 'Routine';
     labels?: ({ id: string } | LabelShape)[];
-    owner: { __typename: 'User' | 'Organization', id: string } | null;
+    owner: OwnerShape | null | undefined;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

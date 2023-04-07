@@ -1,8 +1,8 @@
+import { FindByIdInput, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, SubscribableObject } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, NotificationSubscriptionSortBy, SubscribableObject, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionUpdateInput, NotificationSubscriptionSearchInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum NotificationSubscriptionSortBy {
@@ -23,27 +23,31 @@ export const typeDef = gql`
         Quiz
         Report
         Routine
+        Schedule
         SmartContract
         Standard
     }
 
-    union SubscribedObject = Api | Comment | Issue | Meeting | Note | Organization | Project | PullRequest | Question | Quiz | Report | Routine | SmartContract | Standard
+    union SubscribedObject = Api | Comment | Issue | Meeting | Note | Organization | Project | PullRequest | Question | Quiz | Report | Routine | Schedule | SmartContract | Standard
 
     input NotificationSubscriptionCreateInput {
         id: ID!
+        context: String
         objectType: SubscribableObject!
-        objectConnect: ID!
         silent: Boolean
+        objectConnect: ID!
     }
     input NotificationSubscriptionUpdateInput {
         id: ID!
+        context: String
         silent: Boolean
     }
     type NotificationSubscription {
         id: ID!
         created_at: Date!
-        object: SubscribedObject!
+        context: String
         silent: Boolean!
+        object: SubscribedObject!
     }
 
     input NotificationSubscriptionSearchInput {

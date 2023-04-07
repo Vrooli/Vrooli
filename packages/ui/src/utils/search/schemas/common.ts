@@ -19,20 +19,20 @@ export const languagesVersionContainer = languagesContainer;
 export const bookmarksContainer = (): GridContainer => ({
     title: i18next.t(`Bookmark`, { count: 2 }),
     description: i18next.t(`BookmarksHelp`),
-    totalItems: 1,
+    totalItems: 2,
     spacing: 2,
 })
 export const bookmarksRootContainer = bookmarksContainer;
 export const tagsContainer = (): GridContainer => ({
     title: i18next.t(`Tag`, { count: 2 }),
     description: i18next.t(`TagsHelp`),
-    totalItems: 1
+    totalItems: 1,
 })
 export const tagsRootContainer = tagsContainer;
 export const votesContainer = (): GridContainer => ({
     title: i18next.t(`Vote`, { count: 2 }),
     description: i18next.t(`VotesHelp`),
-    totalItems: 1,
+    totalItems: 2,
     spacing: 2,
 })
 export const votesRootContainer = votesContainer;

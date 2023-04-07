@@ -2,9 +2,9 @@
 
 import { Menu, MenuItem } from "@mui/material";
 import { useMemo, useState } from "react";
-import { TimeMenuProps } from "../types";
-import { DateRangeMenu } from 'components';
 import { useTranslation } from "react-i18next";
+import { DateRangeMenu } from "../DateRangeMenu/DateRangeMenu";
+import { TimeMenuProps } from "../types";
 
 /**
  * Map time selections to time length in milliseconds

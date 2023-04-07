@@ -1,18 +1,31 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, FindByIdOrHandleInput, LINKS, ResourceList, User, VisibilityType } from "@shared/consts";
+import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
 import { useLocation } from '@shared/route';
-import { LINKS, FindByIdOrHandleInput, ResourceList, BookmarkFor, User, VisibilityType } from "@shared/consts";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, BookmarkButton, PageTabs, TopBar } from "components";
-import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, SearchType, toSearchListData, useObjectActions, useObjectFromUrl } from "utils";
-import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
-import { DonateIcon, EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { getCurrentUser } from "utils/authentication";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
-import { useTranslation } from "react-i18next";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { ResourceListVertical } from "components/lists/resource";
+import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchListGenerator } from "components/lists/types";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { getCurrentUser } from "utils/authentication/session";
+import { placeholderColor, toSearchListData } from "utils/display/listTools";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { SearchType } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
+import { UserViewProps } from "../types";
 
 enum TabOptions {
     Resource = "Resource",
@@ -47,10 +60,10 @@ const tabParams: TabParams[] = [{
 
 export const UserView = ({
     display = 'page',
-    session,
     partialData,
     zIndex = 200,
 }: UserViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -88,7 +101,6 @@ export const UserView = ({
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceListVertical
             list={resourceList}
-            session={session}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
                 if (!user) return;
@@ -101,7 +113,7 @@ export const UserView = ({
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [isLoading, permissions.canUpdate, resourceList, session, setUser, user, zIndex]);
+    ) : null, [isLoading, permissions.canUpdate, resourceList, setUser, user, zIndex]);
 
 
     // Handle tabs
@@ -144,7 +156,6 @@ export const UserView = ({
     const actionData = useObjectActions({
         object: user,
         objectType: 'User',
-        session,
         setLocation,
         setObject: setUser,
     });
@@ -264,7 +275,6 @@ export const UserView = ({
                     <ShareButton object={user} zIndex={zIndex} />
                     <BookmarkButton
                         disabled={permissions.canUpdate}
-                        session={session}
                         objectId={user?.id ?? ''}
                         bookmarkFor={BookmarkFor.User}
                         isBookmarked={user?.you?.isBookmarked ?? false}
@@ -275,7 +285,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, user, zIndex]);
+    ), [bio, handle, permissions.canUpdate, isLoading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, user, zIndex]);
 
     /**
      * Opens add new page
@@ -288,8 +298,7 @@ export const UserView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'User',
                 }}
@@ -300,7 +309,6 @@ export const UserView = ({
                 anchorEl={moreMenuAnchor}
                 object={user}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{
@@ -320,8 +328,7 @@ export const UserView = ({
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
-                        session={session}
-                        translations={user?.translations ?? partialData?.translations ?? []}
+                        languages={availableLanguages}
                         zIndex={zIndex}
                     />
                 </Box>
@@ -345,7 +352,6 @@ export const UserView = ({
                                 id="user-view-list"
                                 searchType={searchType}
                                 searchPlaceholder={placeholder}
-                                session={session}
                                 take={20}
                                 where={where}
                                 zIndex={zIndex}

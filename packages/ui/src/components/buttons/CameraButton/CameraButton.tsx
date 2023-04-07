@@ -1,8 +1,5 @@
-import { Box, IconButton, Tooltip, useTheme } from '@mui/material';
-import { CameraOpenIcon, MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from '@shared/icons';
-import { useCallback, useMemo } from 'react';
+import { useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import { getUserLanguages, useSpeech } from 'utils';
 import { CameraButtonProps } from '../types';
 
 /**
@@ -11,7 +8,6 @@ import { CameraButtonProps } from '../types';
 export const CameraButton = ({
     disabled = false,
     onTranscriptChange,
-    session,
 }: CameraButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();

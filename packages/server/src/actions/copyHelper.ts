@@ -1,8 +1,3 @@
-import { assertRequestFrom } from "../auth/request";
-import { Trigger } from "../events";
-import { getAuthenticatedData } from "../utils";
-import { maxObjectsCheck, permissionsCheck } from "../validators";
-import { readOneHelper } from "./readOneHelper";
 import { CopyHelperProps } from "./types";
 
 /**

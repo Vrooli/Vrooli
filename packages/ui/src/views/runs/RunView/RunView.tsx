@@ -1,17 +1,9 @@
-import { FindVersionInput, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, RoutineVersion, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput } from "@shared/consts";
-import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
-import { HelpButton, RunStepsDialog } from "components";
-import { useLocation } from '@shared/route';
-import { RunViewProps } from "../types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineVersionHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
-import { useCustomMutation } from "api/hooks";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { Node, NodeLink, NodeRoutineListItem, NodeType, RoutineVersion } from "@shared/consts";
 import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
-import { base36ToUuid } from "utils/navigation/urlTools";
-import { mutationWrapper } from "api/utils";
-import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
-import { exists } from "@shared/utils";
+import { RoutineStepType } from "utils/consts";
+import { getTranslation } from "utils/display/translationTools";
+import { routineVersionHasSubroutines } from "utils/runUtils";
+import { RunViewProps } from "../types";
 
 /**
  * Maximum routine nesting supported
@@ -238,7 +230,6 @@ export const RunView = ({
     display = 'page',
     handleClose,
     runnableObject,
-    session,
     zIndex,
 }: RunViewProps) => {
     return {} as any;
@@ -769,7 +760,6 @@ export const RunView = ({
     //     switch (currentStep.type) {
     //         case RoutineStepType.Subroutine:
     //             return <SubroutineView
-    //                 session={session}
     //                 handleUserInputsUpdate={handleUserInputsUpdate}
     //                 handleSaveProgress={saveProgress}
     //                 owner={routineVersion?.root?.owner}
@@ -783,7 +773,6 @@ export const RunView = ({
     //                 data={currentStep as DecisionStep}
     //                 handleDecisionSelect={toDecision}
     //                 nodes={routineVersion?.nodes ?? []}
-    //                 session={session}
     //                 zIndex={zIndex}
     //             />
     //     }

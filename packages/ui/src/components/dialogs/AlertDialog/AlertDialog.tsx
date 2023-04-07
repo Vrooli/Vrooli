@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
     Button,
     Dialog,
     DialogActions,
     DialogContent,
-    DialogContentText,
+    DialogContentText
 } from '@mui/material';
-import { firstString, PubSub, translateSnackMessage } from 'utils';
-import { DialogTitle } from 'components';
 import i18next from 'i18next';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { firstString } from 'utils/display/stringTools';
+import { translateSnackMessage } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
 
 interface StateButton {
     label: string;
@@ -38,7 +40,7 @@ const AlertDialog = () => {
     useEffect(() => {
         let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
             title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
-            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details : undefined,
+            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
             buttons: o.buttons.map((b) => ({
                 label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
                 onClick: b.onClick,
@@ -61,6 +63,14 @@ const AlertDialog = () => {
             onClose={resetState}
             aria-labelledby={titleId}
             aria-describedby={descriptionAria}
+            sx={{
+                zIndex: 30000,
+                '& > .MuiDialog-container': {
+                    '& > .MuiPaper-root': {
+                        zIndex: 30000,
+                    },
+                }
+            }}
         >
             <DialogTitle
                 id={titleId}

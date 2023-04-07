@@ -1,12 +1,13 @@
-import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReportFor, Session, VoteFor } from "@shared/consts";
+import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReportFor, VoteFor } from "@shared/consts";
 import { SetLocation } from "@shared/route";
 import { exists, setDotNotationValue } from "@shared/utils";
-import { Dispatch, SetStateAction, useCallback, useMemo, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { NavigableObject } from "types";
-import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions";
-import { getDisplay, getYou, getYouDot, ListObjectType } from "utils/display";
-import { openObject, openObjectEdit } from "utils/navigation";
+import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
+import { getDisplay, getYou, getYouDot, ListObjectType } from "utils/display/listTools";
+import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { SessionContext } from "utils/SessionContext";
 import { useBookmarker } from "./useBookmarker";
 import { useCopier } from "./useCopier";
 import { useVoter } from "./useVoter";
@@ -19,7 +20,6 @@ export type UseObjectActionsProps = {
     object: ListObjectType | null | undefined;
     objectType: GqlModelType | `${GqlModelType}`;
     openAddCommentDialog?: () => void;
-    session: Session | undefined;
     setLocation: SetLocation;
     setObject: Dispatch<SetStateAction<any>>;
 }
@@ -69,10 +69,11 @@ export const useObjectActions = ({
     object,
     objectType,
     openAddCommentDialog,
-    session,
     setLocation,
     setObject,
 }: UseObjectActionsProps): UseObjectActionsReturn => {
+    const session = useContext(SessionContext);
+
     // Callback when an action is completed
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
         if (!exists(object)) {
@@ -117,6 +118,7 @@ export const useObjectActions = ({
         objectType: objectType as VoteFor,
         onActionComplete,
     });
+    console.log('objectName', getDisplay(object))
 
     // Determine which actions are available    
     const hasDeletingSupport = exists(DeleteType[objectType]);
@@ -146,6 +148,7 @@ export const useObjectActions = ({
 
     // Callback when an action is started
     const onActionStart = useCallback((action: ObjectAction | `${ObjectAction}`) => {
+        console.log('onActionStart', action);
         if (!exists(object)) {
             PubSub.get().publishSnack({ messageKey: `CouldNotReadObject`, severity: 'Error' });
             return;

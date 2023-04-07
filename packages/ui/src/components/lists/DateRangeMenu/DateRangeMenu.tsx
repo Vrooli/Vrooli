@@ -1,9 +1,9 @@
+import { Button, Grid, Popover, Stack, TextField } from "@mui/material";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Button, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { DateRangeMenuProps } from "../types";
-import { LocalizationProvider, MobileDatePicker } from '@mui/lab';
-import AdapterDateFns from '@mui/lab/AdapterDateFns';
 import { useTranslation } from 'react-i18next';
+import { fromDatetimeLocal, toDatetimeLocal } from "utils/shape/general";
+import { DateRangeMenuProps } from "../types";
 
 export const DateRangeMenu = ({
     anchorEl,
@@ -14,7 +14,6 @@ export const DateRangeMenu = ({
     range,
     strictIntervalRange
 }: DateRangeMenuProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
@@ -31,46 +30,36 @@ export const DateRangeMenu = ({
     }, [range, minDate, maxDate]);
 
     useEffect(() => {
-        console.log('in drm 1', after, minDate, new Date());
         let changedAfter = after ?? minDate ?? new Date();
         if (changedAfter < (minDate ?? 0)) {
-            console.log('in drm 2');
             changedAfter = minDate ?? new Date(0);
         }
         const latestBefore = new Date(Date.now() - (strictIntervalRange ?? 0));
-        console.log('in drm 3', changedAfter, latestBefore);
         if (changedAfter > latestBefore) {
-            console.log('in drm 4');
             changedAfter = latestBefore;
         }
         // Only update after if it is different from the new calculated value. 
         // Ignore changes smaller than 1 second
         if (changedAfter.getTime() - (after?.getTime() ?? 0) > 1000) {
-            console.log('in drm 5', changedAfter.getTime() - (after?.getTime() ?? 0));
             setAfter(changedAfter);
             // Only update before if it is different from the new calculated value
             if (strictIntervalRange && before !== new Date(changedAfter.getTime() + strictIntervalRange)) {
-                console.log('in drm 6', changedAfter.getTime() - (after?.getTime() ?? 0));
                 setBefore(new Date(changedAfter.getTime() + strictIntervalRange));
             }
         }
     }, [after, before, minDate, strictIntervalRange]);
 
     useEffect(() => {
-        console.log('in drm 7', before, maxDate, new Date());
         let changedBefore = before ?? maxDate ?? new Date();
         if (after && changedBefore < after) {
-            console.log('in drm 8');
             changedBefore = after;
         }
         if (changedBefore > new Date()) {
-            console.log('in drm 9');
             changedBefore = new Date();
         }
         // Only update before if it is different from the new calculated value.
         // Ignore changes smaller than 1 second
         if (changedBefore.getTime() !== (before?.getTime() ?? 0)) {
-            console.log('in drm 10', changedBefore.getTime() - (before?.getTime() ?? 0))
             setBefore(changedBefore);
         }
     }, [after, before, maxDate]);
@@ -83,35 +72,48 @@ export const DateRangeMenu = ({
             onClose={onClose}
             disableScrollLock={true}
         >
-            <Typography textAlign="center" p={1} sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-            }}>{t(`SelectDateRange`)}</Typography>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <Box p={2}>
-                    <Stack direction="column">
-                        <MobileDatePicker
-                            label={t(`Start`)}
-                            inputFormat="dd/MM/yyyy"
-                            value={after}
-                            onChange={handleAfterChange}
-                            renderInput={(params) => <TextField {...params} sx={{ marginBottom: 1 }} />}
-                        />
-                        <MobileDatePicker
-                            label={t(`End`)}
-                            inputFormat="dd/MM/yyyy"
-                            value={before}
-                            onChange={handleBeforeChange}
-                            renderInput={(params) => <TextField {...params} sx={{ marginBottom: 1 }} />}
-                        />
-                        <Button
-                            type="submit"
+            <TopBar
+                display="dialog"
+                onClose={onClose}
+                titleData={{
+                    titleKey: 'SelectDateRange',
+                }}
+            />
+            <Stack direction="column" spacing={2} m={2}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
                             fullWidth
-                            onClick={() => { onSubmit(after, before); onClose() }}
-                        >{t(`Ok`)}</Button>
-                    </Stack>
-                </Box>
-            </LocalizationProvider>
+                            name="start"
+                            label={t('Start')}
+                            type="datetime-local"
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            value={after ? toDatetimeLocal(after) : ''}
+                            onChange={(e) => handleAfterChange(fromDatetimeLocal(e.target.value))}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            fullWidth
+                            name="end"
+                            label={t('End')}
+                            type="datetime-local"
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            value={before ? toDatetimeLocal(before) : ''}
+                            onChange={(e) => handleBeforeChange(fromDatetimeLocal(e.target.value))}
+                        />
+                    </Grid>
+                </Grid>
+                <Button
+                    type="submit"
+                    fullWidth
+                    onClick={() => { onSubmit(after, before); onClose() }}
+                >{t(`Ok`)}</Button>
+            </Stack>
         </Popover>
     )
 }

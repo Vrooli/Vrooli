@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from '@mui/material';
 import { CloseIcon, LargeCookieIcon } from '@shared/icons';
-import { CookiesSnackProps } from '../types';
-import { CookieSettingsDialog } from 'components';
-import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
+import { CookieSettingsDialog } from 'components/dialogs/CookieSettingsDialog/CookieSettingsDialog';
+import { useState } from 'react';
 import { noSelect } from 'styles';
+import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
+import { CookiesSnackProps } from '../types';
 
 /**
  * "This site uses cookies" consent dialog
@@ -67,7 +67,7 @@ export const CookiesSnack = ({
                     </IconButton>
                 </Stack>
                 {/* Title */}
-                <Typography variant="h6" sx={{ mt: 2 }}>
+                <Typography variant="body1" sx={{ mt: 2 }}>
                     This site uses cookies to give you the best experience. Please accept or reject our cookie policy so we can stop asking :)
                 </Typography>
                 {/* Buttons */}

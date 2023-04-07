@@ -1,5 +1,5 @@
-import { isRelationshipObject } from "./isRelationshipObject";
 import pkg from 'lodash';
+import { isRelationshipObject } from "./isRelationshipObject";
 const { merge } = pkg;
 
 /**
@@ -24,7 +24,5 @@ export const combineSupplements = (data: { [x: string]: any }, objectsById: { [x
         }
     }
     // Handle base case (combining non-array and non-object values)
-    console.log('before merge: result', JSON.stringify(result), '\n\n');
-    console.log('before merge: objectsById[data.id]', JSON.stringify(objectsById[data.id]), '\n\n');
     return merge(result, objectsById[data.id])
 }

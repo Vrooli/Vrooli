@@ -1,27 +1,31 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { LINKS, Session } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
     Button,
-    IconButton,
+    IconButton
 } from '@mui/material';
-import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
-import { checkIfLoggedIn } from 'utils/authentication';
+import { LINKS, Session } from '@shared/consts';
+import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from '@shared/icons';
 import { openLink, SetLocation } from '@shared/route';
+import { CommonKey } from '@shared/translations';
+import i18next from 'i18next';
+import { checkIfLoggedIn } from 'utils/authentication/session';
 
 export enum ACTION_TAGS {
     Home = 'Home',
     Search = 'Search',
     Create = 'Create',
     Notifications = 'Notifications',
-    Settings = 'Settings',
+    About = 'About',
+    Pricing = 'Pricing',
     LogIn = 'LogIn',
+    MyStuff = 'MyStuff',
 }
 
 export type ActionArray = [string, any, string, any, number];
 export interface Action {
-    label: string;
+    label: CommonKey;
     value: ACTION_TAGS;
     link: string;
     Icon: SvgComponent;
@@ -37,12 +41,11 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     // Check if user is logged in using session
     let isLoggedIn = checkIfLoggedIn(session);
     let actions: ActionArray[] = [];
-    // Home only available to logged in users
-    if (isLoggedIn) {
-        actions.push(
-            ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
-        )
-    }
+    // Home always available. Page changes based on login status, 
+    // but we don't worry about that here.
+    actions.push(
+        ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+    )
     // Search always available
     actions.push(
         ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
@@ -51,10 +54,14 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     if (isLoggedIn) {
         actions.push(
             ['Create', ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
-            ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
-            ['Settings', ACTION_TAGS.Settings, LINKS.Settings, SettingsIcon, 0],
+            ['Inbox', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
+            ['MyStuff', ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
         )
-    } else {
+    }
+    // Display about, pricing, and login for logged out users 
+    else {
+        actions.push(['About', ACTION_TAGS.About, LINKS.About, HelpIcon, 0])
+        actions.push(['Pricing', ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
@@ -85,7 +92,7 @@ export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuPr
             onClick={(e) => { e.preventDefault(); openLink(setLocation, link) }}
             sx={sx}
         >
-            {label}
+            {i18next.t(label, { count: 2 })}
         </Button>
     ));
 }
@@ -99,7 +106,7 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
     return actions.map(({ label, value, link, Icon, numNotifications }) => (
         <BottomNavigationAction
             key={value}
-            label={label}
+            label={i18next.t(label, { count: 2 })}
             value={value}
             href={link}
             onClick={(e: any) => {

@@ -11,6 +11,7 @@ query standardVersions($input: StandardVersionSearchInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
             id
             created_at

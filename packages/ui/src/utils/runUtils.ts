@@ -1,8 +1,11 @@
+import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
 import { exists, uniqBy } from "@shared/utils";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
-import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
-import { NodeLinkShape, NodeShape, shapeRunRoutineInput, updateRel } from "./shape";
+import { NodeShape } from "./shape/models/node";
+import { NodeLinkShape } from "./shape/models/nodeLink";
+import { shapeRunRoutineInput } from "./shape/models/runRoutineInput";
+import { updateRel } from "./shape/models/tools";
 
 /**
  * Calculates the percentage of the run that has been completed.
@@ -141,7 +144,7 @@ type GetRoutineVersionStatusResult = {
  * @param routine The routine to check
  */
 export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion> | null): GetRoutineVersionStatusResult => {
-    if (!routineVersion || !routineVersion.nodeLinks || !routineVersion.nodes) { 
+    if (!routineVersion || !routineVersion.nodeLinks || !routineVersion.nodes) {
         return { status: Status.Invalid, messages: ['No node or link data found'], nodesById: {}, nodesOffGraph: [], nodesOnGraph: [] };
     }
     const nodesOnGraph: Node[] = [];
@@ -274,14 +277,15 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         columnIndex: 2,
         rowIndex: 0,
         routineVersion: { id: routineVersionId },
-    } as Node;
+        translations: [],
+    };
     const link1: NodeLinkShape = {
         id: uuid(),
         from: startNode,
-        to: endNode,
+        to: routineListNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId }
+        routineVersion: { id: routineVersionId },
     }
     const link2: NodeLinkShape = {
         id: uuid(),
@@ -289,7 +293,7 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         to: endNode,
         whens: [],
         operation: null,
-        routineVersion: { id: routineVersionId }
+        routineVersion: { id: routineVersionId },
     }
     return {
         nodes: [startNode, routineListNode, endNode],

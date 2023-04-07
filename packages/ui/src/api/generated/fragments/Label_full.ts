@@ -1,18 +1,19 @@
 export const Label_full = `fragment Label_full on Label {
 apisCount
+focusModesCount
 issuesCount
 meetingsCount
 notesCount
 projectsCount
 routinesCount
-runProjectSchedulesCount
-runRoutineSchedulesCount
+schedulesCount
 smartContractsCount
 standardsCount
 id
 created_at
 updated_at
 color
+label
 owner {
     ... on Organization {
         ...Organization_nav

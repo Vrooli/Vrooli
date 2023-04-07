@@ -4,6 +4,7 @@ export const LINKS = {
     About: '/about',
     Api: '/api',
     Awards: '/awards',
+    BookmarkList: '/bookmarks',
     Calendar: '/calendar',
     Comment: '/comment',
     Create: '/create',
@@ -11,13 +12,13 @@ export const LINKS = {
     FAQ: '/#faq', // FAQ section of home page
     ForgotPassword: '/forgot-password',
     History: '/history',
-    HistorySearch: '/history-search',
     Home: '/', // Main dashboard for logged in users
+    MyStuff: '/my',
     Note: '/note',
-    Notifications: '/notifications',
+    Notifications: '/inbox',
     Organization: '/org',
     Premium: '/premium',
-    PrivacyPolicy: '/privacy',
+    Privacy: '/privacy', // Privacy policy
     Profile: '/profile',
     Project: '/project',
     Question: '/question',
@@ -33,13 +34,13 @@ export const LINKS = {
     SettingsAuthentication: '/settings/auth',
     SettingsDisplay: '/settings/display',
     SettingsNotifications: '/settings/notifications',
-    SettingsSchedules: '/settings/schedules',
+    SettingsFocusModes: '/settings/focus',
     SmartContract: '/contract',
     Standard: '/standard',
     Start: '/start',
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     Tag: '/tag',
-    Terms: '/terms',
+    Terms: '/terms', // Terms and conditions
     Tutorial: '/tutorial',
     User: '/user',
     Welcome: '/welcome', // Displays the first time you enter the application (either as guest or as logged in user)

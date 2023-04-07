@@ -1,10 +1,11 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, BookmarkFor, VoteFor } from '@shared/consts';
+import { BookmarkFor, ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, VoteFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import { FormSchema } from 'forms/types';
 import React from 'react';
-import { NavigableObject} from 'types';
-import { SearchType, Status } from 'utils';
+import { NavigableObject } from 'types';
+import { Status } from 'utils/consts';
+import { SearchType } from 'utils/search/objectToSearch';
 import { ViewDisplayType } from 'views/types';
 
 export interface AdvancedSearchButtonProps {
@@ -12,7 +13,6 @@ export interface AdvancedSearchButtonProps {
     advancedSearchSchema: FormSchema | null | undefined;
     searchType: SearchType | `${SearchType}`;
     setAdvancedSearchParams: (params: object | null) => void;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -30,12 +30,11 @@ export interface BuildEditButtonsProps {
 export type CameraButtonProps = {
     disabled?: boolean;
     onTranscriptChange: (result: string) => void;
-    session: Session | undefined;
 }
 
 export interface ColorIconButtonProps extends IconButtonProps {
     background: string;
-    children: JSX.Element | null;
+    children: JSX.Element | null | undefined;
     disabled?: boolean;
     href?: string;
     onClick?: (event: React.MouseEvent<any>) => void;
@@ -46,6 +45,10 @@ export interface CommentsButtonProps {
     commentsCount: number | null; // Defaults to 0
     disabled?: boolean;
     object: NavigableObject | null | undefined;
+}
+
+export interface EllipsisActionButtonProps {
+    children: JSX.Element | null | (JSX.Element | null)[]
 }
 
 export interface GridActionButtonsProps {
@@ -98,7 +101,6 @@ export interface PopupMenuProps extends ButtonProps {
 export interface ReportButtonProps {
     forId: string;
     reportFor: ReportFor;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -118,7 +120,6 @@ export interface RunButtonProps {
     isBuildGraphOpen: boolean;
     isEditing: boolean;
     runnableObject: ProjectVersion | RoutineVersion | null;
-    session: Session | undefined;
     zIndex: number;
 }
 
@@ -126,7 +127,6 @@ export interface SearchButtonsProps {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
     searchType: SearchType | `${SearchType}`;
-    session: Session | undefined;
     setAdvancedSearchParams: (params: object | null) => void;
     setSortBy: (sortBy: string) => void;
     setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
@@ -144,6 +144,7 @@ export interface ShareButtonProps {
 export interface SideActionButtonsProps {
     children: JSX.Element | null | boolean | undefined | (JSX.Element | null | boolean | undefined)[];
     display: ViewDisplayType;
+    hasGridActions?: boolean; // If to, displays higher up
     isLeftHanded?: boolean;
     sx?: { [key: string]: any };
     zIndex: number;
@@ -160,7 +161,6 @@ export interface BookmarkButtonProps {
     isBookmarked?: boolean | null; // Defaults to false
     objectId: string;
     onChange?: (isBookmarked: boolean, event?: any) => void;
-    session: Session | undefined;
     showBookmarks?: boolean; // Defaults to true. If false, the number of bookmarks is not shown
     bookmarkFor: BookmarkFor;
     bookmarks?: number | null; // Defaults to 0
@@ -190,7 +190,6 @@ export interface TimeButtonProps {
 export interface VoteButtonProps {
     direction?: 'row' | 'column';
     disabled?: boolean;
-    session: Session | undefined;
     score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
     objectId: string;

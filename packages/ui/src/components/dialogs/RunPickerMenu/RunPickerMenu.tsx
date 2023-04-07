@@ -2,20 +2,24 @@
  * Handles selecting a run from a list of runs.
  */
 import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useTheme } from "@mui/material";
-import { mutationWrapper } from "api/utils";
-import { useCallback, useEffect, useMemo } from "react";
-import { displayDate, getTranslation, getUserLanguages } from "utils/display";
-import { ListMenuItemData, RunPickerMenuProps } from "../types";
-import { base36ToUuid, getRunPercentComplete, PubSub } from "utils";
-import { useCustomMutation } from "api/hooks";
 import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
-import { uuid } from '@shared/uuid';
-import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
+import { parseSearchParams } from "@shared/route";
+import { uuid } from '@shared/uuid';
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { runProjectCreate } from "api/generated/endpoints/runProject_create";
 import { runRoutineCreate } from "api/generated/endpoints/runRoutine_create";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { parseSearchParams } from "@shared/route";
+import { useCustomMutation } from "api/hooks";
+import { mutationWrapper } from "api/utils";
+import { useCallback, useContext, useEffect, useMemo } from "react";
+import { displayDate } from "utils/display/stringTools";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { base36ToUuid } from "utils/navigation/urlTools";
+import { PubSub } from "utils/pubsub";
+import { getRunPercentComplete } from "utils/runUtils";
+import { SessionContext } from "utils/SessionContext";
+import { MenuTitle } from "../MenuTitle/MenuTitle";
+import { ListMenuItemData, RunPickerMenuProps } from "../types";
 
 const titleId = 'run-picker-dialog-title';
 
@@ -26,8 +30,8 @@ export const RunPickerMenu = ({
     onDelete,
     onSelect,
     runnableObject,
-    session
 }: RunPickerMenuProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const open = useMemo(() => Boolean(anchorEl), [anchorEl]);
 
@@ -48,7 +52,7 @@ export const RunPickerMenu = ({
     const [createRunRoutine] = useCustomMutation<RunRoutine, RunRoutineCreateInput>(runRoutineCreate);
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
-            PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: 'Error' });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
             return;
         }
         if (runnableObject.__typename === 'ProjectVersion') {
@@ -122,7 +126,7 @@ export const RunPickerMenu = ({
         const runs = (runnableObject.you?.runs as (RunRoutine | RunProject)[]).filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
             label: `Started: ${displayDate(run.startedAt)} (${getRunPercentComplete(run.completedComplexity, runnableObject.complexity)}%)`,
-            value: run as  RunProject | RunRoutine,
+            value: run as RunProject | RunRoutine,
         }));
     }, [runnableObject]);
 

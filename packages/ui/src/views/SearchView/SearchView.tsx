@@ -1,19 +1,22 @@
-/**
- * Search page for organizations, projects, routines, standards, and users
- */
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { PageTabs, SearchList, ShareSiteDialog, TopBar } from "components";
-import { useCallback, useMemo, useState } from "react";
-import { centeredDiv } from "styles";
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
-import { SearchViewProps } from "../types";
-import { getObjectUrlBase, PubSub, SearchType, SearchPageTabOption as TabOptions } from "utils";
-import { LINKS, GqlModelType } from "@shared/consts";
+import { GqlModelType, LINKS } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
-import { getCurrentUser } from "utils/authentication";
-import { useTranslation } from "react-i18next";
-import { PageTab } from "components/types";
+import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from "@shared/translations";
+import { ShareSiteDialog } from "components/dialogs/ShareSiteDialog/ShareSiteDialog";
+import { SearchList } from "components/lists/SearchList/SearchList";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { PageTab } from "components/types";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { centeredDiv } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
+import { getObjectUrlBase } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
+import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
+import { SessionContext } from "utils/SessionContext";
+import { SearchViewProps } from "../types";
 
 // Tab data type
 type BaseParams = {
@@ -21,80 +24,83 @@ type BaseParams = {
     popupTitleKey: CommonKey;
     popupTooltipKey: CommonKey;
     searchType: SearchType;
-    tabType: TabOptions;
+    tabType: SearchPageTabOption;
     where: { [x: string]: any };
 }
 
 // Data for each tab
 const tabParams: BaseParams[] = [{
-    Icon: ApiIcon,
+    Icon: RoutineIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Api,
-    tabType: TabOptions.Apis,
+    searchType: SearchType.Routine,
+    tabType: SearchPageTabOption.Routines,
+    where: { isInternal: false },
+}, {
+    Icon: ProjectIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Project,
+    tabType: SearchPageTabOption.Projects,
+    where: {},
+}, {
+    Icon: HelpIcon,
+    popupTitleKey: 'Invite',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Question,
+    tabType: SearchPageTabOption.Questions,
     where: {},
 }, {
     Icon: NoteIcon,
     popupTitleKey: 'Add',
     popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Note,
-    tabType: TabOptions.Notes,
+    tabType: SearchPageTabOption.Notes,
     where: {},
 }, {
     Icon: OrganizationIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
     searchType: SearchType.Organization,
-    tabType: TabOptions.Organizations,
-    where: {},
-}, {
-    Icon: ProjectIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Project,
-    tabType: TabOptions.Projects,
-    where: {},
-}, {
-    Icon: HelpIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.Question,
-    tabType: TabOptions.Questions,
-    where: {},
-}, {
-    Icon: RoutineIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Routine,
-    tabType: TabOptions.Routines,
-    where: { isInternal: false },
-}, {
-    Icon: SmartContractIcon,
-    popupTitleKey: 'Invite',
-    popupTooltipKey: 'InviteTooltip',
-    searchType: SearchType.SmartContract,
-    tabType: TabOptions.SmartContracts,
-    where: {},
-}, {
-    Icon: StandardIcon,
-    popupTitleKey: 'Add',
-    popupTooltipKey: 'AddTooltip',
-    searchType: SearchType.Standard,
-    tabType: TabOptions.Standards,
+    tabType: SearchPageTabOption.Organizations,
     where: {},
 }, {
     Icon: UserIcon,
     popupTitleKey: 'Invite',
     popupTooltipKey: 'InviteTooltip',
     searchType: SearchType.User,
-    tabType: TabOptions.Users,
+    tabType: SearchPageTabOption.Users,
+    where: {},
+}, {
+    Icon: StandardIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Standard,
+    tabType: SearchPageTabOption.Standards,
+    where: {},
+}, {
+    Icon: ApiIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.Api,
+    tabType: SearchPageTabOption.Apis,
+    where: {},
+}, {
+    Icon: SmartContractIcon,
+    popupTitleKey: 'Add',
+    popupTooltipKey: 'AddTooltip',
+    searchType: SearchType.SmartContract,
+    tabType: SearchPageTabOption.SmartContracts,
     where: {},
 }];
 
+/**
+ * Search page for organizations, projects, routines, standards, users, and other main objects
+ */
 export const SearchView = ({
     display = 'page',
-    session,
 }: SearchViewProps) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -106,7 +112,7 @@ export const SearchView = ({
     const closeShareDialog = useCallback(() => setShareDialogOpen(false), []);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<TabOptions>[]>(() => {
+    const tabs = useMemo<PageTab<SearchPageTabOption>[]>(() => {
         return tabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
@@ -114,15 +120,15 @@ export const SearchView = ({
             value: tab.tabType,
         }));
     }, [t]);
-    const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(() => {
+    const [currTab, setCurrTab] = useState<PageTab<SearchPageTabOption>>(() => {
         const searchParams = parseSearchParams();
         const index = tabParams.findIndex(tab => tab.tabType === searchParams.type);
         // Default to routine tab
-        if (index === -1) return tabs[3];
+        if (index === -1) return tabs[0];
         // Return tab
         return tabs[index];
     });
-    const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<SearchPageTabOption>) => {
         e.preventDefault();
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
@@ -149,9 +155,9 @@ export const SearchView = ({
         if (searchType === SearchType.Routine) {
             setLocation(`${LINKS.Routine}/add`);
         }
-        // If search type is a user, open start page
+        // If search type is a user, open share dialog
         else if (searchType === SearchType.User) {
-            setLocation(`${LINKS.Start}`);
+            setShareDialogOpen(true);
         }
         // Otherwise, navigate to add page
         else {
@@ -160,7 +166,7 @@ export const SearchView = ({
     }, [searchType, session, setLocation]);
 
     const onPopupButtonClick = useCallback((ev: any) => {
-        if ([TabOptions.Organizations, TabOptions.Users].includes(currTab.value)) {
+        if ([SearchPageTabOption.Users].includes(currTab.value)) {
             setShareDialogOpen(true);
         } else {
             onAddClick(ev);
@@ -198,7 +204,6 @@ export const SearchView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     hideOnDesktop: true,
                     titleKey: 'Search',
@@ -235,7 +240,6 @@ export const SearchView = ({
                 take={20}
                 searchType={searchType}
                 onScrolledFar={handleScrolledFar}
-                session={session}
                 zIndex={200}
                 where={where}
             />}

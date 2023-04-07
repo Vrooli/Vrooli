@@ -3,6 +3,7 @@ import { ShapeModel } from "types";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type RunRoutineInputShape = Pick<RunRoutineInput, 'id' | 'data'> & {
+    __typename?: 'RunRoutineInput';
     input: { id: string };
     runRoutine: { id: string };
 }

@@ -1,8 +1,7 @@
 import { RoutineVersion } from "@shared/consts";
-import { CreateProps, UpdateProps, ViewProps } from "../types";
+import { UpsertProps, ViewProps } from "../types";
 
-export interface RoutineCreateProps extends CreateProps<RoutineVersion> {
+export interface RoutineUpsertProps extends UpsertProps<RoutineVersion> {
     isSubroutine?: boolean;
 }
-export interface RoutineUpdateProps extends UpdateProps<RoutineVersion> {}
-export interface RoutineViewProps extends ViewProps<RoutineVersion> {}
+export interface RoutineViewProps extends ViewProps<RoutineVersion> { }

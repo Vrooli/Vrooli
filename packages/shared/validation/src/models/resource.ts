@@ -1,13 +1,13 @@
-import { adaHandleRegex, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from '../utils';
-import * as yup from 'yup';
 import { ResourceUsedFor } from '@shared/consts';
+import * as yup from 'yup';
+import { adaHandleRegex, addHttps, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from '../utils';
 
 // Link must match one of the regex above
-const link = yup.string().transform(blankToUndefined).max(1024, maxStrErr).test(
+const link = yup.string().transform(blankToUndefined).transform(addHttps).max(1024, maxStrErr).test(
     'link',
     'Must be a URL, Cardano payment address, or ADA Handle',
     (value: string | undefined) => {
-        console.log('in link test!', )
+        console.log('in link test!',)
         return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value)) : true
     }
 )
@@ -32,7 +32,7 @@ export const resourceValidation: YupModel = {
         usedFor: opt(usedFor),
     }, [
         ['list', ['Connect'], 'one', 'req'],
-        ['translations', ['Create'], 'one', 'opt', resourceTranslationValidation],
+        ['translations', ['Create'], 'many', 'opt', resourceTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -41,6 +41,6 @@ export const resourceValidation: YupModel = {
         usedFor: opt(usedFor),
     }, [
         ['list', ['Connect'], 'one', 'req'],
-        ['translations', ['Create', 'Update', 'Delete'], 'one', 'opt', resourceTranslationValidation],
+        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', resourceTranslationValidation],
     ], [], o),
 }

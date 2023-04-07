@@ -1,15 +1,14 @@
-import { projectVersionValidation } from "@shared/validation";
-import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, ProjectVersionSearchInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, VersionYou, PrependString, MaxObjects, ProjectVersionContentsSearchInput, ProjectVersionContentsSearchResult } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { Trigger } from "../events";
-import { addSupplementalFields, modelToGraphQL, selPad, selectHelper, toPartialGraphQLInfo, noNull, shapeHelper } from "../builders";
-import { bestLabel, defaultPermissions, oneIsPublic, postShapeVersion, translationShapeHelper } from "../utils";
+import { MaxObjects, ProjectVersion, ProjectVersionCreateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, VersionYou } from '@shared/consts';
+import { projectVersionValidation } from "@shared/validation";
+import { addSupplementalFields, modelToGql, noNull, selectHelper, shapeHelper, toPartialGqlInfo } from "../builders";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { RunProjectModel } from "./runProject";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ProjectModel } from "./project";
+import { RunProjectModel } from "./runProject";
+import { ModelLogic } from "./types";
 
 const __typename = 'ProjectVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
@@ -75,19 +74,15 @@ export const ProjectVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                console.log('in projectversion tographql a');
                 const runs = async () => {
-                    console.log('in projectversion tographql b', userData);
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add projectVersionId, so we 
                     // can associate runs with their project
                     const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
+                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, RunProjectModel.format.gqlRelMap, userData.languages, true),
                         projectVersionId: true
                     }
-                    console.log('in projectversion tographql c');
                     // Query runs made by user
-                    console.log('in projectversion tographql before runs', selectHelper(partial));
                     let runs: any[] = await prisma.run_project.findMany({
                         where: {
                             AND: [
@@ -97,16 +92,14 @@ export const ProjectVersionModel: ModelLogic<{
                         },
                         ...selectHelper(runPartial)
                     });
-                    console.log('in projectversion tographql d');
                     // Format runs to GraphQL
-                    runs = runs.map(r => modelToGraphQL(r, runPartial));
+                    runs = runs.map(r => modelToGql(r, runPartial));
                     // Add supplemental fields
                     runs = await addSupplementalFields(prisma, userData, runs, runPartial);
                     // Split runs by id
                     const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
                     return projectRuns;
                 };
-                console.log('in projectversion tographql e');
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
@@ -168,7 +161,7 @@ export const ProjectVersionModel: ModelLogic<{
     //         nestLimit: number = 2,
     //     ): Promise<ProjectVersionContentsSearchResult> {
     //         // Partially convert info type
-    //         const partial = toPartialGraphQLInfo(info, {
+    //         const partial = toPartialGqlInfo(info, {
     //             __typename: 'ProjectVersionContentsSearchResult',
     //             meetings: 'Meeting',
     //             notes: 'Note',
@@ -234,7 +227,7 @@ export const ProjectVersionModel: ModelLogic<{
     //         }
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
-    //         comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
+    //         comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
     //         comments = await addSupplementalFields(prisma, getUser(req), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
@@ -312,7 +305,7 @@ export const ProjectVersionModel: ModelLogic<{
             ProjectModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => ProjectModel.validate!.owner(data.root as any),
+        owner: (data, userId) => ProjectModel.validate!.owner(data.root as any, userId),
         permissionsSelect: (...params) => ({
             id: true,
             isDeleted: true,

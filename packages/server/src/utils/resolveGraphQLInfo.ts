@@ -83,7 +83,6 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
                 for (const selection of inlineFragments!) {
                     union[`${selection.typeCondition?.name.value}`] = parseInlineFragmentNode(selection, fragments);
                 }
-                console.log('setting union in result', node.name.value, JSON.stringify(union), '\n\n');
                 result[node.name.value] = union;
             }
             else {

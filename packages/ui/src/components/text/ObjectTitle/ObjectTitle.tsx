@@ -1,5 +1,5 @@
 import { LinearProgress, Stack, Typography } from "@mui/material";
-import { SelectLanguageMenu } from "components/dialogs";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectTitleProps } from "../types";
 
 /**
@@ -8,14 +8,12 @@ import { ObjectTitleProps } from "../types";
  */
 export const ObjectTitle = ({
     language,
+    languages,
     loading,
-    session,
     setLanguage,
-    translations,
     title,
     zIndex,
 }: ObjectTitleProps) => {
-
     // Display title or loading bar
     const titleComponent = loading ? <LinearProgress color="inherit" sx={{
         borderRadius: 1,
@@ -52,8 +50,7 @@ export const ObjectTitle = ({
             <SelectLanguageMenu
                 currentLanguage={language}
                 handleCurrent={setLanguage}
-                session={session}
-                translations={translations}
+                languages={languages}
                 zIndex={zIndex}
             />
         </Stack>

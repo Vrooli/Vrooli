@@ -1,25 +1,59 @@
-import { FullPageSpinner } from "components";
-import { BaseFormProps } from "../types";
+import { exists } from "@shared/utils"
+import { Form } from "formik"
+import { BaseFormProps } from "forms/types"
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react"
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload"
 
-/**
- * Form tag used to wrap any form. Has a fallback loading state.
- */
-export const BaseForm = ({
+export type BaseFormRef = {
+    handleClose: (onClose: () => void, closeAnyway?: boolean) => void
+}
+
+export const BaseForm = forwardRef<BaseFormRef, BaseFormProps>(({
     children,
+    dirty,
     isLoading = false,
-    onSubmit,
-    style,
-}: BaseFormProps) => {
+    promptBeforeUnload = true,
+    style
+}, ref) => {
+    // Check for valid props
+    useEffect(() => {
+        if (promptBeforeUnload && !exists(dirty)) {
+            console.warn('BaseForm: promptBeforeUnload is true but dirty is not defined. This will cause the prompt to never appear.');
+        }
+    }, [promptBeforeUnload, dirty])
+
+    // Alert user if they try to close/refresh the tab with unsaved changes
+    usePromptBeforeUnload({ shouldPrompt: promptBeforeUnload && dirty })
+    // Alert user if they try to close the dialog (if the form is in one) with unsaved changes
+    const handleClose = useCallback((onClose: () => void, closeAnyway?: boolean) => {
+        if (dirty && closeAnyway !== true) {
+            if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+                onClose()
+            }
+        } else {
+            onClose()
+        }
+    }, [dirty])
+    useImperativeHandle(ref, () => ({ handleClose }))
 
     return (
-        <form onSubmit={onSubmit} style={{
+        <Form style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             ...(style ?? {})
-        }}
-        >
-            {isLoading ? <FullPageSpinner /> : children}
-        </form>
+        }}>
+            {/* When loading, display a dark overlay */}
+            {isLoading && <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                zIndex: 1
+            }} />}
+            {children}
+        </Form>
     )
-}
+})

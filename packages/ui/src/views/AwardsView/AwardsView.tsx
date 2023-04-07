@@ -1,12 +1,19 @@
 import { useQuery } from "@apollo/client";
+import { Stack } from "@mui/material";
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult } from "@shared/consts";
 import { AwardKey } from "@shared/translations";
 import { awardFindMany } from "api/generated/endpoints/award_findMany";
-import { AwardCard, AwardList, CardGrid, ContentCollapse, TopBar } from "components";
-import { useEffect, useMemo, useState } from "react";
+import { AwardCard } from "components/cards/AwardCard/AwardCard";
+import { CardGrid } from "components/cards/CardGrid/CardGrid";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AwardDisplay, Wrap } from "types";
-import { awardToDisplay, getUserLanguages, useDisplayApolloError } from "utils";
+import { awardToDisplay } from "utils/display/awardsDisplay";
+import { getUserLanguages } from "utils/display/translationTools";
+import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { SessionContext } from "utils/SessionContext";
 import { AwardsViewProps } from "views/types";
 
 // Category array for sorting
@@ -17,8 +24,8 @@ const categoryList = Object.values(AwardCategory);
 
 export const AwardsView = ({
     display = 'page',
-    session,
 }: AwardsViewProps) => {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
 
@@ -48,35 +55,43 @@ export const AwardsView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Award',
                     titleVariables: { count: 2 },
                 }}
             />
-            {/* Display earned awards as a list of tags. Press or hover to see description */}
-            <ContentCollapse
-                isOpen={true}
-                titleKey="Earned"
-                sxs={{
-                    root: {
-                        marginBottom: 2,
-                    }
-                }}
-            >
-                <AwardList awards={awards.filter(a => Boolean(a.earnedTier))} />
-            </ContentCollapse>
-            {/* Display progress of awards as cards */}
-            <ContentCollapse
-                isOpen={true}
-                titleKey="InProgress"
-            >
-                <CardGrid minWidth={250} disableMargin={true}>
-                    {awards.map((award) => (
-                        <AwardCard key={award.category} award={award} />
-                    ))}
-                </CardGrid>
-            </ContentCollapse>
+            <Stack direction="column" spacing={2} sx={{ margin: 2, padding: 1 }} >
+                {/* Display earned awards as a list of tags. Press or hover to see description */}
+                <ContentCollapse
+                    isOpen={true}
+                    titleKey="Earned"
+                >
+                    <CardGrid minWidth={200} disableMargin={true}>
+                        {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
+                            <AwardCard
+                                key={award.category}
+                                award={award}
+                                isEarned={true}
+                            />
+                        ))}
+                    </CardGrid>
+                </ContentCollapse>
+                {/* Display progress of awards as cards */}
+                <ContentCollapse
+                    isOpen={true}
+                    titleKey="InProgress"
+                >
+                    <CardGrid minWidth={200} disableMargin={true}>
+                        {awards.map((award) => (
+                            <AwardCard
+                                key={award.category}
+                                award={award}
+                                isEarned={false}
+                            />
+                        ))}
+                    </CardGrid>
+                </ContentCollapse>
+            </Stack>
         </>
     )
 }

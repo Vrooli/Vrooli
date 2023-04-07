@@ -29,7 +29,6 @@ mutation quizUpdate($input: QuizUpdateInput!) {
                     }
                     score
                     bookmarks
-                    views
                     attemptsCount
                     quizQuestionsCount
                     project {
@@ -94,6 +93,7 @@ mutation quizUpdate($input: QuizUpdateInput!) {
                 language
                 description
                 jsonVariable
+                name
             }
         }
         you {
@@ -128,7 +128,6 @@ mutation quizUpdate($input: QuizUpdateInput!) {
     }
     score
     bookmarks
-    views
     attemptsCount
     quizQuestionsCount
     project {

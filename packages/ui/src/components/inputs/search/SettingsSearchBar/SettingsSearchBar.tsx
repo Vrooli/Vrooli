@@ -2,7 +2,7 @@ import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, Auto
 import { SearchIcon } from '@shared/icons';
 import { ChangeEvent, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { findSearchResults, SearchItem, shapeSearchText } from 'utils';
+import { findSearchResults, SearchItem, shapeSearchText } from 'utils/search/siteToSearch';
 import { SettingsSearchBarProps } from '../types';
 
 const FullWidthPopper = function (props) {
@@ -19,11 +19,10 @@ export const SettingsSearchBar = ({
     onChange,
     onInputChange,
     placeholder = 'Search...',
-    session,
     value,
     ...props
 }: SettingsSearchBarProps) => {
-    console.log('settingssearchbar starttt', {...options})
+    console.log('settingssearchbar starttt', { ...options })
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -148,11 +147,11 @@ export const SettingsSearchBar = ({
             renderInput={(params) => (
                 <Paper
                     component="form"
-                    sx={{ 
-                        p: '2px 4px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        borderRadius: '10px' 
+                    sx={{
+                        p: '2px 4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        borderRadius: '10px'
                     }}
                 >
                     <Input

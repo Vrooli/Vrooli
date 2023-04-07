@@ -1,10 +1,15 @@
 import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, hasObjectChanged, shapeStandardVersion, shapeUpdate, StandardVersionShape, updatePrims, updateRel } from "utils";
+import { hasObjectChanged } from "../general";
+import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
-export type RoutineVersionInputTranslationShape = Pick<RoutineVersionInputTranslation, 'id' | 'language' | 'description' | 'helpText'>
+export type RoutineVersionInputTranslationShape = Pick<RoutineVersionInputTranslation, 'id' | 'language' | 'description' | 'helpText'> & {
+    __typename?: 'RoutineVersionInputTranslation';
+}
 
 export type RoutineVersionInputShape = Pick<RoutineVersionInput, 'id' | 'index' | 'isRequired' | 'name'> & {
+    __typename?: 'RoutineVersionInput';
     routineVersion: { id: string };
     standardVersion?: StandardVersionShape | null;
     translations?: RoutineVersionInputTranslationShape[] | null;
@@ -24,7 +29,7 @@ export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, Rout
             ...createPrims(d, 'id', 'index', 'isRequired', 'name'),
             ...createRel(d, 'routineVersion', ['Connect'], 'one'),
             standardVersionConnect: shouldConnectToStandard ? d.standardVersion!.id : undefined,
-            standardCreate: d.standardVersion && !shouldConnectToStandard ? shapeStandardVersion.create(d.standardVersion) : undefined,
+            standardVersionCreate: d.standardVersion && !shouldConnectToStandard ? shapeStandardVersion.create(d.standardVersion) : undefined,
             ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionInputTranslation),
         }
     },
@@ -35,8 +40,8 @@ export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, Rout
         const hasStandardChanged = hasObjectChanged(o.standardVersion, u.standardVersion);
         return {
             ...updatePrims(o, u, 'id', 'index', 'isRequired', 'name'),
-            standardConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
-            standardCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.update(o.standardVersion!, u.standardVersion!) : undefined,
+            standardVersionConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
+            standardVersionCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.create(u.standardVersion!) : undefined,
             ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionInputTranslation),
         }
     }, a)

@@ -7,6 +7,7 @@
     "description": "Translations for error messages, labels, etc.",
     "main": "dist/index.js",
     "typings": "src/types.d.ts",
+    "sideEffects": false,
     "type": "commonjs",
     "scripts": {
         "build": "yarn tsc"

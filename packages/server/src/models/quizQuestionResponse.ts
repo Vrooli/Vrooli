@@ -1,15 +1,15 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { getSingleTypePermissions } from "../validators";
-import { QuizQuestionModel } from "./quizQuestion";
-import { noNull, selPad, shapeHelper } from "../builders";
-import i18next from "i18next";
 import { quizQuestionResponseValidation } from "@shared/validation";
+import i18next from "i18next";
+import { noNull, selPad, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
 import { defaultPermissions } from "../utils";
+import { getSingleTypePermissions } from "../validators";
 import { QuizAttemptModel } from "./quizAttempt";
+import { QuizQuestionModel } from "./quizQuestion";
+import { ModelLogic } from "./types";
 
 const __typename = 'QuizQuestionResponse' as const;
 type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canUpdate'>;
@@ -96,8 +96,8 @@ export const QuizQuestionResponseModel: ModelLogic<{
         isPublic: (data, languages) => QuizAttemptModel.validate!.isPublic(data.quizAttempt as any, languages),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data) => QuizAttemptModel.validate!.owner(data.quizAttempt as any),
-        permissionResolvers: (params) => defaultPermissions(params),
+        owner: (data, userId) => QuizAttemptModel.validate!.owner(data.quizAttempt as any, userId),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             quizAttempt: 'QuizAttempt',

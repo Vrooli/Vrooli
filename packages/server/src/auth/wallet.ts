@@ -1,7 +1,7 @@
 import * as Serialization from '@emurgo/cardano-serialization-lib-nodejs';
-import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signing';
 import { randomBytes } from 'crypto';
 import { logger } from '../events/logger';
+import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signing';
 
 /**
  * Converts a serialized wallet address to Bech32 format

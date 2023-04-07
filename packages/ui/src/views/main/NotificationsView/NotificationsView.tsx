@@ -1,19 +1,17 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Header, TopBar } from 'components';
-import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
-import { Box, Button, List, ListItem, Typography, useTheme } from '@mui/material';
-import { NotificationsViewProps } from '../types';
-import { useTranslation } from 'react-i18next';
-import { getUserLanguages, useDisplayApolloError } from 'utils';
-import { Wrap } from 'types';
-import { LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
-import { useLocation } from '@shared/route';
 import { useQuery } from '@apollo/client';
+import { Box, List, ListItem, Typography, useTheme } from '@mui/material';
+import { Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { notificationFindMany } from 'api/generated/endpoints/notification_findMany';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Wrap } from 'types';
+import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
+import { NotificationsViewProps } from '../types';
 
 export const NotificationsView = ({
     display = 'page',
-    session
 }: NotificationsViewProps) => {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -47,8 +45,7 @@ export const NotificationsView = ({
         <>
             <TopBar
                 display={display}
-                onClose={() => {}}
-                session={session}
+                onClose={() => { }}
                 titleData={{
                     titleKey: 'Notification',
                     titleVariables: { count: 2 },

@@ -1,8 +1,8 @@
+import { FindByIdInput, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum LabelSortBy {
@@ -35,16 +35,14 @@ export const typeDef = gql`
         projectsDisconnect: [ID!]
         routinesConnect: [ID!]
         routinesDisconnect: [ID!]
-        runProjectSchedulesConnect: [ID!]
-        runProjectSchedulesDisconnect: [ID!]
-        runRoutineSchedulesConnect: [ID!]
-        runRoutineSchedulesDisconnect: [ID!]
+        schedulesConnect: [ID!]
+        schedulesDisconnect: [ID!]
         smartContractsConnect: [ID!]
         smartContractsDisconnect: [ID!]
         standardsConnect: [ID!]
         standardsDisconnect: [ID!]
-        userSchedulesConnect: [ID!]
-        userSchedulesDisconnect: [ID!]
+        focusModesConnect: [ID!]
+        focusModesDisconnect: [ID!]
         translationsDelete: [ID!]
         translationsCreate: [LabelTranslationCreateInput!]
         translationsUpdate: [LabelTranslationUpdateInput!]
@@ -57,6 +55,8 @@ export const typeDef = gql`
         color: String
         apis: [Api!]
         apisCount: Int!
+        focusModes: [FocusMode!]
+        focusModesCount: Int!
         issues: [Issue!]
         issuesCount: Int!
         meetings: [Meeting!]
@@ -68,16 +68,12 @@ export const typeDef = gql`
         projectsCount: Int!
         routines: [Routine!]
         routinesCount: Int!
-        runProjectSchedules: [RunProjectSchedule!]
-        runProjectSchedulesCount: Int!
-        runRoutineSchedules: [RunRoutineSchedule!]
-        runRoutineSchedulesCount: Int!
+        schedules: [Schedule!]
+        schedulesCount: Int!
         smartContracts: [SmartContract!]
         smartContractsCount: Int!
         standards: [Standard!]
         standardsCount: Int!
-        userSchedules: [UserSchedule!]
-        userSchedulesCount: Int!
         translations: [LabelTranslation!]!
         translationsCount: Int!
         you: LabelYou!

@@ -2,34 +2,29 @@
  * Displays all search options for an organization
  */
 import {
-    Button,
-    Dialog,
-    Grid,
-    Stack,
-    Switch,
-    Typography,
-    useTheme
+    Button, Grid,
+    Stack, Typography
 } from '@mui/material';
-import { CookieSettingsDialogProps } from '../types';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { ToggleSwitch } from 'components/inputs/ToggleSwitch/ToggleSwitch';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useFormik } from 'formik';
-import { DialogTitle, HelpButton, LargeDialog } from 'components';
-import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
 import { useTranslation } from 'react-i18next';
+import { CookiePreferences, setCookiePreferences } from 'utils/cookies';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { CookieSettingsDialogProps } from '../types';
 
 const titleId = 'cookie-settings-dialog-title';
 const strictlyNecessaryUses = ['Authentication'] as const;
-const functionalUses = ['Theme', 'Font Size'] as const;
+const functionalUses = ['Theme', 'FontSize'] as const;
 
-//TODO not fully translated
 export const CookieSettingsDialog = ({
     handleClose,
     isOpen,
 }: CookieSettingsDialogProps) => {
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     const setPreferences = (preferences: CookiePreferences) => {
-        console.log('in setcookiepreferences', preferences);
         // Set preference in local storage
         setCookiePreferences(preferences);
         // Close dialog
@@ -66,30 +61,24 @@ export const CookieSettingsDialog = ({
             isOpen={isOpen}
             onClose={onCancel}
             titleId={titleId}
-            zIndex={1234}
+            zIndex={30000}
         >
-            {/* Title */}
-            <DialogTitle
-                id={titleId}
-                title={t(`CookieSettings`)}
+            <TopBar
+                display="dialog"
                 onClose={onCancel}
+                titleData={{ titleId, titleKey: 'CookieSettings' }}
             />
             <form onSubmit={formik.handleSubmit} style={{ padding: '16px' }}>
-                {/* Description of cookies and why we use them */}
-                <Typography variant="body1" mb={4}>
-                    {t(`CookieSettings`)}
-                </Typography>
                 {/* Strictly necessary */}
-                <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
+                <Stack direction="column" spacing={2} sx={{ marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t(`CookieStrictlyNecessary`)}</Typography>
                         <HelpButton markdown={t(`CookieStrictlyNecessaryDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.strictlyNecessary}
                             onChange={formik.handleChange}
                             name="strictlyNecessary"
-                            // Can't turn off
-                            disabled
+                            disabled // Can't turn off
                             sx={{
                                 position: 'absolute',
                                 right: '16px',
@@ -97,7 +86,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: {strictlyNecessaryUses.join(', ')}
+                        {t('CurrentUses')}: {strictlyNecessaryUses.map((use) => t(use)).join(', ')}
                     </Typography>
                 </Stack>
                 {/* Performance */}
@@ -105,10 +94,10 @@ export const CookieSettingsDialog = ({
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t('Performance')}</Typography>
                         <HelpButton markdown={t(`CookiePerformanceDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.performance}
-                            onChange={formik.handleChange}
                             name="performance"
+                            onChange={formik.handleChange}
                             sx={{
                                 position: 'absolute',
                                 right: '16px',
@@ -116,7 +105,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: <b>None</b>
+                        {t('CurrentUses')}: <b>{t('None')}</b>
                     </Typography>
                 </Stack>
                 {/* Functional */}
@@ -124,10 +113,10 @@ export const CookieSettingsDialog = ({
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t('Functional')}</Typography>
                         <HelpButton markdown={t(`CookieFunctionalDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.functional}
-                            onChange={formik.handleChange}
                             name="functional"
+                            onChange={formik.handleChange}
                             sx={{
                                 position: 'absolute',
                                 right: '16px',
@@ -135,7 +124,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: {functionalUses.join(', ')}
+                        {t('CurrentUses')}: {functionalUses.map((use) => t(use)).join(', ')}
                     </Typography>
                 </Stack>
                 {/* Targeting */}
@@ -143,10 +132,10 @@ export const CookieSettingsDialog = ({
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t('Targeting')}</Typography>
                         <HelpButton markdown={t(`CookieTargetingDescription`)} />
-                        <Switch
+                        <ToggleSwitch
                             checked={formik.values.targeting}
-                            onChange={formik.handleChange}
                             name="targeting"
+                            onChange={formik.handleChange}
                             sx={{
                                 position: 'absolute',
                                 right: '16px',
@@ -154,7 +143,7 @@ export const CookieSettingsDialog = ({
                         />
                     </Stack>
                     <Typography variant="body1">
-                        Current uses: <b>None</b>
+                        {t('CurrentUses')}: <b>{t('None')}</b>
                     </Typography>
                 </Stack>
                 {/* Search/Cancel buttons */}

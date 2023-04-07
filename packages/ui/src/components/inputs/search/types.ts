@@ -1,8 +1,7 @@
 import { InputProps } from '@mui/material';
-import { Session } from '@shared/consts';
 import { CommonKey } from '@shared/translations';
 import { AutocompleteOption } from 'types';
-import { SearchItem } from 'utils';
+import { SearchItem } from 'utils/search/siteToSearch';
 
 export type SiteSearchBarProps = InputProps & {
     debounce?: number;
@@ -12,7 +11,6 @@ export type SiteSearchBarProps = InputProps & {
     onInputChange: (newValue: AutocompleteOption) => any;
     options?: AutocompleteOption[];
     placeholder?: CommonKey;
-    session: Session | undefined;
     showSecondaryLabel?: boolean;
     value: string;
     sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
@@ -25,6 +23,5 @@ export type SettingsSearchBarProps = InputProps & {
     onChange: (updatedText: string) => any;
     onInputChange: (newValue: SearchItem) => any;
     placeholder?: string;
-    session: Session | undefined;
     value: string;
 }

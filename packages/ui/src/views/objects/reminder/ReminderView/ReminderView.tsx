@@ -1,17 +1,19 @@
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material"
-import { useLocation } from '@shared/route';
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { FindByIdInput, Reminder } from "@shared/consts";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
-import { ObjectActionMenu, TopBar } from "components";
-import { ReminderViewProps } from "../types";
-import { placeholderColor, useObjectActions, useObjectFromUrl } from "utils";
 import { EllipsisIcon, HelpIcon } from "@shared/icons";
+import { useLocation } from '@shared/route';
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { TopBar } from "components/navigation/TopBar/TopBar";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { placeholderColor } from "utils/display/listTools";
+import { useObjectActions } from "utils/hooks/useObjectActions";
+import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { ReminderViewProps } from "../types";
 
 export const ReminderView = ({
     display = 'page',
     partialData,
-    session,
     zIndex = 200,
 }: ReminderViewProps) => {
     const { palette } = useTheme();
@@ -38,7 +40,6 @@ export const ReminderView = ({
     const actionData = useObjectActions({
         object: reminder,
         objectType: 'Reminder',
-        session,
         setLocation,
         setObject: setReminder,
     });
@@ -99,7 +100,6 @@ export const ReminderView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'Reminder',
                 }}
@@ -110,7 +110,6 @@ export const ReminderView = ({
                 anchorEl={moreMenuAnchor}
                 object={reminder as any}
                 onClose={closeMoreMenu}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{

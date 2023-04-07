@@ -1,25 +1,118 @@
 import gql from 'graphql-tag';
-import { Label_full } from '../fragments/Label_full';
-import { Label_list } from '../fragments/Label_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
+import { Schedule_common } from '../fragments/Schedule_common';
 
-export const authValidateSession = gql`${Label_full}
-${Label_list}
-${Organization_nav}
-${User_nav}
+export const authValidateSession = gql`${Schedule_common}
 
 mutation validateSession($input: ValidateSessionInput!) {
   validateSession(input: $input) {
     isLoggedIn
     timeZone
     users {
-        handle
-        hasPremium
-        id
-        languages
-        name
-        schedules {
+        activeFocusMode {
+            mode {
+                filters {
+                    id
+                    filterType
+                    tag {
+                        id
+                        created_at
+                        tag
+                        bookmarks
+                        translations {
+                            id
+                            language
+                            description
+                        }
+                        you {
+                            isOwn
+                            isBookmarked
+                        }
+                    }
+                    focusMode {
+                        labels {
+                            id
+                            color
+                            label
+                        }
+                        schedule {
+                            ...Schedule_common
+                        }
+                        id
+                        name
+                        description
+                    }
+                }
+                labels {
+                    id
+                    color
+                    label
+                }
+                reminderList {
+                    id
+                    created_at
+                    updated_at
+                    reminders {
+                        id
+                        created_at
+                        updated_at
+                        name
+                        description
+                        dueDate
+                        index
+                        isComplete
+                        reminderItems {
+                            id
+                            created_at
+                            updated_at
+                            name
+                            description
+                            dueDate
+                            index
+                            isComplete
+                        }
+                    }
+                }
+                resourceList {
+                    id
+                    created_at
+                    translations {
+                        id
+                        language
+                        description
+                        name
+                    }
+                    resources {
+                        id
+                        index
+                        link
+                        usedFor
+                        translations {
+                            id
+                            language
+                            description
+                            name
+                        }
+                    }
+                }
+                schedule {
+                    ...Schedule_common
+                }
+                id
+                name
+                description
+            }
+            stopCondition
+            stopTime
+        }
+        apisCount
+        bookmarkLists {
+            id
+            created_at
+            updated_at
+            label
+            bookmarksCount
+        }
+        focusModes {
             filters {
                 id
                 filterType
@@ -38,23 +131,24 @@ mutation validateSession($input: ValidateSessionInput!) {
                         isBookmarked
                     }
                 }
-                userSchedule {
+                focusMode {
                     labels {
-                        ...Label_list
+                        id
+                        color
+                        label
+                    }
+                    schedule {
+                        ...Schedule_common
                     }
                     id
                     name
                     description
-                    timeZone
-                    eventStart
-                    eventEnd
-                    recurring
-                    recurrStart
-                    recurrEnd
                 }
             }
             labels {
-                ...Label_full
+                id
+                color
+                label
             }
             reminderList {
                 id
@@ -81,16 +175,47 @@ mutation validateSession($input: ValidateSessionInput!) {
                     }
                 }
             }
+            resourceList {
+                id
+                created_at
+                translations {
+                    id
+                    language
+                    description
+                    name
+                }
+                resources {
+                    id
+                    index
+                    link
+                    usedFor
+                    translations {
+                        id
+                        language
+                        description
+                        name
+                    }
+                }
+            }
+            schedule {
+                ...Schedule_common
+            }
             id
             name
             description
-            timeZone
-            eventStart
-            eventEnd
-            recurring
-            recurrStart
-            recurrEnd
         }
+        handle
+        hasPremium
+        id
+        languages
+        membershipsCount
+        name
+        notesCount
+        projectsCount
+        questionsAskedCount
+        routinesCount
+        smartContractsCount
+        standardsCount
         theme
     }
   }

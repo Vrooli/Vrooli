@@ -1,20 +1,23 @@
 /**
  * Displays a list of wallets for the user to manage
  */
-import { WalletListProps } from '../types';
-import { useCallback, useState } from 'react';
 import { Box, Button } from '@mui/material';
+import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
+import { AddIcon } from '@shared/icons';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { walletUpdate } from 'api/generated/endpoints/wallet_update';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
-import { PubSub, updateArray } from 'utils';
-import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { WalletListItem } from '../WalletListItem/WalletListItem';
-import { ListContainer, WalletInstallDialog, WalletSelectDialog } from 'components';
-import { AddIcon } from '@shared/icons';
-import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
-import { walletUpdate } from 'api/generated/endpoints/wallet_update';
-import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { ListContainer } from 'components/containers/ListContainer/ListContainer';
+import { WalletInstallDialog } from 'components/dialogs/WalletInstallDialog/WalletInstallDialog';
+import { WalletSelectDialog } from 'components/dialogs/WalletSelectDialog/WalletSelectDialog';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
+import { PubSub } from 'utils/pubsub';
+import { updateArray } from 'utils/shape/general';
+import { WalletListProps } from '../types';
+import { WalletListItem } from '../WalletListItem/WalletListItem';
 
 export const WalletList = ({
     handleUpdate,
@@ -176,6 +179,7 @@ export const WalletList = ({
             <ListContainer
                 emptyText={t(`NoWallets`, { ns: 'error' })}
                 isEmpty={list.length === 0}
+                sx={{ maxWidth: '500px' }}
             >
                 {/* Wallet list */}
                 {list.map((w: Wallet, index) => (

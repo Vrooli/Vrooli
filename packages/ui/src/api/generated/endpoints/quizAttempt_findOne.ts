@@ -28,7 +28,6 @@ query quizAttempt($input: FindByIdInput!) {
                 }
                 score
                 bookmarks
-                views
                 attemptsCount
                 quizQuestionsCount
                 project {
@@ -85,7 +84,6 @@ query quizAttempt($input: FindByIdInput!) {
         }
         score
         bookmarks
-        views
         attemptsCount
         quizQuestionsCount
         project {

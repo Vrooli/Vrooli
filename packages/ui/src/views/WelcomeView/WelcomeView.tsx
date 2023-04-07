@@ -1,14 +1,15 @@
-import { LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
-import { openLink, useLocation } from '@shared/route';
-import { clickSize } from 'styles';
-import { useEffect } from 'react';
-import { PubSub } from 'utils';
+import { LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
-import { checkIfLoggedIn } from 'utils/authentication';
+import { openLink, useLocation } from '@shared/route';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useContext, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { clickSize } from 'styles';
+import { checkIfLoggedIn } from 'utils/authentication/session';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 import { WelcomeViewProps } from '../types';
-import { TopBar } from 'components';
 
 const buttonProps = {
     height: "48px",
@@ -27,8 +28,8 @@ const buttonProps = {
 
 export const WelcomeView = ({
     display = 'page',
-    session
 }: WelcomeViewProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -48,7 +49,6 @@ export const WelcomeView = ({
             <TopBar
                 display={display}
                 onClose={() => { }}
-                session={session}
                 titleData={{
                     titleKey: 'WelcomeToVrooli',
                 }}

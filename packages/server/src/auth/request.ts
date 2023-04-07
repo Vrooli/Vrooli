@@ -1,12 +1,11 @@
-import jwt from 'jsonwebtoken';
-import { Request, Response, NextFunction } from 'express';
-import { COOKIE } from '@shared/consts';
-import { CustomError } from '../events/error';
-import { Session, SessionUser } from '@shared/consts';
-import { RecursivePartial } from '../types';
-import { logger } from '../events/logger';
-import { isSafeOrigin } from '../utils';
+import { COOKIE, Session, SessionUser } from '@shared/consts';
 import { uuidValidate } from '@shared/uuid';
+import { NextFunction, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { CustomError } from '../events/error';
+import { logger } from '../events/logger';
+import { RecursivePartial } from '../types';
+import { isSafeOrigin } from '../utils';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 

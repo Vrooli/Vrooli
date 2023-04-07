@@ -1,11 +1,11 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
+import { TimeFrame } from "@shared/consts";
+import { HistoryIcon as TimeIcon } from '@shared/icons';
+import { TimeMenu } from "components/lists/TimeMenu/TimeMenu";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { searchButtonStyle } from "../styles";
 import { TimeButtonProps } from "../types";
-import { HistoryIcon as TimeIcon } from '@shared/icons';
-import { TimeFrame } from "@shared/consts";
-import { TimeMenu } from "components/lists";
 
 export const TimeButton = ({
     setTimeFrame,

@@ -1,5 +1,5 @@
 import pkg, { PeriodType } from '@prisma/client';
-import { CustomError } from '../../events';
+import { logger } from '../../events';
 const { PrismaClient } = pkg;
 
 /**
@@ -60,7 +60,7 @@ export const logSmartContractStats = async (
             });
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        throw new CustomError('0424', 'InternalError', ['en'], { error });
+        logger.error('Caught error logging smart contract statistics', { trace: '0424', periodType, periodStart, periodEnd });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
