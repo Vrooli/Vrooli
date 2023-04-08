@@ -71,6 +71,32 @@ npm install -g yarn
 header "Installing global dependencies"
 yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.11.0 vite
 
+if ! command -v docker &>/dev/null; then
+    info "Docker is not installed. Installing Docker..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    # Check if Docker installation failed
+    if ! command -v docker &>/dev/null; then
+        echo "Error: Docker installation failed."
+        exit 1
+    fi
+else
+    info "Detected: $(docker --version)"
+fi
+
+if ! command -v docker-compose &>/dev/null; then
+    info "Docker Compose is not installed. Installing Docker Compose..."
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    # Check if Docker Compose installation failed
+    if ! command -v docker-compose &>/dev/null; then
+        echo "Error: Docker Compose installation failed."
+        exit 1
+    fi
+else
+    info "Detected: $(docker-compose --version)"
+fi
+
 # If reinstalling modules, delete all node_modules directories
 if [ -z "${REINSTALL_MODULES}" ]; then
     prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
