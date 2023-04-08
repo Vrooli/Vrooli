@@ -123,7 +123,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                     ref={ref}
                     style={{
                         display: 'block',
-                        width: 'min(700px, 100vw - 16px)',
+                        width: 'min(500px, 100vw - 16px)',
                         margin: 'auto',
                         paddingLeft: 'env(safe-area-inset-left)',
                         paddingRight: 'env(safe-area-inset-right)',

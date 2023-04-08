@@ -84,11 +84,11 @@ export const typeDef = gql`
     input FocusModeSearchInput {
         after: String
         createdTimeFrame: TimeFrame
-        eventStartTimeFrame: TimeFrame
-        eventEndTimeFrame: TimeFrame
         ids: [ID!]
         recurrStartTimeFrame: TimeFrame
         recurrEndTimeFrame: TimeFrame
+        scheduleStartTimeFrame: TimeFrame
+        scheduleEndTimeFrame: TimeFrame
         searchString: String
         sortBy: FocusModeSortBy
         labelsIds: [ID!]

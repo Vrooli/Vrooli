@@ -2,7 +2,7 @@ import { AppBar, Box, Stack, useTheme } from '@mui/material';
 import { BUSINESS_NAME, LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { Header } from 'components/text/Header/Header';
-import { useCallback, useEffect, useMemo } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo } from 'react';
 import { noSelect } from 'styles';
 import { useDimensions } from 'utils/hooks/useDimensions';
 import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
@@ -29,16 +29,16 @@ import { NavbarLogoState, NavbarProps } from '../types';
  * be passed in. This is useful for displaying a search bar, page tabs, etc. This 
  * content is inside the navbar on small screens, and below the navbar on large screens.
  */
-export const Navbar = ({
+export const Navbar = forwardRef(({
     shouldHideTitle = false,
     title,
     help,
     below,
-}: NavbarProps) => {
+}: NavbarProps, ref) => {
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { dimensions, ref } = useDimensions();
+    const { dimensions, ref: dimRef } = useDimensions();
 
     const toHome = useCallback(() => setLocation(LINKS.Home), [setLocation]);
     const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
@@ -77,11 +77,11 @@ export const Navbar = ({
     ), [isLeftHanded, isMobile, logoState, toHome]);
 
     return (
-        <Box id='navbar' sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
+        <Box id='navbar' ref={ref} sx={{ paddingTop: `${Math.max(dimensions.height, 64)}px` }}>
             <HideOnScroll>
                 <AppBar
                     onClick={scrollToTop}
-                    ref={ref}
+                    ref={dimRef}
                     sx={{
                         ...noSelect,
                         background: palette.primary.dark,
@@ -126,4 +126,4 @@ export const Navbar = ({
             {!isMobile && below}
         </Box>
     );
-}
+})

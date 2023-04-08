@@ -876,12 +876,12 @@ export enum FocusModeFilterType {
 export type FocusModeSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
-  eventEndTimeFrame?: InputMaybe<TimeFrame>;
-  eventStartTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   recurrEndTimeFrame?: InputMaybe<TimeFrame>;
   recurrStartTimeFrame?: InputMaybe<TimeFrame>;
+  scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
+  scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<FocusModeSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -7485,11 +7485,11 @@ export type ScheduleSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   endTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  scheduleForUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ScheduleSortBy>;
   startTimeFrame?: InputMaybe<TimeFrame>;
   take?: InputMaybe<Scalars['Int']>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };

@@ -71,7 +71,7 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
     fi
     # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
     if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
-        # Start proxy containers
+        info "Starting proxy containers..."
         cd "${NGINX_LOCATION}" && docker-compose up -d
     else
         error "Could not find docker-compose.yml file in ${NGINX_LOCATION}"

@@ -26,7 +26,7 @@ import { TagList } from '../TagList/TagList';
 import { TextLoading } from '../TextLoading/TextLoading';
 import { ObjectListItemProps } from '../types';
 
-function CompletionBar(props) {
+export function CompletionBar(props) {
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
             <Box sx={{ width: '100%', mr: 1 }}>

@@ -53,6 +53,7 @@ export * from './ErrorIcon';
 export * from './ExpandLessIcon';
 export * from './ExpandMoreIcon';
 export * from './FacebookIcon';
+export * from './FocusModeIcon';
 export * from './GitHubIcon';
 export * from './GridIcon';
 export * from './Header1Icon';

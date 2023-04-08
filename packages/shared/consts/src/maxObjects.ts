@@ -260,6 +260,13 @@ export const MaxObjects = {
         User: 100000,
         Organization: 0,
     },
+    Reminder: {
+        User: {
+            noPremium: 200,
+            premium: 10000,
+        },
+        Organization: 0,
+    },
     ReminderList: {
         User: {
             noPremium: 25,

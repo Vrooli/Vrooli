@@ -1,6 +1,6 @@
 import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
-import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, ResourceList } from '@shared/consts';
+import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { calculateOccurrences } from '@shared/utils';
 import { DUMMY_ID, uuid } from '@shared/uuid';
@@ -222,6 +222,19 @@ export const DashboardView = ({
             zIndex,
         })
     }, [beforeNavigation, data?.home?.schedules, loading, session]);
+
+    const [reminders, setReminders] = useState<Reminder[]>([]);
+    useEffect(() => {
+        if (data?.home?.reminders) {
+            console.log('setting reminders', data.home.reminders);
+            setReminders(data.home.reminders);
+        }
+    }, [data]);
+    const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
+        console.log('updated reminders', updatedReminders)
+        setReminders(updatedReminders);
+    }, []);
+
     return (
         <PageContainer>
             {/* Create note dialog */}
@@ -289,10 +302,11 @@ export const DashboardView = ({
                 </ListTitleContainer>
                 {/* Reminders */}
                 <ReminderList
+                    handleUpdate={handleReminderUpdate}
                     loading={loading}
                     // Use list of first reminder we find associated with the active focus mode
-                    listId={data?.home?.reminders.find((r) => r.reminderList?.focusMode?.id === activeFocusMode?.mode?.id)?.reminderList?.focusMode?.id}
-                    reminders={data?.home?.reminders ?? []}
+                    listId={data?.home?.reminders.find((r) => r.reminderList?.focusMode?.id === activeFocusMode?.mode?.id)?.reminderList?.id}
+                    reminders={reminders}
                     zIndex={zIndex}
                 />
                 {/* Notes */}

@@ -1,6 +1,6 @@
 import { useTheme } from '@mui/material';
 import { Schedule, ScheduleSearchResult } from '@shared/consts';
-import { AddIcon } from '@shared/icons';
+import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from '@shared/icons';
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { calculateOccurrences } from '@shared/utils';
@@ -20,29 +20,36 @@ import { CalendarEvent } from 'types';
 import { getCurrentUser } from 'utils/authentication/session';
 import { getDisplay } from 'utils/display/listTools';
 import { getUserLanguages, getUserLocale, loadLocale } from 'utils/display/translationTools';
+import { useDimensions } from 'utils/hooks/useDimensions';
 import { useFindMany } from 'utils/hooks/useFindMany';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { CalendarPageTabOption } from 'utils/search/objectToSearch';
 import { SessionContext } from 'utils/SessionContext';
 import { CalendarViewProps } from 'views/types';
 
 // Tab data type
 type BaseParams = {
+    Icon: (props: SvgProps) => JSX.Element,
     titleKey: CommonKey;
     tabType: CalendarPageTabOption;
 }
 
 // Data for each tab
 const tabParams: BaseParams[] = [{
+    Icon: OrganizationIcon,
     titleKey: 'Meeting',
     tabType: CalendarPageTabOption.Meetings,
 }, {
+    Icon: RoutineIcon,
     titleKey: 'Routine',
     tabType: CalendarPageTabOption.Routines,
 }, {
+    Icon: ProjectIcon,
     titleKey: 'Project',
     tabType: CalendarPageTabOption.Projects,
 }, {
-    titleKey: 'FocusModeShort',
+    Icon: FocusModeIcon,
+    titleKey: 'FocusMode',
     tabType: CalendarPageTabOption.FocusModes,
 }];
 
@@ -181,7 +188,7 @@ export const CalendarView = ({
     display = 'page',
 }: CalendarViewProps) => {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const locale = useMemo(() => getUserLocale(session), [session]);
@@ -215,28 +222,10 @@ export const CalendarView = ({
         localeLoader();
     }, [locale]);
 
-    // Track heights used to calculate calendar height
-    const [heights, setHeights] = useState<{
-        topBar: number;
-        bottomNav: number;
-    }>({
-        topBar: document.getElementById('navbar')?.clientHeight ?? 0,
-        bottomNav: document.getElementById('bottom-nav')?.clientHeight ?? 0,
-    });
-    useEffect(() => {
-        const handleResize = () => {
-            const topBarHeight = document.getElementById('navbar')?.clientHeight ?? 0;
-            const bottomNavHeight = document.getElementById('bottom-nav')?.clientHeight ?? 0;
-            console.log('topBarHeight', document.getElementById('navbar'));
-            console.log('bottomNavHeight', document.getElementById('bottom-nav'));
-            setHeights({ topBar: topBarHeight, bottomNav: bottomNavHeight });
-        };
-        window.addEventListener('resize', handleResize);
-        return () => {
-            window.removeEventListener('resize', handleResize);
-        };
-    }, []);
-    console.log('heights', heights);
+    // Data for calculating calendar height
+    const { dimensions, ref } = useDimensions();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const calendarHeight = useMemo(() => `calc(100vh - ${dimensions.height}px - ${isMobile ? 56 : 0}px - env(safe-area-inset-bottom))`, [dimensions, isMobile]);
 
     const handleDateRangeChange = useCallback((range: Date[] | { start: Date, end: Date }) => {
         if (Array.isArray(range)) {
@@ -250,6 +239,7 @@ export const CalendarView = ({
     const tabs = useMemo<PageTab<CalendarPageTabOption>[]>(() => {
         return tabParams.map((tab, i) => ({
             index: i,
+            Icon: tab.Icon,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
             value: tab.tabType,
         }));
@@ -296,7 +286,7 @@ export const CalendarView = ({
     // Load more schedules when date range changes
     useEffect(() => {
         if (!loading && hasMore && dateRange.start && dateRange.end) {
-            console.log('LOADING MORE', loading, hasMore)
+            console.log('LOADING MORE', loading, hasMore, dateRange.start, dateRange.end)
             loadMore();
         }
     }, [dateRange, loadMore, loading, hasMore]);
@@ -391,11 +381,10 @@ export const CalendarView = ({
                 </ColorIconButton>
             </SideActionButtons>
             <TopBar
+                ref={ref}
                 display={display}
                 onClose={() => { }}
-                titleData={{
-                    titleKey: 'Calendar',
-                }}
+                titleData={{ title: currTab.label }}
                 below={<PageTabs
                     ariaLabel="calendar-tabs"
                     currTab={currTab}
@@ -413,7 +402,7 @@ export const CalendarView = ({
                 endAccessor="end"
                 views={['month', 'week', 'day']}
                 style={{
-                    height: `calc(100vh - ${heights.topBar}px - ${heights.bottomNav}px - env(safe-area-inset-bottom))`,
+                    height: calendarHeight,
                     background: palette.background.paper,
                 }}
             />

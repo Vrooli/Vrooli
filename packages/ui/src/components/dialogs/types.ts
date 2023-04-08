@@ -1,5 +1,5 @@
 import { DialogProps, PopoverProps } from '@mui/material';
-import { Api, ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, Note, NoteVersion, Organization, Project, ProjectVersion, Reminder, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from '@shared/consts';
+import { Api, ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, Note, NoteVersion, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from 'components/text/types';
@@ -167,20 +167,6 @@ export enum ObjectDialogAction {
     Next = 'Next',
     Previous = 'Previous',
     Save = 'Save',
-}
-
-export interface ReminderDialogProps {
-    /**
-     * Index in reminder list. -1 if new
-     */
-    index: number;
-    isOpen: boolean;
-    listId: string;
-    onClose: () => any;
-    onCreated: (reminder: Reminder) => any;
-    onUpdated: (index: number, reminder: Reminder) => any;
-    partialData?: Partial<Reminder>;
-    zIndex: number;
 }
 
 export interface ReorderInputDialogProps {

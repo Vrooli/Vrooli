@@ -60,8 +60,7 @@ export const SearchMap = {
     createdTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('created_at', time),
     currency: (currency: Maybe<string>) => ({ currency }),
     directoryListingsId: (id: Maybe<string>) => oneToManyId(id, 'directoryListings'),
-    eventEndTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('endTime', time),
-    eventStartTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('startTime', time),
+    endTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('endTime', time),
     excludeIds: (ids: Maybe<string[]>) => ({ NOT: { id: { in: ids } } }),
     excludeLinkedToTag: (exclude: Maybe<boolean>) => exclude === true ? { tagId: null } : {},
     focusModeId: (id: Maybe<string>) => oneToOneId(id, 'focusMode'),
@@ -222,6 +221,58 @@ export const SearchMap = {
     runProjectUserId: (id: Maybe<string>) => ({ runProject: { user: { id } } }),
     runRoutineOrganizationId: (id: Maybe<string>) => ({ runRoutine: { organization: { id } } }),
     runRoutineUserId: (id: Maybe<string>) => ({ runRoutine: { user: { id } } }),
+    scheduleEndTimeFrame: (time: Maybe<TimeFrame>) => ({ schedule: timeFrameToPrisma('endTime', time) }),
+    scheduleStartTimeFrame: (time: Maybe<TimeFrame>) => ({ schedule: timeFrameToPrisma('startTime', time) }),
+    scheduleForUserId: (userId: Maybe<string>) => userId ? ({
+        focusModes: {
+            some: {
+                user: {
+                    id: userId
+                },
+            },
+        },
+        meetings: {
+            some: {
+                OR: [
+                    {
+                        organization: {
+                            members: {
+                                some: {
+                                    user: {
+                                        id: userId
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        invites: {
+                            some: {
+                                user: {
+                                    id: userId
+                                }
+                            }
+                        }
+                    },
+                    {
+                        attendees: {
+                            some: {
+                                user: {
+                                    id: userId
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        runProjects: {
+
+        },
+        runRoutines: {
+
+        },
+    }) : {},
     showOnOrganizationProfile: () => ({ showOnOrganizationProfile: true }),
     silent: (silent: Maybe<boolean>) => ({ silent }),
     smartContractId: (id: Maybe<string>) => oneToOneId(id, 'smartContract'),
@@ -244,6 +295,7 @@ export const SearchMap = {
     standardsIds: (ids: Maybe<string[]>) => oneToManyIds(ids, 'standards'),
     standardVersionId: (id: Maybe<string>) => oneToOneId(id, 'standardVersion'),
     standardVersionsId: (id: Maybe<string>) => oneToManyId(id, 'standardVersions'),
+    startTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('startTime', time),
     startedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('startedAt', time),
     status: <T>(status: Maybe<T>) => ({ status }),
     tagId: (id: Maybe<string>) => oneToOneId(id, 'tag'),

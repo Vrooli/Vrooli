@@ -1,4 +1,6 @@
+import { Box, Button } from "@mui/material";
 import { FindByIdInput, Reminder, ReminderCreateInput, ReminderUpdateInput } from "@shared/consts";
+import { DeleteIcon } from "@shared/icons";
 import { mutationWrapper } from "api";
 import { reminderCreate } from "api/generated/endpoints/reminder_create";
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
@@ -9,6 +11,7 @@ import { Formik } from "formik";
 import { BaseFormRef } from "forms/BaseForm/BaseForm";
 import { ReminderForm, reminderInitialValues, transformReminderValues, validateReminderValues } from "forms/ReminderForm.tsx/ReminderForm";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from "utils/authentication/session";
 import { useUpsertActions } from "utils/hooks/useUpsertActions";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -18,12 +21,16 @@ import { ReminderUpsertProps } from "../types";
 
 export const ReminderUpsert = ({
     display = 'page',
+    handleDelete,
     isCreate,
+    listId,
     onCancel,
     onCompleted,
+    partialData,
     zIndex = 200,
 }: ReminderUpsertProps) => {
     const session = useContext(SessionContext);
+    const { t } = useTranslation();
 
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
@@ -31,7 +38,7 @@ export const ReminderUpsert = ({
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
 
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => reminderInitialValues(session, undefined, existing), [existing, session]);
+    const initialValues = useMemo(() => reminderInitialValues(session, listId, { ...existing, ...partialData } as Reminder), [existing, listId, partialData, session]);
     const { handleCancel, handleCompleted } = useUpsertActions<Reminder>(display, isCreate, onCancel, onCompleted);
     const [create, { loading: isCreateLoading }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
     const [update, { loading: isUpdateLoading }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
@@ -45,6 +52,17 @@ export const ReminderUpsert = ({
                 titleData={{
                     titleKey: isCreate ? 'CreateReminder' : 'UpdateReminder',
                 }}
+                // Show delete button only when updating
+                below={
+                    !isCreate ? (
+                        <Box pb={2} sx={{ display: 'flex', justifyContent: 'center' }}>
+                            <Button
+                                onClick={handleDelete}
+                                startIcon={<DeleteIcon />}
+                            >{t('Delete')}</Button>
+                        </Box>
+                    ) : undefined
+                }
             />
             <Formik
                 enableReinitialize={true}

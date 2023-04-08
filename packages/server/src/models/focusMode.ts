@@ -81,8 +81,8 @@ export const FocusModeModel: ModelLogic<{
         sortBy: FocusModeSortBy,
         searchFields: {
             createdTimeFrame: true,
-            eventStartTimeFrame: true,
-            eventEndTimeFrame: true,
+            scheduleStartTimeFrame: true,
+            scheduleEndTimeFrame: true,
             recurrStartTimeFrame: true,
             recurrEndTimeFrame: true,
             labelsIds: true,

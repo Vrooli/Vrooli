@@ -6,20 +6,21 @@ import {
 } from '@mui/material';
 import { CloseIcon } from '@shared/icons';
 import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
+import { forwardRef } from 'react';
 import { noSelect } from 'styles';
 import { DialogTitleProps } from '../types';
 
-export const DialogTitle = ({
+export const DialogTitle = forwardRef(({
     below,
     helpText,
     id,
     onClose,
     title,
-}: DialogTitleProps) => {
+}: DialogTitleProps, ref) => {
     const { palette } = useTheme();
 
     return (
-        <Box sx={{
+        <Box ref={ref} sx={{
             background: palette.primary.dark,
             color: palette.primary.contrastText,
         }}>
@@ -58,4 +59,4 @@ export const DialogTitle = ({
             {below}
         </Box>
     )
-}
+})

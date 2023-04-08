@@ -2,14 +2,14 @@
  * Displays a list of emails for the user to manage
  */
 import { useTheme } from '@mui/material';
-import { DeleteOneInput, Reminder, Success } from '@shared/consts';
-import { useCustomMutation } from 'api';
+import { DeleteOneInput, DeleteType, Reminder, Success } from '@shared/consts';
+import { mutationWrapper, useCustomMutation } from 'api';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { ListContainer } from 'components/containers/ListContainer/ListContainer';
 import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
-import { ReminderDialog } from 'components/dialogs/ReminderDialog/ReminderDialog';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ReminderUpsert } from 'views/objects/reminder';
 import { ReminderListItem } from '../ReminderListItem/ReminderListItem';
 import { ReminderListProps } from '../types';
 
@@ -28,48 +28,6 @@ export const ReminderList = ({
     useEffect(() => {
         setAllReminders(reminders);
     }, [reminders]);
-    const handleCreated = useCallback((reminder: Reminder) => {
-        setAllReminders([...allReminders, reminder]);
-        handleUpdate && handleUpdate([...allReminders, reminder]);
-    }, [allReminders, handleUpdate]);
-    const handleUpdated = useCallback((index: number, reminder: Reminder) => {
-        const newList = [...allReminders];
-        newList[index] = reminder;
-        setAllReminders(newList);
-        handleUpdate && handleUpdate(newList);
-    }, [allReminders, handleUpdate]);
-
-    // Handle delete
-    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
-    // const onDelete = useCallback((email: Email) => {
-    //     if (loadingDelete) return;
-    //     // Make sure that the user has at least one other authentication method 
-    //     // (i.e. one other email or one other wallet)
-    //     if (list.length <= 1 && numVerifiedWallets === 0) {
-    //         PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: 'Error' });
-    //         return;
-    //     }
-    //     // Confirmation dialog
-    //     PubSub.get().publishAlertDialog({
-    //         messageKey: 'EmailDeleteConfirm',
-    //         messageVariables: { emailAddress: email.emailAddress },
-    //         buttons: [
-    //             {
-    //                 labelKey: 'Yes',
-    //                 onClick: () => {
-    //                     mutationWrapper<Success, DeleteOneInput>({
-    //                         mutation: deleteMutation,
-    //                         input: { id: email.id, objectType: DeleteType.Email },
-    //                         onSuccess: () => {
-    //                             handleUpdate([...list.filter(w => w.id !== email.id)])
-    //                         },
-    //                     })
-    //                 }
-    //             },
-    //             { labelKey: 'Cancel', onClick: () => { } },
-    //         ]
-    //     });
-    // }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
@@ -81,39 +39,83 @@ export const ReminderList = ({
         setIsDialogOpen(true)
     }, []);
 
+    const handleCreated = useCallback((reminder: Reminder) => {
+        console.log('REMINDER CREATED', reminder, allReminders)
+        setAllReminders([...allReminders, reminder]);
+        handleUpdate && handleUpdate([...allReminders, reminder]);
+    }, [allReminders, handleUpdate]);
+    const handleUpdated = useCallback((index: number, reminder: Reminder) => {
+        const newList = [...allReminders];
+        newList[index] = reminder;
+        setAllReminders(newList);
+        handleUpdate && handleUpdate(newList);
+    }, [allReminders, handleUpdate]);
+    const handleCompleted = useCallback((reminder: Reminder) => {
+        if (editingIndex >= 0) {
+            handleUpdated(editingIndex, reminder);
+        } else {
+            handleCreated(reminder);
+        }
+        closeDialog();
+    }, []);
+
+    // Handle delete
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
+    const handleDelete = useCallback((index: number) => {
+        const reminder = allReminders[index];
+        mutationWrapper<Success, DeleteOneInput>({
+            mutation: deleteMutation,
+            input: { id: reminder.id, objectType: DeleteType.Reminder },
+            successCondition: (data) => data.success,
+            successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName: reminder.name } }),
+            onSuccess: () => {
+                const newList = [...allReminders];
+                newList.splice(index, 1);
+                setAllReminders(newList);
+                handleUpdate && handleUpdate(newList);
+                closeDialog();
+            },
+            errorMessage: () => ({ key: 'FailedToDelete' }),
+        })
+    }, [allReminders, deleteMutation, handleUpdate, loadingDelete]);
+
     return (
         <>
             {/* Dialog */}
-            <ReminderDialog
-                partialData={editingIndex >= 0 ? reminders[editingIndex as number] : undefined}
-                index={editingIndex}
-                isOpen={isDialogOpen}
-                listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined) ?? ''}
+            <LargeDialog
+                id="reminder-dialog"
                 onClose={closeDialog}
-                onCreated={handleCreated}
-                onUpdated={handleUpdated}
+                isOpen={isDialogOpen}
+                titleId={''}
                 zIndex={zIndex + 1}
-            />
+            >
+                <ReminderUpsert
+                    display="dialog"
+                    partialData={editingIndex >= 0 ? reminders[editingIndex as number] : undefined}
+                    handleDelete={editingIndex >= 0 ? () => handleDelete(editingIndex as number) : () => { }}
+                    isCreate={editingIndex < 0}
+                    listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined)}
+                    onCancel={closeDialog}
+                    onCompleted={handleCompleted}
+                    zIndex={zIndex + 1}
+                />
+            </LargeDialog>
             {/* List */}
             <TitleContainer
                 titleKey="ToDo"
                 options={[['Create', openDialog]]}
             >
-                <ListContainer
-                    isEmpty={reminders.length === 0}
-                    sx={{ maxWidth: '500px' }}
-                >
-                    {/* Existing reminders */}
-                    {reminders.map((reminder, index) => (
-                        <ReminderListItem
-                            key={`reminder-${index}`}
-                            handleDelete={() => { }}
-                            handleUpdate={(updated) => handleUpdated(index, updated)}
-                            reminder={reminder}
-                            zIndex={zIndex}
-                        />
-                    ))}
-                </ListContainer>
+                {/* Existing reminders */}
+                {reminders.map((reminder, index) => (
+                    <ReminderListItem
+                        key={`reminder-${index}`}
+                        handleDelete={() => { }}
+                        handleOpen={() => openUpdateDialog(index)}
+                        handleUpdate={(updated) => handleUpdated(index, updated)}
+                        reminder={reminder}
+                        zIndex={zIndex}
+                    />
+                ))}
             </TitleContainer>
         </>
     )

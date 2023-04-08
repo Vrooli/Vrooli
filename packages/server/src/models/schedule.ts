@@ -73,10 +73,13 @@ export const ScheduleModel: ModelLogic<{
         defaultSort: ScheduleSortBy.StartTimeAsc,
         sortBy: ScheduleSortBy,
         searchFields: {
+            createdTimeFrame: true,
             endTimeFrame: true,
             scheduleForUserId: true,
             startTimeFrame: true,
-        } as any,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
         searchStringQuery: () => ({
             OR: [
                 { focusModes: { some: FocusModeModel.search!.searchStringQuery() } },
