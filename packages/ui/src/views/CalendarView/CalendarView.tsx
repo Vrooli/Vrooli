@@ -261,6 +261,19 @@ export const CalendarView = ({
     }, [setLocation]);
 
     // Find schedules
+    const where = useMemo(() => ({
+        // Only find schedules that hav not ended, 
+        // and will start before the date range ends
+        endTimeFrame: (dateRange.start && dateRange.end) ? {
+            after: dateRange.start.toISOString(),
+            before: add(dateRange.end, { years: 1000 }).toISOString(),
+        } : undefined,
+        startTimeFrame: (dateRange.start && dateRange.end) ? {
+            after: add(dateRange.start, { years: -1000 }).toISOString(),
+            before: dateRange.end.toISOString(),
+        } : undefined,
+        scheduleForUserId: getCurrentUser(session)?.id,
+    }), [dateRange, session]);
     const {
         allData: schedules,
         hasMore,
@@ -269,19 +282,7 @@ export const CalendarView = ({
     } = useFindMany<ScheduleSearchResult>({
         canSearch: true,
         searchType: 'Schedule',
-        where: {
-            // Only find schedules that hav not ended, 
-            // and will start before the date range ends
-            endTimeFrame: (dateRange.start && dateRange.end) ? {
-                after: dateRange.start.toISOString(),
-                before: add(dateRange.end, { years: 1000 }).toISOString(),
-            } : undefined,
-            startTimeFrame: (dateRange.start && dateRange.end) ? {
-                after: add(dateRange.start, { years: -1000 }).toISOString(),
-                before: dateRange.end.toISOString(),
-            } : undefined,
-            scheduleForUserId: getCurrentUser(session)?.id,
-        },
+        where,
     });
     // Load more schedules when date range changes
     useEffect(() => {
