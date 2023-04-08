@@ -1,4 +1,5 @@
 import { ActiveFocusMode, COOKIE, FocusMode, ValueOf } from "@shared/consts";
+import { exists } from "@shared/utils";
 import { getDeviceInfo } from "./display/device";
 
 /**
@@ -27,7 +28,7 @@ export type CookiePreferences = {
     targeting: boolean;
 }
 
-export const getCookie = <T>(name: Cookies, typeCheck: (value: any) => value is T): T | null => {
+export const getCookie = <T>(name: Cookies, typeCheck: (value: any) => value is T): T | undefined => {
     const cookie = localStorage.getItem(name);
     // Try to parse
     try {
@@ -38,11 +39,22 @@ export const getCookie = <T>(name: Cookies, typeCheck: (value: any) => value is 
     } catch (e) {
         console.warn(`Failed to parse cookie ${name}`, cookie);
     }
-    return null;
+    return undefined;
 }
 
 export const setCookie = (name: Cookies, value: any) => {
     localStorage.setItem(name, JSON.stringify(value));
+}
+
+/**
+ * Gets a cookie if it exists, otherwise sets it to the default value. 
+ * Assumes that you have already checked that the cookie is allowed.
+ */
+export const getOrSetCookie = <T>(name: Cookies, typeCheck: (value: any) => value is T, defaultValue?: T): T | undefined => {
+    const cookie = getCookie(name, typeCheck);
+    if (exists(cookie)) return cookie;
+    if (exists(defaultValue)) setCookie(name, defaultValue);
+    return defaultValue;
 }
 
 /**
@@ -96,43 +108,44 @@ export const onlyIfCookieAllowed = (cookieType: keyof CookiePreferences, callbac
     }
 }
 
-export const getCookieTheme = (): 'light' | 'dark' | null =>
+type ThemeType = 'light' | 'dark';
+export const getCookieTheme = <T extends ThemeType | undefined>(fallback?: T): T =>
     onlyIfCookieAllowed('functional', () =>
-        getCookie(Cookies.Theme, (value: any): value is 'light' | 'dark' => value === 'light' || value === 'dark'));
+        getOrSetCookie(Cookies.Theme, (value: any): value is ThemeType => value === 'light' || value === 'dark', fallback));
 
-export const setCookieTheme = (theme: 'light' | 'dark') =>
+export const setCookieTheme = (theme: ThemeType) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.Theme, theme))
 
-export const getCookieFontSize = (): number | null =>
+export const getCookieFontSize = <T extends number | undefined>(fallback?: T): T =>
     onlyIfCookieAllowed('functional', () => {
-        const size = getCookie(Cookies.FontSize, (value: any): value is number => typeof value === 'number');
+        const size = getOrSetCookie(Cookies.FontSize, (value: any): value is number => typeof value === 'number', fallback);
         // Ensure font size is not too small or too large. This would make the UI unusable.
-        return size ? Math.max(8, Math.min(24, size)) : null;
+        return size ? Math.max(8, Math.min(24, size)) : undefined;
     })
 
 export const setCookieFontSize = (fontSize: number) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.FontSize, fontSize))
 
-export const getCookieLanguage = (): string | null =>
-    onlyIfCookieAllowed('functional', () => getCookie(Cookies.Language, (value: any): value is string => typeof value === 'string'));
+export const getCookieLanguage = <T extends string | undefined>(fallback?: T): T =>
+    onlyIfCookieAllowed('functional', () => getOrSetCookie(Cookies.Language, (value: any): value is string => typeof value === 'string', fallback));
 
 export const setCookieLanguage = (language: string) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.Language, language));
 
-export const getCookieIsLeftHanded = (): boolean | null =>
-    onlyIfCookieAllowed('functional', () => getCookie(Cookies.IsLeftHanded, (value: any): value is boolean => typeof value === 'boolean'));
+export const getCookieIsLeftHanded = <T extends boolean | undefined>(fallback?: T): T =>
+    onlyIfCookieAllowed('functional', () => getOrSetCookie(Cookies.IsLeftHanded, (value: any): value is boolean => typeof value === 'boolean', fallback));
 
 export const setCookieIsLeftHanded = (isLeftHanded: boolean) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.IsLeftHanded, isLeftHanded));
 
-export const getCookieActiveFocusMode = (): ActiveFocusMode | null =>
-    onlyIfCookieAllowed('functional', () => getCookie(Cookies.FocusModeActive, (value: any): value is ActiveFocusMode => typeof value === 'object'));
+export const getCookieActiveFocusMode = <T extends ActiveFocusMode | undefined>(fallback?: T): T =>
+    onlyIfCookieAllowed('functional', () => getOrSetCookie(Cookies.FocusModeActive, (value: any): value is ActiveFocusMode => typeof value === 'object', fallback));
 
 export const setCookieActiveFocusMode = (focusMode: ActiveFocusMode | null) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.FocusModeActive, focusMode));
 
-export const getCookieAllFocusModes = (): FocusMode[] | null =>
-    onlyIfCookieAllowed('functional', () => getCookie(Cookies.FocusModeAll, (value: any): value is FocusMode[] => Array.isArray(value)));
+export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =>
+    onlyIfCookieAllowed('functional', () => getOrSetCookie(Cookies.FocusModeAll, (value: any): value is FocusMode[] => Array.isArray(value), fallback));
 
 export const setCookieAllFocusModes = (modes: FocusMode[]) =>
     onlyIfCookieAllowed('functional', () => setCookie(Cookies.FocusModeAll, modes));

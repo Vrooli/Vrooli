@@ -66,7 +66,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         endTimeFrame: TimeFrame
         ids: [ID!]
-        translationLanguages: [String!]
+        scheduleForUserId: ID
         searchString: String
         sortBy: ScheduleSortBy
         startTimeFrame: TimeFrame

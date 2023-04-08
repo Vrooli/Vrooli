@@ -11,7 +11,7 @@ import { PubSub } from 'utils/pubsub';
 export function LeftHandedCheckbox() {
     const { t } = useTranslation();
 
-    const [isLeftHanded, setIsLeftHanded] = useState(getCookieIsLeftHanded() ?? false);
+    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
 
     const handleToggle = useCallback(() => {
         setIsLeftHanded(!isLeftHanded);

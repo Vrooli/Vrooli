@@ -1807,6 +1807,7 @@ export type Mutation = {
   scheduleUpdate: Schedule;
   sendVerificationEmail: Success;
   sendVerificationText: Success;
+  setActiveFocusMode: ActiveFocusMode;
   smartContractCreate: SmartContract;
   smartContractUpdate: Api;
   smartContractVersionCreate: SmartContractVersion;
@@ -2391,6 +2392,11 @@ export type MutationSendVerificationEmailArgs = {
 
 export type MutationSendVerificationTextArgs = {
   input: SendVerificationTextInput;
+};
+
+
+export type MutationSetActiveFocusModeArgs = {
+  input: SetActiveFocusModeInput;
 };
 
 
@@ -7562,6 +7568,12 @@ export type SessionUser = {
   theme?: Maybe<Scalars['String']>;
 };
 
+export type SetActiveFocusModeInput = {
+  id: Scalars['ID'];
+  stopCondition: FocusModeStopCondition;
+  stopTime?: InputMaybe<Scalars['Date']>;
+};
+
 export type SmartContract = {
   __typename: 'SmartContract';
   bookmarkedBy: Array<User>;
@@ -9770,6 +9782,7 @@ export type ResolversTypes = {
   SendVerificationTextInput: SendVerificationTextInput;
   Session: ResolverTypeWrapper<Session>;
   SessionUser: ResolverTypeWrapper<SessionUser>;
+  SetActiveFocusModeInput: SetActiveFocusModeInput;
   SmartContract: ResolverTypeWrapper<Omit<SmartContract, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   SmartContractCreateInput: SmartContractCreateInput;
   SmartContractEdge: ResolverTypeWrapper<SmartContractEdge>;
@@ -10407,6 +10420,7 @@ export type ResolversParentTypes = {
   SendVerificationTextInput: SendVerificationTextInput;
   Session: Session;
   SessionUser: SessionUser;
+  SetActiveFocusModeInput: SetActiveFocusModeInput;
   SmartContract: Omit<SmartContract, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   SmartContractCreateInput: SmartContractCreateInput;
   SmartContractEdge: SmartContractEdge;
@@ -11233,6 +11247,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   scheduleUpdate?: Resolver<ResolversTypes['Schedule'], ParentType, ContextType, RequireFields<MutationScheduleUpdateArgs, 'input'>>;
   sendVerificationEmail?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationSendVerificationEmailArgs, 'input'>>;
   sendVerificationText?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationSendVerificationTextArgs, 'input'>>;
+  setActiveFocusMode?: Resolver<ResolversTypes['ActiveFocusMode'], ParentType, ContextType, RequireFields<MutationSetActiveFocusModeArgs, 'input'>>;
   smartContractCreate?: Resolver<ResolversTypes['SmartContract'], ParentType, ContextType, RequireFields<MutationSmartContractCreateArgs, 'input'>>;
   smartContractUpdate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationSmartContractUpdateArgs, 'input'>>;
   smartContractVersionCreate?: Resolver<ResolversTypes['SmartContractVersion'], ParentType, ContextType, RequireFields<MutationSmartContractVersionCreateArgs, 'input'>>;

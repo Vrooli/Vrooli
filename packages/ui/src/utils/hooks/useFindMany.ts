@@ -133,6 +133,14 @@ export const useFindMany = <DataType extends Record<string, any>>({
         return []
     });
 
+    // Track if there is more data to fetch
+    const [hasMore, setHasMore] = useState<boolean>(true);
+    // Reset hasMore when search params change
+    useEffect(() => {
+        console.log('resetting hasMore')
+        setHasMore(true);
+    }, [advancedSearchParams, searchString, sortBy, timeFrame]);
+
     // On search filters/sort change, reset the page
     useEffect(() => {
         // Reset the pagination cursor
@@ -151,8 +159,10 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 after.current = endCursor;
                 getPageData();
             }
+        } else {
+            setHasMore(false);
         }
-    }, [canSearch, getPageData, pageData]);
+    }, [canSearch, pageData]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
@@ -182,6 +192,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         allData,
         autocompleteOptions,
         defaultSortBy: params?.defaultSortBy,
+        hasMore,
         loading,
         loadMore,
         pageData,

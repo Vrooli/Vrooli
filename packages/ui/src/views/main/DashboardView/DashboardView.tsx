@@ -1,15 +1,15 @@
 import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
-import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from '@shared/consts';
+import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, ResourceList } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { calculateOccurrences } from '@shared/utils';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
 import { ListTitleContainer } from 'components/containers/ListTitleContainer/ListTitleContainer';
 import { PageContainer } from 'components/containers/PageContainer/PageContainer';
-import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
 import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { SiteSearchBar } from 'components/inputs/search';
+import { ReminderList } from 'components/lists/reminder';
 import { ResourceListHorizontal } from 'components/lists/resource';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
@@ -29,7 +29,6 @@ import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { PubSub } from 'utils/pubsub';
 import { SessionContext } from 'utils/SessionContext';
 import { NoteUpsert } from 'views/objects/note';
-import { ReminderUpsert } from 'views/objects/reminder';
 import { DashboardViewProps } from '../types';
 
 const zIndex = 200;
@@ -64,7 +63,7 @@ export const DashboardView = ({
         PubSub.get().publishFocusMode({
             __typename: 'ActiveFocusMode' as const,
             mode: tab.value,
-            stopCondition: FocusModeStopCondition.Automatic,
+            stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, []);
 
@@ -164,13 +163,6 @@ export const DashboardView = ({
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
-    const [isCreateReminderOpen, setIsCreateReminderOpen] = useState(false);
-    const openCreateReminder = useCallback(() => { setIsCreateReminderOpen(true) }, []);
-    const closeCreateReminder = useCallback(() => { setIsCreateReminderOpen(false) }, []);
-    const onReminderCreated = useCallback((reminder: Reminder) => {
-        //TODO - add reminder to reminder list
-    }, []);
-
     const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
     const openCreateNote = useCallback(() => { setIsCreateNoteOpen(true) }, []);
     const closeCreateNote = useCallback(() => { setIsCreateNoteOpen(false) }, []);
@@ -232,21 +224,6 @@ export const DashboardView = ({
     }, [beforeNavigation, data?.home?.schedules, loading, session]);
     return (
         <PageContainer>
-            {/* Create reminder dialog */}
-            <LargeDialog
-                id="add-reminder-dialog"
-                onClose={closeCreateReminder}
-                isOpen={isCreateReminderOpen}
-                zIndex={201}
-            >
-                <ReminderUpsert
-                    display="dialog"
-                    isCreate={true}
-                    onCancel={closeCreateReminder}
-                    onCompleted={onReminderCreated}
-                    zIndex={201}
-                />
-            </LargeDialog>
             {/* Create note dialog */}
             <LargeDialog
                 id="add-note-dialog"
@@ -311,13 +288,13 @@ export const DashboardView = ({
                     {upcomingEvents}
                 </ListTitleContainer>
                 {/* Reminders */}
-                <TitleContainer
-                    titleKey="ToDo"
-                    options={[['Create', openCreateReminder]]}
-                >
-                    {/* <ReminderList
-                    /> */}
-                </TitleContainer>
+                <ReminderList
+                    loading={loading}
+                    // Use list of first reminder we find associated with the active focus mode
+                    listId={data?.home?.reminders.find((r) => r.reminderList?.focusMode?.id === activeFocusMode?.mode?.id)?.reminderList?.focusMode?.id}
+                    reminders={data?.home?.reminders ?? []}
+                    zIndex={zIndex}
+                />
                 {/* Notes */}
                 <ListTitleContainer
                     isEmpty={notes.length === 0}

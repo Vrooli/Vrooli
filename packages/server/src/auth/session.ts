@@ -5,6 +5,131 @@ import { CustomError, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhe
 import { PrismaType } from "../types";
 import { getUser } from './request';
 
+export const focusModeSelect = (startDate: Date, endDate: Date) => ({
+    id: true,
+    name: true,
+    description: true,
+    filters: {
+        select: {
+            id: true,
+            filterType: true,
+            tag: {
+                select: {
+                    id: true,
+                    tag: true,
+                }
+            }
+        }
+    },
+    labels: {
+        select: {
+            id: true,
+            label: {
+                select: {
+                    id: true,
+                    color: true,
+                    label: true,
+                }
+            }
+        }
+    },
+    reminderList: {
+        select: {
+            id: true,
+            created_at: true,
+            updated_at: true,
+            reminders: {
+                select: {
+                    id: true,
+                    created_at: true,
+                    updated_at: true,
+                    name: true,
+                    description: true,
+                    dueDate: true,
+                    index: true,
+                    isComplete: true,
+                    reminderItems: {
+                        select: {
+                            id: true,
+                            created_at: true,
+                            updated_at: true,
+                            name: true,
+                            description: true,
+                            dueDate: true,
+                            index: true,
+                            isComplete: true,
+                        }
+                    }
+                }
+            }
+        }
+    },
+    resourceList: {
+        select: {
+            id: true,
+            created_at: true,
+            updated_at: true,
+            resources: {
+                select: {
+                    id: true,
+                    created_at: true,
+                    updated_at: true,
+                    index: true,
+                    link: true,
+                    usedFor: true,
+                    translations: {
+                        select: {
+                            id: true,
+                            description: true,
+                            language: true,
+                            name: true,
+                        }
+                    }
+                }
+            },
+            translations: {
+                select: {
+                    id: true,
+                    description: true,
+                    language: true,
+                    name: true,
+                }
+            }
+        }
+    },
+    schedule: {
+        select: {
+            id: true,
+            created_at: true,
+            updated_at: true,
+            startTime: true,
+            endTime: true,
+            timezone: true,
+            exceptions: {
+                where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
+                select: {
+                    id: true,
+                    originalStartTime: true,
+                    newStartTime: true,
+                    newEndTime: true,
+                }
+            },
+            recurrences: {
+                where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
+                select: {
+                    id: true,
+                    recurrenceType: true,
+                    interval: true,
+                    dayOfWeek: true,
+                    dayOfMonth: true,
+                    month: true,
+                    endDate: true,
+                }
+            }
+        }
+    }
+})
+
 /**
  * Creates SessionUser object from user.
  * Also updates user's lastSessionVerified time
@@ -43,132 +168,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
                     }
                 }
             },
-            focusModes: {
-                select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    filters: {
-                        select: {
-                            id: true,
-                            filterType: true,
-                            tag: {
-                                select: {
-                                    id: true,
-                                    tag: true,
-                                }
-                            }
-                        }
-                    },
-                    labels: {
-                        select: {
-                            id: true,
-                            label: {
-                                select: {
-                                    id: true,
-                                    color: true,
-                                    label: true,
-                                }
-                            }
-                        }
-                    },
-                    reminderList: {
-                        select: {
-                            id: true,
-                            created_at: true,
-                            updated_at: true,
-                            reminders: {
-                                select: {
-                                    id: true,
-                                    created_at: true,
-                                    updated_at: true,
-                                    name: true,
-                                    description: true,
-                                    dueDate: true,
-                                    index: true,
-                                    isComplete: true,
-                                    reminderItems: {
-                                        select: {
-                                            id: true,
-                                            created_at: true,
-                                            updated_at: true,
-                                            name: true,
-                                            description: true,
-                                            dueDate: true,
-                                            index: true,
-                                            isComplete: true,
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    resourceList: {
-                        select: {
-                            id: true,
-                            created_at: true,
-                            updated_at: true,
-                            resources: {
-                                select: {
-                                    id: true,
-                                    created_at: true,
-                                    updated_at: true,
-                                    index: true,
-                                    link: true,
-                                    usedFor: true,
-                                    translations: {
-                                        select: {
-                                            id: true,
-                                            description: true,
-                                            language: true,
-                                            name: true,
-                                        }
-                                    }
-                                }
-                            },
-                            translations: {
-                                select: {
-                                    id: true,
-                                    description: true,
-                                    language: true,
-                                    name: true,
-                                }
-                            }
-                        }
-                    },
-                    schedule: {
-                        select: {
-                            id: true,
-                            created_at: true,
-                            updated_at: true,
-                            startTime: true,
-                            endTime: true,
-                            timezone: true,
-                            exceptions: {
-                                where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
-                                select: {
-                                    id: true,
-                                    originalStartTime: true,
-                                    newStartTime: true,
-                                    newEndTime: true,
-                                }
-                            },
-                            recurrences: {
-                                where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
-                                select: {
-                                    id: true,
-                                    recurrenceType: true,
-                                    interval: true,
-                                    dayOfWeek: true,
-                                    dayOfMonth: true,
-                                    month: true,
-                                    endDate: true,
-                                }
-                            }
-                        }
-                    }
-                }
-            },
+            focusModes: { select: focusModeSelect(startDate, endDate) },
             _count: {
                 select: {
                     apis: true,
@@ -184,7 +184,9 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         }
     })
     // Find active focus mode
+    console.log('GETTING ACTIV FOCUS MODE', getUser(req)?.activeFocusMode?.mode?.name);
     const activeFocusMode = getActiveFocusMode(getUser(req)?.activeFocusMode, (userData.focusModes as any) ?? []);
+    console.log('GOT ACTIV FOCUS MODE', activeFocusMode?.mode?.name);
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
     let languages: string[] = userData.languages.map((l) => l.language).filter(Boolean) as string[];

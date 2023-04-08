@@ -1,10 +1,9 @@
 import { useTheme } from '@mui/material';
-import { Schedule, ScheduleRecurrenceType, ScheduleSearchResult } from '@shared/consts';
+import { Schedule, ScheduleSearchResult } from '@shared/consts';
 import { AddIcon } from '@shared/icons';
 import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { calculateOccurrences } from '@shared/utils';
-import { uuid } from '@shared/uuid';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { SideActionButtons } from 'components/buttons/SideActionButtons/SideActionButtons';
 import { ScheduleDialog } from 'components/dialogs/ScheduleDialog/ScheduleDialog';
@@ -18,6 +17,7 @@ import { Calendar, dateFnsLocalizer, DateLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useTranslation } from 'react-i18next';
 import { CalendarEvent } from 'types';
+import { getCurrentUser } from 'utils/authentication/session';
 import { getDisplay } from 'utils/display/listTools';
 import { getUserLanguages, getUserLocale, loadLocale } from 'utils/display/translationTools';
 import { useFindMany } from 'utils/hooks/useFindMany';
@@ -46,136 +46,136 @@ const tabParams: BaseParams[] = [{
     tabType: CalendarPageTabOption.FocusModes,
 }];
 
-// Replace this with your own events data
-const sampleSchedules = [
-    {
-        id: uuid(),
-        title: 'Meeting',
-        startTime: new Date(),
-        endTime: add(new Date(), { hours: 1 }),
-        recurrences: [
-            {
-                __typename: 'ScheduleRecurrence' as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Weekly,
-                interval: 1,
-                dayOfWeek: 3,
-            },
-        ],
-        exceptions: [
-            {
-                __typename: 'ScheduleException' as const,
-                id: uuid(),
-                originalStartTime: add(new Date(), { weeks: 1 }),
-                newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
-                newEndTime: add(add(add(new Date(), { weeks: 1 }), { days: 1 }), { hours: 1 }),
-            },
-        ],
-        labels: [
-            {
-                __typename: 'Label' as const,
-                id: uuid(),
-                color: '#4caf50',
-                label: 'Work',
-            },
-            {
-                __typename: 'Label' as const,
-                id: uuid(),
-                label: 'Important',
-            },
-        ],
-        // Dummy data for reminders
-        // reminders: ['10 minutes before', '1 hour before'],
-    },
-    {
-        id: uuid(),
-        title: 'Monthly Report',
-        startTime: add(new Date(), { days: 5 }),
-        endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
-        recurrences: [
-            {
-                __typename: 'ScheduleRecurrence' as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Monthly,
-                interval: 1,
-                dayOfMonth: 10,
-            },
-        ],
-        exceptions: [],
-        labels: [
-            {
-                __typename: 'Label' as const,
-                id: uuid(),
-                color: '#2196f3',
-                label: 'Reports',
-            },
-        ],
-    },
-    {
-        id: uuid(),
-        title: 'Bi-weekly Team Lunch',
-        startTime: add(new Date(), { days: 6 }),
-        endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
-        recurrences: [
-            {
-                __typename: 'ScheduleRecurrence' as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Weekly,
-                interval: 2,
-                dayOfWeek: 6,
-            },
-        ],
-        exceptions: [
-            {
-                __typename: 'ScheduleException' as const,
-                id: uuid(),
-                originalStartTime: add(new Date(), { weeks: 2 }),
-                newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
-                newEndTime: add(add(add(new Date(), { weeks: 2 }), { days: 2 }), { hours: 1 }),
-            },
-        ],
-        labels: [
-            {
-                __typename: 'Label' as const,
-                id: uuid(),
-                color: '#ff9800',
-                label: 'Social',
-            },
-        ],
-    },
-    {
-        id: uuid(),
-        title: 'Daily Stand-up',
-        startTime: add(new Date(), { days: 1 }),
-        endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
-        recurrences: [
-            {
-                __typename: 'ScheduleRecurrence' as const,
-                id: uuid(),
-                recurrenceType: ScheduleRecurrenceType.Daily,
-                interval: 1,
-                endDate: add(new Date(), { days: 15 }),
-            },
-        ],
-        exceptions: [
-            {
-                __typename: 'ScheduleException' as const,
-                id: uuid(),
-                originalStartTime: add(new Date(), { days: 2 }),
-                newStartTime: null,
-                newEndTime: null,
-            },
-        ],
-        labels: [
-            {
-                __typename: 'Label' as const,
-                id: uuid(),
-                color: '#f44336',
-                label: 'Stand-up',
-            }
-        ],
-    },
-];
+// // Replace this with your own events data
+// const sampleSchedules = [
+//     {
+//         id: uuid(),
+//         title: 'Meeting',
+//         startTime: new Date(),
+//         endTime: add(new Date(), { hours: 1 }),
+//         recurrences: [
+//             {
+//                 __typename: 'ScheduleRecurrence' as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Weekly,
+//                 interval: 1,
+//                 dayOfWeek: 3,
+//             },
+//         ],
+//         exceptions: [
+//             {
+//                 __typename: 'ScheduleException' as const,
+//                 id: uuid(),
+//                 originalStartTime: add(new Date(), { weeks: 1 }),
+//                 newStartTime: add(add(new Date(), { weeks: 1 }), { days: 1 }),
+//                 newEndTime: add(add(add(new Date(), { weeks: 1 }), { days: 1 }), { hours: 1 }),
+//             },
+//         ],
+//         labels: [
+//             {
+//                 __typename: 'Label' as const,
+//                 id: uuid(),
+//                 color: '#4caf50',
+//                 label: 'Work',
+//             },
+//             {
+//                 __typename: 'Label' as const,
+//                 id: uuid(),
+//                 label: 'Important',
+//             },
+//         ],
+//         // Dummy data for reminders
+//         // reminders: ['10 minutes before', '1 hour before'],
+//     },
+//     {
+//         id: uuid(),
+//         title: 'Monthly Report',
+//         startTime: add(new Date(), { days: 5 }),
+//         endTime: add(add(new Date(), { days: 5 }), { hours: 2 }),
+//         recurrences: [
+//             {
+//                 __typename: 'ScheduleRecurrence' as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Monthly,
+//                 interval: 1,
+//                 dayOfMonth: 10,
+//             },
+//         ],
+//         exceptions: [],
+//         labels: [
+//             {
+//                 __typename: 'Label' as const,
+//                 id: uuid(),
+//                 color: '#2196f3',
+//                 label: 'Reports',
+//             },
+//         ],
+//     },
+//     {
+//         id: uuid(),
+//         title: 'Bi-weekly Team Lunch',
+//         startTime: add(new Date(), { days: 6 }),
+//         endTime: add(add(new Date(), { days: 6 }), { hours: 1 }),
+//         recurrences: [
+//             {
+//                 __typename: 'ScheduleRecurrence' as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Weekly,
+//                 interval: 2,
+//                 dayOfWeek: 6,
+//             },
+//         ],
+//         exceptions: [
+//             {
+//                 __typename: 'ScheduleException' as const,
+//                 id: uuid(),
+//                 originalStartTime: add(new Date(), { weeks: 2 }),
+//                 newStartTime: add(add(new Date(), { weeks: 2 }), { days: 2 }),
+//                 newEndTime: add(add(add(new Date(), { weeks: 2 }), { days: 2 }), { hours: 1 }),
+//             },
+//         ],
+//         labels: [
+//             {
+//                 __typename: 'Label' as const,
+//                 id: uuid(),
+//                 color: '#ff9800',
+//                 label: 'Social',
+//             },
+//         ],
+//     },
+//     {
+//         id: uuid(),
+//         title: 'Daily Stand-up',
+//         startTime: add(new Date(), { days: 1 }),
+//         endTime: add(add(new Date(), { days: 1 }), { minutes: 15 }),
+//         recurrences: [
+//             {
+//                 __typename: 'ScheduleRecurrence' as const,
+//                 id: uuid(),
+//                 recurrenceType: ScheduleRecurrenceType.Daily,
+//                 interval: 1,
+//                 endDate: add(new Date(), { days: 15 }),
+//             },
+//         ],
+//         exceptions: [
+//             {
+//                 __typename: 'ScheduleException' as const,
+//                 id: uuid(),
+//                 originalStartTime: add(new Date(), { days: 2 }),
+//                 newStartTime: null,
+//                 newEndTime: null,
+//             },
+//         ],
+//         labels: [
+//             {
+//                 __typename: 'Label' as const,
+//                 id: uuid(),
+//                 color: '#f44336',
+//                 label: 'Stand-up',
+//             }
+//         ],
+//     },
+// ];
 
 export const CalendarView = ({
     display = 'page',
@@ -273,6 +273,7 @@ export const CalendarView = ({
     // Find schedules
     const {
         allData: schedules,
+        hasMore,
         loading,
         loadMore,
     } = useFindMany<ScheduleSearchResult>({
@@ -289,25 +290,26 @@ export const CalendarView = ({
                 after: add(dateRange.start, { years: -1000 }).toISOString(),
                 before: dateRange.end.toISOString(),
             } : undefined,
-            // TODO specify your own schedules here
+            scheduleForUserId: getCurrentUser(session)?.id,
         },
     });
     // Load more schedules when date range changes
     useEffect(() => {
-        if (!loading && dateRange.start && dateRange.end) {
+        if (!loading && hasMore && dateRange.start && dateRange.end) {
+            console.log('LOADING MORE', loading, hasMore)
             loadMore();
         }
-    }, [dateRange, loadMore, loading]);
+    }, [dateRange, loadMore, loading, hasMore]);
 
     // Handle events, which are created from schedule data.
     // Events represent each occurrence of a schedule within a date range
     const events = useMemo<CalendarEvent[]>(() => {
-        console.log('calculating events start', dateRange, sampleSchedules)
+        console.log('calculating events start', dateRange, schedules)
         if (!dateRange.start || !dateRange.end) return [];
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
-        sampleSchedules.forEach((schedule: any) => {
+        schedules.forEach((schedule: any) => {
             console.log('calculating events schedule', schedule)
             // Get occurrences (i.e. start and end times)
             const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);

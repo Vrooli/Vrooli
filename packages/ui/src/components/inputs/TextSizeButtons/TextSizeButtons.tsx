@@ -17,7 +17,7 @@ export function TextSizeButtons() {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [size, setSize] = useState(getCookieFontSize() ?? 14);
+    const [size, setSize] = useState<number>(getCookieFontSize(14));
 
     const handleShrink = useCallback(() => {
         if (size > smallestFontSize) {

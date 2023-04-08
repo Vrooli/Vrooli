@@ -1,7 +1,7 @@
-import { Reminder, ReminderItem, ReminderList } from "@shared/consts";
+import { Reminder, ReminderItem } from "@shared/consts";
 
 export interface ReminderListProps {
-    handleUpdate?: (updatedList: ReminderList) => void;
+    handleUpdate?: (updatedList: Reminder[]) => void;
     /**
      * If no listId is provided, make sure list items have data 
      * about the list they belong to.

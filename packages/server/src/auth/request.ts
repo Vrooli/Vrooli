@@ -191,6 +191,40 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
 }
 
 /**
+ * Updates one or more user properties in the session token.
+ * Does not extend the max age of the token.
+ */
+export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUser>): Promise<undefined> {
+    const { cookies } = req;
+    const token = cookies[COOKIE.Jwt];
+    if (token === null || token === undefined) {
+        logger.error('❗️ No session token found', { trace: '0445' });
+        return;
+    }
+    if (!process.env.JWT_SECRET) {
+        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0446' });
+        return;
+    }
+    jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
+        if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
+            logger.error('❗️ Session token is invalid', { trace: '0447' });
+            return;
+        }
+        const tokenContents: SessionToken = {
+            ...payload,
+            users: payload.users?.length > 0 ? [{ ...payload.users[0], ...user }, ...payload.users.slice(1)] : [],
+        }
+        const newToken = jwt.sign(tokenContents, process.env.JWT_SECRET as string);
+        res.cookie(COOKIE.Jwt, newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            // Max age should be the same as the old token
+            maxAge: payload.exp - Date.now(),
+        });
+    })
+}
+
+/**
  * Middleware that restricts access to logged in users
  */
 export async function requireLoggedIn(req: Request, _: any, next: any) {

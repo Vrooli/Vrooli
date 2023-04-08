@@ -119,12 +119,14 @@ export const endpoints = {
         }
     },
     focusMode: async () => {
+        const { activeFocusMode: activeFocusModePartial } = await import('./partial/activeFocusMode');
         const { focusMode: focusModePartial } = await import('./partial/focusMode');
         return {
             findOne: toQuery('focusMode', 'FindByIdInput', focusModePartial, 'full'),
             findMany: toQuery('focusModes', 'FocusModeSearchInput', ...(await toSearch(focusModePartial))),
             create: toMutation('focusModeCreate', 'FocusModeCreateInput', focusModePartial, 'full'),
             update: toMutation('focusModeUpdate', 'FocusModeUpdateInput', focusModePartial, 'full'),
+            setActive: toMutation('setActiveFocusMode', 'SetActiveFocusModeInput', activeFocusModePartial, 'full'),
         }
     },
     label: async () => {

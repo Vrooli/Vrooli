@@ -2,15 +2,13 @@
  * Displays a list of emails for the user to manage
  */
 import { useTheme } from '@mui/material';
-import { DeleteOneInput, Reminder, ReminderCreateInput, ReminderUpdateInput, Success } from '@shared/consts';
+import { DeleteOneInput, Reminder, Success } from '@shared/consts';
 import { useCustomMutation } from 'api';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
-import { reminderCreate } from 'api/generated/endpoints/reminder_create';
-import { reminderUpdate } from 'api/generated/endpoints/reminder_update';
 import { ListContainer } from 'components/containers/ListContainer/ListContainer';
 import { TitleContainer } from 'components/containers/TitleContainer/TitleContainer';
 import { ReminderDialog } from 'components/dialogs/ReminderDialog/ReminderDialog';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ReminderListItem } from '../ReminderListItem/ReminderListItem';
 import { ReminderListProps } from '../types';
@@ -25,33 +23,21 @@ export const ReminderList = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    // Handle add
-    const [addMutation, { loading: loadingAdd }] = useCustomMutation<Reminder, ReminderCreateInput>(reminderCreate);
-    // const formik = useFormik({
-    //     initialValues: {
-    //         emailAddress: '',
-    //     },
-    //     enableReinitialize: true,
-    //     validationSchema: emailValidation.create({}),
-    //     onSubmit: (values) => {
-    //         if (!formik.isValid || loadingAdd) return;
-    //         mutationWrapper<Email, EmailCreateInput>({
-    //             mutation: addMutation,
-    //             input: {
-    //                 emailAddress: values.emailAddress,
-    //             },
-    //             onSuccess: (data) => {
-    //                 PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: 'Info' });
-    //                 handleUpdate([...list, data]);
-    //                 formik.resetForm();
-    //             },
-    //             onError: () => { formik.setSubmitting(false); },
-    //         })
-    //     },
-    // });
-
-    // Handle update
-    const [updateMutation, { loading: loadingUpdate }] = useCustomMutation<Reminder, ReminderUpdateInput>(reminderUpdate);
+    // Internal state
+    const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
+    useEffect(() => {
+        setAllReminders(reminders);
+    }, [reminders]);
+    const handleCreated = useCallback((reminder: Reminder) => {
+        setAllReminders([...allReminders, reminder]);
+        handleUpdate && handleUpdate([...allReminders, reminder]);
+    }, [allReminders, handleUpdate]);
+    const handleUpdated = useCallback((index: number, reminder: Reminder) => {
+        const newList = [...allReminders];
+        newList[index] = reminder;
+        setAllReminders(newList);
+        handleUpdate && handleUpdate(newList);
+    }, [allReminders, handleUpdate]);
 
     // Handle delete
     const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
@@ -104,8 +90,8 @@ export const ReminderList = ({
                 isOpen={isDialogOpen}
                 listId={listId ?? (editingIndex >= 0 ? reminders[editingIndex as number].reminderList.id : undefined) ?? ''}
                 onClose={closeDialog}
-                onCreated={() => { }}
-                onUpdated={() => { }}
+                onCreated={handleCreated}
+                onUpdated={handleUpdated}
                 zIndex={zIndex + 1}
             />
             {/* List */}
@@ -122,7 +108,7 @@ export const ReminderList = ({
                         <ReminderListItem
                             key={`reminder-${index}`}
                             handleDelete={() => { }}
-                            handleUpdate={() => { }}
+                            handleUpdate={(updated) => handleUpdated(index, updated)}
                             reminder={reminder}
                             zIndex={zIndex}
                         />

@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { RunRoutineSearchInput, RunRoutineSortBy, Schedule, ScheduleCreateInput, ScheduleUpdateInput } from '@shared/consts';
+import { Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput } from '@shared/consts';
 import { selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -18,8 +18,8 @@ export const ScheduleModel: ModelLogic<{
     GqlUpdate: ScheduleUpdateInput,
     GqlModel: Schedule,
     GqlPermission: {},
-    GqlSearch: RunRoutineSearchInput,
-    GqlSort: RunRoutineSortBy,
+    GqlSearch: ScheduleSearchInput,
+    GqlSort: ScheduleSortBy,
     PrismaCreate: Prisma.scheduleUpsertArgs['create'],
     PrismaUpdate: Prisma.scheduleUpsertArgs['update'],
     PrismaModel: Prisma.scheduleGetPayload<SelectWrap<Prisma.scheduleSelect>>,
@@ -69,5 +69,22 @@ export const ScheduleModel: ModelLogic<{
         countFields: {},
     },
     mutate: {} as any,
+    search: {
+        defaultSort: ScheduleSortBy.StartTimeAsc,
+        sortBy: ScheduleSortBy,
+        searchFields: {
+            endTimeFrame: true,
+            scheduleForUserId: true,
+            startTimeFrame: true,
+        } as any,
+        searchStringQuery: () => ({
+            OR: [
+                { focusModes: { some: FocusModeModel.search!.searchStringQuery() } },
+                { meetings: { some: MeetingModel.search!.searchStringQuery() } },
+                { runProjects: { some: RunProjectModel.search!.searchStringQuery() } },
+                { runRoutines: { some: RunRoutineModel.search!.searchStringQuery() } },
+            ]
+        }),
+    },
     validate: {} as any,
 })

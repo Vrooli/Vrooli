@@ -1,9 +1,9 @@
-import { FocusModeStopCondition, LINKS } from "@shared/consts";
+import { FocusModeStopCondition, LINKS, MaxObjects } from "@shared/consts";
 import { useLocation } from "@shared/route";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getFocusModeInfo } from "utils/authentication/session";
+import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { SessionContext } from "utils/SessionContext";
 import { Selector } from "../Selector/Selector";
@@ -17,10 +17,23 @@ export const FocusModeSelector = () => {
     const [, setLocation] = useLocation();
 
     const { active, all } = useMemo(() => getFocusModeInfo(session), [session]);
-    console.log('focus mode selector', active, all);
+
+    const { canAdd, hasPremium } = useMemo(() => {
+        const { hasPremium } = getCurrentUser(session);
+        const max = hasPremium ? MaxObjects.FocusMode.User.premium : MaxObjects.FocusMode.User.noPremium;
+        return { canAdd: all.length < max, hasPremium };
+    }, [all.length, session]);
 
     const handleAddNewFocusMode = () => {
-        setLocation(LINKS.SettingsFocusModes)
+        // If you can add, open settings
+        if (canAdd) setLocation(LINKS.SettingsFocusModes)
+        // If you can't add and don't have premium, open premium page
+        else if (!hasPremium) {
+            setLocation(LINKS.Premium);
+            PubSub.get().publishSnack({ message: 'Upgrade to increase limit', severity: 'Info' });
+        }
+        // Otherwise, show error
+        else PubSub.get().publishSnack({ message: 'Max reached', severity: 'Error' });
     }
 
     return (
@@ -43,7 +56,7 @@ export const FocusModeSelector = () => {
                         newMode && PubSub.get().publishFocusMode({
                             __typename: 'ActiveFocusMode' as const,
                             mode: newMode,
-                            stopCondition: FocusModeStopCondition.Automatic,
+                            stopCondition: FocusModeStopCondition.NextBegins,
                         })
                     }}
                     addOption={{

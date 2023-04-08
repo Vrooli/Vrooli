@@ -1,8 +1,9 @@
 import { Box, createTheme, CssBaseline, StyledEngineProvider, Theme, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { Session, ValidateSessionInput } from '@shared/consts';
+import { ActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from '@shared/consts';
 import { getActiveFocusMode } from '@shared/utils';
 import { authValidateSession } from 'api/generated/endpoints/auth_validateSession';
+import { focusModeSetActive } from 'api/generated/endpoints/focusMode_setActive';
 import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { AsyncConfetti } from 'components/AsyncConfetti/AsyncConfett';
@@ -50,12 +51,12 @@ const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createT
  */
 const findThemeWithoutSession = (): Theme => {
     // Get font size from cookie
-    const fontSize = getCookieFontSize() ?? 14;
+    const fontSize = getCookieFontSize(14);
     // Get isLeftHanded from cookie
-    const isLefthanded = getCookieIsLeftHanded() ?? false;
+    const isLefthanded = getCookieIsLeftHanded(false);
     // Get theme. First check cookie, then window
     const windowPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = getCookieTheme() ?? (windowPrefersDark ? 'dark' : 'light');
+    const theme = getCookieTheme(windowPrefersDark ? 'dark' : 'light');
     // Return theme object
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 }
@@ -113,14 +114,16 @@ export function App() {
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
-    const [fontSize, setFontSize] = useState(getCookieFontSize() ?? 14);
-    const [language, setLanguage] = useState(getSiteLanguage(undefined));
-    const [isLeftHanded, setIsLeftHanded] = useState(getCookieIsLeftHanded() ?? false);
+    const [fontSize, setFontSize] = useState<number>(getCookieFontSize(14));
+    const [language, setLanguage] = useState<string>(getSiteLanguage(undefined));
+    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
     const [isLoading, setIsLoading] = useState(false);
     const [isCelebrating, setIsCelebrating] = useState(false);
     const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useCustomMutation<Session, ValidateSessionInput>(authValidateSession);
+    const [setActiveFocusMode] = useCustomMutation<ActiveFocusMode, SetActiveFocusModeInput>(focusModeSetActive);
+    const isSettingActiveFocusMode = useRef<boolean>(false);
 
     // Applies language change
     useEffect(() => {
@@ -373,6 +376,21 @@ export function App() {
                     users: updatedUsers ?? [],
                 };
             });
+            if (!isSettingActiveFocusMode.current) {
+                console.log('setting active focus mode', data, isSettingActiveFocusMode.current)
+                isSettingActiveFocusMode.current = true;
+                const { mode, ...rest } = data;
+                mutationWrapper<ActiveFocusMode, SetActiveFocusModeInput>({
+                    mutation: setActiveFocusMode,
+                    input: { ...rest, id: data.mode.id },
+                    successCondition: (data) => data !== null,
+                    onSuccess: () => { isSettingActiveFocusMode.current = false },
+                    onError: (error) => {
+                        isSettingActiveFocusMode.current = false;
+                        console.error('Failed to set active focus mode', error);
+                    }
+                })
+            }
         });
         // Handle font size updates
         let fontSizeSub = PubSub.get().subscribeFontSize((data) => {

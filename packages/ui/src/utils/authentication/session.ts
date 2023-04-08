@@ -83,7 +83,7 @@ export const getFocusModeInfo = (session: Session | null | undefined): {
     const { activeFocusMode, focusModes } = getCurrentUser(session);
     // If not found, use cookies
     return {
-        active: activeFocusMode ?? getCookieActiveFocusMode(),
+        active: activeFocusMode ?? getCookieActiveFocusMode() ?? null,
         all: focusModes ?? getCookieAllFocusModes() ?? [],
     }
 }

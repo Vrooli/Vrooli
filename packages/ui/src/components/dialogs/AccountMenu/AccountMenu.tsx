@@ -76,7 +76,7 @@ export const AccountMenu = ({
         enableReinitialize: true,
         validationSchema: userValidation.update({}),
         onSubmit: (values) => {
-            console.log('formik submit')
+            console.log('formik submit', userId, values, getCurrentUser(session).theme)
             // If not logged in, do nothing
             if (!userId) {
                 return;
@@ -104,6 +104,7 @@ export const AccountMenu = ({
     });
 
     const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        console.log('handleClose', formik.isValid, formik.isSubmitting, formik.dirty)
         formik.handleSubmit();
         onClose(event);
         closeAdditionalResources();

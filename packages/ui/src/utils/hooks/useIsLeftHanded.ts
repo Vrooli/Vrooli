@@ -6,7 +6,7 @@ import { PubSub } from "utils/pubsub";
  * Tracks if the site should display in left-handed mode.
  */
 export const useIsLeftHanded = () => {
-    const [isLeftHanded, setIsLeftHanded] = useState(getCookieIsLeftHanded() ?? false);
+    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
     useEffect(() => {
         // Handle isLeftHanded updates
         let isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {

@@ -1,6 +1,7 @@
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, MaxObjects, Success } from '@shared/consts';
+import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success } from '@shared/consts';
 import { AddIcon, DeleteIcon, EditIcon } from "@shared/icons";
+import { useLocation } from "@shared/route";
 import { mutationWrapper } from "api";
 import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCustomMutation } from "api/hooks";
@@ -21,6 +22,7 @@ export const SettingsFocusModesView = ({
 }: SettingsFocusModesViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
 
     const [focusModes, setFocusModes] = useState<FocusMode[]>([]);
     useEffect(() => {
@@ -29,10 +31,10 @@ export const SettingsFocusModesView = ({
         }
     }, [session]);
 
-    const canAdd = useMemo(() => {
+    const { canAdd, hasPremium } = useMemo(() => {
         const { hasPremium } = getCurrentUser(session);
         const max = hasPremium ? MaxObjects.FocusMode.User.premium : MaxObjects.FocusMode.User.noPremium;
-        return focusModes.length < max;
+        return { canAdd: focusModes.length < max, hasPremium };
     }, [focusModes.length, session]);
 
     // Handle delete
@@ -101,7 +103,13 @@ export const SettingsFocusModesView = ({
     const [editingFocusMode, setEditingFocusMode] = useState<FocusMode | null>(null);
     const handleAdd = () => {
         if (!canAdd) {
-            PubSub.get().publishSnack({ message: 'Max reached', severity: 'Error' });
+            // If you don't have premium, open premium page
+            if (!hasPremium) {
+                setLocation(LINKS.Premium);
+                PubSub.get().publishSnack({ message: 'Upgrade to increase limit', severity: 'Info' });
+            }
+            // Otherwise, show error message
+            else PubSub.get().publishSnack({ message: 'Max reached', severity: 'Error' });
             return;
         }
         setIsDialogOpen(true);
@@ -118,7 +126,7 @@ export const SettingsFocusModesView = ({
         PubSub.get().publishFocusMode({
             __typename: 'ActiveFocusMode' as const,
             mode: newFocusMode,
-            stopCondition: FocusModeStopCondition.Automatic,
+            stopCondition: FocusModeStopCondition.NextBegins,
         })
     }
 
