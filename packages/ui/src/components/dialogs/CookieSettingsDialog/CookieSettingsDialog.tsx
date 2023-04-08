@@ -40,7 +40,6 @@ export const CookieSettingsDialog = ({
             targeting: false,
         },
         onSubmit: (values) => {
-            console.log('setting cookie preferences', values);
             setPreferences(values);
         }
     });

@@ -74,14 +74,12 @@ export function ObjectListItem<T extends ListObjectType>({
 
     const link = useMemo(() => data ? getObjectUrl(data) : '', [data]);
     const handleClick = useCallback((target: EventTarget) => {
-        console.log('listitem click', target.id, data)
         if (!target.id || !target.id.startsWith('list-item-')) return;
         // If data not supplied, don't open
         if (data === null || link.length === 0) return;
         // If beforeNavigation is supplied, call it
         if (beforeNavigation) {
             const shouldContinue = beforeNavigation(data);
-            console.log('before nav should continue', shouldContinue);
             if (shouldContinue === false) return;
         }
         // Navigate to the object's page

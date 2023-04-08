@@ -46,15 +46,11 @@ export const ScheduleDialog = ({
 
     const validateFormValues = useCallback(
         async (values: ScheduleShape) => {
-            console.log('validating a', values, scheduleValidation.create({}))
             const transformedValues = transformValues(values);
-            console.log('validating b', transformedValues)
             const validationSchema = isCreate
                 ? scheduleValidation.create({})
                 : scheduleValidation.update({});
-            console.log('validating c', validationSchema)
             const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-            console.log('validating d', result)
             return result;
         },
         [isCreate, transformValues]

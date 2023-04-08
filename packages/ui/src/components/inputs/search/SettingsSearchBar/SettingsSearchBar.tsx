@@ -22,7 +22,6 @@ export const SettingsSearchBar = ({
     value,
     ...props
 }: SettingsSearchBarProps) => {
-    console.log('settingssearchbar starttt', { ...options })
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -64,7 +63,6 @@ export const SettingsSearchBar = ({
     // On key down, fill search input with highlighted option if right arrow is pressed
     const onKeyDown = useCallback((event: React.KeyboardEvent) => {
         if (event.key === 'ArrowRight' && highlightedOption) {
-            console.log('right arrow pressed', highlightedOption);
             // Update state
             setInternalValue(highlightedOption.label);
             // Debounce onChange
@@ -107,7 +105,6 @@ export const SettingsSearchBar = ({
                         }
                     }
                 }
-                console.log('renderoption', shapedSearchString, displayedKeyword, option);
                 return (
                     <MenuItem
                         {...props}

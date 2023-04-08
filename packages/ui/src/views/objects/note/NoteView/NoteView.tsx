@@ -55,8 +55,6 @@ export const NoteView = ({
         setObject: setNoteVersion,
     });
 
-    console.log('action data', actionData, noteVersion)
-
     return (
         <>
             <TopBar

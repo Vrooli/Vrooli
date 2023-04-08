@@ -92,13 +92,11 @@ export const DashboardView = ({
         translations: [],
     });
     useEffect(() => {
-        console.log('setting resources?', data)
         if (data?.home?.resources) {
             setResourceList(r => ({ ...r, resources: data.home.resources }));
         }
     }, [data]);
     useEffect(() => {
-        console.log('focusinggg ACTIVE FOCUS MODE', activeFocusMode)
         // Resources are added to the focus mode's resource list
         if (activeFocusMode?.mode?.resourceList?.id && activeFocusMode.mode?.resourceList.id !== DUMMY_ID) {
             setResourceList(activeFocusMode!.mode?.resourceList);
@@ -190,10 +188,8 @@ export const DashboardView = ({
         const result: CalendarEvent[] = [];
         // Loop through schedules
         schedules.forEach((schedule: any) => {
-            console.log('calculating events schedule', schedule)
             // Get occurrences in the upcoming 30 days
             const occurrences = calculateOccurrences(schedule, new Date(), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-            console.log('calculating events occurrences', occurrences)
             // Create events
             const events: CalendarEvent[] = occurrences.map(occurrence => ({
                 __typename: 'CalendarEvent',
@@ -204,13 +200,11 @@ export const DashboardView = ({
                 allDay: false,
                 schedule,
             }));
-            console.log('calculating events events', events)
             // Add events to result
             result.push(...events);
         });
         // Sort events by start date, and return the first 10
         result.sort((a, b) => a.start.getTime() - b.start.getTime())
-        console.log('calculating events end', result)
         const first10 = result.slice(0, 10);
         // Convert to list items
         return listToListItems({
@@ -226,12 +220,10 @@ export const DashboardView = ({
     const [reminders, setReminders] = useState<Reminder[]>([]);
     useEffect(() => {
         if (data?.home?.reminders) {
-            console.log('setting reminders', data.home.reminders);
             setReminders(data.home.reminders);
         }
     }, [data]);
     const handleReminderUpdate = useCallback((updatedReminders: Reminder[]) => {
-        console.log('updated reminders', updatedReminders)
         setReminders(updatedReminders);
     }, []);
 

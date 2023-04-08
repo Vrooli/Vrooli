@@ -54,10 +54,8 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     if (searcher?.customQueryData) {
         customQueries.push(searcher.customQueryData(input, userData));
     }
-    console.log('CUSTOM QUERIES', JSON.stringify(customQueries), '\n\n')
     // Combine queries
     const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
-    console.log('WHERE', JSON.stringify(where), '\n\n')
     // Determine sort order
     // Make sure sort field is valid
     const orderBy = SortMap[input.sortBy ?? searcher!.defaultSort] ?? undefined;

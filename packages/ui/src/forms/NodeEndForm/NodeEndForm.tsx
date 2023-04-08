@@ -1,5 +1,6 @@
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
 import { NodeType, RoutineVersion, Session } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { nodeTranslationValidation, nodeValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -33,13 +34,14 @@ export const nodeEndInitialValues = (
         },
         nodeType: NodeType.End,
         routineVersion,
-        translations: [{
+        ...existing,
+        translations: orDefault(existing?.translations, [{
+            __typename: 'NodeTranslation' as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             name: 'End',
             description: '',
-        }],
-        ...existing,
+        }])
     }
 };
 

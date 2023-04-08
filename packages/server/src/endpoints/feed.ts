@@ -112,15 +112,6 @@ export const resolvers: {
                 input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false },
                 objectType: 'Reminder',
             });
-            console.log('reminders real', JSON.stringify(reminders), activeFocusMode?.mode?.id, '\n\n')
-            const { nodes: remindersTest } = await readManyAsFeedHelper({
-                ...commonReadParams,
-                additionalQueries: {},
-                info: partial.reminders as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false },
-                objectType: 'Reminder',
-            });
-            console.log('reminders test', JSON.stringify(remindersTest), '\n\n')
             // Query resources
             const { nodes: resources } = await readManyAsFeedHelper({
                 ...commonReadParams,

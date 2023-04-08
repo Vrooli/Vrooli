@@ -1,4 +1,4 @@
-import { description, id, name, req, opt, YupModel, transRel, index, yupObj, bool } from '../utils';
+import { bool, description, id, index, name, opt, req, transRel, YupModel, yupObj } from '../utils';
 import { routineVersionValidation } from './routineVersion';
 
 export const nodeRoutineListItemTranslationValidation: YupModel = transRel({
@@ -27,7 +27,7 @@ export const nodeRoutineListItemValidation: YupModel = {
         index: opt(index),
         isOptional: opt(bool),
     }, [
-        ['routineVersion', ['Update'], 'one', 'opt', routineVersionValidation], // Create/update/delete of subroutines must be done in a separate request
+        ['routineVersion', ['Update'], 'one', 'opt', routineVersionValidation, ['nodes', 'nodeLinks']], // Create/update/delete of subroutines must be done in a separate request
         ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeRoutineListItemTranslationValidation],
     ], [], o),
 }

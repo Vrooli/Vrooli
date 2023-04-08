@@ -16,7 +16,6 @@ export const CookiesSnack = ({
     const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
 
     const handleAcceptAllCookies = () => {
-        console.log('in handleAcceptAllCookies');
         const preferences: CookiePreferences = {
             strictlyNecessary: true,
             performance: true,
@@ -31,7 +30,6 @@ export const CookiesSnack = ({
     }
 
     const handleCustomizeCookies = (preferences?: CookiePreferences) => {
-        console.log('in handlecustomizecookies', preferences);
         if (preferences) {
             // Set preference in local storage
             setCookiePreferences(preferences);
@@ -41,7 +39,6 @@ export const CookiesSnack = ({
         handleClose();
     }
 
-    console.log('in cookies snack renderrr')
     return (
         <>
             {/* Customize preferences dialog */}

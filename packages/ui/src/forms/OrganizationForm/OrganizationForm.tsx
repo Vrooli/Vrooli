@@ -1,5 +1,6 @@
 import { Checkbox, FormControlLabel, Stack, Tooltip } from "@mui/material";
 import { Organization, Session } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { organizationTranslationValidation, organizationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -28,13 +29,14 @@ export const organizationInitialValues = (
     isOpenToNewMembers: false,
     isPrivate: false,
     tags: [],
-    translations: [{
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'OrganizationTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         name: '',
         bio: '',
-    }],
-    ...existing,
+    }]),
 });
 
 export const transformOrganizationValues = (values: OrganizationShape, existing?: OrganizationShape) => {

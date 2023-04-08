@@ -40,7 +40,6 @@ export const ReminderList = ({
     }, []);
 
     const handleCreated = useCallback((reminder: Reminder) => {
-        console.log('REMINDER CREATED', reminder, allReminders)
         setAllReminders([...allReminders, reminder]);
         handleUpdate && handleUpdate([...allReminders, reminder]);
     }, [allReminders, handleUpdate]);

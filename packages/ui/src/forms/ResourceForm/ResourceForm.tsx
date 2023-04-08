@@ -1,6 +1,7 @@
 import { Stack } from "@mui/material";
 import { Resource, ResourceUsedFor, Session } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { resourceValidation, userTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -33,14 +34,14 @@ export const resourceInitialValues = (
         id: listId ?? DUMMY_ID,
     },
     usedFor: ResourceUsedFor.Context,
-    translations: [{
+    ...existing,
+    translations: orDefault(existing?.translations, [{
         __typename: 'ResourceTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: '',
         name: '',
-    }],
-    ...existing,
+    }]),
 });
 
 export function transformResourceValues(values: ResourceShape, existing?: ResourceShape) {

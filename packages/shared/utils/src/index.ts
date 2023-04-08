@@ -7,6 +7,7 @@ export * from './isObject';
 export * from './isOfType';
 export * from './lowercaseFirstLetter';
 export * from './omit';
+export * from './orDefault';
 export * from './setDotNotationValue';
 export * from './sitemap';
 export * from './uniqBy';

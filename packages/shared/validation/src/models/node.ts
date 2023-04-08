@@ -1,9 +1,9 @@
-import { description, id, name, minNumErr, req, opt, YupModel, transRel, yupObj, enumToYup } from '../utils';
-import * as yup from 'yup';
-import { nodeLoopValidation } from './nodeLoop';
-import { nodeEndValidation } from './nodeEnd';
-import { nodeRoutineListValidation } from './nodeRoutineList';
 import { NodeType } from '@shared/consts';
+import * as yup from 'yup';
+import { description, enumToYup, id, minNumErr, name, opt, req, transRel, YupModel, yupObj } from '../utils';
+import { nodeEndValidation } from './nodeEnd';
+import { nodeLoopValidation } from './nodeLoop';
+import { nodeRoutineListValidation } from './nodeRoutineList';
 
 const columnIndex = yup.number().integer().min(0, minNumErr).nullable();
 const rowIndex = yup.number().integer().min(0, minNumErr).nullable();
@@ -27,9 +27,9 @@ export const nodeValidation: YupModel = {
         nodeType: req(nodeType),
         rowIndex: opt(rowIndex),
     }, [
-        ['end', ['Create'], 'one', 'opt', nodeEndValidation],
-        ['loop', ['Create'], 'one', 'opt', nodeLoopValidation],
-        ['routineList', ['Create'], 'one', 'opt', nodeRoutineListValidation],
+        ['end', ['Create'], 'one', 'opt', nodeEndValidation, ['node']],
+        ['loop', ['Create'], 'one', 'opt', nodeLoopValidation, ['node']],
+        ['routineList', ['Create'], 'one', 'opt', nodeRoutineListValidation, ['node']],
         ['routineVersion', ['Connect'], 'one', 'req'],
         ['translations', ['Create'], 'many', 'opt', nodeTranslationValidation],
     ], [['endCreate', 'routineListCreate']], o),
@@ -39,9 +39,9 @@ export const nodeValidation: YupModel = {
         nodeType: opt(nodeType),
         rowIndex: opt(rowIndex),
     }, [
-        ['end', ['Update'], 'one', 'opt', nodeEndValidation],
-        ['loop', ['Create', 'Update', 'Delete'], 'one', 'opt', nodeLoopValidation],
-        ['routineList', ['Update'], 'one', 'opt', nodeRoutineListValidation],
+        ['end', ['Update'], 'one', 'opt', nodeEndValidation, ['node']],
+        ['loop', ['Create', 'Update', 'Delete'], 'one', 'opt', nodeLoopValidation, ['node']],
+        ['routineList', ['Update'], 'one', 'opt', nodeRoutineListValidation, ['node']],
         ['routineVersion', ['Connect'], 'one', 'opt'],
         ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeTranslationValidation],
     ], [], o),

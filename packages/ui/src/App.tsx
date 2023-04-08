@@ -127,27 +127,22 @@ export function App() {
 
     // Applies language change
     useEffect(() => {
-        console.log('language change 1', language)
         i18next.changeLanguage(language);
     }, [language]);
     useEffect(() => {
-        console.log('language session thing', session, getSiteLanguage(session), getSiteLanguage(undefined))
         if (!session) return;
         if (getSiteLanguage(session) !== getSiteLanguage(undefined)) {
             setLanguage(getSiteLanguage(session));
         }
     }, [session]);
-    console.log('themeeeeeeeee!!!!!!!!!!!!!', theme)
 
     // Applies font size change
     useEffect(() => {
-        console.log('Applying font size change', fontSize, withFontSize(themes[theme.palette.mode], fontSize));
         setTheme(withFontSize(themes[theme.palette.mode], fontSize));
     }, [fontSize, theme.palette.mode]);
 
     // Applies isLeftHanded change
     useEffect(() => {
-        console.log('Applying isLeftHanded change', isLeftHanded);
         setTheme(withIsLeftHanded(themes[theme.palette.mode], isLeftHanded));
     }, [isLeftHanded, theme.palette.mode]);
 
@@ -195,7 +190,7 @@ export function App() {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setIsLoading(false);
         // Add help wanted to console logs
-        console.log(`
+        console.info(`
                @@@                 @@@                  
             @@     @@           @@     @@               
            @@       @@         @@       @@              
@@ -335,7 +330,6 @@ export function App() {
         });
         // Handle session updates
         let sessionSub = PubSub.get().subscribeSession((session) => {
-            console.log('active in session sub', session)
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -347,7 +341,6 @@ export function App() {
             // Store user's focus modes in local storage
             const currentlyActiveFocusMode = getCurrentUser(session)?.activeFocusMode ?? null;
             const focusModes = getCurrentUser(session)?.focusModes ?? [];
-            console.log('setting active focus mode cookie', currentlyActiveFocusMode, focusModes, getActiveFocusMode(currentlyActiveFocusMode, focusModes))
             setCookieActiveFocusMode(getActiveFocusMode(currentlyActiveFocusMode, focusModes));
             setCookieAllFocusModes(focusModes);
         });
@@ -358,7 +351,6 @@ export function App() {
         });
         // Handle focus mode updates
         let focusModeSub = PubSub.get().subscribeFocusMode((data) => {
-            console.log('focusinggg in focus mode sub', data)
             setCookieActiveFocusMode(data);
             setSession((prevState) => {
                 if (!prevState) return prevState;
@@ -377,7 +369,6 @@ export function App() {
                 };
             });
             if (!isSettingActiveFocusMode.current) {
-                console.log('setting active focus mode', data, isSettingActiveFocusMode.current)
                 isSettingActiveFocusMode.current = true;
                 const { mode, ...rest } = data;
                 mutationWrapper<ActiveFocusMode, SetActiveFocusModeInput>({

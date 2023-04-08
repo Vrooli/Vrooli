@@ -61,7 +61,6 @@ export function ResourceListItem({
     }, [data.link, href, setLocation]);
 
     const onEdit = useCallback((e: any) => {
-        console.log('onEdit', e);
         handleEdit(index);
     }, [handleEdit, index]);
 

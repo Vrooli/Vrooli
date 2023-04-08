@@ -1,5 +1,6 @@
 import { useTheme } from "@mui/material";
 import { NoteVersion, Session } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { noteVersionTranslationValidation, noteVersionValidation } from "@shared/validation";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
@@ -34,15 +35,16 @@ export const noteInitialValues = (
         parent: null,
         tags: [],
     },
-    translations: [{
+    versionLabel: existing?.versionLabel ?? '1.0.0',
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'NoteVersionTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: '',
         name: '',
         text: '',
-    }],
-    versionLabel: existing?.versionLabel ?? '1.0.0',
-    ...existing,
+    }]),
 });
 
 export function transformNoteValues(values: NoteVersionShape, existing?: NoteVersionShape) {

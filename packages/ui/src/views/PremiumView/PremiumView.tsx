@@ -53,12 +53,10 @@ export const PremiumView = ({
     // so we need to check URL search params
     useEffect(() => {
         const searchParams = parseSearchParams();
-        console.log('searchParams', searchParams)
         // Check for status
         if (typeof searchParams.status === 'string') {
             switch (searchParams.status) {
                 case 'success':
-                    console.log('success!!')
                     // Show alert and confetti
                     PubSub.get().publishAlertDialog({
                         messageKey: 'PremiumPaymentSuccess',
@@ -114,7 +112,6 @@ export const PremiumView = ({
                 }),
             })
             const session = await response.json();
-            console.log('got stripe session: ', session);
             const result = await stripe.redirectToCheckout({
                 sessionId: session.id,
             });

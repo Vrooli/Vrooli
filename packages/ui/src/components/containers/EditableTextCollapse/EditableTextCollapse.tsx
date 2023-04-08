@@ -26,9 +26,10 @@ export function EditableTextCollapse<T extends EditTextComponent>({
     variant,
 }: EditableTextCollapseProps<T>) {
     const { palette } = useTheme();
-    const [field] = useField(component.startsWith('Translated') ? `translations.${name}` : name);
+    const [field] = useField(name);
+    console.log('editabletextcollapse field', field, name, component)
 
-    if (!isEditing && (!field.value || field.value.trim().length === 0) && !showOnNoText) return null;
+    if (!isEditing && (!field.value || field.value.trim().length === 0) && !showOnNoText) return null; //TODO won't work with translations
     return (
         <ContentCollapse
             helpText={helpText}
@@ -40,8 +41,8 @@ export function EditableTextCollapse<T extends EditTextComponent>({
             }}
         >
             {/* Editing components */}
-            {isEditing && component === 'Markdown' && <MarkdownInput name="name" {...(props as PropsByComponentType['Markdown'])} />}
-            {isEditing && component === 'TranslatedMarkdown' && <TranslatedMarkdownInput name="name" {...(props as PropsByComponentType['TranslatedMarkdown'])} />}
+            {isEditing && component === 'Markdown' && <MarkdownInput name={name} {...(props as PropsByComponentType['Markdown'])} />}
+            {isEditing && component === 'TranslatedMarkdown' && <TranslatedMarkdownInput name={name} {...(props as PropsByComponentType['TranslatedMarkdown'])} />}
             {isEditing && component === 'TranslatedTextField' && <TranslatedTextField name={name} {...(props as PropsByComponentType['TranslatedTextField'])} />}
             {isEditing && component === 'TextField' && <Field name={name} as={TextField} {...(props as PropsByComponentType['TextField'])} />}
             {/* Display components */}

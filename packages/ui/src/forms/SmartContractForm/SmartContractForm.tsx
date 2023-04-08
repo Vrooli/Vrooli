@@ -1,5 +1,6 @@
 import { Stack, useTheme } from "@mui/material";
 import { Session, SmartContractVersion } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { smartContractVersionTranslationValidation, smartContractVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -39,15 +40,16 @@ export const smartContractInitialValues = (
         parent: null,
         tags: [],
     },
-    translations: [{
+    versionLabel: '1.0.0',
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'SmartContractVersionTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: '',
         jsonVariable: '',
         name: '',
-    }],
-    versionLabel: '1.0.0',
-    ...existing,
+    }]),
 });
 
 export const transformSmartContractValues = (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {

@@ -39,7 +39,6 @@ export const MicrophoneButton = ({
     }, [status]);
 
     const handleClick = useCallback(() => {
-        console.log('microphone button clicked', status)
         if (status === 'On') {
             stopListening();
             onTranscriptChange(transcript);

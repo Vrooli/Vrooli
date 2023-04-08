@@ -76,7 +76,6 @@ const main = async () => {
 
     // For parsing application/json. 
     app.use((req, res, next) => {
-        console.log('in app.use bodyparser', req.originalUrl);
         // Exclude on stripe webhook endpoint
         if (req.originalUrl === '/webhook/stripe') {
             next();
@@ -97,11 +96,9 @@ const main = async () => {
     });
     // Create endpoint for buying a premium subscription or donating
     app.post('/api/create-checkout-session', async (req, res) => {
-        console.log('create-checkout-session 1')
         // Get userId and variant from request body
         const userId: string = req.body.userId;
         const variant: 'yearly' | 'monthly' | 'donation' = req.body.variant;
-        console.log('create-checkout-session 2', userId, variant)
         // Determine price API ID based on variant. Select a product in the Stripe dashboard 
         // to find this information
         let price: string;
@@ -135,7 +132,6 @@ const main = async () => {
                 mode: variant === 'donation' ? 'payment' : 'subscription',
                 metadata: { userId },
             });
-            console.log('create-checkout-session 3', JSON.stringify(session), '\n\n');
             // Create open payment in database, so we can track it
             // TODO create cron job to clean up old payments that never completed, and to remove premium status from users when expired
             const prisma = new PrismaClient();
@@ -151,7 +147,6 @@ const main = async () => {
                     user: { connect: { id: userId } },
                 }
             });
-            console.log('create-checkout-session 4', session.id)
             await prisma.$disconnect();
             // Send session ID as response
             res.json(session);

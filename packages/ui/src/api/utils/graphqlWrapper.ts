@@ -90,21 +90,17 @@ export const graphqlWrapperHelper = <Output extends object>({
         if (spinnerDelay) PubSub.get().publishLoading(false);
         // Determine if error caused by bad response, or caught error
         const isApolloError: boolean = exists(data) && data.hasOwnProperty('graphQLErrors');
-        console.log('wrapper handleerror', JSON.stringify(data), isApolloError)
         // If specific error message is set, display it
         if (typeof errorMessage === 'function') {
-            console.log('aaaaaaa')
             const { key, variables } = errorMessage(data);
             PubSub.get().publishSnack({ messageKey: key, messageVariables: variables, severity: 'Error', data });
         }
         // Otherwise, if show default error snack is set, display it
         else if (showDefaultErrorSnack) {
-            console.log('ccccccc')
             PubSub.get().publishSnack({ messageKey: isApolloError ? errorToCode(data as ApolloError) : 'ErrorUnknown', severity: 'Error', data });
         }
         // If error callback is set, call it
         if (typeof onError === 'function') {
-            console.log('bbbbbbb')
             onError((isApolloError ? data : { message: 'Unknown error occurred' }) as ApolloError);
         }
     }

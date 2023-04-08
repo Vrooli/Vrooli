@@ -284,7 +284,6 @@ export function SiteSearchBar({
     // On key down, fill search input with highlighted option if right arrow is pressed
     const onKeyDown = useCallback((event: React.KeyboardEvent) => {
         if (event.key === 'ArrowRight' && highlightedOption) {
-            console.log('right arrow pressed', highlightedOption);
             // Update state
             setInternalValue(highlightedOption.label);
             // Debounce onChange

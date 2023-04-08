@@ -77,7 +77,6 @@ export const LandingView = ({
     const scrollDirectionRef = useRef<'up' | 'down'>('down');
     useEffect(() => {
         const onScroll = () => {
-            // console.log('scrolling', document.body.scrollTop, document.body.offsetTop)
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             if (scrollPos !== currScrollPosRef.current) {
                 scrollDirectionRef.current = scrollPos > currScrollPosRef.current ? 'down' : 'up';
@@ -108,7 +107,6 @@ export const LandingView = ({
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             timeoutRef.current = setTimeout(() => {
                 const slides = slideContentIds.map(id => document.getElementById(id));
-                // console.log('slides', slides)
                 let minDistance = Infinity;
                 let nearestSlide;
 

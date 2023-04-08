@@ -23,7 +23,6 @@ export const LinkInput = ({
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = useCallback(() => { setSearchOpen(true) }, []);
     const closeSearch = useCallback((selectedUrl?: string) => {
-        console.log('closeSearch', selectedUrl)
         setSearchOpen(false);
         if (selectedUrl) {
             helpers.setValue(selectedUrl);

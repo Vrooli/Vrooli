@@ -1,5 +1,6 @@
 import { useTheme } from "@mui/material";
 import { ProjectVersion, Session } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { projectVersionTranslationValidation, projectVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -38,14 +39,15 @@ export const projectInitialValues = (
         parent: null,
         tags: [],
     },
-    translations: [{
+    versionLabel: '1.0.0',
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'ProjectVersionTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         name: '',
         description: '',
-    }],
-    versionLabel: '1.0.0',
-    ...existing,
+    }]),
 });
 
 export const transformProjectValues = (values: ProjectVersionShape, existing?: ProjectVersionShape) => {

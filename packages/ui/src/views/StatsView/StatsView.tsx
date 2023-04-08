@@ -98,7 +98,6 @@ export const StatsView = ({
         const period = tabPeriods[tab.value];
         const newAfter = new Date(Math.max(Date.now() - period, MIN_DATE.getTime()));
         const newBefore = new Date(Math.min(Date.now(), newAfter.getTime() + period));
-        console.log('yeeties', newAfter, newBefore)
         setPeriod({ after: newAfter, before: newBefore });
     }, []);
 

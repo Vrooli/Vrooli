@@ -1,7 +1,7 @@
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ResourceList, Session } from "@shared/consts";
 import { CloseIcon, OpenInNewIcon } from "@shared/icons";
-import { exists } from "@shared/utils";
+import { exists, orDefault } from "@shared/utils";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { nodeRoutineListItemValidation, routineVersionTranslationValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -44,13 +44,14 @@ export const subroutineInitialValues = (
     isOptional: false,
     list: {} as any, //TODO
     routineVersion: routineInitialValues(session, existing?.routineVersion as any),
-    translations: [{
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'NodeRoutineListItemTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: '',
         name: '',
-    }],
-    ...existing
+    }]),
 })
 
 export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {

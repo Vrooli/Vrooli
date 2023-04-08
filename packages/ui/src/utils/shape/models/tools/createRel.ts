@@ -46,7 +46,6 @@ export const createRel = <
     shape?: Shape,
     preShape?: (item: any) => any,
 ): CreateRelOutput<IsOneToOne, RelTypes[number], FieldName> => {
-    console.log('createRel START', item, relation, relTypes, isOneToOne, shape, preShape)
     // Check if shape is required
     if (relTypes.includes('Create')) {
         if (!shape) throw new Error(`Model is required if relTypes includes "Create": ${relation}`);
@@ -68,13 +67,10 @@ export const createRel = <
         // If type is connect, add IDs to result
         if (t === 'Connect') {
             // If create is an option, ignore items which have more than just an ID (or __typename), since they must be creates instead
-            console.log('createRel connect 1', relationData)
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
-            console.log('createRel connect 2', filteredRelationData)
             filteredRelationData = relTypes.includes('Create') ?
                 filteredRelationData.filter((x) => Object.keys(x).every((k) => ['id', '__typename'].includes(k))) :
                 filteredRelationData;
-            console.log('createRel connect 3', filteredRelationData, shape?.idField ?? 'id')
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === 'one' ?
                 (relationData as any)[shape?.idField ?? 'id'] :
@@ -83,17 +79,13 @@ export const createRel = <
         else if (t === 'Create') {
             // Ignore items which only have an ID (or __typename), since they must be connects instead
             let filteredRelationData = Array.isArray(relationData) ? relationData : [relationData];
-            console.log('createRel in Create 1', filteredRelationData)
             filteredRelationData = filteredRelationData.filter((x) => Object.keys(x).some((k) => !['id', '__typename'].includes(k)));
-            console.log('createRel in Create 2', filteredRelationData)
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === 'one' ?
                 shape!.create(preShaper(relationData)) :
                 (relationData as any).map((x: any) => shape!.create(preShaper(x)));
-            console.log('createRel in Create 3', result)
         }
     }
-    console.log('createRel END', result)
     // Return result
     return result as any;
 };

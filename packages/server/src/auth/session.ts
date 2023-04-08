@@ -184,9 +184,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         }
     })
     // Find active focus mode
-    console.log('GETTING ACTIV FOCUS MODE', getUser(req)?.activeFocusMode?.mode?.name);
     const activeFocusMode = getActiveFocusMode(getUser(req)?.activeFocusMode, (userData.focusModes as any) ?? []);
-    console.log('GOT ACTIV FOCUS MODE', activeFocusMode?.mode?.name);
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
     let languages: string[] = userData.languages.map((l) => l.language).filter(Boolean) as string[];

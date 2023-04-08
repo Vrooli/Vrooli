@@ -7,7 +7,6 @@ import { ErrorKey } from "@shared/translations";
  * @returns The error code, which should be a translation key
  */
 export const errorToCode = (error: ApolloError): ErrorKey => {
-    console.log('errortocode', error);
     // If there is an errors array
     if (error.graphQLErrors) {
         // Loop through array and return first error code

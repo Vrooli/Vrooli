@@ -7,7 +7,6 @@ const link = yup.string().transform(blankToUndefined).transform(addHttps).max(10
     'link',
     'Must be a URL, Cardano payment address, or ADA Handle',
     (value: string | undefined) => {
-        console.log('in link test!',)
         return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value)) : true
     }
 )

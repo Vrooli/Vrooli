@@ -1,5 +1,6 @@
 import { Stack } from "@mui/material";
 import { Comment, CommentFor, Session } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { commentTranslationValidation, commentValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -24,12 +25,13 @@ export const commentInitialValues = (
     __typename: 'Comment' as const,
     id: DUMMY_ID,
     commentedOn: { __typename: objectType, id: objectId },
-    translations: [{
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'CommentTranslation' as const,
         id: DUMMY_ID,
         language,
         text: '',
-    }],
-    ...existing,
+    }]),
 });
 
 export const transformCommentValues = (values: CommentShape, existing?: CommentShape) => {

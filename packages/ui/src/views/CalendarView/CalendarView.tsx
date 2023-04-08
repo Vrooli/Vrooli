@@ -287,7 +287,6 @@ export const CalendarView = ({
     // Load more schedules when date range changes
     useEffect(() => {
         if (!loading && hasMore && dateRange.start && dateRange.end) {
-            console.log('LOADING MORE', loading, hasMore, dateRange.start, dateRange.end)
             loadMore();
         }
     }, [dateRange, loadMore, loading, hasMore]);
@@ -295,16 +294,13 @@ export const CalendarView = ({
     // Handle events, which are created from schedule data.
     // Events represent each occurrence of a schedule within a date range
     const events = useMemo<CalendarEvent[]>(() => {
-        console.log('calculating events start', dateRange, schedules)
         if (!dateRange.start || !dateRange.end) return [];
         // Initialize result
         const result: CalendarEvent[] = [];
         // Loop through schedules
         schedules.forEach((schedule: any) => {
-            console.log('calculating events schedule', schedule)
             // Get occurrences (i.e. start and end times)
             const occurrences = calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
-            console.log('calculating events occurrences', occurrences)
             // Create events
             const events: CalendarEvent[] = occurrences.map(occurrence => ({
                 __typename: 'CalendarEvent',
@@ -315,11 +311,9 @@ export const CalendarView = ({
                 allDay: false,
                 schedule,
             }));
-            console.log('calculating events events', events)
             // Add events to result
             result.push(...events);
         });
-        console.log('calculating events end', result)
         return result;
     }, [dateRange.end, dateRange.start, schedules, session]);
 

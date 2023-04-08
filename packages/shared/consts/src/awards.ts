@@ -47,7 +47,6 @@ const awardTier = (
     count: number,
     findNext: boolean = false,
 ): [number, AwardKey | null] => {
-    console.log('in award tier', count, findNext, list)
     for (let i = 0; i < list.length; i++) {
         const [min] = list[i];
         if (count < min) {

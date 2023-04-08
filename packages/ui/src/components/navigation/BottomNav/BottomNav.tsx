@@ -10,7 +10,6 @@ export const BottomNav = () => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
 
-    console.log('actionsssss', session)
     let actions = actionsToBottomNav({
         actions: getUserActions({ session }),
         setLocation,

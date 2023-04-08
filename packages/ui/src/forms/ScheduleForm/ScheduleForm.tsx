@@ -41,7 +41,6 @@ export const ScheduleForm = forwardRef<any, ScheduleFormProps>(({
     };
 
     const addNewRecurrence = () => {
-        console.log('setting recurrence', recurrencesField.value)
         recurrencesHelpers.setValue([...recurrencesField.value, {
             __typename: 'ScheduleRecurrence' as const,
             id: uuid(),

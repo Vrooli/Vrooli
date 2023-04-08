@@ -40,7 +40,6 @@ export const LineGraph = ({
     lineWidth = 2,
     yAxisLabel,
 }: LineGraphProps) => {
-    console.log('LINE GRAPH', data)
     // Find the maximum and minimum value in the data array
     const maxData = Math.max(...data.map(toValue));
     const minData = Math.min(...data.map(toValue));
@@ -201,18 +200,15 @@ export const LineGraph = ({
                             }
                             return acc;
                         }, { point: null, distance: Number.MAX_VALUE } as { point: Point | null, distance: number });
-                        console.log('closest', closest.distance, closest.point)
                         if (closest.distance < 25) {
                             // If a data point is close enough to the mouse cursor, display a selectedPoint with its value
                             setSelectedPoint(closest.point)
                         } else {
-                            console.log('setSelectedPoint(null)')
                             // Otherwise, hide the selectedPoint
                             setSelectedPoint(null);
                         }
                     }}
                     onMouseLeave={() => {
-                        console.log('mouse leave')
                         // Hide the selectedPoint when the mouse leaves the SVG element
                         setSelectedPoint(null);
                     }}
@@ -229,12 +225,10 @@ export const LineGraph = ({
                             }
                             return acc;
                         }, { point: null, distance: Number.MAX_VALUE } as { point: Point | null, distance: number });
-                        console.log('closest', closest.distance, closest.point)
                         if (closest.distance < 25) {
                             // If a data point is close enough to the mouse cursor, display a selectedPoint with its value
                             setSelectedPoint(closest.point)
                         } else {
-                            console.log('setSelectedPoint(null)')
                             // Otherwise, hide the selectedPoint
                             setSelectedPoint(null);
                         }

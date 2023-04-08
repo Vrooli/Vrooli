@@ -106,14 +106,14 @@ const main = async () => {
         // Check if sitemap save directory exists
         const sitemapDir = new URL('../../public/sitemaps', import.meta.url);
         if (!fs.existsSync(sitemapDir)) {
-            console.log('Creating sitemap directory', sitemapDir.pathname);
+            console.info('Creating sitemap directory', sitemapDir.pathname);
             fs.mkdirSync(sitemapDir);
         }
         // Write sitemap-routes.xml to sitemap directory
         const sitemapLocation = `${sitemapDir.pathname}/sitemap-routes.xml`;
         fs.writeFile(sitemapLocation, sitemap, (err) => {
             if (err) console.error(err);
-            else console.log('Sitemap generated at ' + sitemapLocation);
+            else console.info('Sitemap generated at ' + sitemapLocation);
         });
     } catch (error) {
         console.error(error);

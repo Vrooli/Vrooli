@@ -1,5 +1,6 @@
 import { Stack, useTheme } from "@mui/material";
 import { Question, Session } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { questionTranslationValidation, questionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -27,13 +28,14 @@ export const questionInitialValues = (
     referencing: undefined,
     forObject: null,
     tags: [],
-    translations: [{
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'QuestionTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: '',
         name: '',
-    }],
-    ...existing,
+    }]),
 });
 
 export function transformQuestionValues(values: QuestionShape, existing?: QuestionShape) {

@@ -1,5 +1,6 @@
 import { Stack } from "@mui/material";
 import { Session, StandardVersion } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -50,15 +51,16 @@ export const standardInitialValues = (
         permissions: JSON.stringify({}),
         tags: [],
     },
-    translations: [{
+    versionLabel: '1.0.0',
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'StandardVersionTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         description: '',
         jsonVariable: null, //TODO
         name: '',
-    }],
-    versionLabel: '1.0.0',
-    ...existing,
+    }]),
 });
 
 export const transformStandardValues = (values: StandardVersionShape, existing?: StandardVersionShape) => {

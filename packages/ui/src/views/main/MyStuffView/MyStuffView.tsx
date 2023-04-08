@@ -110,7 +110,6 @@ export const MyStuffView = ({
             }
             return true;
         });
-        console.log('filtered tabs', filteredTabParams)
         return filteredTabParams.map((tab, i) => ({
             index: i,
             Icon: tab.Icon,
@@ -193,8 +192,6 @@ export const MyStuffView = ({
             </Tooltip>
         </Box>
     ), [onAddClick, popupButton, t]);
-
-    console.log('search typeeee', searchType, currTab)
 
     return (
         <>

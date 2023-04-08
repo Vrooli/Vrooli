@@ -30,7 +30,6 @@ export const NavList = () => {
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    console.log('action navlist', session);
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     // Handle account menu
@@ -44,7 +43,6 @@ export const NavList = () => {
         setAccountMenuAnchor(null)
     }, []);
 
-    console.log('action navlist', session)
     return (
         <Container sx={{
             display: 'flex',

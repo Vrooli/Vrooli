@@ -1,5 +1,6 @@
 import { Stack, TextField } from "@mui/material";
 import { ApiVersion, Session } from "@shared/consts";
+import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { apiVersionTranslationValidation, apiVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
@@ -42,15 +43,16 @@ export const apiInitialValues = (
         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
         tags: [],
     },
-    translations: [{
+    versionLabel: '1.0.0',
+    ...existing,
+    translations: orDefault(existing?.translations, [{
+        __typename: 'ApiVersionTranslation' as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
         details: '',
         name: '',
         summary: '',
-    }],
-    versionLabel: '1.0.0',
-    ...existing,
+    }]),
 });
 
 export const transformApiValues = (values: ApiVersionShape, existing?: ApiVersionShape) => {
