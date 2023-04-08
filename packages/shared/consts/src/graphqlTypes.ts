@@ -8910,7 +8910,6 @@ export type User = {
   standards?: Maybe<Array<Standard>>;
   standardsCount: Scalars['Int'];
   standardsCreated?: Maybe<Array<Standard>>;
-  stats?: Maybe<StatsUser>;
   status?: Maybe<AccountStatus>;
   tags?: Maybe<Array<Tag>>;
   theme?: Maybe<Scalars['String']>;
@@ -13773,7 +13772,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   standards?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCreated?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
-  stats?: Resolver<Maybe<ResolversTypes['StatsUser']>, ParentType, ContextType>;
   status?: Resolver<Maybe<ResolversTypes['AccountStatus']>, ParentType, ContextType>;
   tags?: Resolver<Maybe<Array<ResolversTypes['Tag']>>, ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;

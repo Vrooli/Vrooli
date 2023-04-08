@@ -231,10 +231,10 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <QuestionView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert display='page' isCreate={true} />
+                    <ReminderUpsert display='page' handleDelete={() => { }} isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/edit/:id`} mustBeLoggedIn={true} {...props}>
-                    <ReminderUpsert display='page' isCreate={false} />
+                    <ReminderUpsert display='page' handleDelete={() => { }} isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderView />

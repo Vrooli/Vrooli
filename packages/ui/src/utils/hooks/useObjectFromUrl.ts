@@ -50,6 +50,7 @@ export function useObjectFromUrl<
     const [object, setObject] = useState<TData | null | undefined>(null);
     useDisplayApolloError(error);
     useEffect(() => {
+        console.log('parseSingleItemUrl', urlParams)
         // Objects can be found using a few different unique identifiers
         if (exists(urlParams.handle)) getData({ variables: { handle: urlParams.handle } as any })
         else if (exists(urlParams.handleRoot)) getData({ variables: { handleRoot: urlParams.handleRoot } as any })

@@ -1,9 +1,11 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkFor, FindByIdOrHandleInput, LINKS, ResourceList, User, VisibilityType } from "@shared/consts";
 import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
+import { getLastUrlPart, useLocation } from "@shared/route";
 import { uuidValidate } from '@shared/uuid';
+import { useCustomLazyQuery } from "api";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
+import { userProfile } from "api/generated/endpoints/user_profile";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -18,11 +20,11 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { PageTab } from "components/types";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { placeholderColor, toSearchListData } from "utils/display/listTools";
+import { defaultYou, getYou, placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
 import { useObjectActions } from "utils/hooks/useObjectActions";
-import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { PubSub } from "utils/pubsub";
 import { SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";
@@ -69,11 +71,22 @@ export const UserView = ({
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { id, isLoading, object: user, permissions, setObject: setUser } = useObjectFromUrl<User, FindByIdOrHandleInput>({
-        query: userFindOne,
-        partialData,
-        idFallback: getCurrentUser(session).id,
-    });
+    // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
+    const [getUserData, { data: userData, error: userError, loading: isUserLoading }] = useCustomLazyQuery<User, FindByIdOrHandleInput>(userFindOne, { errorPolicy: 'all' } as any);
+    const [getProfileData, { data: profileData, error: profileError, loading: isProfileLoading }] = useCustomLazyQuery<User, FindByIdOrHandleInput>(userProfile, { errorPolicy: 'all' } as any);
+    const [user, setUser] = useState<User | null | undefined>(null);
+    useDisplayApolloError(userError ?? profileError);
+    useEffect(() => {
+        const urlEnding = getLastUrlPart();
+        if (urlEnding && uuidValidate(urlEnding)) getUserData({ variables: { id: urlEnding } as any });
+        else if (typeof urlEnding === 'string' && urlEnding.toLowerCase() === 'profile') getProfileData();
+        else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
+    }, [getUserData, getProfileData]);
+    useEffect(() => {
+        setUser(userData ?? profileData ?? partialData as any);
+    }, [userData, profileData, partialData]);
+    const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
+    const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -123,9 +136,9 @@ export const UserView = ({
         if (!resources && !permissions.canUpdate) tabs = tabs.filter(t => t.tabType !== TabOptions.Resource);
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
-            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : 'default', // Custom color for resources
+            color: tab.tabType === TabOptions.Resource ? '#8e6b00' : palette.secondary.dark, // Custom color for resources
             index: i,
-            // Icon: tab.Icon,
+            Icon: tab.Icon,
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
@@ -134,16 +147,16 @@ export const UserView = ({
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
     const onEdit = useCallback(() => {
-        setLocation(`${LINKS.Settings}?page="profile"`);
+        setLocation(LINKS.SettingsProfile);
     }, [setLocation]);
 
     // Create search data
     const { searchType, placeholder, where } = useMemo<SearchListGenerator>(() => {
         // NOTE: The first tab doesn't have search results, as it is the user's set resources
         if (currTab.value === TabOptions.Organization)
-            return toSearchListData('Organization', 'SearchOrganization', { memberUserIds: [id], visibility: VisibilityType.All });
-        return toSearchListData('Project', 'SearchProject', { ownedByUserId: id, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
-    }, [currTab.value, id, permissions.canUpdate]);
+            return toSearchListData('Organization', 'SearchOrganization', { memberUserIds: [user?.id!], visibility: VisibilityType.All });
+        return toSearchListData('Project', 'SearchProject', { ownedByUserId: user?.id!, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All });
+    }, [currTab.value, user?.id, permissions.canUpdate]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -346,7 +359,7 @@ export const UserView = ({
                     {
                         currTab.value === TabOptions.Resource ? resources : (
                             <SearchList
-                                canSearch={uuidValidate(id)}
+                                canSearch={Boolean(user?.id) && uuidValidate(user?.id)}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="user-view-list"

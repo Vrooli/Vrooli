@@ -38,7 +38,6 @@ export const user: GqlPartial<User> = {
         you: () => rel(userYou, 'full'),
     },
     full: {
-        stats: async () => rel((await import('./statsUser')).statsUser, 'full'),
         translations: () => rel(userTranslation, 'full'),
     },
     list: {
@@ -85,7 +84,7 @@ export const profile: GqlPartial<User> = {
         notifications: async () => rel((await import('./notification')).notification, 'full'),
         notificationSettings: true,
         translations: () => rel(userTranslation, 'full'),
-        stats: async () => rel((await import('./statsUser')).statsUser, 'full'),
+        you: () => rel(userYou, 'full'),
     },
     full: {},
     list: {},

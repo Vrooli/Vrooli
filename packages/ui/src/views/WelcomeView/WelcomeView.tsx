@@ -74,7 +74,7 @@ export const WelcomeView = ({
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t(`RunExample`)}</Button>
                         {checkIfLoggedIn(session) && <Button
-                            onClick={() => setLocation(`${LINKS.Settings}?page="profile"`)}
+                            onClick={() => setLocation(LINKS.SettingsProfile)}
                             startIcon={<ProfileIcon fill="black" />}
                             sx={{ ...buttonProps, marginBottom: 0 }}
                         >{t(`SetUpProfile`)}</Button>}

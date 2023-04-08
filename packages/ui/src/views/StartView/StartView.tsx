@@ -224,7 +224,7 @@ export const StartView = ({
                                 display: 'inline-block',
                             }}
                         >
-                            {t('PleaseSelectLogInMethod')}
+                            {t('SelectLogInMethod')}
                         </Typography>
                         <HelpButton markdown={helpText} />
                     </Box>

@@ -158,35 +158,12 @@ query profile {
         language
         bio
     }
-    stats {
-        id
-        periodStart
-        periodEnd
-        periodType
-        apisCreated
-        organizationsCreated
-        projectsCreated
-        projectsCompleted
-        projectCompletionTimeAverage
-        quizzesPassed
-        quizzesFailed
-        routinesCreated
-        routinesCompleted
-        routineCompletionTimeAverage
-        runProjectsStarted
-        runProjectsCompleted
-        runProjectCompletionTimeAverage
-        runProjectContextSwitchesAverage
-        runRoutinesStarted
-        runRoutinesCompleted
-        runRoutineCompletionTimeAverage
-        runRoutineContextSwitchesAverage
-        smartContractsCreated
-        smartContractsCompleted
-        smartContractCompletionTimeAverage
-        standardsCreated
-        standardsCompleted
-        standardCompletionTimeAverage
+    you {
+        canDelete
+        canReport
+        canUpdate
+        isBookmarked
+        isViewed
     }
   }
 }`;

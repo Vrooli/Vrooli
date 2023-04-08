@@ -35,7 +35,6 @@ export const getCurrentUser = (session: Session | null | undefined): Partial<Ses
  * @returns True if user is logged in
  */
 export const checkIfLoggedIn = (session: Session | null | undefined): boolean => {
-    console.log('action checkIfLoggedIn', session, localStorage.getItem('isLoggedIn') === 'true')
     // If there is no session, check local storage
     if (!session) return localStorage.getItem('isLoggedIn') === 'true';
     // Otherwise, check session
