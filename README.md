@@ -177,6 +177,21 @@ Useful for getting a feel of the project before developing.
 ## [👩🏼‍💻 Developer setup][setup-guide]
 Learn how to setup the development workflow, and general development tips.
 
+## 🦜 Multilingual Support
+
+We are actively seeking multilingual speakers to help us translate Vrooli's user interface, documentation, and other resources to make our platform accessible to a wider audience. By providing translations, you will be playing a crucial role in expanding Vrooli's global reach and fostering an inclusive community that embraces diversity.
+
+If you are a multilingual speaker and would like to contribute by providing translations, please follow these steps:
+
+1. View our translations at packages/shared/translations/src/locales
+2. Check if there is an existing translation folder for your language. If not, feel free to create a new folder for your language using the appropriate language code (e.g., es for Spanish, fr for French).
+3. Start translating the resources within the folder. This may include user interface text, documentation, and tutorials. Make sure to maintain the original file structure and format.
+4. Once you have completed your translation, submit a pull request. We will review your contribution and, if approved, merge it into the main repository.
+
+We are incredibly grateful for your contributions and dedication to making Vrooli accessible to users across the globe. As a token of our appreciation, contributors will be immortalized in our release notes.
+
+Thank you for your support and for helping us build a more inclusive and diverse Vrooli community!
+
 ## 🤝 Join the Team
 Vrooli's vision is bright, but a lot of work needs to be done to get there. Please feel free to contribute to the project, however you can. All work is appreciated💙 
 
