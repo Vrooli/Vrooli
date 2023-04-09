@@ -5,6 +5,7 @@ export const CardGrid = ({
     children,
     disableMargin,
     minWidth,
+    sx,
 }: CardGridProps) => {
     return (
         <Box sx={{
@@ -14,6 +15,7 @@ export const CardGrid = ({
             gap: 2,
             margin: disableMargin ? 0 : 2,
             borderRadius: 2,
+            ...(sx ?? {}),
         }}>
             {children}
         </Box>

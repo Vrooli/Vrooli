@@ -1,6 +1,6 @@
 // When there are too many tags, they should scroll horizontally 
 
-import { Palette } from "@mui/material";
+import { Palette, SxProps } from "@mui/material";
 
 // with a nonintrusive scrollbar
 export const smallHorizontalScrollbar = (palette: Palette) => ({
@@ -16,3 +16,17 @@ export const smallHorizontalScrollbar = (palette: Palette) => ({
         backgroundColor: palette.background.textSecondary,
     },
 })
+
+export const cardRoot: SxProps = {
+    boxShadow: 6,
+    background: (t: any) => t.palette.primary.light,
+    color: (t: any) => t.palette.primary.contrastText,
+    borderRadius: '16px',
+    margin: 0,
+    cursor: 'pointer',
+    maxWidth: '500px',
+    '&:hover': {
+        filter: `brightness(120%)`,
+        transition: 'filter 0.2s',
+    },
+}

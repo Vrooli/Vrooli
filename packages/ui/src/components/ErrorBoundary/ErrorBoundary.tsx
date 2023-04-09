@@ -1,5 +1,5 @@
 import { Button, Stack, Typography } from "@mui/material";
-import { RefreshIcon } from "@shared/icons";
+import { HomeIcon, RefreshIcon } from "@shared/icons";
 import { stringifySearchParams } from "@shared/route";
 import { Component } from "react";
 import { ErrorBoundaryProps } from "../../views/types";
@@ -76,6 +76,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             sx={{ marginTop: "16px" }}
                         >
                             Refresh
+                        </Button>
+                        <Button
+                            variant="contained"
+                            startIcon={<HomeIcon />}
+                            onClick={() => window.location.assign("/")}
+                            sx={{ marginTop: "16px" }}
+                        >
+                            Go to Home
                         </Button>
                     </Stack>
                 </div>

@@ -11,7 +11,7 @@ export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, 'id
 
 export type ProjectVersionShape = Pick<ProjectVersion, 'id' | 'isComplete' | 'isPrivate' | 'versionLabel' | 'versionNotes'> & {
     __typename?: 'ProjectVersion';
-    directoryListings?: ProjectVersionDirectoryShape[] | null;
+    directories?: ProjectVersionDirectoryShape[] | null;
     resourceList?: { id: string } | ResourceListShape | null;
     root?: { id: string } | ProjectShape | null;
     suggestedNextByProject?: { id: string }[] | null;
@@ -26,14 +26,14 @@ export const shapeProjectVersionTranslation: ShapeModel<ProjectVersionTranslatio
 export const shapeProjectVersion: ShapeModel<ProjectVersionShape, ProjectVersionCreateInput, ProjectVersionUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, 'id', 'isComplete', 'isPrivate', 'versionLabel', 'versionNotes'),
-        ...createRel(d, 'directoryListings', ['Create'], 'many', shapeProjectVersionDirectory),
+        ...createRel(d, 'directories', ['Create'], 'many', shapeProjectVersionDirectory),
         ...createRel(d, 'root', ['Connect', 'Create'], 'one', shapeProject),
         ...createRel(d, 'suggestedNextByProject', ['Connect'], 'many'),
         ...createRel(d, 'translations', ['Create'], 'many', shapeProjectVersionTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'isPrivate', 'versionLabel', 'versionNotes'),
-        ...updateRel(o, u, 'directoryListings', ['Create', 'Update', 'Delete'], 'many', shapeProjectVersionDirectory),
+        ...updateRel(o, u, 'directories', ['Create', 'Update', 'Delete'], 'many', shapeProjectVersionDirectory),
         ...updateRel(o, u, 'root', ['Update'], 'one', shapeProject),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeProjectVersionTranslation),
         ...updateRel(o, u, 'suggestedNextByProject', ['Connect', 'Disconnect'], 'many')

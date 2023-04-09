@@ -73,6 +73,7 @@ export const BuildView = ({
         setChangeStack(routineVersion ? [routineVersion] : []);
         setChangeStackIndex(routineVersion ? 0 : -1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
+        console.log('clearing change stack')
         setChangedRoutineVersion(routineVersion);
     }, [routineVersion]);
     /**
@@ -82,6 +83,7 @@ export const BuildView = ({
         if (changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
+            console.log('undoing')
             setChangedRoutineVersion(changeStack[changeStackIndex - 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -93,6 +95,7 @@ export const BuildView = ({
         if (changeStackIndex < changeStack.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
+            console.log('redoing')
             setChangedRoutineVersion(changeStack[changeStackIndex + 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -107,6 +110,7 @@ export const BuildView = ({
         setChangeStack(newChangeStack);
         setChangeStackIndex(newChangeStack.length - 1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
+        console.log('adding to change stack', changedRoutine)
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 
@@ -146,6 +150,7 @@ export const BuildView = ({
         }
         if (messages.includes('Ran into error determining node positions')) {
             // Remove all node positions and links
+            console.log('calculate memo setting changed routine 1')
             setChangedRoutineVersion({
                 ...changedRoutineVersion,
                 nodes: changedRoutineVersion.nodes.map(n => ({ ...n, columnIndex: null, rowIndex: null })),
@@ -162,6 +167,7 @@ export const BuildView = ({
         const haveNodesChanged = !isEqual(finalNodes, changedRoutineVersion.nodes);
         const haveLinksChanged = !isEqual(goodLinks, changedRoutineVersion.nodeLinks);
         if (haveNodesChanged || haveLinksChanged) {
+            console.log('calculate memo setting changed routine 2')
             setChangedRoutineVersion({
                 ...changedRoutineVersion,
                 nodes: finalNodes,
@@ -654,9 +660,13 @@ export const BuildView = ({
      * Adds a subroutine routine list
      */
     const handleSubroutineAdd = useCallback((nodeId: string, routineVersion: RoutineVersion) => {
+        // Find the node with changes
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
+        console.log('handleSubroutineAdd', nodeId, routineVersion, nodeIndex, changedRoutineVersion.nodes)
         if (nodeIndex === -1) return;
+        // Find the subroutine info in the node
         const routineList: NodeRoutineList = changedRoutineVersion.nodes[nodeIndex].routineList!;
+        // Create a routine list item, which wraps the added routine version with some extra info
         let routineItem: NodeRoutineListItem = {
             id: uuid(),
             index: routineList.items.length,
@@ -664,6 +674,7 @@ export const BuildView = ({
             routineVersion,
         } as NodeRoutineListItem;
         if (routineList.isOrdered) routineItem.index = routineList.items.length
+        // Add the new data to the change stack
         addToChangeStack({
             ...changedRoutineVersion,
             nodes: updateArray(changedRoutineVersion.nodes, nodeIndex, {

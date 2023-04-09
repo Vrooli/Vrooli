@@ -1,6 +1,6 @@
-import { description, id, name, req, opt, YupModel, versionLabel, versionNotes, rel, transRel, index, yupObj, bool } from '../utils';
-import { projectVersionDirectoryValidation } from './projectVersionDirectory';
+import { bool, description, id, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from '../utils';
 import { projectValidation } from './project';
+import { projectVersionDirectoryValidation } from './projectVersionDirectory';
 
 export const projectVersionTranslationValidation: YupModel = transRel({
     create: {
@@ -23,7 +23,7 @@ export const projectVersionValidation: YupModel = {
     }, [
         ['root', ['Connect', 'Create'], 'one', 'req', projectValidation, ['versions']],
         ['translations', ['Create'], 'many', 'opt', projectVersionTranslationValidation],
-        ['directoryListings', ['Create'], 'many', 'opt', projectVersionDirectoryValidation],
+        ['directories', ['Create'], 'many', 'opt', projectVersionDirectoryValidation],
         ['suggestedNextByProject', ['Connect'], 'many', 'opt'],
     ], [['rootConnect', 'rootCreate']], o),
     update: ({ o, minVersion = '0.0.1' }) => yupObj({
@@ -34,7 +34,7 @@ export const projectVersionValidation: YupModel = {
         versionNotes: opt(versionNotes),
     }, [
         ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', projectVersionTranslationValidation],
-        ['directoryListings', ['Create', 'Update', 'Delete'], 'many', 'opt', projectVersionDirectoryValidation],
+        ['directories', ['Create', 'Update', 'Delete'], 'many', 'opt', projectVersionDirectoryValidation],
         ['suggestedNextByProject', ['Connect', 'Disconnect'], 'many', 'opt'],
     ], [], o),
 }

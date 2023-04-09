@@ -1,5 +1,6 @@
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { LINKS } from "@shared/consts";
+import { CompleteIcon } from "@shared/icons";
 import { parseSearchParams, stringifySearchParams, useLocation } from "@shared/route";
 import { loadStripe } from '@stripe/stripe-js';
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -123,7 +124,6 @@ export const PremiumView = ({
         }
     };
 
-
     // TODO convert MaxObjects to list of limit increases 
     return (
         <>
@@ -134,7 +134,7 @@ export const PremiumView = ({
                     titleKey: 'Premium'
                 }}
             />
-            <Stack direction="column" spacing={4} justifyContent="center" alignItems="center" sx={{ marginTop: 2 }}>
+            <Stack direction="column" spacing={4} mt={2} mb={2} justifyContent="center" alignItems="center">
                 {/* Introduction to premium */}
                 <Typography variant="h6" sx={{ textAlign: 'center', margin: 2 }}>{t('PremiumIntro1')}</Typography>
                 <Typography variant="h6" sx={{ textAlign: 'center', margin: 2 }}>{t('PremiumIntro2')}</Typography>
@@ -163,8 +163,12 @@ export const PremiumView = ({
                                                 row.feature
                                             )}
                                         </TableCell>
-                                        <TableCell align="center">{row.nonPremium}</TableCell>
-                                        <TableCell align="center">{row.premium}</TableCell>
+                                        <TableCell align="center">
+                                            {row.nonPremium === '✔️' ? <CompleteIcon fill={palette.mode === 'light' ? palette.secondary.dark : palette.secondary.light} /> : row.nonPremium}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            {row.premium === '✔️' ? <CompleteIcon fill={palette.mode === 'light' ? palette.secondary.dark : palette.secondary.light} /> : row.premium}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

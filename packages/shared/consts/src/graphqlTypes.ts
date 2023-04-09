@@ -4068,7 +4068,14 @@ export type ProjectVersionDirectory = {
 };
 
 export type ProjectVersionDirectoryCreateInput = {
+  childApiVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childNoteVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childOrder?: InputMaybe<Scalars['String']>;
+  childOrganizationsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childProjectVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childRoutineVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childSmartContractVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childStandardVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isRoot?: InputMaybe<Scalars['Boolean']>;
   parentDirectoryConnect?: InputMaybe<Scalars['ID']>;
@@ -4099,7 +4106,21 @@ export type ProjectVersionDirectoryTranslationUpdateInput = {
 };
 
 export type ProjectVersionDirectoryUpdateInput = {
+  childApiVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childApiVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  childNoteVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childNoteVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   childOrder?: InputMaybe<Scalars['String']>;
+  childOrganizationsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childOrganizationsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  childProjectVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childProjectVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  childRoutineVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childRoutineVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  childSmartContractVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childSmartContractVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  childStandardVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childStandardVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isRoot?: InputMaybe<Scalars['Boolean']>;
   parentDirectoryConnect?: InputMaybe<Scalars['ID']>;

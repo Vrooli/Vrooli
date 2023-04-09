@@ -6,12 +6,12 @@ import { LinkIcon } from '@shared/icons';
 import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
 import { useCustomMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
-import { ResourceCard } from 'components/cards/ResourceCard/ResourceCard';
-import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs/ResourceDialog/ResourceDialog';
+import { cardRoot } from 'components/lists/styles';
 import { useCallback, useMemo, useState } from 'react';
 import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
 import { updateArray } from 'utils/shape/general';
+import { ResourceCard } from '../ResourceCard/ResourceCard';
 import { ResourceListItemContextMenu } from '../ResourceListItemContextMenu/ResourceListItemContextMenu';
 import { ResourceListHorizontalProps } from '../types';
 
@@ -135,11 +135,24 @@ export const ResourceListHorizontal = ({
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
                 onClose={closeContext}
-                onAddBefore={() => { }} //TODO
-                onAddAfter={() => { }} //TODO
+                onAddBefore={() => {
+                    setEditingIndex(selectedIndex ?? 0);
+                    openDialog();
+                }}
+                onAddAfter={() => {
+                    setEditingIndex(selectedIndex ? selectedIndex + 1 : 0);
+                    openDialog();
+                }}
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
-                onMove={() => { }} //TODO
+                onMove={(index: number) => {
+                    if (handleUpdate && list) {
+                        handleUpdate({
+                            ...list,
+                            resources: updateArray(list.resources, selectedIndex ?? 0, list.resources[index]) as any[],
+                        });
+                    }
+                }}
                 resource={selectedResource}
                 zIndex={zIndex + 1}
             />

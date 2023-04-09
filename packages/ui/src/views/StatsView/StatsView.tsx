@@ -2,10 +2,10 @@ import { Box, Card, CardContent, Grid, Typography, useTheme } from '@mui/materia
 import { StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from '@shared/consts';
 import { useCustomLazyQuery } from 'api';
 import { statsSiteFindMany } from 'api/generated/endpoints/statsSite_findMany';
-import { CardGrid } from 'components/cards/CardGrid/CardGrid';
-import { LineGraphCard } from 'components/cards/LineGraphCard/LineGraphCard';
 import { ContentCollapse } from 'components/containers/ContentCollapse/ContentCollapse';
+import { CardGrid } from 'components/lists/CardGrid/CardGrid';
 import { DateRangeMenu } from 'components/lists/DateRangeMenu/DateRangeMenu';
+import { LineGraphCard } from 'components/lists/LineGraphCard/LineGraphCard';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { PageTabs } from 'components/PageTabs/PageTabs';
 import { PageTab } from 'components/types';

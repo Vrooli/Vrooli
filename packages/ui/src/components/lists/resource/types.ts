@@ -1,4 +1,16 @@
 import { Resource, ResourceList } from "@shared/consts";
+import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
+
+export interface ResourceCardProps {
+    canUpdate: boolean;
+    data: Resource;
+    dragProps: DraggableProvidedDraggableProps;
+    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+    index: number;
+    onContextMenu: (target: EventTarget, index: number) => void;
+    onEdit: (index: number) => void;
+    onDelete: (index: number) => void;
+}
 
 export interface ResourceListHorizontalProps {
     title?: string;

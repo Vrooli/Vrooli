@@ -2,7 +2,6 @@ import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typogra
 import { FindByIdInput } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon, VisibleIcon } from "@shared/icons";
 import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "@shared/route";
-import { isOfType } from "@shared/utils";
 import { useCustomLazyQuery } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -31,11 +30,8 @@ const { RoutineUpsert } = lazily(() => import('../../../views/objects/routine/Ro
 const { SmartContractUpsert } = lazily(() => import('../../../views/objects/smartContract/SmartContractUpsert/SmartContractUpsert'));
 const { StandardUpsert } = lazily(() => import('../../../views/objects/standard/StandardUpsert/StandardUpsert'));
 
-type CreateViewTypes = ({
-    [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
-    never :
-    K
-})[SelectOrCreateObjectType]
+type RemoveVersion<T extends string> = T extends `${infer U}Version` ? U : T;
+type CreateViewTypes = Exclude<RemoveVersion<SelectOrCreateObjectType>, 'User'>;
 
 type BaseParams = {
     Icon: (props: SvgProps) => JSX.Element,
@@ -187,6 +183,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback((item?: ObjectType, versionId?: string) => {
+        console.log('onCloseeeeee', item)
         // Clear search params
         removeSearchParams(setLocation, [
             ...(advancedSearchSchema?.fields.map(f => f.fieldName) ?? []),
@@ -209,7 +206,16 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             handleComplete((versionId ? `${base}/${versionId}` : base) as any);
         }
         // Otherwise, return object
-        else handleComplete(item as any);
+        else {
+            // If versionId is set, return the version
+            if (versionId) {
+                const version = (item as any).versions?.find(v => v.id === versionId);
+                const { versions, ...rest } = item as any;
+                handleComplete({ ...version, root: rest } as any);
+            }
+            // Otherwise, return the item
+            else handleComplete(item as any);
+        }
     }, [advancedSearchSchema?.fields, find, handleCancel, handleComplete, setLocation]);
 
     const [selectedObject, setSelectedObject] = useState<{
@@ -253,16 +259,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, []);
 
     const handleCreated = useCallback((item: SelectOrCreateObject) => {
-        // Versioned objects are always created from the perspective of the version, and not the root.
-        // If the object type is a root of a versioned object, we must change the shape before calling handleAdd
-        if (isOfType(createObjectType, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard')) {
-            const { root, ...rest } = item as any;
-            onClose({ ...root, versions: [rest] } as ObjectType);
-        }
-        // Otherwise, just call handleAdd
-        else onClose(item as ObjectType);
+        onClose(item as ObjectType);
         setCreateObjectType(null);
-    }, [createObjectType, onClose]);
+    }, [onClose]);
     const handleCreateClose = useCallback(() => {
         setCreateObjectType(null);
     }, []);

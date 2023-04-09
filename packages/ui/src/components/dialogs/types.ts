@@ -1,5 +1,5 @@
 import { DialogProps, PopoverProps } from '@mui/material';
-import { Api, ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, Note, NoteVersion, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContract, SmartContractVersion, Standard, StandardVersion, User } from '@shared/consts';
+import { ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContractVersion, StandardVersion, User } from '@shared/consts';
 import { SvgComponent } from '@shared/icons';
 import { HelpButtonProps } from "components/buttons/types";
 import { StatsCompactPropsObject } from 'components/text/types';
@@ -62,22 +62,22 @@ export interface DialogTitleProps {
     title?: string;
 }
 
-export type SelectOrCreateObjectType = 'Api' | 'ApiVersion' | 'Note' | 'NoteVersion' | 'Organization' | 'Project' | 'ProjectVersion' | 'Routine' | 'RoutineVersion' | 'SmartContract' | 'SmartContractVersion' | 'Standard' | 'StandardVersion' | 'User';
-export type SelectOrCreateObject = Api |
-    ApiVersion |
-    Note |
+export type SelectOrCreateObjectType = 'ApiVersion' | 'NoteVersion' | 'Organization' | 'ProjectVersion' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion' | 'User';
+export type SelectOrCreateObject = ApiVersion |
     NoteVersion |
     Organization |
-    Project |
     ProjectVersion |
-    Routine |
     RoutineVersion |
-    SmartContract |
     SmartContractVersion |
-    Standard |
     StandardVersion |
     User;
-export type FindObjectDialogType = 'Url' | 'Object';
+/**
+ * Determines what type of data is returned when an object is selected. 
+ * "Full" uses an additional request to get the full object. 
+ * "List" returns the object as it appears in a findMany query.
+ * "Url" returns the url of the object.
+ */
+export type FindObjectDialogType = 'Full' | 'List' | 'Url';
 export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
     /**
      * Determines the type of data returned when an object is selected

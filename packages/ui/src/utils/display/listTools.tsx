@@ -236,9 +236,6 @@ const trySubtitle = (obj: Record<string, any>, langs: readonly string[]) => {
  * @returns The title and subtitle, or blank strings if none found
  */
 const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
-    console.log('tryVersioned 1', JSON.stringify(obj));
-    console.log('tryVersioned 2', obj.versions?.find(v => v.isLatest));
-    console.log('tryVersioned 3', [...(obj.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex));
     // Initialize the title and subtitle
     let title: string | null = null;
     let subtitle: string | null = null;
@@ -272,7 +269,6 @@ export const getDisplay = (
     object: ListObjectType | null | undefined,
     languages?: readonly string[]
 ): { title: string, subtitle: string } => {
-    console.log('getDisplay start', object)
     if (!object) return { title: '', subtitle: '' };
     // If a star, view, or vote, use the "to" object
     if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);

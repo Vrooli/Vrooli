@@ -1,12 +1,15 @@
-import { useTheme } from "@mui/material";
+import { Stack, useTheme } from "@mui/material";
 import { ProjectVersion, Session } from "@shared/consts";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { projectVersionTranslationValidation, projectVersionValidation } from "@shared/validation";
 import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
+import { DirectoryListHorizontal } from "components/lists/directory";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { ProjectFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
@@ -24,7 +27,6 @@ export const projectInitialValues = (
 ): ProjectVersionShape => ({
     __typename: 'ProjectVersion' as const,
     id: DUMMY_ID,
-    directoryListings: [],
     isComplete: false,
     isPrivate: true,
     resourceList: {
@@ -41,6 +43,18 @@ export const projectInitialValues = (
     },
     versionLabel: '1.0.0',
     ...existing,
+    directories: orDefault(existing?.directories, [{
+        __typename: 'ProjectVersionDirectory' as const,
+        id: DUMMY_ID,
+        isRoot: true,
+        childApiVersions: [],
+        childNoteVersions: [],
+        childOrganizations: [],
+        childProjectVersions: [],
+        childRoutineVersions: [],
+        childSmartContractVersions: [],
+        childStandardVersions: [],
+    } as any]),
     translations: orDefault(existing?.translations, [{
         __typename: 'ProjectVersionTranslation' as const,
         id: DUMMY_ID,
@@ -95,6 +109,9 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
         validationSchema: projectVersionTranslationValidation.update({}),
     });
 
+    // For now, we'll only deal with one directory listing
+    const [directoryField, , directoryHelpers] = useField('directories[0]');
+
     return (
         <>
             <BaseForm
@@ -110,25 +127,54 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                     paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
                 }}
             >
-                <RelationshipList
-                    isEditing={true}
-                    objectType={'Project'}
-                    zIndex={zIndex}
-                    sx={{ marginBottom: 4 }}
-                />
-                <LanguageInput
-                    currentLanguage={language}
-                    handleAdd={handleAddLanguage}
-                    handleDelete={handleDeleteLanguage}
-                    handleCurrent={setLanguage}
-                    languages={languages}
-                    zIndex={zIndex + 1}
-                />
-                {/* TODO */}
-                <VersionInput
-                    fullWidth
-                    versions={versions}
-                />
+                <Stack direction="column" spacing={4} sx={{
+                    margin: 2,
+                    marginBottom: 4,
+                }}>
+                    <RelationshipList
+                        isEditing={true}
+                        objectType={'Project'}
+                        zIndex={zIndex}
+                        sx={{ marginBottom: 4 }}
+                    />
+                    <Stack direction="column" spacing={2}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                            zIndex={zIndex + 1}
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t('Name')}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedTextField
+                            fullWidth
+                            label={t('Description')}
+                            language={language}
+                            multiline
+                            minRows={2}
+                            maxRows={4}
+                            name="description"
+                        />
+                    </Stack>
+                    <DirectoryListHorizontal
+                        canUpdate={true}
+                        directory={directoryField.value}
+                        handleUpdate={directoryHelpers.setValue}
+                        loading={isLoading}
+                        mutate={false}
+                        zIndex={zIndex}
+                    />
+                    <VersionInput
+                        fullWidth
+                        versions={versions}
+                    />
+                </Stack>
                 <GridSubmitButtons
                     display={display}
                     errors={{

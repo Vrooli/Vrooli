@@ -1,6 +1,8 @@
 import { ApiVersion, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from '@shared/consts';
+import { SvgComponent } from '@shared/icons';
 import { CommonKey } from '@shared/translations';
-import { NavigableObject } from 'types';
+import { LineGraphProps } from 'components/graphs/types';
+import { AwardDisplay, NavigableObject } from 'types';
 import { ObjectAction } from 'utils/actions/objectActions';
 import { ListObjectType } from 'utils/display/listTools';
 import { UseObjectActionsReturn } from 'utils/hooks/useObjectActions';
@@ -155,4 +157,30 @@ export interface TagListProps {
     parentId: string;
     sx?: { [x: string]: any };
     tags: Partial<Tag>[];
+}
+
+export interface AwardCardProps {
+    award: AwardDisplay;
+    isEarned: boolean;
+}
+
+export interface CardGridProps {
+    children: JSX.Element | (JSX.Element | null)[] | null;
+    disableMargin?: boolean;
+    minWidth: number;
+    sx?: { [x: string]: any };
+}
+
+export interface LineGraphCardProps extends Omit<LineGraphProps, 'dims'> {
+    title?: string;
+    index: number;
+}
+
+export interface TIDCardProps {
+    buttonText: string;
+    description: string;
+    key: string | number;
+    Icon: SvgComponent | null | undefined;
+    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
+    title: string;
 }

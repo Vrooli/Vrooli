@@ -5,34 +5,30 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { ResourceUsedFor } from '@shared/consts';
-import { DeleteIcon, EditIcon } from '@shared/icons';
-import { openLink, useLocation } from '@shared/route';
-import { CommonKey } from '@shared/translations';
+import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from '@shared/icons';
+import { useLocation } from '@shared/route';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
-import { forwardRef, useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { multiLineEllipsis, noSelect } from 'styles';
-import { getResourceIcon } from 'utils/display/getResourceIcon';
 import { getDisplay } from 'utils/display/listTools';
-import { firstString } from 'utils/display/stringTools';
 import { getUserLanguages } from 'utils/display/translationTools';
 import usePress from 'utils/hooks/usePress';
-import { getResourceType, getResourceUrl } from 'utils/navigation/openObject';
-import { PubSub } from 'utils/pubsub';
+import { getObjectUrl } from 'utils/navigation/openObject';
 import { SessionContext } from 'utils/SessionContext';
-import { ResourceCardProps } from '../types';
+import { DirectoryCardProps } from '../types';
 
-export const ResourceCard = forwardRef<any, ResourceCardProps>(({
+/**
+ * Unlike ResourceCard, these aren't draggable. This is because the objects 
+ * are not stored in an order - they are stored by object type
+ */
+export const DirectoryCard = ({
     canUpdate,
     data,
-    dragProps,
-    dragHandleProps,
     index,
     onContextMenu,
-    onEdit,
     onDelete,
-}, ref) => {
+}: DirectoryCardProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -40,39 +36,32 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
 
     const [showIcons, setShowIcons] = useState(false);
 
-    const { title, subtitle } = useMemo(() => {
-        const { title, subtitle } = getDisplay(data, getUserLanguages(session));
-        return {
-            title: Boolean(title) ? title : t((data.usedFor ?? 'Context') as CommonKey),
-            subtitle,
-        };
-    }, [data, session, t]);
+    const { title, subtitle } = useMemo(() => getDisplay(data as any, getUserLanguages(session)), [data, session]);
 
     const Icon = useMemo(() => {
-        return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
+        if (!data || !data.__typename) return HelpIcon;
+        if (data.__typename === 'ApiVersion') return ApiIcon;
+        if (data.__typename === 'NoteVersion') return NoteIcon;
+        if (data.__typename === 'Organization') return OrganizationIcon;
+        if (data.__typename === 'ProjectVersion') return ProjectIcon;
+        if (data.__typename === 'RoutineVersion') return RoutineIcon;
+        if (data.__typename === 'SmartContractVersion') return SmartContractIcon;
+        if (data.__typename === 'StandardVersion') return StandardIcon;
+        return HelpIcon;
     }, [data]);
 
-    const href = useMemo(() => getResourceUrl(data.link), [data]);
+    const href = useMemo(() => data ? getObjectUrl(data as any) : '#', [data]);
     const handleClick = useCallback((target: EventTarget) => {
-        // Check if edit or delete button was clicked
+        // Check if delete button was clicked
         const targetId: string | undefined = target.id;
-        if (targetId && targetId.startsWith('edit-')) {
-            onEdit?.(index);
-        }
-        else if (targetId && targetId.startsWith('delete-')) {
+        if (targetId && targetId.startsWith('delete-')) {
             onDelete?.(index);
         }
         else {
-            // If no resource type or link, show error
-            const resourceType = getResourceType(data.link);
-            if (!resourceType || !href) {
-                PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: 'Error' });
-                return;
-            }
-            // Open link
-            else openLink(setLocation, href);
+            // Navigate to object
+            setLocation(href);
         }
-    }, [data.link, href, index, onDelete, onEdit, setLocation]);
+    }, [href, index, onDelete, setLocation]);
     const handleContextMenu = useCallback((target: EventTarget) => {
         onContextMenu(target, index);
     }, [onContextMenu, index]);
@@ -95,11 +84,8 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     });
 
     return (
-        <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${data.link}`}>
+        <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${href}`}>
             <Box
-                ref={ref}
-                {...dragProps}
-                {...dragHandleProps}
                 {...pressEvents}
                 component="a"
                 href={href}
@@ -124,19 +110,10 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
                     },
                 } as any}
             >
-                {/* Edit and delete icons, only visible on hover */}
+                {/* delete icon, only visible on hover */}
                 {showIcons && (
                     <>
-                        <Tooltip title="Edit">
-                            <ColorIconButton
-                                id='edit-icon-button'
-                                background='#c5ab17'
-                                sx={{ position: 'absolute', top: 4, left: 4 }}
-                            >
-                                <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
-                            </ColorIconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
+                        <Tooltip title={t('Delete')}>
                             <ColorIconButton
                                 id='delete-icon-button'
                                 background={palette.error.main}
@@ -158,7 +135,7 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
                         textOverflow: 'ellipsis',
                     }}
                 >
-                    <Icon sx={{ fill: 'white' }} />
+                    <Icon fill="white" />
                     <Typography
                         gutterBottom
                         variant="body2"
@@ -169,10 +146,10 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
                             lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >
-                        {firstString(title, data.link)}
+                        {title}
                     </Typography>
                 </Stack>
             </Box>
         </Tooltip>
     )
-})
+}

@@ -42,7 +42,7 @@ export const typeDef = gql`
         isComplete: Boolean
         versionLabel: String!
         versionNotes: String
-        directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
+        directoriesCreate: [ProjectVersionDirectoryCreateInput!]
         rootConnect: ID
         rootCreate: ProjectCreateInput
         suggestedNextByProjectConnect: [ID!]
@@ -58,9 +58,9 @@ export const typeDef = gql`
         translationsCreate: [ProjectVersionTranslationCreateInput!]
         translationsUpdate: [ProjectVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
-        directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
-        directoryListingsUpdate: [ProjectVersionDirectoryUpdateInput!]
-        directoryListingsDelete: [ID!]
+        directoriesCreate: [ProjectVersionDirectoryCreateInput!]
+        directoriesUpdate: [ProjectVersionDirectoryUpdateInput!]
+        directoriesDelete: [ID!]
         suggestedNextByProjectConnect: [ID!]
         suggestedNextByProjectDisconnect: [ID!]
     }

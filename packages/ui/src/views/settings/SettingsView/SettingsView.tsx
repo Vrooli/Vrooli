@@ -1,8 +1,8 @@
 import { LINKS } from '@shared/consts';
 import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
-import { CardGrid } from 'components/cards/CardGrid/CardGrid';
-import { TIDCard } from 'components/cards/TIDCard/TIDCard';
+import { CardGrid } from 'components/lists/CardGrid/CardGrid';
+import { TIDCard } from 'components/lists/TIDCard/TIDCard';
 import { SettingsTopBar } from 'components/navigation/SettingsTopBar/SettingsTopBar';
 import { Header } from 'components/text/Header/Header';
 import { useCallback } from 'react';

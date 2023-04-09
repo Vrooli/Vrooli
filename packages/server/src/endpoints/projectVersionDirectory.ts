@@ -3,7 +3,14 @@ import { gql } from 'apollo-server-express';
 export const typeDef = gql`
     input ProjectVersionDirectoryCreateInput {
         id: ID!
+        childApiVersionsConnect: [ID!]
+        childNoteVersionsConnect: [ID!]
         childOrder: String
+        childOrganizationsConnect: [ID!]
+        childProjectVersionsConnect: [ID!]
+        childRoutineVersionsConnect: [ID!]
+        childSmartContractVersionsConnect: [ID!]
+        childStandardVersionsConnect: [ID!]
         isRoot: Boolean
         parentDirectoryConnect: ID
         projectVersionConnect: ID!
@@ -11,7 +18,21 @@ export const typeDef = gql`
     }
     input ProjectVersionDirectoryUpdateInput {
         id: ID!
+        childApiVersionsConnect: [ID!]
+        childApiVersionsDisconnect: [ID!]
+        childNoteVersionsConnect: [ID!]
+        childNoteVersionsDisconnect: [ID!]
         childOrder: String
+        childOrganizationsConnect: [ID!]
+        childOrganizationsDisconnect: [ID!]
+        childProjectVersionsConnect: [ID!]
+        childProjectVersionsDisconnect: [ID!]
+        childRoutineVersionsConnect: [ID!]
+        childRoutineVersionsDisconnect: [ID!]
+        childSmartContractVersionsConnect: [ID!]
+        childSmartContractVersionsDisconnect: [ID!]
+        childStandardVersionsConnect: [ID!]
+        childStandardVersionsDisconnect: [ID!]
         isRoot: Boolean
         parentDirectoryConnect: ID
         parentDirectoryDisconnect: Boolean

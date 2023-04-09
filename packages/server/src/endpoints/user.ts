@@ -266,7 +266,9 @@ export const resolvers: {
     Mutation: {
         profileUpdate: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType, prisma, req })
+            // Add user id to input, since IDs are required for validation checks
+            const { id } = assertRequestFrom(req, { isUser: true });
+            return updateHelper({ info, input: { ...input, id }, objectType, prisma, req })
         },
         profileEmailUpdate: async (_, { input }, { prisma, req, res }, info) => {
             throw new CustomError('0999', 'NotImplemented', ['en']);
