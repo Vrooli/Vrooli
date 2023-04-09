@@ -6,29 +6,28 @@
 &nbsp;&nbsp;
 
 [![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com)][website]
-[![YouTube Channel Views](https://img.shields.io/youtube/channel/views/UC4qvcwbFxx06vBD3wKjXscg?logo=youtube&logoColor=red&style=for-the-badge)][youtube]
 [![Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][twitter]
 [![Discord](https://img.shields.io/discord/880439923876974643?&style=for-the-badge)][discord]
-[![Join the Movement](https://img.shields.io/badge/-Join%20The%20Movement-gray.svg?colorB=733ace&style=for-the-badge)][start]
-<br/>
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
 # [<img align="top" alt="YouTube" width="50px" src="./docs/assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
 
-Vrooli is a decentralized, collaborative automation platform designed to minimize the time between the inception of an idea and its development into a fully-functional product.
+Vrooli is a decentralized, collaborative automation platform designed to minimize the time between the inception of an idea and its development into a fully-functional product. It combines core components like interfaces, APIs, smart contracts, data, standards, and containerization into interoperable building blocks called routines. These routines can be combined together without any coding experience, making it easy for anyone to create and customize them for rapid prototyping, reusable productivity workflows, and the automation of complex tasks. 
 
-This is accomplished by combining the following core components into interoperable building blocks: 
+Some of Vrooli's features include:
 
-* Interfaces
-* APIs
-* Smart Contracts
-* Data
-* Standards
-* Containerization  
+* Routine visualizer
+* Referencing and creating routines from existing templates
+* Scheduling routines
+* Organizing routines into projects, and attaching them to organizations
+* Customizing the UX with focus modes
+* Community moderation using a reputation system
 
-Each building block is called a *routine*, and they can be combined together without any coding experience - just simple drag-and-drop.
+## What happened here?
 
-Routines can be used for rapid prototyping, reusable productivity workflows, and the automation of complex tasks.
+Originally focused on building with blockchain technology, I have decided to shift the project's implementation to traditional technologies first, then integrate blockchain later. This decision prioritizes user experience and accessibility.
+
+While this project aims for profitability, Vrooli is not structured as a traditional business. The founder does not want to manage employees and is not interested in being obligated to respond to comments on a regular basis. Collaborators are welcome to suggest and complete tasks on [our project board](https://github.com/orgs/Vrooli/projects/1). The best way to help this project, however, is to use it! Creating public routines and being an active participant on the app is ideal. Thank you for your interest in Vrooli!
 
 ## 👀 The Vision
 
@@ -91,42 +90,77 @@ To achieve this grand vision, we must think from first principles. What properti
 
 **How can Vrooli be used to automate tasks?** Vrooli has visions of becoming the "glue" of the automated world. If you're using routines to plan everything, connecting data and computation is the next logical step. The [project roadmap](#🔮-roadmap) details the timeline for this functionality.
 
+## Is this similar to LangChain?
+[LangChain](https://github.com/hwchase17/langchain) has gained a lot of attention recently for its ability to build large language model (LLM) applications using a graphical interface. At first glance, this may look a lot like what we're building, but there are several key differences:
+
+* <details>
+  <summary><b>Scope and focus</b></summary>
+  LangChain is specifically designed for creating applications that leverage large language models (LLMs), while Vrooli offers a broader range of functionality. Vrooli enables users to create and customize applications for rapid prototyping, reusable productivity workflows, and complex task automation, even if they don't involve LLMs.
+</details>
+
+* <details>
+  <summary><b>Combining automated and manual tasks</b></summary>
+  Vrooli allows users to combine both automated and manual tasks, providing a user interface for tasks that require human intervention. This makes Vrooli a more flexible solution for projects that require a mix of automated and user-driven processes. A major benefit to this approach is that processes can be slowly automated over time, rather than having to go through the effort of automating everything at once.
+</details>
+
+* <details>
+  <summary><b>Building on existing routines and community sharing</b></summary>
+  Vrooli offers the ability to build off of existing routines, enabling users to easily reuse and customize components for their projects. Additionally, Vrooli promotes a collaborative environment by allowing users to share their routines with the community, fostering innovation and accelerating development across all organizations
+</details>
+
 ## 🔗 Quick Links
 - [Motivations and goals](https://www.youtube.com/watch?v=hBHaPYi5esQ)
-- [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4/edit?usp=sharing)
-- [Fund6 proposal](https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088)
+- [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/13Nag4UFxfuz-rVofhNEtqhZ63wOklzPjpbanGv_Po0Y/edit?usp=sharing)
 - [Join the discussion on Discord!](https://discord.com/invite/VyrDFzbmmF)
 - [Follow us on Twitter!](https://twitter.com/VrooliOfficial)
 
 ## 🔮 Roadmap
  - Q1 2022 
-    - ✅ Website launch. Users can create, comment, and vote on basic routines. 
+    - ✅ Alpha launch. Users can create, comment, and vote on basic routines. 
     - ✅ Routines consist of a flowchart of steps. Each step can have a description and a list of useful resources.
  - Q2 2022
     - ✅ Routine visualizer improved.
     - ✅ Routines have the ability to reference other routines.
     - ✅ Routines can be created using the template of any existing routine.
-    - "Request a Routine" section added.
+    - ✅ Support for multiple wallets and emails for authentication
  - Q3 2022
-    - API fully defined for routine metadata. Supports all existing features, plus information required for data storage and automation.
-    - Development started for connecting routines to specific user interfaces. This functionality allows for users to step through routines much easier, and is an important precursor for automation.
-    - Integration with DIDs, to act as a reputation system.
+    - ✅ Improved UX for running routines
+    - ✅ Server and API improvements
+    - ✅ Increased TypeScript type safety
 - Q4 2022
-    - Routines can connect to IPNS (similar to IPFS, but updatable) for data storage.
-    - Ability for routines to trigger a smart contract.
-    - Release of routine interface functionality.
-- 2023 and beyond
-    - Ability for users to create their own routine interfaces.
+    - ✅ Website navigation improvements, including a command palette
+    - ⚠️ Website shut down to work on fundamental rewrite
+    - ✅ More than doubled the database schema size, to support most features coming in 2023
+- Q1 2023
+    - ✅ Server rewritten to standardize model logic across all objects
+    - ✅ UX redesigned to focus on personal productivity first
+- Q2 2023
+    - 2.0 website launch🚀
+    - Create reminders, schedules, and notes
+    - Push notification support
+    - Transfer objects
+    - Invite members to your organization
+    - Schedule routines
+    - Premium subscription which supports higher limits for various actions
+- Q3 2023
+    - Run routines automatically
+    - Pull request functionality for improving routines
+    - Define APIs and call them from routines 
+    - Define smart contracts
+    - API spec finished for calling smart contracts, storing an retrieving data, attaching custom interfaces to routines, and remaining automation features
+- Q4 2023
+    - Create custom routine interfaces
+    - Call Cardano smart contracts. More to be supported in the future
+    - Microtransactions implemented to pay for API calls, smart contract calls, and running custom interfaces. 
+- 2024 and beyond
+    - Integration with DIDs, to act as a reputation system.
+    - Routines can connect to IPNS (similar to IPFS, but updatable) for data storage. Other options to also be supported
     - Decentralize all the things!
     - Continual improvements and bug fixes, to ensure Vrooli is as best as can be.
 
 ## 🥞 Development Stack
-[<img align="left" alt="Cardano" width="26px" src="./docs/assets/cardano.svg" style="padding-right:10px;" />](https://cardano.org/)
 [<img align="left" alt="React" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" style="padding-right:10px;" />](https://reactjs.org/)
 [<img align="left" alt="GraphQL" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" style="padding-right:10px;" />](https://graphql.org/)
-[<img align="left" alt="HTML5" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/html5/html5-original.svg" style="padding-right:10px;" />](https://developer.mozilla.org/en-US/docs/Glossary/HTML5)
-[<img align="left" alt="CSS3" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/css3/css3-original.svg" style="padding-right:10px;" />](https://developer.mozilla.org/en-US/docs/Web/CSS)
-[<img align="left" alt="JavaScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" style="padding-right:10px;" />](https://www.javascript.com/)
 [<img align="left" alt="typeScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" style="padding-right:10px;" />](https://www.typescriptlang.org/)
 [<img align="left" alt="Node.js" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" style="padding-right:10px;" />](https://nodejs.org/)
 [<img align="left" alt="PostgreSQL" width="26px" src="./docs/assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/)
@@ -157,6 +191,6 @@ If you'd like to work with me on this project, or create your own proposal for a
 [directory-structure]: ./docs/DirectoryStructure.md
 [discord]: https://discord.com/invite/VyrDFzbmmF
 [twitter]: https://twitter.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
-[youtube]: https://www.youtube.com/channel/UC4qvcwbFxx06vBD3wKjXscg
+[youtube]: https://www.youtube.com/@vrooli
 [linkedin]: https://www.linkedin.com/in/matthew-halloran/
 [email]: mailto:support@vrooli.com
