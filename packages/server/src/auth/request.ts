@@ -9,6 +9,11 @@ import { isSafeOrigin } from '../utils';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
+const privateKey = {
+    key: process.env.JWT_SECRET,
+    passphrase: process.env.JWT_SECRET_PASSPHRASE,
+}
+
 /**
  * Parses a request's accept-language header
  * @param req The request
