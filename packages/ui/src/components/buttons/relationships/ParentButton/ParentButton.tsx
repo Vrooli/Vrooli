@@ -73,7 +73,8 @@ export function ParentButton({
         if (parent?.id === parentId) return;
         exists(versionHelpers) && versionHelpers.setValue(parent);
         exists(rootHelpers) && rootHelpers.setValue(parent);
-    }, [rootField?.value?.id, rootHelpers, versionField?.value?.id, versionHelpers]);
+        closeParentDialog();
+    }, [closeParentDialog, rootField?.value?.id, rootHelpers, versionField?.value?.id, versionHelpers]);
 
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
@@ -112,7 +113,7 @@ export function ParentButton({
         <>
             {/* Popup for selecting organization, user, etc. */}
             {findType && <FindObjectDialog
-                find="Object"
+                find="List"
                 isOpen={Boolean(findType)}
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}

@@ -57,7 +57,8 @@ export function ProjectButton({
         if (project?.id === projectId) return;
         exists(versionHelpers) && versionHelpers.setValue(project);
         exists(rootHelpers) && rootHelpers.setValue(project);
-    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers]);
+        closeProjectDialog();
+    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeProjectDialog]);
 
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
@@ -86,7 +87,7 @@ export function ProjectButton({
         <>
             {/* Popup for selecting project */}
             {findType && <FindObjectDialog
-                find="Object"
+                find="List"
                 isOpen={Boolean(findType)}
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}

@@ -49,7 +49,7 @@ export function StandardVersionSelectSwitch({
         <>
             {/* Popup for adding/connecting a new standardVersion */}
             <FindObjectDialog
-                find="Object"
+                find="Full"
                 isOpen={isCreateDialogOpen}
                 handleComplete={onChange as any}
                 handleCancel={closeCreateDialog}

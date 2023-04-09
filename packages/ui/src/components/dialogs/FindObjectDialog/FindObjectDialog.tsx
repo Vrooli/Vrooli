@@ -6,9 +6,9 @@ import { isOfType } from "@shared/utils";
 import { useCustomLazyQuery } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
-import { TIDCard } from "components/cards/TIDCard/TIDCard";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
+import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { PageTab } from "components/types";
@@ -127,7 +127,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     // Tabs to filter by object type
     const tabs = useMemo<PageTab<'All' | SearchPageTabOption>[]>(() => {
-        console.log('yeet calculating tabs', limitTo)
         // If limitTo is set, only show those tabs
         let filteredTabParams = tabParams;
         if (limitTo && limitTo.length > 0) {
@@ -141,15 +140,21 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             value: tab.tabType,
         }));
     }, [limitTo, t]);
-    const [currTab, setCurrTab] = useState<PageTab<'All' | SearchPageTabOption>>(() => {
-        console.log('yeet calcualting curr tab', tabs)
+
+    const [currTab, setCurrTab] = useState<PageTab<'All' | SearchPageTabOption> | null>(null);
+    useEffect(() => {
+        // Get tab from search params
         const searchParams = parseSearchParams();
         const index = tabs.findIndex(tab => tab.value === searchParams.type);
-        // Default to routine tab
-        if (index === -1) return tabs[0];
-        // Return tab
-        return tabs[index];
-    });
+        // If not found, default to the first tab
+        if (index === -1) {
+            setCurrTab(tabs[0]);
+        } else {
+            setCurrTab(tabs[index]);
+        }
+    }, [tabs]);
+    console.log('yeeeeet', currTab)
+
     const handleTabChange = useCallback((e: any, tab: PageTab<SearchPageTabOption>) => {
         e.preventDefault();
         // Update search params
@@ -217,23 +222,22 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     // On tab change, update search params
     const { searchType, where } = useMemo<Pick<BaseParams, 'searchType' | 'where'>>(() => {
-        console.log('curr tab')
+        console.log('yeet calculating search type', searchData, currTab, tabs)
         if (searchData) return searchData as any;
-        return tabParams[currTab.index];
-    }, [currTab.index, searchData]);
+        if (currTab) return { searchType: tabParams.find(tab => tab.tabType === currTab.value)?.searchType ?? 'All', where: {} };
+        return { searchType: 'All', where: {} };
+    }, [currTab, searchData, tabs]);
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
-        console.log('yeet onCreateStart', e.currentTarget, currTab.value)
         e.preventDefault();
         // If tab is 'All', open menu to select type
-        if (searchType === 'All') setSelectCreateTypeAnchorEl(e.currentTarget);
+        if (searchType === 'All' || !currTab) setSelectCreateTypeAnchorEl(e.currentTarget);
         // If tab is 'User', open invite user dialog
         else if (searchType === 'User') setIsInviteUserOpen(true);
         // Otherwise, open create dialog for current tab
-        setCreateObjectType(tabParams[currTab.index].searchType as any);
-    }, [currTab.index, currTab.value, searchType]);
+        setCreateObjectType(tabParams.find(tab => tab.tabType === currTab!.value)?.searchType as any);
+    }, [currTab, searchType]);
     const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
-        console.log('yeet onSelectCreateTypeClose', type)
         if (type) {
             if (type === 'User') {
                 setIsInviteUserOpen(true); // Open the Invite User dialog
@@ -247,14 +251,12 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }
         else setSelectCreateTypeAnchorEl(null);
     }, []);
-    console.log('yeet selectCreateTypeAnchorEl', selectCreateTypeAnchorEl)
 
     const handleCreated = useCallback((item: SelectOrCreateObject) => {
         // Versioned objects are always created from the perspective of the version, and not the root.
         // If the object type is a root of a versioned object, we must change the shape before calling handleAdd
         if (isOfType(createObjectType, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard')) {
             const { root, ...rest } = item as any;
-            console.log('before handleadd 1')
             onClose({ ...root, versions: [rest] } as ObjectType);
         }
         // Otherwise, just call handleAdd
@@ -262,18 +264,16 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setCreateObjectType(null);
     }, [createObjectType, onClose]);
     const handleCreateClose = useCallback(() => {
-        console.log('handleCreateClose', createObjectType)
         setCreateObjectType(null);
-    }, [createObjectType]);
+    }, []);
 
     // If item selected from search AND find is 'Object', query for full data
     const [getItem, { data: itemData }] = useCustomLazyQuery<ObjectType, FindByIdInput>(query);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
-        if (!query || find === 'Url') return false;
+        if (!query || find !== 'Full') return false;
         // Query for full item data, if not already known (would be known if the same item was selected last time)
         if (itemData && itemData.id === item.id && (!versionId || (itemData as any).versionId === versionId)) {
-            console.log('before handleadd 2')
             onClose(itemData);
         } else {
             queryingRef.current = true;
@@ -286,7 +286,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const onVersionSelect = useCallback((version: { id: string }) => {
         if (!selectedObject) return;
         // If the full data is requested, fetch the full data for the selected version
-        if (find === "Object") {
+        if (find === "Full") {
             fetchFullData(selectedObject as any, version.id);
         } else {
             // Select and close dialog
@@ -296,8 +296,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     useEffect(() => {
         if (!query) return;
-        if (itemData && find === 'Object' && queryingRef.current) {
-            console.log('before handleadd 3')
+        if (itemData && find === 'Full' && queryingRef.current) {
             onClose(itemData);
         }
         queryingRef.current = false;
@@ -313,7 +312,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      * which version to link to
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
-        console.log('onInputSelect', newValue)
         // If value is not an object, return;
         if (!newValue || newValue.__typename === 'Shortcut' || newValue.__typename === 'Action') return false;
         // If object has versions
@@ -339,6 +337,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
+    console.log('yeeeet searchType', searchType)
     return (
         <>
             {/* Invite user dialog (when you select 'User' as create type) */}
@@ -400,9 +399,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         titleKey: 'SearchVrooli',
                         helpKey: 'FindObjectDialogHelp'
                     }}
-                    below={tabs.length > 1 && <PageTabs
+                    below={tabs.length > 1 && Boolean(currTab) && <PageTabs
                         ariaLabel="search-tabs"
-                        currTab={currTab}
+                        currTab={currTab!}
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}

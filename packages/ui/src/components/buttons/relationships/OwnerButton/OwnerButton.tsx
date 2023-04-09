@@ -59,7 +59,9 @@ export function OwnerButton({
         if (owner?.id === ownerId) return;
         exists(versionHelpers) && versionHelpers.setValue(owner);
         exists(rootHelpers) && rootHelpers.setValue(owner);
-    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers]);
+        closeOrganizationDialog();
+        closeAnotherUserDialog();
+    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeOrganizationDialog, closeAnotherUserDialog]);
 
     // Owner list dialog (select self, organization, or another user)
     const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
@@ -138,7 +140,7 @@ export function OwnerButton({
             />
             {/* Popup for selecting organization or user */}
             {findType && <FindObjectDialog
-                find="Object"
+                find="List"
                 isOpen={Boolean(findType)}
                 handleCancel={findHandleClose}
                 handleComplete={findHandleAdd}

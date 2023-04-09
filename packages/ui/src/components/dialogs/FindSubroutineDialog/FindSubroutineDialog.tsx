@@ -46,7 +46,7 @@ export const FindSubroutineDialog = ({
 
     return <FindObjectDialog
         {...params}
-        find="Object"
+        find="Full"
         handleComplete={onComplete}
         limitTo={['RoutineVersion']}
         searchData={{
