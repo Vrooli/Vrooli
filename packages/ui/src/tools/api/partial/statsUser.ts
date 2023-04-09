@@ -1,0 +1,36 @@
+import { StatsUser } from "@shared/consts";
+import { GqlPartial } from "../types";
+
+export const statsUser: GqlPartial<StatsUser> = {
+    __typename: 'StatsUser',
+    full: {
+        id: true,
+        periodStart: true,
+        periodEnd: true,
+        periodType: true,
+        apisCreated: true,
+        organizationsCreated: true,
+        projectsCreated: true,
+        projectsCompleted: true,
+        projectCompletionTimeAverage: true,
+        quizzesPassed: true,
+        quizzesFailed: true,
+        routinesCreated: true,
+        routinesCompleted: true,
+        routineCompletionTimeAverage: true,
+        runProjectsStarted: true,
+        runProjectsCompleted: true,
+        runProjectCompletionTimeAverage: true,
+        runProjectContextSwitchesAverage: true,
+        runRoutinesStarted: true,
+        runRoutinesCompleted: true,
+        runRoutineCompletionTimeAverage: true,
+        runRoutineContextSwitchesAverage: true,
+        smartContractsCreated: true,
+        smartContractsCompleted: true,
+        smartContractCompletionTimeAverage: true,
+        standardsCreated: true,
+        standardsCompleted: true,
+        standardCompletionTimeAverage: true,
+    },
+}

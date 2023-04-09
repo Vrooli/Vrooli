@@ -1,27 +1,27 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { ResourceCard, ResourceListItemContextMenu } from 'components';
-import { ResourceListHorizontalProps } from '../types';
+import { Count, DeleteManyInput, Resource } from '@shared/consts';
+import { LinkIcon } from '@shared/icons';
+import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany_deleteMany';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { ResourceDialog } from 'components/dialogs/ResourceDialog/ResourceDialog';
+import { cardRoot } from 'components/lists/styles';
 import { useCallback, useMemo, useState } from 'react';
-import { Resource } from 'types';
-import { cardRoot } from 'components/cards/styles';
-import { ResourceDialog } from 'components/dialogs';
-import { updateArray } from 'utils';
-import { resourceDeleteManyMutation } from 'graphql/mutation';
-import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { resourceDeleteManyVariables, resourceDeleteMany_resourceDeleteMany } from 'graphql/generated/resourceDeleteMany';
-import { AddIcon } from '@shared/icons';
+import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
+import { updateArray } from 'utils/shape/general';
+import { ResourceCard } from '../ResourceCard/ResourceCard';
+import { ResourceListItemContextMenu } from '../ResourceListItemContextMenu/ResourceListItemContextMenu';
+import { ResourceListHorizontalProps } from '../types';
 
 export const ResourceListHorizontal = ({
-    title = '📌 Resources',
-    canEdit = true,
+    title,
+    canUpdate = true,
     handleUpdate,
     mutate = true,
     list,
     loading = false,
-    session,
     zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
@@ -46,14 +46,27 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation(resourceDeleteManyMutation);
+    const onDragEnd = useCallback((result: DropResult) => {
+        const { source, destination } = result;
+        if (!destination) return;
+        if (source.index === destination.index) return;
+        // Handle the reordering of the resources in the list
+        if (handleUpdate && list) {
+            handleUpdate({
+                ...list,
+                resources: updateArray(list.resources, source.index, list.resources[destination.index]) as any[],
+            });
+        }
+    }, [handleUpdate, list]);
+
+    const [deleteMutation] = useCustomMutation<Count, DeleteManyInput>(deleteOneOrManyDeleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper<resourceDeleteMany_resourceDeleteMany, resourceDeleteManyVariables>({
+            mutationWrapper<Count, DeleteManyInput>({
                 mutation: deleteMutation,
-                input: { ids: [resource.id] },
+                input: { ids: [resource.id], objectType: 'Resource' as any },
                 onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
@@ -101,105 +114,134 @@ export const ResourceListHorizontal = ({
         list ? <ResourceDialog
             partialData={editingIndex >= 0 ? list.resources[editingIndex as number] : undefined}
             index={editingIndex}
+            isOpen={isDialogOpen}
             listId={list.id}
-            open={isDialogOpen}
             onClose={closeDialog}
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
-            session={session}
             zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, zIndex]);
 
     return (
-        <Box>
+        <>
             {/* Add resource dialog */}
             {dialog}
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
-                canEdit={canEdit}
+                canUpdate={canUpdate}
                 id={contextId}
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
                 onClose={closeContext}
-                onAddBefore={() => { }} //TODO
-                onAddAfter={() => { }} //TODO
+                onAddBefore={() => {
+                    setEditingIndex(selectedIndex ?? 0);
+                    openDialog();
+                }}
+                onAddAfter={() => {
+                    setEditingIndex(selectedIndex ? selectedIndex + 1 : 0);
+                    openDialog();
+                }}
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
-                onMove={() => { }} //TODO
+                onMove={(index: number) => {
+                    if (handleUpdate && list) {
+                        handleUpdate({
+                            ...list,
+                            resources: updateArray(list.resources, selectedIndex ?? 0, list.resources[index]) as any[],
+                        });
+                    }
+                }}
                 resource={selectedResource}
                 zIndex={zIndex + 1}
             />
-            <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
-            <Box
-                sx={{
-                    borderRadius: '16px',
-                    background: palette.background.default,
-                    border: `1px ${palette.text.primary}`,
-                    overflow: 'hidden',
-                }}
-            >
-                <Stack direction="row" spacing={2} p={1} sx={{
-                    overflowX: 'auto',
-                    "&::-webkit-scrollbar": {
-                        width: 5,
-                    },
-                    "&::-webkit-scrollbar-track": {
-                        backgroundColor: 'transparent',
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                        borderRadius: '100px',
-                        backgroundColor: "#409590",
-                    },
-                }}>
-                    {/* Resources */}
-                    {list?.resources?.map((c: Resource, index) => (
-                        <ResourceCard
-                            canEdit={canEdit}
-                            key={`resource-card-${index}`}
-                            index={index}
-                            session={session}
-                            data={c}
-                            onContextMenu={openContext}
-                            onEdit={openUpdateDialog}
-                            onDelete={onDelete}
-                            aria-owns={Boolean(selectedIndex) ? contextId : undefined}
-                        />
-                    ))}
-                    {
-                        loading && (
-                            <CircularProgress sx={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                color: palette.mode === 'light' ? palette.secondary.light : 'white',
-                            }} />
-                        )
-                    }
-                    {/* Add resource button */}
-                    {canEdit ? <Tooltip placement="top" title="Add resource">
-                        <Box
-                            onClick={openDialog}
-                            aria-label="Add resource"
+            {title && <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>}
+            <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="resource-list" direction="horizontal">
+                    {(provided) => (
+                        <Stack
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            direction="row"
+                            justifyContent="center"
+                            alignItems="center"
+                            spacing={2}
+                            p={1}
                             sx={{
-                                ...cardRoot,
-                                background: "#cad2e0",
-                                width: '120px',
-                                minWidth: '120px',
-                                height: '120px',
-                                minHeight: '120px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <AddIcon fill={palette.primary.main} width='50px' height='50px' />
-                        </Box>
-                    </Tooltip> : null}
-                </Stack>
-            </Box>
-        </Box>
+                                width: '100%',
+                                maxWidth: '700px',
+                                marginLeft: 'auto',
+                                marginRight: 'auto',
+                                // Custom scrollbar styling
+                                overflowX: 'auto',
+                                "&::-webkit-scrollbar": {
+                                    width: 5,
+                                },
+                                "&::-webkit-scrollbar-track": {
+                                    backgroundColor: 'transparent',
+                                },
+                                "&::-webkit-scrollbar-thumb": {
+                                    borderRadius: '100px',
+                                    backgroundColor: "#409590",
+                                },
+                            }}>
+                            {/* Resources */}
+                            {list?.resources?.map((c: Resource, index) => (
+                                <Draggable key={`resource-card-${index}`} draggableId={`resource-card-${index}`} index={index}>
+                                    {(provided) => (
+                                        <ResourceCard
+                                            ref={provided.innerRef}
+                                            dragProps={provided.draggableProps}
+                                            dragHandleProps={provided.dragHandleProps}
+                                            canUpdate={canUpdate}
+                                            key={`resource-card-${index}`}
+                                            index={index}
+                                            data={c}
+                                            onContextMenu={openContext}
+                                            onEdit={openUpdateDialog}
+                                            onDelete={onDelete}
+                                            aria-owns={Boolean(selectedIndex) ? contextId : undefined}
+                                        />
+                                    )}
+                                </Draggable>
+                            ))}
+                            {
+                                loading && (
+                                    <CircularProgress sx={{
+                                        position: 'absolute',
+                                        top: '50%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        color: palette.mode === 'light' ? palette.secondary.light : 'white',
+                                    }} />
+                                )
+                            }
+                            {/* Add resource button */}
+                            {canUpdate ? <Tooltip placement="top" title="Add resource">
+                                <Box
+                                    onClick={openDialog}
+                                    aria-label="Add resource"
+                                    sx={{
+                                        ...cardRoot,
+                                        background: palette.primary.light,
+                                        width: '120px',
+                                        minWidth: '120px',
+                                        height: '120px',
+                                        minHeight: '120px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
+                                </Box>
+                            </Tooltip> : null}
+                            {provided.placeholder}
+                        </Stack>
+                    )}
+                </Droppable>
+            </DragDropContext>
+        </>
     )
 }

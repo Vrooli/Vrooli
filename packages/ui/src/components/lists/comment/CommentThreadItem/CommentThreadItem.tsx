@@ -1,146 +1,88 @@
-import { Box, Grid, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { CommentThreadItemProps } from '../types';
-import { useCallback, useMemo, useState } from 'react';
-import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, usePromptBeforeUnload } from 'utils';
-import { MarkdownInput } from 'components/inputs';
-import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils';
-import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
-import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
-import { commentCreate, commentCreateVariables, commentCreate_commentCreate } from 'graphql/generated/commentCreate';
-import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
-import { useFormik } from 'formik';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
-import { DUMMY_ID, uuid } from '@shared/uuid';
-import { OwnerLabel } from 'components/text';
-import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
+import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReportFor, Success, VoteFor } from '@shared/consts';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
-import { uuidValidate } from '@shared/uuid';
-import { CommentFor } from 'graphql/generated/globalTypes';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
+import { ReportButton } from 'components/buttons/ReportButton/ReportButton';
+import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
+import { VoteButton } from 'components/buttons/VoteButton/VoteButton';
+import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
+import { TextLoading } from 'components/lists/TextLoading/TextLoading';
+import { OwnerLabel } from 'components/text/OwnerLabel/OwnerLabel';
+import { useCallback, useContext, useMemo, useState } from 'react';
+import { getCurrentUser } from 'utils/authentication/session';
+import { getYou } from 'utils/display/listTools';
+import { displayDate } from 'utils/display/stringTools';
+import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { ObjectType } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { CommentThreadItemProps } from '../types';
 
 export function CommentThreadItem({
     data,
-    handleCommentAdd,
     handleCommentRemove,
+    handleCommentUpsert,
     isOpen,
     language,
     loading,
     object,
-    session,
     zIndex,
 }: CommentThreadItemProps) {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
 
     const { objectId, objectType } = useMemo(() => ({
         objectId: object?.id,
         objectType: object?.__typename as CommentFor,
     }), [object]);
+    const { isBookmarked, isUpvoted } = useMemo(() => getYou(object as any), [object]);
 
-    const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
-        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.permissionsComment ?? {};
+    const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText } = useMemo(() => {
+        const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote } = data?.you ?? {};
         const languages = getUserLanguages(session);
         const { text } = getTranslation(data, languages, true);
-        return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
+        return { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText: text };
     }, [data, session]);
 
-    const [replyOpen, setReplyOpen] = useState(false);
-    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
-    const formik = useFormik({
-        initialValues: {
-            id: DUMMY_ID,
-            createdFor: objectType ,
-            forId: objectId,
-            parentId: data?.id,
-            translationsCreate: [{
-                id: DUMMY_ID,
-                language,
-                text: '',
-            }],
-        },
-        validationSchema,
-        enableReinitialize: true,
-        onSubmit: (values) => {
-            if (!data || !values.createdFor || !values.forId) return;
-            mutationWrapper<commentCreate_commentCreate, commentCreateVariables>({
-                mutation: addMutation,
-                input: {
-                    id: uuid(),
-                    createdFor: values.createdFor,
-                    forId: values.forId,
-                    parentId: values.parentId,
-                    translationsCreate: values.translationsCreate.map(t => ({
-                        ...t,
-                        id: t.id === DUMMY_ID ? uuid() : t.id,
-                    })),
-                },
-                successCondition: (data) => data !== null,
-                successMessage: () => 'Comment created.',
-                onSuccess: (data) => {
-                    formik.resetForm();
-                    setReplyOpen(false);
-                    handleCommentAdd(data);
-                },
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
-
-    // Current text, as well as errors
-    const { text, errorText, touchedText, errors } = useMemo(() => {
-        console.log('comment threaditem gettransdata')
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            text: value?.text ?? '',
-            errorText: error?.text ?? '',
-            touchedText: touched?.text ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
-        }
-    }, [formik, language]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-
-    const openReplyInput = useCallback(() => { setReplyOpen(true) }, []);
-    const closeReplyInput = useCallback(() => {
-        formik.resetForm();
-        setReplyOpen(false)
-    }, [formik]);
-
-    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            message: `Are you sure you want to delete this comment? This action cannot be undone.`,
+            messageKey: 'DeleteCommentConfirm',
             buttons: [
                 {
-                    text: 'Yes', onClick: () => {
-                        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+                    labelKey: 'Yes', onClick: () => {
+                        mutationWrapper<Success, DeleteOneInput>({
                             mutation: deleteMutation,
-                            input: { id: data.id, objectType: DeleteOneType.Comment },
+                            input: { id: data.id, objectType: DeleteType.Comment },
                             successCondition: (data) => data.success,
-                            successMessage: () => 'Comment deleted.',
+                            successMessage: () => ({ key: 'CommentDeleted' }),
                             onSuccess: () => {
                                 handleCommentRemove(data);
                             },
-                            errorMessage: () => 'Failed to delete comment.',
+                            errorMessage: () => ({ key: 'DeleteCommentFailed' }),
                         })
                     }
                 },
-                { text: 'Cancel', onClick: () => { } },
+                { labelKey: 'Cancel' },
             ]
         });
     }, [data, deleteMutation, handleCommentRemove]);
 
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
+    const [isUpsertCommentOpen, setIsUpsertCommentOpen] = useState<boolean>(false);
+    const [commentToUpdate, setCommentToUpdate] = useState<Comment | undefined>(undefined);
+    const handleUpsertCommentOpen = useCallback((comment?: Comment) => {
+        comment && setCommentToUpdate(comment);
+        setIsUpsertCommentOpen(true)
+    }, []);
+    const handleUpsertCommentClose = useCallback(() => {
+        setCommentToUpdate(undefined);
+        setIsUpsertCommentOpen(false)
+    }, []);
 
     return (
         <>
@@ -169,16 +111,15 @@ export function CommentThreadItem({
                                 overflow: 'auto',
                             }}>
                                 {objectType && <OwnerLabel
-                                    objectType={objectType as any as ObjectType}
-                                    owner={data?.creator}
-                                    session={session}
+                                    objectType={objectType as unknown as ObjectType}
+                                    owner={data?.owner}
                                     sxs={{
                                         label: {
                                             color: palette.background.textPrimary,
                                             fontWeight: 'bold',
                                         }
                                     }} />}
-                                {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
+                                {canUpdate && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
                                     primary={`(Can Edit)`}
                                     sx={{
                                         display: 'flex',
@@ -186,7 +127,7 @@ export function CommentThreadItem({
                                         color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
                                     }}
                                 />}
-                                {data?.creator?.id && data.creator.id === session?.id && <ListItemText
+                                {data?.owner?.id && data.owner.id === getCurrentUser(session).id && <ListItemText
                                     primary={`(You)`}
                                     sx={{
                                         display: 'flex',
@@ -211,27 +152,24 @@ export function CommentThreadItem({
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
-                        <UpvoteDownvote
+                        <VoteButton
                             direction="row"
                             disabled={!canVote}
-                            session={session}
                             objectId={data?.id ?? ''}
                             voteFor={VoteFor.Comment}
-                            isUpvoted={data?.isUpvoted}
+                            isUpvoted={isUpvoted}
                             score={data?.score}
                             onChange={() => { }}
                         />
-                        {canStar && <StarButton
-                            session={session}
+                        {canBookmark && <BookmarkButton
                             objectId={data?.id ?? ''}
-                            starFor={StarFor.Comment}
-                            isStar={data?.isStarred ?? false}
-                            showStars={false}
-                            tooltipPlacement="top"
+                            bookmarkFor={BookmarkFor.Comment}
+                            isBookmarked={isBookmarked ?? false}
+                            showBookmarks={false}
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
-                                onClick={openReplyInput}
+                                onClick={() => { handleUpsertCommentOpen() }}
                             >
                                 <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
@@ -240,7 +178,6 @@ export function CommentThreadItem({
                         {canReport && <ReportButton
                             forId={data?.id ?? ''}
                             reportFor={objectType as any as ReportFor}
-                            session={session}
                             zIndex={zIndex}
                         />}
                         {canDelete && <Tooltip title="Delete" placement='top'>
@@ -252,38 +189,19 @@ export function CommentThreadItem({
                             </IconButton>
                         </Tooltip>}
                     </Stack>}
-                    {/* New reply input */}
-                    {replyOpen && (
-                        <form>
-                            <Box sx={{ margin: 2 }}>
-                                <MarkdownInput
-                                    id={`add-reply-${data?.id}`}
-                                    placeholder="Please be nice to each other."
-                                    value={text}
-                                    minRows={3}
-                                    onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                                    error={touchedText && Boolean(errorText)}
-                                    helperText={touchedText ? errorText : null}
-                                />
-                                <Grid container spacing={1} sx={{
-                                    width: 'min(100%, 400px)',
-                                    marginLeft: 'auto',
-                                    marginTop: 1,
-                                }}>
-                                    <GridSubmitButtons
-                                        disabledCancel={formik.isSubmitting}
-                                        disabledSubmit={!isLoggedIn}
-                                        errors={errors}
-                                        isCreate={true}
-                                        loading={formik.isSubmitting || loadingAdd}
-                                        onCancel={closeReplyInput}
-                                        onSetSubmitting={formik.setSubmitting}
-                                        onSubmit={formik.submitForm}
-                                    />
-                                </Grid>
-                            </Box>
-                        </form>
-                    )}
+                    {/* Add/Update comment */}
+                    {
+                        isUpsertCommentOpen && objectId && objectType && <CommentUpsertInput
+                            comment={commentToUpdate}
+                            language={language}
+                            objectId={objectId}
+                            objectType={objectType}
+                            onCancel={handleUpsertCommentClose}
+                            onCompleted={handleCommentUpsert}
+                            parent={(object as any) ?? null}
+                            zIndex={zIndex}
+                        />
+                    }
                 </Stack>
             </ListItem>
         </>

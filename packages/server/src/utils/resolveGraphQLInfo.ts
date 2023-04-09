@@ -75,7 +75,19 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
     // Determine which helper function to use
     switch (node.kind) {
         case 'Field':
-            result[node.name.value] = parseFieldNode(node, fragments);
+            // If selections are all InlineFragments (except for __typename), then the field is a union type
+            const inlineFragments: InlineFragmentNode[] | undefined = node.selectionSet?.selections.filter((selection: SelectionNode) => selection.kind === 'InlineFragment') as InlineFragmentNode[] | undefined;
+            const isUnion = inlineFragments?.length !== undefined ? inlineFragments.length === node.selectionSet!.selections.length - 1 : false;
+            if (isUnion) {
+                const union: { [x: string]: any } = {};
+                for (const selection of inlineFragments!) {
+                    union[`${selection.typeCondition?.name.value}`] = parseInlineFragmentNode(selection, fragments);
+                }
+                result[node.name.value] = union;
+            }
+            else {
+                result[node.name.value] = parseFieldNode(node, fragments);
+            }
             break;
         case 'FragmentSpread':
             const spread = parseFragmentSpreadNode(node, fragments);
@@ -94,7 +106,7 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
 /**
  * Converts a GraphQL resolve info object into an object that:
  * - Is in the shape of the GraphQL response object
- * - Has "true" for every key's value, except for the __typename key
+ * - Has "true" for every key's value, except for the type key
  * @param info - GraphQL resolve info object
  */
 export const resolveGraphQLInfo = (info: GraphQLResolveInfo): { [x: string]: any } => {

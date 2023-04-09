@@ -9,25 +9,29 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { CSSProperties, useCallback, useMemo, useState } from 'react';
-import { SubroutineNodeProps } from '../types';
-import {
-    routineNodeCheckboxOption,
-    routineNodeCheckboxLabel,
-} from '../styles';
-import { multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction, firstString, getTranslation, updateTranslationFields, usePress } from 'utils';
-import { calculateNodeSize, EditableLabel, NodeContextMenu } from 'components';
+import { Routine } from '@shared/consts';
 import { CloseIcon } from '@shared/icons';
-import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
+import { name as nameValidation, reqErr } from '@shared/validation';
+import { EditableLabel } from 'components/inputs/EditableLabel/EditableLabel';
+import { CSSProperties, useCallback, useMemo, useState } from 'react';
+import { multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { BuildAction } from 'utils/consts';
+import { getDisplay } from 'utils/display/listTools';
+import { firstString } from 'utils/display/stringTools';
+import { updateTranslationFields } from 'utils/display/translationTools';
+import usePress from 'utils/hooks/usePress';
+import { calculateNodeSize } from '..';
+import { NodeContextMenu } from '../../NodeContextMenu/NodeContextMenu';
+import { routineNodeCheckboxLabel, routineNodeCheckboxOption } from '../styles';
+import { SubroutineNodeProps } from '../types';
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 
  * @param id ID of the clicked element
  */
 const shouldOpen = (id: string | null | undefined): boolean => {
-    // Only collapse if clicked on title bar or title
-    return Boolean(id && (id.startsWith('subroutine-title-')));
+    // Only collapse if clicked on name bar or name
+    return Boolean(id && (id.startsWith('subroutine-name-')));
 }
 
 export const SubroutineNode = ({
@@ -46,14 +50,9 @@ export const SubroutineNode = ({
     const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(220, scale) / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo<boolean>(() => (data?.routine?.isInternal ?? data?.routine?.permissionsRoutine?.canEdit === true), [data.routine]);
+    const canUpdate = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canUpdate === true), [data.routineVersion]);
 
-    const { title } = useMemo(() => {
-        const languages = navigator.languages;
-        return {
-            title: firstString(getTranslation(data, languages, true).title, getTranslation(data.routine, languages, true).title),
-        }
-    }, [data]);
+    const { title } = useMemo(() => getDisplay(data, navigator.languages), [data]);
 
     const onAction = useCallback((event: any | null, action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine) => {
         if (event && [BuildAction.EditSubroutine, BuildAction.DeleteSubroutine].includes(action)) {
@@ -65,12 +64,12 @@ export const SubroutineNode = ({
         if (!shouldOpen(target.id)) return;
         onAction(null, BuildAction.OpenSubroutine)
     }, [onAction]);
-    const deleteSubroutine = useCallback((event) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
+    const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
 
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
             ...data,
-            translations: updateTranslationFields(data, language, { title: newLabel }) as any,
+            translations: updateTranslationFields(data, language, { name: newLabel }),
         });
     }, [handleUpdate, data, language]);
 
@@ -85,11 +84,11 @@ export const SubroutineNode = ({
         if (!labelVisible) return null;
         return (
             <EditableLabel
-                canEdit={isEditing}
+                canUpdate={isEditing}
                 handleUpdate={handleLabelUpdate}
                 renderLabel={(t) => (
                     <Typography
-                        id={`subroutine-title-${data.id}`}
+                        id={`subroutine-name-${data.id}`}
                         variant="h6"
                         sx={{
                             ...noSelect,
@@ -109,10 +108,11 @@ export const SubroutineNode = ({
                     }
                 }}
                 text={title}
-                validationSchema={titleValidation.required(requiredErrorMessage)}
+                validationSchema={nameValidation.required(reqErr)}
+                zIndex={zIndex}
             />
         )
-    }, [labelVisible, isEditing, handleLabelUpdate, title, data.id]);
+    }, [labelVisible, isEditing, handleLabelUpdate, title, zIndex, data.id]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -124,7 +124,7 @@ export const SubroutineNode = ({
         setContextAnchor(target)
     }, [isEditing]);
     const closeContext = useCallback(() => { setContextAnchor(null) }, []);
-    const pressEvents = usePress({ 
+    const pressEvents = usePress({
         onLongPress: openContext,
         onClick: openSubroutine,
         onRightClick: openContext,
@@ -141,7 +141,7 @@ export const SubroutineNode = ({
                         [BuildAction.OpenSubroutine, BuildAction.DeleteSubroutine]
                 }
                 handleClose={closeContext}
-                handleSelect={(action) => { onAction(null, action) }}
+                handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine) }}
                 zIndex={zIndex + 1}
             />
             <Box
@@ -159,13 +159,13 @@ export const SubroutineNode = ({
                 }}
             >
                 <Container
-                    id={`subroutine-title-bar-${data.id}`}
+                    id={`subroutine-name-bar-${data.id}`}
                     {...pressEvents}
                     aria-owns={contextOpen ? contextId : undefined}
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        backgroundColor: canEdit ?
+                        backgroundColor: canUpdate ?
                             (palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark) :
                             '#667899',
                         color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
@@ -197,7 +197,7 @@ export const SubroutineNode = ({
                             label='Optional'
                             control={
                                 <Checkbox
-                                    id={`${title ?? ''}-optional-option`}
+                                    id={`${title}-optional-option`}
                                     size="small"
                                     name='isOptionalCheckbox'
                                     color='secondary'

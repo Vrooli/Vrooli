@@ -1,5 +1,6 @@
 # Stage 0. Copy required files
-FROM node:16-alpine as stage0
+# NOTE: Using alpine3.16 because of this issue: https://github.com/prisma/prisma/issues/16553
+FROM node:16-alpine3.16 as stage0 
 
 # Set working directory
 ARG PROJECT_DIR
@@ -14,6 +15,7 @@ COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
 COPY --chown=node:node packages/shared/utils/package.json packages/shared/utils/
 COPY --chown=node:node packages/shared/uuid/package.json packages/shared/uuid/
 COPY --chown=node:node packages/shared/validation/package.json packages/shared/validation/
+COPY --chown=node:node packages/shared/translations/package.json packages/shared/translations/
 
 # Copy all files from packages/server/src, and every directory's src in packages/shared
 COPY --chown=node:node packages/server/src packages/server/
@@ -22,6 +24,10 @@ COPY --chown=node:node packages/shared/route/src packages/shared/route/
 COPY --chown=node:node packages/shared/utils/src packages/shared/utils/
 COPY --chown=node:node packages/shared/uuid/src packages/shared/uuid/
 COPY --chown=node:node packages/shared/validation/src packages/shared/validation/
+COPY --chown=node:node packages/shared/translations/src packages/shared/translations/
+
+# Copy packages/ui/public, which is needed to store sitemap files that we create for user-generated pages
+COPY --chown=node:node packages/ui/public packages/ui/public
 
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
@@ -30,7 +36,7 @@ COPY --chown=node:node scripts/* scripts/
 RUN chown -R node:node .
 
 # Stage 1. Copy files from stage 0, and install yarn packages
-FROM node:16-alpine as stage1
+FROM node:16-alpine3.16 as stage1
 
 # Set working directory
 ARG PROJECT_DIR
@@ -43,10 +49,10 @@ COPY --from=stage0 ${PROJECT_DIR} ./
 RUN yarn install
 
 # Install global packages
-RUN yarn global add typescript ts-node nodemon prisma@4.0.0
+RUN yarn global add typescript ts-node nodemon prisma@4.11.0
 
 # Stage 2. Copy files from stage 1, and install required unix tools
-FROM node:16-alpine as stage2
+FROM node:16-alpine3.16 as stage2
 
 # Set working directory
 ARG PROJECT_DIR
@@ -63,4 +69,4 @@ RUN apk update
 RUN apk add netcat-openbsd
 
 # Set port
-EXPOSE ${VIRTUAL_PORT}
+EXPOSE ${VIRTUAL_PORT} 9229

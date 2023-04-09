@@ -1,29 +1,121 @@
-import { CommonProps, Session } from "types";
-import { Forms, TagShape } from "utils";
-import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { InputType } from "@shared/consts";
+import { DropzoneProps as DP, IntegerInputProps as QP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
+import { FormikProps } from "formik";
+import { Forms } from "utils/consts";
+import { ApiVersionShape } from "utils/shape/models/apiVersion";
+import { CommentShape } from "utils/shape/models/comment";
+import { FocusModeShape } from "utils/shape/models/focusMode";
+import { NodeShape } from "utils/shape/models/node";
+import { NodeEndShape } from "utils/shape/models/nodeEnd";
+import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
+import { NoteVersionShape } from "utils/shape/models/noteVersion";
+import { OrganizationShape } from "utils/shape/models/organization";
+import { ProfileShape } from "utils/shape/models/profile";
+import { ProjectVersionShape } from "utils/shape/models/projectVersion";
+import { QuestionShape } from "utils/shape/models/question";
+import { ReminderShape } from "utils/shape/models/reminder";
+import { ReportShape } from "utils/shape/models/report";
+import { ResourceShape } from "utils/shape/models/resource";
+import { RoutineVersionShape } from "utils/shape/models/routineVersion";
+import { ScheduleShape } from "utils/shape/models/schedule";
+import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
+import { StandardVersionShape } from "utils/shape/models/standardVersion";
+import { TagShape } from "utils/shape/models/tag";
+import { ViewDisplayType } from "views/types";
 
 //==============================================================
 /* #region Specific Form Props */
 //==============================================================
 export interface BaseFormProps {
+    children: (JSX.Element | boolean | null) | (JSX.Element | boolean | null)[];
+    dirty?: boolean;
+    enableReinitialize?: boolean;
+    isLoading?: boolean;
+    onClose?: () => any;
+    promptBeforeUnload?: boolean;
+    ref?: any;
+    style?: { [key: string]: any };
+    validationSchema?: any;
+}
+
+export interface BaseObjectFormProps<T> extends FormikProps<T> {
+    display: ViewDisplayType;
+    isCreate: boolean;
+    isLoading: boolean;
+    isOpen: boolean;
+    onCancel: () => void;
+    ref: React.RefObject<any>;
+    zIndex: number;
+}
+
+export interface BaseGeneratedFormProps {
     schema: FormSchema;
-    session: Session
     onSubmit: (values: any) => any;
     zIndex: number;
 }
 
-export interface FormProps extends Partial<CommonProps> {
+export interface FormProps {
     onFormChange?: (form: Forms) => any;
 }
 
+export interface ForgotPasswordFormProps extends FormProps {
+    onClose: () => any;
+}
+
 export interface LogInFormProps extends FormProps {
+    onClose: () => any;
 }
 
 export interface ResetPasswordFormProps extends FormProps {
-    userId?: string;
-    code?: string;
+    onClose: () => any;
 }
+
+export interface SignUpFormProps extends FormProps {
+    onClose: () => any;
+}
+
+export interface ApiFormProps extends BaseObjectFormProps<ApiVersionShape> {
+    versions: string[];
+}
+export interface CommentFormProps extends BaseObjectFormProps<CommentShape> { }
+export type NodeWithEndShape = NodeShape & { end: NodeEndShape };
+export interface NodeEndFormProps extends BaseObjectFormProps<NodeWithEndShape> {
+    isEditing: boolean;
+}
+export interface FocusModeFormProps extends BaseObjectFormProps<FocusModeShape> { }
+export interface NoteFormProps extends BaseObjectFormProps<NoteVersionShape> {
+    versions: string[];
+}
+export interface OrganizationFormProps extends BaseObjectFormProps<OrganizationShape> { }
+export interface ProjectFormProps extends BaseObjectFormProps<ProjectVersionShape> {
+    versions: string[];
+}
+export interface QuestionFormProps extends BaseObjectFormProps<QuestionShape> { }
+export interface ReminderFormProps extends BaseObjectFormProps<ReminderShape> {
+    index?: number;
+    reminderListId?: string;
+}
+export interface ReportFormProps extends BaseObjectFormProps<ReportShape> { }
+export interface ResourceFormProps extends BaseObjectFormProps<ResourceShape> { }
+export interface RoutineFormProps extends BaseObjectFormProps<RoutineVersionShape> {
+    isSubroutine: boolean;
+    versions: string[];
+}
+export interface ScheduleFormProps extends BaseObjectFormProps<ScheduleShape> { }
+export interface SmartContractFormProps extends BaseObjectFormProps<SmartContractVersionShape> {
+    versions: string[];
+}
+export interface SubroutineFormProps extends Omit<BaseObjectFormProps<NodeRoutineListItemShape>, 'display' | 'isLoading'> {
+    canUpdate: boolean;
+    handleViewFull: () => void;
+    isEditing: boolean;
+    versions: string[];
+}
+export interface StandardFormProps extends BaseObjectFormProps<StandardVersionShape> {
+    versions: string[];
+}
+export interface UserFormProps extends BaseObjectFormProps<ProfileShape> { }
+
 //==============================================================
 /* #endregion Specific Form Props */
 //==============================================================
@@ -61,14 +153,14 @@ export interface DropzoneProps extends Omit<DP, 'onUpload' | 'zIndex'> {
 /**
  * Props for rendering a JSON input component
  */
-export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zIndex'> {
+export interface JsonProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zIndex'> {
     defaultValue?: string;
 }
 
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'session' | 'translations' | 'zIndex'> {
+export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'languages' | 'zIndex'> {
     defaultValue?: string[];
 }
 
@@ -100,7 +192,7 @@ export interface RadioProps {
 /**
  * Props for rendering a Selector input component
  */
-export interface SelectorProps extends Omit<SP, 'selected' | 'handleChange' | 'zIndex'> {
+export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, 'selected' | 'handleChange' | 'zIndex'> {
     defaultValue?: any; // Ignored for now
 }
 
@@ -127,7 +219,7 @@ export interface SwitchProps {
 /**
  * Props for rendering a TagSelector input component
  */
-export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'handleTagsUpdate' | 'zIndex'> {
+export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'tags' | 'handleTagsUpdate' | 'name' | 'zIndex'> {
     defaultValue?: TagShape[];
 }
 
@@ -150,9 +242,9 @@ export interface TextFieldProps {
 }
 
 /**
- * Props for rendering a QuantityBox input component
+ * Props for rendering a IntegerInput input component
  */
-export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
+export interface IntegerInputProps extends Omit<QP, 'name'> {
     defaultValue?: any; // Ignored
 }
 
@@ -222,7 +314,7 @@ export interface FieldDataJSON extends FieldDataBase {
     /**
      * Extra props for the input component, depending on the type
      */
-    props: JSONProps
+    props: JsonProps
 }
 
 /**
@@ -278,7 +370,7 @@ export interface FieldDataSelector extends FieldDataBase {
     /**
      * Extra props for the input component, depending on the type
      */
-    props: SelectorProps;
+    props: SelectorProps<any>;
 }
 
 /**
@@ -338,17 +430,17 @@ export interface FieldDataTextField extends FieldDataBase {
 }
 
 /**
- * Field data type and props for QuantityBox input components
+ * Field data type and props for IntegerInput input components
  */
-export interface FieldDataQuantityBox extends FieldDataBase {
+export interface FieldDataIntegerInput extends FieldDataBase {
     /**
      * The type of the field
      */
-    type: InputType.QuantityBox;
+    type: InputType.IntegerInput;
     /**
      * Extra props for the input component, depending on the type
      */
-    props: QuantityBoxProps;
+    props: IntegerInputProps;
 }
 
 /**
@@ -359,14 +451,14 @@ export type FieldData =
     FieldDataDropzone |
     FieldDataJSON |
     FieldDataLanguageInput |
+    FieldDataIntegerInput |
     FieldDataMarkdown |
     FieldDataRadio |
     FieldDataSelector |
     FieldDataSlider |
     FieldDataSwitch |
     FieldDataTagSelector |
-    FieldDataTextField |
-    FieldDataQuantityBox;
+    FieldDataTextField;
 
 //==============================================================
 /* #endregion Input Component Data */
@@ -471,11 +563,11 @@ export interface YupSchema {
  * on the width of the screen.
  */
 export type GridItemSpacing = number | string | {
-    xs?: number | 'auto' | boolean;
-    sm?: number | 'auto' | boolean;
-    md?: number | 'auto' | boolean;
-    lg?: number | 'auto' | boolean;
-    xl?: number | 'auto' | boolean;
+    xs?: number | 'auto';
+    sm?: number | 'auto';
+    md?: number | 'auto';
+    lg?: number | 'auto';
+    xl?: number | 'auto';
 }
 
 /**

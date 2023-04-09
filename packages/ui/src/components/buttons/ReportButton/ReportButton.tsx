@@ -1,13 +1,12 @@
-import { useCallback, useState } from 'react';
 import { IconButton, Tooltip, useTheme } from '@mui/material';
-import { ReportButtonProps } from '../types';
 import { ReportIcon } from '@shared/icons';
-import { ReportDialog } from 'components/dialogs';
+import { ReportDialog } from 'components/dialogs/ReportDialog/ReportDialog';
+import { useCallback, useState } from 'react';
+import { ReportButtonProps } from '../types';
 
 export const ReportButton = ({
     forId,
     reportFor,
-    session,
     zIndex,
 }: ReportButtonProps) => {
     const { palette } = useTheme();
@@ -15,7 +14,7 @@ export const ReportButton = ({
     const [open, setOpen] = useState<boolean>(false);
     const openDialog = useCallback(() => { setOpen(true); }, []);
     const closeDialog = useCallback(() => { setOpen(false); }, []);
-    
+
     return (
         <>
             <ReportDialog
@@ -23,7 +22,6 @@ export const ReportButton = ({
                 onClose={closeDialog}
                 open={open}
                 reportFor={reportFor}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Tooltip title="Report">

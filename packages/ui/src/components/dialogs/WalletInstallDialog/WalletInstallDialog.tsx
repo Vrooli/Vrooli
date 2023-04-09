@@ -1,13 +1,14 @@
-import { Dialog, DialogContent, ListItem, ListItemText } from '@mui/material';
+import { DialogContent, ListItem, ListItemText } from '@mui/material';
+import { walletDownloadUrls } from 'utils/authentication/walletIntegration';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { WalletInstallDialogProps } from '../types';
-import { walletDownloadUrls } from 'utils/authentication';
-import { DialogTitle } from 'components';
 
 const installExtension = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-const titleAria = 'wallet-install-dialog-title';
+const titleId = 'wallet-install-dialog-title';
 
 export const WalletInstallDialog = ({
     onClose,
@@ -15,14 +16,15 @@ export const WalletInstallDialog = ({
     zIndex,
 }: WalletInstallDialogProps) => {
     return (
-        <Dialog
-            open={open}
+        <LargeDialog
+            id="wallet-install-dialog"
             onClose={onClose}
-            aria-labelledby={titleAria}
-            sx={{ zIndex }}
+            isOpen={open}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={'Install Wallet Extension'}
                 onClose={onClose}
             />
@@ -33,6 +35,6 @@ export const WalletInstallDialog = ({
                     </ListItem>
                 ))}
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

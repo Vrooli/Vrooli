@@ -3,59 +3,56 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { firstString, getTranslation, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
-import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from '@shared/route';
-import { ResourceCardProps } from '../../../cards/types';
-import { multiLineEllipsis, noSelect } from 'styles';
-import { getResourceIcon } from '..';
-import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
-import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
+import { ResourceUsedFor } from '@shared/consts';
 import { DeleteIcon, EditIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { openLink, useLocation } from '@shared/route';
+import { CommonKey } from '@shared/translations';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { forwardRef, useCallback, useContext, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { multiLineEllipsis, noSelect } from 'styles';
+import { getResourceIcon } from 'utils/display/getResourceIcon';
+import { getDisplay } from 'utils/display/listTools';
+import { firstString } from 'utils/display/stringTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import usePress from 'utils/hooks/usePress';
+import { getResourceType, getResourceUrl } from 'utils/navigation/openObject';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
+import { ResourceCardProps } from '../types';
 
-/**
- * Determines if a resource is a URL, wallet payment address, or an ADA handle
- * @param link String to check
- * @returns ResourceType if type found, or null if not
- */
-const getResourceType = (link: string): ResourceType | null => {
-    if (urlRegex.test(link)) return ResourceType.Url;
-    if (walletAddressRegex.test(link)) return ResourceType.Wallet;
-    if (adaHandleRegex.test(link)) return ResourceType.Handle;
-    return null;
-}
-
-export const ResourceCard = ({
-    canEdit,
+export const ResourceCard = forwardRef<any, ResourceCardProps>(({
+    canUpdate,
     data,
+    dragProps,
+    dragHandleProps,
     index,
     onContextMenu,
     onEdit,
     onDelete,
-    session,
-}: ResourceCardProps) => {
+}, ref) => {
+    const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [showIcons, setShowIcons] = useState(false);
 
-    const { description, title } = useMemo(() => {
-        const languages = getUserLanguages(session);
-        const { description, title } = getTranslation(data, languages, true);
+    const { title, subtitle } = useMemo(() => {
+        const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            description: (description && description.length > 0) ? description : data.link,
-            title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
+            title: Boolean(title) ? title : t((data.usedFor ?? 'Context') as CommonKey),
+            subtitle,
         };
-    }, [data, session]);
+    }, [data, session, t]);
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
     }, [data]);
 
+    const href = useMemo(() => getResourceUrl(data.link), [data]);
     const handleClick = useCallback((target: EventTarget) => {
         // Check if edit or delete button was clicked
         const targetId: string | undefined = target.id;
@@ -66,43 +63,25 @@ export const ResourceCard = ({
             onDelete?.(index);
         }
         else {
-            // Find the resource type
+            // If no resource type or link, show error
             const resourceType = getResourceType(data.link);
-            // If null, show error
-            if (!resourceType) {
-                PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
+            if (!resourceType || !href) {
+                PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: 'Error' });
                 return;
             }
-            // If URL, open in new tab
-            if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
-            // If wallet address, open dialog to copy to clipboard
-            else if (resourceType === ResourceType.Wallet) {
-                PubSub.get().publishAlertDialog({
-                    message: `Wallet address: ${data.link}`,
-                    buttons: [
-                        {
-                            text: 'Copy', onClick: () => {
-                                navigator.clipboard.writeText(data.link);
-                                PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
-                            }
-                        },
-                        { text: 'Close' }
-                    ]
-                });
-            }
-            // If handle, open ADA Handle payment site
-            else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
+            // Open link
+            else openLink(setLocation, href);
         }
-    }, [data.link, index, onDelete, onEdit, setLocation]);
+    }, [data.link, href, index, onDelete, onEdit, setLocation]);
     const handleContextMenu = useCallback((target: EventTarget) => {
-        if (onContextMenu) onContextMenu(target, index);
+        onContextMenu(target, index);
     }, [onContextMenu, index]);
 
     const handleHover = useCallback(() => {
-        if (canEdit) {
+        if (canUpdate) {
             setShowIcons(true);
         }
-    }, [canEdit]);
+    }, [canUpdate]);
 
     const handleHoverEnd = useCallback(() => { setShowIcons(false) }, []);
 
@@ -116,25 +95,31 @@ export const ResourceCard = ({
     });
 
     return (
-        <Tooltip placement="top" title={`${description ? description + ' - ' : ''}${data.link}`}>
+        <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${data.link}`}>
             <Box
+                ref={ref}
+                {...dragProps}
+                {...dragHandleProps}
                 {...pressEvents}
+                component="a"
+                href={href}
+                onClick={(e) => e.preventDefault()}
                 sx={{
                     ...noSelect,
-                    boxShadow: 12,
-                    background: (t: any) => t.palette.primary.light,
-                    color: (t: any) => t.palette.primary.contrastText,
+                    boxShadow: 8,
+                    background: palette.primary.light,
+                    color: palette.secondary.contrastText,
                     borderRadius: '16px',
                     margin: 0,
                     padding: 1,
-                    cursor: canEdit ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     width: '120px',
                     minWidth: '120px',
                     minHeight: '120px',
                     height: '120px',
                     position: 'relative',
                     '&:hover': {
-                        filter: canEdit ? `brightness(120%)` : 'none',
+                        filter: `brightness(120%)`,
                         transition: 'filter 0.2s',
                     },
                 } as any}
@@ -142,19 +127,19 @@ export const ResourceCard = ({
                 {/* Edit and delete icons, only visible on hover */}
                 {showIcons && (
                     <>
-                        <Tooltip title="Edit">
+                        <Tooltip title={t('Edit')}>
                             <ColorIconButton
                                 id='edit-icon-button'
-                                background={palette.secondary.main}
+                                background='#c5ab17'
                                 sx={{ position: 'absolute', top: 4, left: 4 }}
                             >
                                 <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
                             </ColorIconButton>
                         </Tooltip>
-                        <Tooltip title="Delete">
+                        <Tooltip title={t('Delete')}>
                             <ColorIconButton
                                 id='delete-icon-button'
-                                background={palette.secondary.main}
+                                background={palette.error.main}
                                 sx={{ position: 'absolute', top: 4, right: 4 }}
                             >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
@@ -190,4 +175,4 @@ export const ResourceCard = ({
             </Box>
         </Tooltip>
     )
-}
+})

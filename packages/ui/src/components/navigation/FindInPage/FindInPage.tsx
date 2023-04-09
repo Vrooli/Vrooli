@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
     Box,
     Dialog,
@@ -8,12 +7,16 @@ import {
     TextField,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { getTextNodes, normalizeText, PubSub, removeHighlights, wrapMatches } from 'utils';
 import { Stack } from '@mui/system';
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { keyComboToString } from 'utils/display/device';
+import { getTextNodes, normalizeText, removeHighlights, wrapMatches } from 'utils/display/documentTools';
+import { PubSub } from 'utils/pubsub';
 
 const commonButtonSx = (palette: Palette) => ({
     borderRadius: '0',
@@ -82,6 +85,7 @@ const highlightText = (
 
 const FindInPage = () => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [isCaseSensitive, setIsCaseSensitive] = useState(false);
     const [isWholeWord, setIsWholeWord] = useState(false);
@@ -209,7 +213,7 @@ const FindInPage = () => {
                             id="command-palette-search"
                             autoComplete='off'
                             autoFocus={true}
-                            placeholder='Find in page...'
+                            placeholder={t(`FindInPage`)}
                             value={searchString}
                             onChange={onSearchChange}
                             size="small"
@@ -244,7 +248,7 @@ const FindInPage = () => {
                         }
                         {/* Buttons for case-sensitive, match whole word, and regex */}
                         <Box display="flex" alignItems="center">
-                            <Tooltip title="Match case (Alt+C)">
+                            <Tooltip title={`${t(`MatchCase`)} ${keyComboToString('Alt', 'C')}`}>
                                 <ColorIconButton
                                     aria-label="case-sensitive"
                                     background={isCaseSensitive ? palette.secondary.dark : palette.background.paper}
@@ -254,7 +258,7 @@ const FindInPage = () => {
                                     <CaseSensitiveIcon {...commonIconProps(palette)} />
                                 </ColorIconButton>
                             </Tooltip>
-                            <Tooltip title="Match whole word (Alt+W)">
+                            <Tooltip title={`${t(`MatchWholeWord`)} ${keyComboToString('Alt', 'W')}`}>
                                 <ColorIconButton
                                     aria-label="match whole word"
                                     background={isWholeWord ? palette.secondary.dark : palette.background.paper}
@@ -264,7 +268,7 @@ const FindInPage = () => {
                                     <WholeWordIcon {...commonIconProps(palette)} />
                                 </ColorIconButton>
                             </Tooltip>
-                            <Tooltip title="Use regular expression (Alt+R)">
+                            <Tooltip title={`${t(`UseRegex`)} ${keyComboToString('Alt', 'R')}`}>
                                 <ColorIconButton
                                     aria-label="match regex"
                                     background={isRegex ? palette.secondary.dark : palette.background.paper}
@@ -278,7 +282,7 @@ const FindInPage = () => {
                     </Stack>
                     {/* Up and down arrows, and close icon */}
                     <Box display="flex" alignItems="center" justifyContent="flex-end">
-                        <Tooltip title="Previous result (Shift+Enter)">
+                        <Tooltip title={`${t(`ResultPrevious`)} ${keyComboToString('Shift', 'Enter')}`}>
                             <IconButton
                                 aria-label="previous result"
                                 sx={commonButtonSx(palette)}
@@ -287,7 +291,7 @@ const FindInPage = () => {
                                 <ArrowUpIcon {...commonIconProps(palette)} />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="Next result (Enter)">
+                        <Tooltip title={`${t(`ResultNext`)} ${keyComboToString('Enter')}`}>
                             <IconButton
                                 aria-label="next result"
                                 sx={commonButtonSx(palette)}
@@ -296,7 +300,7 @@ const FindInPage = () => {
                                 <ArrowDownIcon {...commonIconProps(palette)} />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="Close">
+                        <Tooltip title={`${t(`Close`)} ${keyComboToString('Escape')}`}>
                             <IconButton
                                 aria-label="close"
                                 sx={commonButtonSx(palette)}

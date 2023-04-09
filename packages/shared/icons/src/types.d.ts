@@ -1,4 +1,4 @@
-declare module '@shared/route';
+declare module '@shared/icons';
 export * from '.';
 
 export interface SvgProps {

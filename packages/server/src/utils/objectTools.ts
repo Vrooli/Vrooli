@@ -1,6 +1,4 @@
-import { CODE } from "@shared/consts";
-import { CustomError } from "../error";
-import { genErrorCode } from "../logger";
+import { CustomError } from "../events/error";
 
 /**
  * Recursively sorts keys of an object alphabetically. 
@@ -22,13 +20,14 @@ export const sortObjectKeys = (obj: any): any => {
 /**
  * Parses JSON string, recursively sorts all keys alphabetically, and restringifies
  * @param stringified The stringified JSON object
+ * @param languages Preferred languages for error messages
  * @returns The sortified, stringified object
  */
-export const sortify = (stringified: string): string => {
+export const sortify = (stringified: string, languages: string[]): string => {
     try {
         const obj = JSON.parse(stringified);
         return JSON.stringify(sortObjectKeys(obj));
     } catch (error) {
-        throw new CustomError(CODE.InvalidArgs, 'Invalid JSON stringified object', { code: genErrorCode('0210') });
+        throw new CustomError('0210', 'InvalidArgs', languages);
     }
 }

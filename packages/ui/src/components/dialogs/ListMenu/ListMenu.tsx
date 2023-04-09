@@ -7,18 +7,19 @@ import {
     Menu,
     useTheme
 } from '@mui/material';
-import { HelpButton, MenuTitle } from 'components';
+import { HelpButton } from 'components/buttons/HelpButton/HelpButton';
 import { useMemo } from 'react';
+import { MenuTitle } from '../MenuTitle/MenuTitle';
 import { ListMenuProps } from '../types';
 
-const titleAria = 'list-menu-title';
+const titleId = 'list-menu-title';
 
 export function ListMenu<T>({
     id,
     anchorEl,
     onSelect,
     onClose,
-    title = 'Select Item',
+    title,
     data,
     zIndex,
 }: ListMenuProps<T>) {
@@ -32,7 +33,7 @@ export function ListMenu<T>({
             '& .MuiListItemText-secondary': {
                 color: 'red',
             },
-        }}/>;
+        }} />;
         const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textSecondary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
@@ -79,11 +80,11 @@ export function ListMenu<T>({
                 }
             }}
         >
-            <MenuTitle
-                ariaLabel={titleAria}
+            {title && <MenuTitle
+                ariaLabel={titleId}
                 title={title}
                 onClose={() => { onClose() }}
-            />
+            />}
             <List>
                 {items}
             </List>

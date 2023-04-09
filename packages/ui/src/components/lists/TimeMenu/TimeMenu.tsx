@@ -2,8 +2,9 @@
 
 import { Menu, MenuItem } from "@mui/material";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { DateRangeMenu } from "../DateRangeMenu/DateRangeMenu";
 import { TimeMenuProps } from "../types";
-import { DateRangeMenu } from 'components';
 
 /**
  * Map time selections to time length in milliseconds
@@ -21,10 +22,11 @@ export function TimeMenu({
     anchorEl,
     onClose,
 }: TimeMenuProps) {
+    const { t } = useTranslation();
+
     const open = Boolean(anchorEl);
 
     const [customRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-
     const handleTimeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
     const handleTimeClose = () => {
         setCustomRangeAnchorEl(null)
@@ -58,7 +60,7 @@ export function TimeMenu({
                 value='custom'
                 onClick={handleTimeOpen}
             >
-                Custom Range...
+                {t('CustomRange')}
             </MenuItem>
             <DateRangeMenu
                 anchorEl={customRangeAnchorEl}

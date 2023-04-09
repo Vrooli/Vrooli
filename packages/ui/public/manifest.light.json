@@ -1,7 +1,13 @@
 {
-    "name": "Vrooli - Productivity, Decentralized",
+    "name": "Vrooli",
     "short_name": "Vrooli",
-    "omnibox": { "keyword" : "vrooli" },
+    "description": "Vrooli is a decentralized productivity platform that allows you to manage your tasks, projects, and teams in one place.",
+    "dir": "ltr",
+    "lang": "en-US",
+    "prefer_related_applications": false,
+    "omnibox": {
+        "keyword": "vrooli"
+    },
     "categories": [
         "automation",
         "productivity"
@@ -15,7 +21,8 @@
         {
             "src": "/android-chrome-512x512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "/logo-mask-512x512.png",
@@ -24,11 +31,16 @@
             "purpose": "maskable"
         }
     ],
-    "theme_color": "#002784",
-    "background_color": "#002784",
+    "background_color": "#072c6a",
     "display": "standalone",
+    "display_override": [
+        "standalone",
+        "minimal-ui",
+        "fullscreen",
+        "browser"
+    ],
     "orientation": "any",
-    "scope": "https://app.vrooli.com/",
+    "scope": "/",
     "start_url": "/",
     "screenshots": [
         {
@@ -43,14 +55,14 @@
             "sizes": "720x1280",
             "platform": "narrow",
             "type": "image/png",
-            "label": "Building a multi-step routine"
+            "label": "Connecting subroutines together"
         },
         {
             "src": "/screenshots/3-create-routine-screenshot.png",
             "sizes": "720x1280",
             "platform": "narrow",
             "type": "image/png",
-            "label": "Building a single-step routine"
+            "label": "Defining routine information"
         },
         {
             "src": "/screenshots/4-run-routine-screenshot.png",
@@ -76,12 +88,12 @@
         {
             "name": "History",
             "url": "/history",
-            "description": "View your active, completed, and starred routines - and more!"
+            "description": "View your active, completed, and bookmarked routines - and more!"
         },
         {
-            "name": "Profile",
-            "url": "/profile",
-            "description": "View your profile and settings"
+            "name": "Create Routine",
+            "url": "/routine/add",
+            "description": "Create a new routine"
         },
         {
             "name": "Learn",
@@ -102,7 +114,7 @@
     "related_applications": [
         {
             "platform": "webapp",
-            "url": "https://app.vrooli.com/"
+            "url": "https://vrooli.com/"
         }
     ]
 }

@@ -1,7 +1,7 @@
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
 import { OpenThreadIcon, OrganizationIcon, UserIcon } from '@shared/icons';
 import { useMemo } from 'react';
-import { ObjectType, placeholderColor } from 'utils';
+import { placeholderColor } from 'utils/display/listTools';
 import { CommentConnectorProps } from '../types';
 
 /**
@@ -10,7 +10,7 @@ import { CommentConnectorProps } from '../types';
  */
 export const CommentConnector = ({
     isOpen,
-    objectType,
+    parentType,
     onToggle,
 }: CommentConnectorProps) => {
     const { palette } = useTheme();
@@ -19,13 +19,13 @@ export const CommentConnector = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Determine profile image type
     const ProfileIcon = useMemo(() => {
-        switch (objectType) {
-            case ObjectType.Organization:
+        switch (parentType) {
+            case 'Organization':
                 return OrganizationIcon;
             default:
                 return UserIcon;
         }
-    }, [objectType]);
+    }, [parentType]);
 
     // Profile image
     const profileImage = useMemo(() => (

@@ -1,24 +1,22 @@
 import {
     Button,
-    Dialog,
     DialogContent,
     Stack,
     TextField,
     Typography,
     useTheme
 } from '@mui/material';
-import { DeleteDialogProps } from '../types';
-import { useCallback, useState } from 'react';
-import { mutationWrapper } from 'graphql/utils';
-import { useMutation } from '@apollo/client';
-import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
-import { APP_LINKS } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { DialogTitle } from 'components';
+import { DeleteOneInput, LINKS, Success } from '@shared/consts';
 import { DeleteIcon } from '@shared/icons';
-
-const titleAria = 'delete-object-dialog-title';
+import { useLocation } from '@shared/route';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { DeleteDialogProps } from '../types';
 
 export const DeleteDialog = ({
     handleClose,
@@ -30,6 +28,7 @@ export const DeleteDialog = ({
 }: DeleteDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
 
     // Stores user-inputted name of object to be deleted
     const [nameInput, setNameInput] = useState<string>('');
@@ -39,18 +38,18 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation(deleteOneMutation);
+    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const handleDelete = useCallback(() => {
-        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+        mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
             input: { id: objectId, objectType },
             successCondition: (data) => data.success,
-            successMessage: () => `${objectName} deleted.`,
+            successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName } }),
             onSuccess: () => {
-                setLocation(APP_LINKS.Home);
+                setLocation(LINKS.Home);
                 close(true);
             },
-            errorMessage: () => `Failed to delete ${objectName}.`,
+            errorMessage: () => ({ key: 'FailedToDelete' }),
             onError: () => {
                 close(false);
             }
@@ -58,18 +57,18 @@ export const DeleteDialog = ({
     }, [close, deleteOne, objectId, objectName, objectType, setLocation]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="delete-dialog"
+            isOpen={isOpen}
             onClose={() => { close(); }}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex
-            }}
+            zIndex={zIndex}
         >
-            <DialogTitle
-                ariaLabel={titleAria}
-                title={`Delete "${objectName}"`}
+            <TopBar
+                display="dialog"
                 onClose={() => { close() }}
+                titleData={{
+                    titleKey: 'Delete',
+                }}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2} mt={2}>
@@ -85,9 +84,14 @@ export const DeleteDialog = ({
                         helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
                         sx={{ paddingBottom: 2 }}
                     />
-                    <Button startIcon={<DeleteIcon />} color="secondary" onClick={handleDelete}>Delete</Button>
+                    <Button
+                        startIcon={<DeleteIcon />}
+                        color="secondary"
+                        onClick={handleDelete}
+                        disabled={nameInput.trim() !== objectName.trim()}
+                    >{t('Delete')}</Button>
                 </Stack>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

@@ -90,7 +90,7 @@ export const BaseEdge = ({
 
     // Handle opening/closing of the edit popover menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const toggleEdit = useCallback((event) => {
+    const toggleEdit = useCallback((event: any) => {
         if (Boolean(anchorEl)) setAnchorEl(null);
         else setAnchorEl(event.currentTarget);
     }, [anchorEl]);

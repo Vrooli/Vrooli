@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium MuiBox-root css-uqopch"
+   focusable="false"
+   aria-hidden="true"
+   viewBox="0 0 24 24"
+   data-testid="SelfImprovementIcon"
+   version="1.1"
+   id="svg6"
+   sodipodi:docname="FocusModeIcon.svg"
+   inkscape:version="1.2 (dc2aedaf03, 2022-05-15)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs10" />
+  <sodipodi:namedview
+     id="namedview8"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     showgrid="false"
+     inkscape:zoom="34.708333"
+     inkscape:cx="8.0816327"
+     inkscape:cy="10.905162"
+     inkscape:window-width="2400"
+     inkscape:window-height="1261"
+     inkscape:window-x="2391"
+     inkscape:window-y="-5"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg6" />
+  <path
+     id="circle853"
+     d="M 12 4 A 2 2 0 0 0 10 6 A 2 2 0 0 0 12 8 A 2 2 0 0 0 14 6 A 2 2 0 0 0 12 4 z M 11.480469 9 C 10.890469 9 10.329218 9.2607036 9.9492188 9.7207031 L 8.609375 11.320312 C 7.1593764 13.040311 5.2399978 14 3 14 L 3 16 C 5.7699972 16 8.1900018 14.829998 10 12.75 L 10 15 L 6.1191406 16.550781 C 5.4491413 16.820781 5 17.480938 5 18.210938 C 5 19.200937 5.7990635 20 6.7890625 20 L 9 20 L 9 19.5 C 9 18.120001 10.120001 17 11.5 17 L 14.5 17 C 14.78 17 15 17.22 15 17.5 C 15 17.78 14.78 18 14.5 18 L 11.5 18 C 10.670001 18 10 18.670001 10 19.5 L 10 20 L 17.210938 20 C 18.200937 20 19 19.200937 19 18.210938 C 19 17.480938 18.550859 16.820781 17.880859 16.550781 L 14 15 L 14 12.75 C 15.809998 14.829998 18.230003 16 21 16 L 21 14 C 18.760002 14 16.840389 13.040311 15.400391 11.320312 L 14.060547 9.7207031 C 13.680547 9.2607036 13.119296 9 12.529297 9 L 11.480469 9 z " />
+</svg>

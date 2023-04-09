@@ -1,18 +1,14 @@
-import { Box, Button, Dialog, DialogContent, ListItem, Stack, Typography } from '@mui/material';
+import { Box, Button, DialogContent, ListItem, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getInstalledWalletProviders } from 'utils/authentication/walletIntegration';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
 import { WalletSelectDialogProps } from '../types';
-import { getInstalledWalletProviders } from 'utils/authentication';
-import { DialogTitle } from 'components';
 
 const helpText =
-    `All wallet extensions you have enabled should be shown here, as long as they support (CIP-0030)[https://cips.cardano.org/cips/cip30/]. 
-    
-This log in option only works for browsers that support Chromium extensions (Chrome, Brave, Opera, Vivaldi, etc. on desktop; Kiwi, Yandex, on Android).  
+    `All wallet extensions you have enabled should be shown here, as long as they support (CIP-0030)[https://cips.cardano.org/cips/cip30/].\n\nThis log in option only works for browsers that support Chromium extensions (Chrome, Brave, Opera, Vivaldi, etc. on desktop; Kiwi, Yandex, on Android).\n\nIf you need to download a wallet extension, we suggest [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo).\n\n**NOTE:** Working on support for Gero Wallet and Card Wallet.`
 
-If you need to download a wallet extension, we suggest [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo). 
-
-**NOTE:** Working on support for Gero Wallet and Card Wallet.`
-
-const titleAria = 'wallet-select-dialog-title';
+const titleId = 'wallet-select-dialog-title';
 
 export const WalletSelectDialog = ({
     handleOpenInstall,
@@ -20,6 +16,8 @@ export const WalletSelectDialog = ({
     open,
     zIndex,
 }: WalletSelectDialogProps) => {
+    const { t } = useTranslation();
+
     const walletsInfo = getInstalledWalletProviders();
 
     const handleClose = () => {
@@ -27,24 +25,15 @@ export const WalletSelectDialog = ({
     }
 
     return (
-        <Dialog
+        <LargeDialog
+            id="wallet-select-dialog"
             onClose={handleClose}
-            open={open}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiPaper-root': {
-                    minWidth: 'min(400px, 100%)',
-                    margin: '0 auto',
-                },
-                '& .MuiDialog-paper': {
-                    textAlign: 'center',
-                    overflowX: 'hidden',
-                }
-            }}
+            isOpen={open}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 helpText={helpText}
                 title={'Installed Wallets'}
                 onClose={handleClose}
@@ -71,7 +60,7 @@ export const WalletSelectDialog = ({
                     ))}
                     {walletsInfo.length === 0 && (
                         <Typography variant="h6" textAlign="center">
-                            No wallets installed
+                            {t('NoWalletsInstalled')}
                         </Typography>
                     )}
                     {/* Install new button */}
@@ -80,10 +69,10 @@ export const WalletSelectDialog = ({
                         fullWidth
                         onClick={handleOpenInstall}
                     >
-                        Install New
+                        {t('InstallWallet')}
                     </Button>
                 </Stack>
             </DialogContent>
-        </Dialog >
+        </LargeDialog>
     )
 }

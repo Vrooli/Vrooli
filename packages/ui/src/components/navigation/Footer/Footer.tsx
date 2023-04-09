@@ -1,20 +1,17 @@
-import { APP_LINKS, LANDING_LINKS, LANDING_URL, SOCIALS } from '@shared/consts';
 import {
-    Box,
-    List,
+    Box, Grid, List,
     ListItem,
-    ListItemButton,
     ListItemIcon,
-    ListItemText,
-    Grid,
-    Tooltip,
-    useTheme,
+    ListItemText, Tooltip,
+    useTheme
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, SvgComponent, TwitterIcon } from '@shared/icons';
-import { CopyrightBreadcrumbs } from 'components';
-import { useLocation } from '@shared/route';
-import { openLink } from 'utils';
+import { LINKS, SOCIALS } from '@shared/consts';
+import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
+import { CopyrightBreadcrumbs } from 'components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { getDeviceInfo } from 'utils/display/device';
 
 const contactLinks: [string, string, string, string, SvgComponent][] = [
     ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
@@ -22,15 +19,23 @@ const contactLinks: [string, string, string, string, SvgComponent][] = [
     ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
 ]
 
+const aboutUsLink = LINKS.About;
+const viewStatsLink = LINKS.Stats;
+
 export const Footer = () => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+
     const [pathname, setLocation] = useLocation();
     // Hides footer on certain pages (e.g. /routine)
     const showFooter = useMemo(() => {
-        const disableList = [APP_LINKS.Routine];
+        const disableList = [LINKS.Routine];
         return !disableList.some(disable => pathname.startsWith(disable));
     }, [pathname]);
 
+    // Dont' display footer when app is running standalone
+    const { isStandalone } = getDeviceInfo();
+    if (isStandalone) return null;
     return (
         <Box
             display={showFooter ? 'block' : 'none'}
@@ -41,36 +46,58 @@ export const Footer = () => {
             sx={{
                 backgroundColor: palette.primary.dark,
                 color: palette.primary.contrastText,
-                zIndex: 2,
+                zIndex: 5,
             }}
         >
             <Grid container justifyContent='center' spacing={1}>
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary="Resources" sx={{ textTransform: 'uppercase' }} />
+                            <ListItemText primary={t(`Resource`, { count: 2 })} sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
-                        <ListItemButton component="a" onClick={() => openLink(setLocation, `${LANDING_URL}${LANDING_LINKS.About}`)} >
-                            <ListItemText primary="About Us" sx={{ color: palette.primary.contrastText }} />
-                        </ListItemButton>
-                        <ListItemButton component="a" onClick={() => openLink(setLocation, APP_LINKS.Stats)} >
-                            <ListItemText primary="View Stats" sx={{ color: palette.primary.contrastText }} />
-                        </ListItemButton>
+                        <ListItem
+                            component="a"
+                            href={aboutUsLink}
+                            onClick={(e) => { e.preventDefault(); openLink(setLocation, aboutUsLink) }}
+                            sx={{ padding: 2 }}
+                        >
+                            <ListItemIcon>
+                                <InfoIcon fill={palette.primary.contrastText} />
+                            </ListItemIcon>
+                            <ListItemText primary={t(`AboutUs`)} sx={{ color: palette.primary.contrastText }} />
+                        </ListItem>
+                        <ListItem
+                            component="a"
+                            href={viewStatsLink}
+                            onClick={(e) => { e.preventDefault(); openLink(setLocation, viewStatsLink) }}
+                            sx={{ padding: 2 }}
+                        >
+                            <ListItemIcon>
+                                <StatsIcon fill={palette.primary.contrastText} />
+                            </ListItemIcon>
+                            <ListItemText primary={t(`StatisticsShort`)} sx={{ color: palette.primary.contrastText }} />
+                        </ListItem>
                     </List>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary="Contact" sx={{ textTransform: 'uppercase' }} />
+                            <ListItemText primary={t(`Contact`)} sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">
-                                <ListItemButton aria-label={label} onClick={() => openLink(setLocation, src)}>
+                                <ListItem
+                                    aria-label={label}
+                                    component="a"
+                                    href={src}
+                                    onClick={(e) => { e.preventDefault(); openLink(setLocation, src) }}
+                                    sx={{ padding: 2 }}
+                                >
                                     <ListItemIcon>
-                                        <Icon fill="white" />
+                                        <Icon fill={palette.primary.contrastText} />
                                     </ListItemIcon>
-                                    <ListItemText primary={text} />
-                                </ListItemButton>
+                                    <ListItemText primary={text} sx={{ color: palette.primary.contrastText }} />
+                                </ListItem>
                             </Tooltip>
                         ))}
                     </List>

@@ -4,9 +4,17 @@ Prisma can sometimes delete comments in the schema.prisma file, so this document
 
 ## General
 - `citext` - Provides case-insensitive text search. Especially useful for emails.
-- `stars`/`views` - Stars and views are stored as integers, so we don't have to count the number of relationships every time we want these common fields.
+- `bookmarks`/`views` - Bookmarks and views are stored as integers, so we don't have to count the number of relationships every time we want these common fields.
 - `lanugage` - Languages are stored using their ISO 639-2 language code
+- `forks` - Forks are used to suggest changes to a versioned object. When a fork is created, it initializes new root (i.e. not versioned) data, and copies the parent version's data
 
+## api
+- Stores information about external APIs, such as their name, description, details (like description but longer and supports markdown), version, link, type (GraphQL, OpenAPIv2, etc.), tags, link, schema, and more.
+- Unique to link
+- Schema stored as a stringified JSON object, either in GraphQL schema documentation or OpenAPIv3 format (or maybe more types)
+
+## api_key
+API keys for accessing Vrooli's API. Not to be confused with the api table, which specifies information about external APIs listed on Vrooli.
 
 ## comment
 Comments can be submitted by either a user or an organization. They can be associated with a project, routine, or standard.  
@@ -114,10 +122,10 @@ NOTE: standard name is not translated because it is used as a unique identifier.
 - `jsonVariable` - If standard is a JSON type, then it may contain variables that have labels and helper text
 
 
-## star
-Objects can only be starred by a user, not an organization.
+## bookmark
+Objects can only be bookmarked by a user, not an organization.
 
-Stars can be applied to organizations, projects, routines, standards, tags, and users
+Bookmarks can be applied to organizations, projects, routines, standards, tags, and users
 
 
 ## tag
@@ -152,15 +160,6 @@ Examples of correct use for each resource type:
 - `Scheduling` - Google calendar, tasking app
 - `Social` - Twitter, Facebook, Instagram
 - `Tutorial` - Youtube video link
-
-
-## ResourceListUsedFor
-- `Custom` - User-created resource list, which can be deleted
-- `Display` - e.g. Oranization view, Profile page
-- `Learn` - Learn dashboard
-- `Research` - Research dashboard
-- `Develop` - Develop dashboard
-
 
 ## RunStatus
 - `Scheduled` - Routine is scheduled to run

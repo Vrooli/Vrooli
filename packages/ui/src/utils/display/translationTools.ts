@@ -1,8 +1,11 @@
-import { FormikErrors, FormikProps } from "formik";
-import { ObjectSchema, ValidationError } from 'yup';
-import { Session } from "types";
+import { Session } from "@shared/consts";
+import { CommonKey, ErrorKey } from "@shared/translations";
 import { uuid } from '@shared/uuid';
-import { getCurrentUser } from "utils/authentication";
+import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
+import i18next from 'i18next';
+import { OptionalTranslation } from "types";
+import { getCurrentUser } from "utils/authentication/session";
+import { ObjectSchema, ValidationError } from 'yup';
 
 export type TranslationObject = {
     id: string,
@@ -11,7 +14,7 @@ export type TranslationObject = {
 }
 
 /**
- * Array of all IANA language subtags, with their native names. 
+ * All supported IANA language subtags, with their native names. 
  * Taken from https://en.wikipedia.org/wiki/List_of_ISO_639-2_codes and https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
  */
 export const AllLanguages = {
@@ -343,6 +346,115 @@ export const AllLanguages = {
     "zza": `kirmanckî / dimilkî / kirdkî / zazakî`,
 };
 
+type LocaleLoader = () => Promise<{ default: Locale }>;
+
+/**
+ * Maps date-fns locale codes to their corresponding loader functions. 
+ * It would be nice if we could import like import('date-fns/locale/${locale}), 
+ * but that doesn't work for some reason.
+ */
+const localeLoaders: Record<string, LocaleLoader> = {
+    "af": () => import('date-fns/locale/af'),
+    "ar-DZ": () => import('date-fns/locale/ar-DZ'),
+    "ar-EG": () => import('date-fns/locale/ar-EG'),
+    "ar-MA": () => import('date-fns/locale/ar-MA'),
+    "ar-SA": () => import('date-fns/locale/ar-SA'),
+    "ar-TN": () => import('date-fns/locale/ar-TN'),
+    "ar": () => import('date-fns/locale/ar'),
+    "az": () => import('date-fns/locale/az'),
+    "be-tarask": () => import('date-fns/locale/be-tarask'),
+    "be": () => import('date-fns/locale/be'),
+    "bg": () => import('date-fns/locale/bg'),
+    "bn": () => import('date-fns/locale/bn'),
+    "bs": () => import('date-fns/locale/bs'),
+    "ca": () => import('date-fns/locale/ca'),
+    "cs": () => import('date-fns/locale/cs'),
+    "cy": () => import('date-fns/locale/cy'),
+    "da": () => import('date-fns/locale/da'),
+    "de-AT": () => import('date-fns/locale/de-AT'),
+    "de": () => import('date-fns/locale/de'),
+    "el": () => import('date-fns/locale/el'),
+    "en-AU": () => import('date-fns/locale/en-AU'),
+    "en-CA": () => import('date-fns/locale/en-CA'),
+    "en-GB": () => import('date-fns/locale/en-GB'),
+    "en-IE": () => import('date-fns/locale/en-IE'),
+    "en-IN": () => import('date-fns/locale/en-IN'),
+    "en-NZ": () => import('date-fns/locale/en-NZ'),
+    "en-US": () => import('date-fns/locale/en-US'),
+    "en-ZA": () => import('date-fns/locale/en-ZA'),
+    "eo": () => import('date-fns/locale/eo'),
+    "es": () => import('date-fns/locale/es'),
+    "et": () => import('date-fns/locale/et'),
+    "eu": () => import('date-fns/locale/eu'),
+    "fa-IR": () => import('date-fns/locale/fa-IR'),
+    "fi": () => import('date-fns/locale/fi'),
+    "fr-CA": () => import('date-fns/locale/fr-CA'),
+    "fr-CH": () => import('date-fns/locale/fr-CH'),
+    "fr": () => import('date-fns/locale/fr'),
+    "fy": () => import('date-fns/locale/fy'),
+    "gd": () => import('date-fns/locale/gd'),
+    "gl": () => import('date-fns/locale/gl'),
+    "gu": () => import('date-fns/locale/gu'),
+    "he": () => import('date-fns/locale/he'),
+    "hi": () => import('date-fns/locale/hi'),
+    "hr": () => import('date-fns/locale/hr'),
+    "ht": () => import('date-fns/locale/ht'),
+    "hu": () => import('date-fns/locale/hu'),
+    "hy": () => import('date-fns/locale/hy'),
+    "id": () => import('date-fns/locale/id'),
+    "is": () => import('date-fns/locale/is'),
+    "it-CH": () => import('date-fns/locale/it-CH'),
+    "it": () => import('date-fns/locale/it'),
+    "ja-Hira": () => import('date-fns/locale/ja-Hira'),
+    "ja": () => import('date-fns/locale/ja'),
+    "ka": () => import('date-fns/locale/ka'),
+    "kk": () => import('date-fns/locale/kk'),
+    "km": () => import('date-fns/locale/km'),
+    "kn": () => import('date-fns/locale/kn'),
+    "ko": () => import('date-fns/locale/ko'),
+    "lb": () => import('date-fns/locale/lb'),
+    "lt": () => import('date-fns/locale/lt'),
+    "lv": () => import('date-fns/locale/lv'),
+    "mk": () => import('date-fns/locale/mk'),
+    "mn": () => import('date-fns/locale/mn'),
+    "ms": () => import('date-fns/locale/ms'),
+    "mt": () => import('date-fns/locale/mt'),
+    "nb": () => import('date-fns/locale/nb'),
+    "nl-BE": () => import('date-fns/locale/nl-BE'),
+    "nl": () => import('date-fns/locale/nl'),
+    "nn": () => import('date-fns/locale/nn'),
+    "oc": () => import('date-fns/locale/oc'),
+    "pl": () => import('date-fns/locale/pl'),
+    "pt-BR": () => import('date-fns/locale/pt-BR'),
+    "pt": () => import('date-fns/locale/pt'),
+    "ro": () => import('date-fns/locale/ro'),
+    "ru": () => import('date-fns/locale/ru'),
+    "sk": () => import('date-fns/locale/sk'),
+    "sl": () => import('date-fns/locale/sl'),
+    "sq": () => import('date-fns/locale/sq'),
+    "sr-Latn": () => import('date-fns/locale/sr-Latn'),
+    "sr": () => import('date-fns/locale/sr'),
+    "sv": () => import('date-fns/locale/sv'),
+    "ta": () => import('date-fns/locale/ta'),
+    "te": () => import('date-fns/locale/te'),
+    "th": () => import('date-fns/locale/th'),
+    "tr": () => import('date-fns/locale/tr'),
+    "ug": () => import('date-fns/locale/ug'),
+    "uk": () => import('date-fns/locale/uk'),
+    "uz-Cyrl": () => import('date-fns/locale/uz-Cyrl'),
+    "uz": () => import('date-fns/locale/uz'),
+    "vi": () => import('date-fns/locale/vi'),
+    "zh-CN": () => import('date-fns/locale/zh-CN'),
+    "zh-HK": () => import('date-fns/locale/zh-HK'),
+    "zh-TW": () => import('date-fns/locale/zh-TW'),
+};
+
+export const loadLocale = async (locale: string): Promise<Locale> => {
+    const loader = localeLoaders[locale] || localeLoaders['en-US'];
+    const module = await loader();
+    return module.default;
+};
+
 /**
  * Retrieves an object's translation for a given language code.
  * @param obj The object to retrieve the translation from.
@@ -352,7 +464,7 @@ export const AllLanguages = {
  */
 export const getTranslation = <
     Translation extends { language: string },
->(obj: { translations?: Translation[] | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
+>(obj: { translations?: Translation[] | null | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
     if (!obj || !obj.translations) return {}
     // Loop through translations
     for (const translation of obj.translations) {
@@ -458,9 +570,10 @@ export const getLanguageSubtag = (language: string): string => {
  * 3. English
  * Strips languages so only the subtag is returned (e.g. en-US becomes en)
  * @param session Session data
+ * @param useDefault If true, will return English if no languages are found
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session: Session | null | undefined): string[] => {
+export const getUserLanguages = (session: Session | null | undefined, useDefault = true): string[] => {
     // First check session data for preferred languages
     const { languages } = getCurrentUser(session);
     if (languages && languages.length > 0) {
@@ -470,9 +583,42 @@ export const getUserLanguages = (session: Session | null | undefined): string[] 
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }
-    // Default to English
-    return ["en"];
+    // Default to English if specified
+    return useDefault ? ["en"] : [];
 }
+
+/**
+ * Returns the best locale for the user based on their preferred languages.
+ * Locale must be present in the DateFnsLocales list.
+ */
+export const getUserLocale = (session: Session | null | undefined): string => {
+    const userLanguages = getUserLanguages(session);
+    const navigatorLanguages = [...navigator.languages, navigator.language].filter(Boolean);
+
+    const findMatchingLocale = (languages: string[]): string | undefined => {
+        for (const language of languages) {
+            const matchingLocales = Object.keys(localeLoaders).filter(
+                (locale) => locale.split("-")[0] === language.split("-")[0]
+            );
+            if (matchingLocales.length > 0) {
+                const exactMatch = matchingLocales.find((locale) => locale === language);
+                return exactMatch || matchingLocales[0];
+            }
+        }
+        return undefined;
+    };
+
+    const navLanguagesInUserLanguages = navigatorLanguages.filter((language) =>
+        userLanguages.includes(language.split("-")[0])
+    );
+
+    return (
+        findMatchingLocale(navLanguagesInUserLanguages) ||
+        findMatchingLocale(userLanguages) ||
+        findMatchingLocale(navigatorLanguages) ||
+        "en-US"
+    );
+};
 
 /**
  * Finds the most preferred language in a list of languages.
@@ -492,91 +638,86 @@ export const getPreferredLanguage = (availableLanguages: string[], userLanguages
 
 /**
  * Finds the error, touched, and value for a translation field in a formik object
- * @param formik Formik object
- * @param field The field that contains the translation object array
+ * @param field The formik field that contains the translation object
+ * @param meta The formik meta object for the field
  * @param language The language to retrieve
  * @returns The error, touched, and value for the translation object with the given language
  */
 export const getTranslationData = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, field: KeyField, language: string): {
-    error: FormikErrors<Values[KeyField][0]> | undefined,
+>(field: FieldInputProps<any>, meta: FieldMetaProps<any>, language: string): {
+    error: { [key in keyof Values[KeyField][0]]: string } | undefined,
     index: number,
     touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,
     value: Values[KeyField][0] | undefined
 } => {
-    if (!formik.values[field] || !Array.isArray(formik.values[field])) return { error: undefined, index: -1, touched: undefined, value: undefined };
-    const index = formik.values[field].findIndex(t => t.language === language);
-    const value = formik.values[field][index];
-    const touched = formik.touched[field]?.[index];
-    const error = typeof formik.errors[field]?.[index] === 'object' ? formik.errors[field]?.[index] as any : undefined;
+    if (!field?.value || !Array.isArray(field.value)) return { error: undefined, index: -1, touched: undefined, value: undefined };
+    const index = field.value.findIndex(t => t.language === language);
+    const value = field.value[index];
+    const touched = meta.touched?.[index];
+    const error = meta.error?.[index] as any;
     return { error, index, touched, value };
 }
 
 /**
  * Handles onBlurs for translation fields in a formik object
- * @param formik Formik object
- * @param translationField The field that contains the translation object array
- * @param blurredField The field that was blurred
- * @param language The language to retrieve
  */
-export const handleTranslationBlur = <
-    KeyField extends string,
-    Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, event: { target: { name: string } }, language: string) => {
+export const handleTranslationBlur = (
+    field: FieldInputProps<{}>,
+    meta: FieldMetaProps<{}>,
+    event: { target: { name: string } },
+    language: string
+) => {
     // Get field name from event
     const { name: blurredField } = event.target;
     // Check if field has already been touched
-    const { index, touched } = getTranslationData(formik, translationField, language);
+    const touched = meta.touched as any;
     // If not, set touched to true using dot notation
     if (!touched || !touched[blurredField]) {
-        formik.setFieldTouched(`${translationField}.${index}.${String(blurredField)}`, true);
+        field.onBlur({ ...event, target: { ...event.target, name: `${field.name}.${language}.${blurredField}` } });
     }
-}
+};
 
 /**
  * Handles onChange for translation fields in a formik object
- * @param formik Formik object
- * @param translationField The field that contains the translation object array
- * @param changedField The field that was changed
- * @param value The new value
- * @param language The language to retrieve
  */
-export const handleTranslationChange = <
-    KeyField extends string,
-    Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, event: { target: { name: string, value: string } }, language: string) => {
+export const handleTranslationChange = (
+    field: FieldInputProps<[]>,
+    meta: FieldMetaProps<any>,
+    helpers: FieldHelperProps<any>,
+    event: { target: { name: string, value: string } },
+    language: string
+) => {
     // Get field name and value from event
-    const { name: changedField, value } = event.target;
+    const { name: changedField } = event.target;
     // Get index of translation object
-    const { index } = getTranslationData(formik, translationField, language);
-    // Set the value using dot notation
-    formik.setFieldValue(`${translationField}.${index}.${String(changedField)}`, value);
+    const { index, value: currentValue } = getTranslationData(field, meta, language);
+    // Update the value of the translation object
+    const newValue = {
+        ...currentValue,
+        [changedField]: event.target.value
+    };
+    // Update the array with the new translation object
+    const newTranslations = field.value.map((translation, idx) => idx === index ? newValue : translation);
+    // Set the updated translations array
+    helpers.setValue(newTranslations);
 }
 
 /**
  * Converts a formik error object into an error object which can be passed to GridSubmitButtons
- * @param formik Formik object
- * @param translationField The field that contains the translation object array
- * @param validationSchema The validation schema for a translation object
  * @returns An error object
  */
-export const getFormikErrorsWithTranslations = <
-    KeyField extends string,
-    Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, validationSchema: ObjectSchema<any>): { [key: string]: string | string[] } => {
+export const getFormikErrorsWithTranslations = (
+    field: FieldInputProps<any>,
+    meta: FieldMetaProps<any>,
+    validationSchema: ObjectSchema<any>
+): { [key: string]: string | string[] } => {
     // Initialize errors object
     const errors: { [key: string]: string | string[] } = {};
-    // Add all non-translation errors to errors object
-    for (const [key, value] of Object.entries(formik.errors)) {
-        if (typeof value === 'string' || (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string')) {
-            errors[key] = value;
-        }
-    }
     // Find translation errors. Since the given errors don't have the language subtag, we need to loop through all languages
     // and manually validate each field
-    for (const translation of formik.values[translationField]) {
+    for (const translation of field.value as any) {
         const subtag = translation.language;
         // Get full name of language
         const language = AllLanguages[subtag] ?? subtag;
@@ -601,19 +742,18 @@ export const getFormikErrorsWithTranslations = <
 
 /**
  * Adds a new, empty translation object (all fields '') to a formik translation field
- * @param formik Formik object
- * @param translationField The field that contains the translation object array
- * @param language The language to add
  */
-export const addEmptyTranslation = <
-    KeyField extends string,
-    Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, language: string) => {
+export const addEmptyTranslation = (
+    field: FieldInputProps<any>,
+    meta: FieldMetaProps<any>,
+    helpers: FieldHelperProps<{}>,
+    language: string
+) => {
     // Get copy of current translations
-    const translations = [...formik.values[translationField]];
+    const translations = [...(field.value as any)];
     // Determine fields in translation object (even if no translations exist yet). 
     // We can accomplish this through the initial values
-    const initialTranslations = Array.isArray(formik.initialValues[translationField]) ? formik.initialValues[translationField] : [];
+    const initialTranslations = Array.isArray(meta.initialValue) ? meta.initialValue : [];
     if (initialTranslations.length === 0) {
         console.error('Could not determine fields in translation object');
         return;
@@ -628,25 +768,64 @@ export const addEmptyTranslation = <
     // Add new translation object to translations
     translations.push(newTranslation);
     // Set new translations
-    formik.setFieldValue(translationField, translations);
+    helpers.setValue(translations);
 }
 
 /**
  * Removes a translation object from a formik translation field
- * @param formik Formik object
- * @param translationField The field that contains the translation object array
- * @param language The language to remove
  */
-export const removeTranslation = <
-    KeyField extends string,
-    Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, language: string) => {
+export const removeTranslation = (
+    field: FieldInputProps<any>,
+    meta: FieldMetaProps<any>,
+    helpers: FieldHelperProps<{}>,
+    language: string
+) => {
     // Get copy of current translations
-    const translations = [...formik.values[translationField]];
+    const translations = [...(field.value as any)];
     // Get index of translation object
-    const { index } = getTranslationData(formik, translationField, language);
+    const { index } = getTranslationData(field, meta, language);
     // Remove translation object from translations
     translations.splice(index, 1);
     // Set new translations
-    formik.setFieldValue(translationField, translations);
+    helpers.setValue(translations);
+}
+
+/**
+ * Converts a snack message code into a snack message and details. 
+ * For now, details are only used for some errors
+ * @param key The key to convert
+ * @param variables The variables to use for translation
+ * @returns Object with message and details
+ */
+export const translateSnackMessage = (
+    key: ErrorKey | CommonKey,
+    variables: { [x: string]: number | string } | undefined,
+): { message: string, details: string | undefined } => {
+    const messageAsError = i18next.t(key as ErrorKey, { ...variables, defaultValue: key, ns: 'error' });
+    const messageAsCommon = i18next.t(key as CommonKey, { ...variables, defaultValue: key, ns: 'common' });
+    if (messageAsError.length > 0 && messageAsError !== key) {
+        const details = i18next.t(`${key}Details` as ErrorKey, { ns: 'error' });
+        return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
+    }
+    return { message: messageAsCommon, details: undefined };
+};
+
+/**
+ * Finds the translated title and help text for a component
+ * @param data Data required to find the title and help text
+ * @returns Object with title and help text, each of which can be undefined
+ */
+export const getTranslatedTitleAndHelp = (data: OptionalTranslation | null | undefined): { title?: string, help?: string } => {
+    if (!data) return {};
+    let title: string | undefined = data.title;
+    let help: string | undefined = data.help;
+    if (!title && data.titleKey) {
+        title = i18next.t(data.titleKey, { ...data.titleVariables, ns: 'common', defaultValue: '' });
+        if (title === '') title = undefined;
+    }
+    if (!help && data.helpKey) {
+        help = i18next.t(data.helpKey, { ...data.helpVariables, ns: 'common', defaultValue: '' });
+        if (help === '') help = undefined;
+    }
+    return { title, help };
 }

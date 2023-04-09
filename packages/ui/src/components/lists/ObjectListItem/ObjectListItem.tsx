@@ -1,21 +1,32 @@
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { ObjectListItemProps, ObjectListItemType } from '../types';
-import { multiLineEllipsis } from 'styles';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StarFor, VoteFor } from '@shared/consts';
-import { useLocation } from '@shared/route';
-import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectType, openObject, openObjectEdit, placeholderColor, usePress, useWindowSize } from 'utils';
-import { smallHorizontalScrollbar } from '../styles';
+import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
-import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
-import { ObjectAction, ObjectActionComplete } from 'components/dialogs/types';
-import { ListProject, ListRoutine, ListStandard } from 'types';
-import { ObjectActionMenu } from 'components/dialogs';
+import { useLocation } from '@shared/route';
+import { isOfType } from '@shared/utils';
 import { uuid } from '@shared/uuid';
-import { RunStatus } from 'graphql/generated/globalTypes';
+import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
+import { CommentsButton } from 'components/buttons/CommentsButton/CommentsButton';
+import { ReportsButton } from 'components/buttons/ReportsButton/ReportsButton';
+import { VoteButton } from 'components/buttons/VoteButton/VoteButton';
+import { ObjectActionMenu } from 'components/dialogs/ObjectActionMenu/ObjectActionMenu';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { multiLineEllipsis } from 'styles';
+import { ObjectAction } from 'utils/actions/objectActions';
+import { getBookmarkFor, getCounts, getDisplay, getYou, ListObjectType, placeholderColor } from 'utils/display/listTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { useObjectActions } from 'utils/hooks/useObjectActions';
+import usePress from 'utils/hooks/usePress';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { getObjectEditUrl, getObjectUrl } from 'utils/navigation/openObject';
+import { SessionContext } from 'utils/SessionContext';
+import { RoleList } from '../RoleList/RoleList';
+import { smallHorizontalScrollbar } from '../styles';
+import { TagList } from '../TagList/TagList';
+import { TextLoading } from '../TextLoading/TextLoading';
+import { ObjectListItemProps } from '../types';
 
-function CompletionBar(props) {
+export function CompletionBar(props) {
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
             <Box sx={{ width: '100%', mr: 1 }}>
@@ -30,17 +41,19 @@ function CompletionBar(props) {
     );
 }
 
-export function ObjectListItem<T extends ObjectListItemType>({
+export function ObjectListItem<T extends ListObjectType>({
     beforeNavigation,
-    data,
-    hideRole,
+    hideUpdateButton,
     index,
     loading,
-    session,
+    data,
+    objectType,
     zIndex,
 }: ObjectListItemProps<T>) {
+    const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const id = useMemo(() => data?.id ?? uuid(), [data]);
 
@@ -48,14 +61,9 @@ export function ObjectListItem<T extends ObjectListItemType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const permissions = useMemo(() => getListItemPermissions(data, session), [data, session]);
-    const { subtitle, title } = useMemo(() => {
-        const languages = getUserLanguages(session);
-        return {
-            subtitle: getListItemSubtitle(data, languages),
-            title: getListItemTitle(data, languages),
-        };
-    }, [data, session]);
+    const { canComment, canUpdate, canVote, canBookmark, isBookmarked, isUpvoted } = useMemo(() => getYou(data), [data]);
+    const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
+    const { score } = useMemo(() => getCounts(data), [data]);
 
     // Context menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -64,20 +72,23 @@ export function ObjectListItem<T extends ObjectListItemType>({
     }, []);
     const closeContextMenu = useCallback(() => setAnchorEl(null), []);
 
+    const link = useMemo(() => data ? getObjectUrl(data) : '', [data]);
     const handleClick = useCallback((target: EventTarget) => {
         if (!target.id || !target.id.startsWith('list-item-')) return;
         // If data not supplied, don't open
-        if (!data) return;
+        if (data === null || link.length === 0) return;
         // If beforeNavigation is supplied, call it
         if (beforeNavigation) {
             const shouldContinue = beforeNavigation(data);
             if (shouldContinue === false) return;
         }
         // Navigate to the object's page
-        openObject(data, setLocation);
-    }, [data, beforeNavigation, setLocation]);
+        setLocation(link);
+    }, [link, beforeNavigation, setLocation, data]);
 
+    const editUrl = useMemo(() => data ? getObjectEditUrl(data) : '', [data]);
     const handleEditClick = useCallback((event: any) => {
+        event.preventDefault();
         const target = event.target;
         if (!target.id || !target.id.startsWith('edit-list-item-')) return;
         // If data not supplied, don't open
@@ -88,8 +99,8 @@ export function ObjectListItem<T extends ObjectListItemType>({
             if (shouldContinue === false) return;
         }
         // Navigate to the object's edit page
-        openObjectEdit(data, setLocation);
-    }, [beforeNavigation, data, setLocation]);
+        setLocation(editUrl);
+    }, [beforeNavigation, data, editUrl, setLocation]);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
@@ -102,12 +113,12 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        if (isMobile && ![ObjectType.Organization, ObjectType.User].includes(object?.__typename as any)) return null;
+        if (isMobile && !isOfType(object, 'Organization', 'User')) return null;
         // Show icons for organizations and users
         switch (object?.__typename) {
-            case ObjectType.Organization:
-            case ObjectType.User:
-                const Icon: SvgComponent = object?.__typename === ObjectType.Organization ? OrganizationIcon : UserIcon;
+            case 'Organization':
+            case 'User':
+                const Icon: SvgComponent = object?.__typename === 'Organization' ? OrganizationIcon : UserIcon;
                 return (
                     <Box
                         width={isMobile ? '40px' : '50px'}
@@ -130,24 +141,23 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         />
                     </Box>
                 )
-            case ObjectType.Project:
-            case ObjectType.Routine:
-            case ObjectType.Standard:
+            case 'Project':
+            case 'Routine':
+            case 'Standard':
                 return (
-                    <UpvoteDownvote
-                        disabled={!permissions.canVote}
-                        session={session}
+                    <VoteButton
+                        disabled={!canVote}
                         objectId={object?.id ?? ''}
                         voteFor={object?.__typename as VoteFor}
-                        isUpvoted={object?.isUpvoted}
-                        score={object?.score}
-                        onChange={(isUpvoted: boolean | null) => { }}
+                        isUpvoted={isUpvoted}
+                        score={score}
+                        onChange={(isUpvoted: boolean | null, score: number) => { }}
                     />
                 )
             default:
                 return null;
         }
-    }, [isMobile, permissions.canVote, object, profileColors, session]);
+    }, [isMobile, object, profileColors, canVote, isUpvoted, score]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -155,9 +165,9 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * the star, comments, and reports buttons.
      */
     const actionButtons = useMemo(() => {
-        const commentableObjects: string[] = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard];
-        const reportsCount: number = getListItemReportsCount(object);
-        const starFor: StarFor | null = getListItemStarFor(object);
+        const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
+        const reportsCount: number = getCounts(object).reports;
+        const { bookmarkFor, starForId } = getBookmarkFor(object);
         return (
             <Stack
                 direction={isMobile ? "row" : "column"}
@@ -168,9 +178,11 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     alignItems: isMobile ? 'center' : 'start',
                 }}
             >
-                {!hideRole && permissions.canEdit && <Tooltip title={`Edit`}>
+                {!hideUpdateButton && canUpdate &&
                     <Box
                         id={`edit-list-item-button-${id}`}
+                        component="a"
+                        href={editUrl}
                         onClick={handleEditClick}
                         sx={{
                             display: 'flex',
@@ -181,50 +193,65 @@ export function ObjectListItem<T extends ObjectListItemType>({
                             paddingBottom: isMobile ? '0px' : '4px',
                         }}>
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
-                    </Box>
-                </Tooltip>}
+                    </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(object?.__typename as any) && (
-                    <UpvoteDownvote
-                        direction='row'
-                        disabled={!permissions.canVote}
-                        session={session}
-                        objectId={object?.id ?? ''}
-                        voteFor={(object as any)?.__typename as VoteFor}
-                        isUpvoted={(object as any)?.isUpvoted}
-                        score={(object as any)?.score}
-                        onChange={(isUpvoted: boolean | null) => { }}
-                    />
-                )}
-                {starFor && <StarButton
-                    disabled={!permissions.canStar}
-                    session={session}
-                    objectId={object?.id ?? ''}
-                    starFor={starFor}
-                    isStar={getListItemIsStarred(object)}
-                    stars={getListItemStars(object)}
+                {isMobile && isOfType(object,
+                    'Api',
+                    'ApiVersion',
+                    'Comment',
+                    'Issue',
+                    'Note',
+                    'NoteVersion',
+                    'Post',
+                    'Project',
+                    'ProjectVersion',
+                    'Question',
+                    'QuestionAnswer',
+                    'Quiz',
+                    'Routine',
+                    'RoutineVersion',
+                    'SmartContract',
+                    'SmartContractVersion',
+                    'Standard',
+                    'StandardVersion') && (
+                        <VoteButton
+                            direction='row'
+                            disabled={!canVote}
+                            objectId={object?.id ?? ''}
+                            voteFor={object?.__typename as VoteFor}
+                            isUpvoted={isUpvoted}
+                            score={score}
+                            onChange={(isUpvoted: boolean | null, score: number) => { }}
+                        />
+                    )}
+                {bookmarkFor && <BookmarkButton
+                    disabled={!canBookmark}
+                    objectId={starForId}
+                    bookmarkFor={bookmarkFor}
+                    isBookmarked={isBookmarked}
+                    bookmarks={getCounts(object).bookmarks}
                 />}
                 {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton
-                    commentsCount={(object as ListProject | ListRoutine | ListStandard)?.commentsCount ?? 0}
-                    disabled={!permissions.canComment}
+                    commentsCount={getCounts(object).comments}
+                    disabled={!canComment}
                     object={object}
                 />)}
-                {object?.__typename !== ObjectType.Run && reportsCount > 0 && <ReportsButton
+                {!isOfType(object, 'RunRoutine', 'RunProject') && reportsCount > 0 && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
             </Stack>
         )
-    }, [handleEditClick, hideRole, id, isMobile, object, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, isUpvoted, score, canBookmark, isBookmarked, canComment]);
 
     /**
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!object || object.__typename !== ObjectType.Run) return null;
-        const completedComplexity = object?.completedComplexity ?? null;
-        const totalComplexity = object?.routine?.complexity ?? null;
-        const percentComplete = object?.status === RunStatus.Completed ? 100 :
+        if (!isOfType(object, 'RunProject', 'RunRoutine')) return null;
+        const completedComplexity = (object as any as RunProject | RunRoutine).completedComplexity;
+        const totalComplexity = (object as any as RunProject).projectVersion?.complexity ?? (object as any as RunRoutine).routineVersion?.complexity ?? null;
+        const percentComplete = (object as any as RunProject | RunRoutine).status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
                 0
@@ -236,78 +263,34 @@ export function ObjectListItem<T extends ObjectListItemType>({
         />)
     }, [loading, object]);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
-        switch (action) {
-            case ObjectAction.Edit:
-                // If data not supplied, don't open
-                if (!data) return;
-                // If beforeNavigation is supplied, call it
-                if (beforeNavigation) {
-                    const shouldContinue = beforeNavigation(data);
-                    if (shouldContinue === false) return;
-                }
-                // Navigate to the object's edit page
-                openObjectEdit(data, setLocation);
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-        }
-    }, [beforeNavigation, data, setLocation]);
-
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
-        switch (action) {
-            case ObjectActionComplete.VoteDown:
-            case ObjectActionComplete.VoteUp:
-                if (data.success) {
-                    setObject({
-                        ...object,
-                        isUpvoted: action === ObjectActionComplete.VoteUp,
-                    } as any)
-                }
-                break;
-            case ObjectActionComplete.Star:
-            case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setObject({
-                        ...object,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
-                }
-                break;
-            case ObjectActionComplete.Fork:
-                // Data is in first key with a value
-                const forkData: any = Object.values(data).find((v) => typeof v === 'object');
-                openObject(forkData, setLocation);
-                window.location.reload();
-                break;
-            case ObjectActionComplete.Copy:
-                // Data is in first key with a value
-                const copyData: any = Object.values(data).find((v) => typeof v === 'object');
-                openObject(copyData, setLocation);
-                window.location.reload();
-                break;
-        }
-    }, [object, setLocation]);
+    const actionData = useObjectActions({
+        beforeNavigation,
+        object,
+        objectType,
+        setLocation,
+        setObject,
+    });
 
     return (
         <>
             {/* Context menu */}
             <ObjectActionMenu
+                actionData={actionData}
                 anchorEl={anchorEl}
+                exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
                 onClose={closeContextMenu}
-                session={session}
-                title='Item Options'
                 zIndex={zIndex + 1}
             />
             {/* List item */}
             <ListItem
                 id={`list-item-${id}`}
-                {...pressEvents}
                 disablePadding
+                button
+                component="a"
+                href={link}
+                {...pressEvents}
+                onClick={(e) => { e.preventDefault() }}
                 sx={{
                     display: 'flex',
                     background: palette.background.paper,
@@ -354,7 +337,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     <Stack direction="row" spacing={1} sx={{ pointerEvents: 'none' }}>
                         {/* Incomplete chip */}
                         {
-                            data && (data as any).isComplete === false && <Tooltip placement="top" title="Marked as incomplete">
+                            data && (data as any).isComplete === false && <Tooltip placement="top" title={t('MarkedIncomplete')}>
                                 <Chip
                                     label="Incomplete"
                                     size="small"
@@ -367,7 +350,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         }
                         {/* Internal chip */}
                         {
-                            data && (data as any).isInternal === true && <Tooltip placement="top" title="Marked as internal. Only the owner can use this routine">
+                            data && (data as any).isInternal === true && <Tooltip placement="top" title={t('MarkedInternal')}>
                                 <Chip
                                     label="Internal"
                                     size="small"
@@ -379,14 +362,18 @@ export function ObjectListItem<T extends ObjectListItemType>({
                             </Tooltip>
                         }
                         {/* Tags */}
-                        {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 ?
+                        {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 &&
                             <TagList
-                                session={session}
                                 parentId={data?.id ?? ''}
                                 tags={(data as any).tags}
                                 sx={{ ...smallHorizontalScrollbar(palette) }}
-                            /> :
-                            null}
+                            />}
+                        {/* Roles (Member objects only) */}
+                        {isOfType(object, 'Member') && (data as any)?.roles?.length > 0 &&
+                            <RoleList
+                                roles={(data as any).roles}
+                                sx={{ ...smallHorizontalScrollbar(palette) }}
+                            />}
                     </Stack>
                     {/* Action buttons if mobile */}
                     {isMobile && actionButtons}

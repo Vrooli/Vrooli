@@ -1,8 +1,9 @@
 // Menu for selecting 
 
 import { Menu, MenuItem } from "@mui/material";
+import { CommonKey } from "@shared/translations";
 import { useMemo } from "react";
-import { SortValueToLabelMap } from "utils";
+import { useTranslation } from "react-i18next";
 import { SortMenuProps } from "../types";
 
 export function SortMenu({
@@ -10,12 +11,13 @@ export function SortMenu({
     anchorEl,
     onClose,
 }: SortMenuProps) {
+    const { t } = useTranslation();
     const open = Boolean(anchorEl);
 
     const menuItems = useMemo(() => {
         let menuItems: JSX.Element[] = [];
         sortOptions.forEach(option => {
-            const optionLabel = SortValueToLabelMap[option.value];
+            const optionLabel = t(`${option.value}` as CommonKey)
             if (optionLabel) {
                 menuItems.push(
                     <MenuItem
@@ -29,7 +31,7 @@ export function SortMenu({
             }
         });
         return menuItems;
-    }, [sortOptions, onClose])
+    }, [sortOptions, t, onClose])
 
     return (
         <Menu

@@ -1,7 +1,7 @@
 import { SxProps, Theme } from '@mui/material';
 
 export const formPaper: SxProps = {
-    marginTop: 3,
+    margin: '16px',
     background: 'transparent',
     boxShadow: 'none',
 };
@@ -14,4 +14,5 @@ export const formNavLink: SxProps<Theme> = {
     color: (t) => t.palette.mode === 'light' ? t.palette.secondary.dark : t.palette.background.textPrimary,
     display: 'flex',
     alignItems: 'center',
+    cursor: 'pointer',
 };

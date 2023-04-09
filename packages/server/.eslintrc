@@ -1,0 +1,13 @@
+{
+    "ignorePatterns": [
+        "dist/",
+        "src/auth/message_signing/"
+    ],
+    // "overrides": [
+    //     {
+    //         "files": [
+    //             "src/**/*.ts"
+    //         ]
+    //     }
+    // ]
+}

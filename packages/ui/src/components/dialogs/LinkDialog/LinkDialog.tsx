@@ -3,29 +3,29 @@
  */
 import {
     Autocomplete,
-    Box,
-    Dialog,
-    DialogContent,
+    Box, DialogContent,
     Grid,
     Stack,
     TextField,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { DialogTitle, GridSubmitButtons, SnackSeverity } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LinkDialogProps } from '../types';
-import { Node } from 'types';
-import { getTranslation, PubSub } from 'utils';
-import { NodeType } from 'graphql/generated/globalTypes';
+import { NodeType } from '@shared/consts';
 import { uuid } from '@shared/uuid';
+import { GridSubmitButtons } from 'components/buttons/GridSubmitButtons/GridSubmitButtons';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { getTranslation } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
+import { NodeShape } from 'utils/shape/models/node';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { LinkDialogProps } from '../types';
 
 const helpText =
-    `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
+    `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
 
-In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
-
-const titleAria = "link-dialog-title";
+const titleId = "link-dialog-title";
 
 export const LinkDialog = ({
     handleClose,
@@ -36,18 +36,19 @@ export const LinkDialog = ({
     link,
     nodeFrom,
     nodeTo,
-    routine,
+    routineVersion,
     zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // Selected "From" and "To" nodes
-    const [fromNode, setFromNode] = useState<Node | null>(nodeFrom ?? null);
-    const handleFromSelect = useCallback((node: Node) => {
+    const [fromNode, setFromNode] = useState<NodeShape | null>(nodeFrom ?? null);
+    const handleFromSelect = useCallback((node: NodeShape) => {
         setFromNode(node);
     }, [setFromNode]);
-    const [toNode, setToNode] = useState<Node | null>(nodeTo ?? null);
-    const handleToSelect = useCallback((node: Node) => {
+    const [toNode, setToNode] = useState<NodeShape | null>(nodeTo ?? null);
+    const handleToSelect = useCallback((node: NodeShape) => {
         setToNode(node);
     }, [setToNode]);
     useEffect(() => { setFromNode(nodeFrom ?? null); }, [nodeFrom, setFromNode]);
@@ -56,67 +57,67 @@ export const LinkDialog = ({
     const errors = useMemo(() => {
         const errors: { [key: string]: string } = {};
         if (!fromNode) {
-            errors.fromNode = 'From node is required';
+            errors.fromNode = t(`NodeFromRequired`, { ns: 'error', defaultValue: 'NodeFromRequired' });
         }
         if (!toNode) {
-            errors.toNode = 'To node is required';
+            errors.toNode = t(`NodeToRequired`, { ns: 'error', defaultValue: 'NodeToRequired' });
         }
         return errors;
-    }, [fromNode, toNode]);
+    }, [fromNode, t, toNode]);
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'SelectFromAndToNodes', severity: 'Error' });
             return;
         }
         handleClose({
-            __typename: 'NodeLink',
             id: uuid(),
-            fromId: fromNode.id,
-            toId: toNode.id,
+            from: { id: fromNode.id },
             operation: null, //TODO
+            routineVersion: { id: routineVersion.id },
+            to: { id: toNode.id },
             whens: [], //TODO
         })
         setFromNode(null);
         setToNode(null);
-    }, [fromNode, toNode, handleClose]);
+    }, [fromNode, toNode, handleClose, routineVersion.id]);
 
     /**
      * Calculate the "From" and "To" options
      */
     const { fromOptions, toOptions } = useMemo(() => {
-        if (!routine) return { fromOptions: [], toOptions: [] };
+        if (!routineVersion) return { fromOptions: [], toOptions: [] };
         // Initialize options
-        let fromNodes: Node[] = routine.nodes.filter((node: Node) => node.type === NodeType.End); // Can't link from end nodes
-        let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
-        const existingLinks = routine.nodeLinks;
+        let fromNodes: NodeShape[] = routineVersion.nodes.filter((node) => node.nodeType !== NodeType.Start) as NodeShape[]; // Can't link from end nodes
+        let toNodes: NodeShape[] = routineVersion.nodes.filter((node) => node.nodeType !== NodeType.Start) as NodeShape[]; // Can't link to start node
+        const existingLinks = routineVersion.nodeLinks;
         // If from node is already selected
         if (fromNode) {
             // Remove it from the "to" options
             toNodes = toNodes.filter(node => node.id !== fromNode.id);
             // Remove all links that already exist
-            toNodes = toNodes.filter(node => !existingLinks.some(link => link.fromId === fromNode.id && link.toId === node.id));
+            toNodes = toNodes.filter(node => !existingLinks.some(link => link.from.id === fromNode.id && link.to.id === node.id));
         }
         // If to node is already selected
         if (toNode) {
             // Remove it from the "from" options
             fromNodes = fromNodes.filter(node => node.id !== toNode.id);
             // Remove all links that already exist
-            fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.fromId === node.id && link.toId === toNode.id));
+            fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.from.id === node.id && link.to.id === toNode.id));
         }
         return { fromOptions: fromNodes, toOptions: toNodes };
-    }, [fromNode, routine, toNode]);
+    }, [fromNode, routineVersion, toNode]);
 
     /**
      * Find the text to display for a node
      */
-    const getNodeTitle = useCallback((node: Node) => {
-        const { title } = getTranslation(node, [language]);
-        if (title) return title;
-        if (node.type === NodeType.Start) return 'Start';
-        if (node.type === NodeType.End) return 'End';
-        return 'Untitled';
-    }, [language]);
+    const getNodeTitle = useCallback((node: NodeShape) => {
+        const { name } = getTranslation(node, [language]);
+        if (name) return name;
+        if (node.nodeType === NodeType.Start) return t(`Start`);
+        if (node.nodeType === NodeType.End) return t(`End`);
+        return t(`Untitled`);
+    }, [language, t]);
 
     /**
      * Container that displays "From" and "To" node selections, with right arrow inbetween
@@ -128,8 +129,8 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-from"
                 options={fromOptions}
-                getOptionLabel={(option: Node) => getNodeTitle(option)}
-                onChange={(_, value) => handleFromSelect(value as Node)}
+                getOptionLabel={(option: NodeShape) => getNodeTitle(option)}
+                onChange={(_, value) => handleFromSelect(value as NodeShape)}
                 value={fromNode}
                 sx={{
                     minWidth: 200,
@@ -155,8 +156,8 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-to"
                 options={toOptions}
-                getOptionLabel={(option: Node) => getNodeTitle(option)}
-                onChange={(_, value) => handleToSelect(value as Node)}
+                getOptionLabel={(option: NodeShape) => getNodeTitle(option)}
+                onChange={(_, value) => handleToSelect(value as NodeShape)}
                 value={toNode}
                 sx={{
                     minWidth: 200,
@@ -190,19 +191,16 @@ export const LinkDialog = ({
     }, [fromNode, handleClose, nodeFrom, nodeTo, toNode]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="link-dialog"
+            isOpen={isOpen}
             onClose={handleCancel}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible' },
-                '& .MuiDialog-paper': { overflow: 'visible' }
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                title={isAdd ? 'Add Link' : 'Edit Link'}
+                id={titleId}
+                title={t(isAdd ? 'LinkAdd' : 'LinkEdit')}
                 helpText={helpText}
                 onClose={handleCancel}
             />
@@ -211,8 +209,9 @@ export const LinkDialog = ({
                 {conditions}
                 {deleteOption}
                 {/* Action buttons */}
-                <Grid container spacing={2} mt={2}>
+                <Grid container spacing={2} mt={2} mb={8}>
                     <GridSubmitButtons
+                        display="dialog"
                         errors={errors}
                         isCreate={isAdd}
                         onCancel={handleCancel}
@@ -220,6 +219,6 @@ export const LinkDialog = ({
                     />
                 </Grid>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

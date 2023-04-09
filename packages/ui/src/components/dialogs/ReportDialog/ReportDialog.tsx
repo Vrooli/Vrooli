@@ -1,186 +1,114 @@
-import { useMutation } from '@apollo/client';
-import { reportCreateForm as validationSchema } from '@shared/validation';
-import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
-import { useFormik } from 'formik';
-import { reportCreateVariables, reportCreate_reportCreate } from 'graphql/generated/reportCreate';
-import { reportCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { ReportDialogProps } from '../types';
-import { getUserLanguages, usePromptBeforeUnload } from 'utils';
-import { useCallback, useEffect, useState } from 'react';
-import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
-import { DialogTitle, GridSubmitButtons, Selector } from 'components';
+import { DialogContent, Link, Typography } from '@mui/material';
+import { CSSProperties } from '@mui/styles';
+import { Report, ReportCreateInput } from '@shared/consts';
 import { uuid } from '@shared/uuid';
+import { reportCreateForm } from '@shared/validation';
+import { reportCreate } from 'api/generated/endpoints/report_create';
+import { useCustomMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
+import { Formik } from 'formik';
+import { BaseFormRef } from 'forms/BaseForm/BaseForm';
+import { ReportForm, reportInitialValues } from 'forms/ReportForm/ReportForm';
+import { formNavLink } from 'forms/styles';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { clickSize } from 'styles';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { useUpsertActions } from 'utils/hooks/useUpsertActions';
+import { SessionContext } from 'utils/SessionContext';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { ReportDialogProps } from '../types';
 
-const helpText =
-    `Reports help us moderate content. For now, reports will be handled by moderators. 
-
-In the future, we would like to implement a community governance system.
-`
-
-enum ReportOptions {
-    Inappropriate = 'Inappropriate',
-    PII = 'PII',
-    Scam = 'Scam',
-    Spam = 'Spam',
-    Other = 'Other',
-}
-
-const ReportReasons = {
-    [ReportOptions.Inappropriate]: 'Inappropriate Content',
-    [ReportOptions.PII]: 'Includes Personally Identifiable Information (PII)',
-    [ReportOptions.Scam]: 'Scam',
-    [ReportOptions.Spam]: 'Spam',
-    [ReportOptions.Other]: 'Other',
-}
-
-const titleAria = "report-dialog-title";
+const titleId = "report-dialog-title";
 
 export const ReportDialog = ({
     forId,
     onClose,
     open,
     reportFor,
-    session,
     title = 'Report',
     zIndex,
 }: ReportDialogProps) => {
+    const session = useContext(SessionContext);
+    const { t } = useTranslation();
+
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
+    const formRef = useRef<BaseFormRef>();
+    const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session])
+    const { handleCancel } = useUpsertActions<Report>('dialog', true, onClose, onClose);
+    const [mutation, { loading: isLoading }] = useCustomMutation<Report, ReportCreateInput>(reportCreate);
 
-    const [mutation, { loading }] = useMutation(reportCreateMutation);
-    const formik = useFormik({
-        initialValues: {
-            createdFor: reportFor,
-            createdForId: forId,
-            reason: '',
-            otherReason: '',
-            details: '',
-            language,
-        },
-        enableReinitialize: true,
-        validationSchema,
-        onSubmit: (values) => {
-            mutationWrapper<reportCreate_reportCreate, reportCreateVariables>({
-                mutation,
-                input: {
-                    createdFor: reportFor,
-                    createdForId: forId,
-                    details: values.details,
-                    id: uuid(),
-                    language,
-                    reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
-                },
-                successCondition: (data) => data !== null,
-                successMessage: () => 'Report submitted.',
-                onSuccess: () => {
-                    formik.resetForm();
-                    onClose()
-                },
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
-
-    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
-        // Don't close if formik is dirty and clicked outside
-        if (formik.dirty && reason === 'backdropClick') return;
-        // Otherwise, close
-        formik.resetForm();
-        onClose();
-    }, [formik, onClose]);
+    /**
+     * Opens existing reports in a new tab
+     */
+    const toExistingReports = useCallback(() => {
+        window.open('/reports', '_blank');// TODO change url
+    }, []);
 
     return (
-        <Dialog
+        <LargeDialog
+            id="report-dialog"
+            isOpen={open}
             onClose={handleCancel}
-            open={open}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiPaper-root': {
-                    minWidth: 'min(400px, 100%)',
-                    margin: '0 auto',
-                },
-                '& .MuiDialog-paper': {
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                }
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={title}
-                helpText={helpText}
+                helpText={t('ReportsHelp')}
                 onClose={handleCancel}
             />
             <DialogContent>
-                <form onSubmit={formik.handleSubmit}>
-                    <Stack direction="column" spacing={2} paddingTop={2}>
-                        {/* Language select */}
-                        <SelectLanguageMenu
-                            currentLanguage={language}
-                            handleCurrent={setLanguage}
-                            session={session}
-                            translations={[{ language }]}
-                            zIndex={zIndex}
-                        />
-                        {/* Text displaying what you are reporting */}
-                        <Selector
-                            id="reasonSelector"
-                            name="reasonSelector"
-                            disabled={loading}
-                            options={Object.keys(ReportReasons)}
-                            getOptionLabel={(r) => ReportReasons[r]}
-                            selected={formik.values.reason}
-                            onBlur={formik.handleBlur}
-                            handleChange={(e) => formik.setFieldValue('reason', e.target.value)}
-                            fullWidth
-                            inputAriaLabel="select reason"
-                            label="Reason"
-                        />
-                        {/* Textfield displayed if "Other" reason selected */}
-                        {(formik.values.reason as any) === ReportOptions.Other ? <TextField
-                            fullWidth
-                            id="otherReason"
-                            name="otherReason"
-                            label="Custom Reason"
-                            value={formik.values.otherReason}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.otherReason && Boolean(formik.errors.otherReason)}
-                            helperText={formik.touched.otherReason ? formik.errors.otherReason : 'Enter custom reason...'}
-
-                        /> : null}
-                        {/* Reason selector (with other option) */}
-                        <TextField
-                            fullWidth
-                            id="details"
-                            name="details"
-                            label="Details (Optional)"
-                            multiline
-                            rows={4}
-                            value={formik.values.details}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.details && Boolean(formik.errors.details)}
-                            helperText={formik.touched.details ? formik.errors.details : "Enter any details you'd like to share about this incident. DO NOT include any personal information!"}
-                        />
-                        {/* Details multi-line text field */}
-                        {/* Action buttons */}
-                        <Grid container spacing={1}>
-                            <GridSubmitButtons
-                                errors={formik.errors}
-                                isCreate={true}
-                                loading={formik.isSubmitting}
-                                onCancel={handleCancel}
-                                onSetSubmitting={formik.setSubmitting}
-                                onSubmit={formik.handleSubmit}
-                            />
-                        </Grid>
-                    </Stack>
-                </form>
+                <Link onClick={toExistingReports}>
+                    <Typography sx={{
+                        ...clickSize,
+                        ...formNavLink,
+                        justifyContent: 'center',
+                        marginTop: 2,
+                    } as CSSProperties}>
+                        {t('ViewExistingReports')}
+                    </Typography>
+                </Link>
+                <Formik
+                    enableReinitialize={true}
+                    initialValues={initialValues}
+                    onSubmit={(values, helpers) => {
+                        mutationWrapper<Report, ReportCreateInput>({
+                            mutation,
+                            input: {
+                                id: uuid(),
+                                createdFor: reportFor,
+                                createdForConnect: forId,
+                                reason: values.otherReason ?? values.reason,
+                                details: '',
+                                language,
+                            },
+                            successCondition: (data) => data !== null,
+                            successMessage: () => ({ key: 'ReportSubmitted' }),
+                            onSuccess: () => {
+                                helpers.resetForm();
+                                onClose()
+                            },
+                            onError: () => { helpers.setSubmitting(false) },
+                        })
+                    }}
+                    validationSchema={reportCreateForm}
+                >
+                    {(formik) => <ReportForm
+                        display="dialog"
+                        isCreate={true}
+                        isLoading={isLoading}
+                        isOpen={true}
+                        onCancel={handleCancel}
+                        ref={formRef}
+                        zIndex={zIndex}
+                        {...formik}
+                    />}
+                </Formik>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

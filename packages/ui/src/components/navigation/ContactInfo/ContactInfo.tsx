@@ -1,34 +1,90 @@
-import { SOCIALS } from '@shared/consts';
 import {
     BottomNavigation,
     BottomNavigationAction,
     Box,
     Tooltip,
-    useTheme,
+    Typography,
+    useTheme
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, SvgComponent, TwitterIcon } from '@shared/icons';
+import { LINKS, SOCIALS } from '@shared/consts';
+import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
+import { CopyrightBreadcrumbs } from 'components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
 import { ContactInfoProps } from '../types';
-import { ColorIconButton } from 'components/buttons';
 
-const contactInfo: [string, string, string, SvgComponent][] = [
-    ['Find us on Twitter', 'Twitter', SOCIALS.Twitter, TwitterIcon],
-    ['Join our Discord', 'Discord', SOCIALS.Discord, DiscordIcon],
-    ['Source code', 'Code', SOCIALS.GitHub, GitHubIcon],
-]
+type NavActionListData = [string, string, string, SvgComponent]
 
 export const ContactInfo = ({
     sx,
     ...props
 }: ContactInfoProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+    const [, setLocation] = useLocation();
 
-    const openLink = (e: React.MouseEvent<any>, link: string) => {
-        window.open(link, '_blank', 'noopener,noreferrer');
+    const { additionalInfo, contactInfo } = useMemo(() => {
+        return {
+            additionalInfo: [
+                [t(`AboutUs`), 'About', LINKS.About, InfoIcon],
+                [t(`DocumentationShort`), 'Docs', 'https://docs.vrooli.com', ArticleIcon],
+                [t(`StatisticsShort`), 'Stats', LINKS.Stats, StatsIcon],
+            ] as NavActionListData[],
+            contactInfo: [
+                [t(`ContactHelpTwitter`), 'Twitter', SOCIALS.Twitter, TwitterIcon],
+                [t(`ContactHelpDiscord`), 'Discord', SOCIALS.Discord, DiscordIcon],
+                [t(`ContactHelpCode`), 'Code', SOCIALS.GitHub, GitHubIcon],
+            ] as NavActionListData[],
+        }
+    }, [t]);
+
+    const handleLink = (e: React.MouseEvent<any>, link: string) => {
         e.preventDefault();
+        openLink(setLocation, link);
     }
 
     return (
-        <Box sx={{ minWidth: 'fit-content', height: 'fit-content', ...(sx ?? {}) }} {...props}>
+        <Box sx={{
+            minWidth: 'fit-content',
+            height: 'fit-content',
+            background: palette.background.default,
+            padding: 1,
+            ...(sx ?? {})
+        }} {...props}>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t('FindUsOn')}</Typography>
+            <BottomNavigation
+                showLabels
+                sx={{
+                    alignItems: 'baseline',
+                    background: 'transparent',
+                    height: 'fit-content',
+                    padding: 1,
+                    marginBottom: 2,
+                }}>
+                {contactInfo.map(([tooltip, label, link, Icon], index: number) => (
+                    <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
+                        <BottomNavigationAction
+                            label={label}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
+                            href={link}
+                            icon={
+                                <ColorIconButton background={palette.secondary.main} >
+                                    <Icon fill={palette.secondary.contrastText} />
+                                </ColorIconButton>
+                            }
+                            sx={{
+                                alignItems: 'center',
+                                color: palette.background.textPrimary,
+                                overflowWrap: 'anywhere',
+                            }}
+                        />
+                    </Tooltip>
+                ))}
+            </BottomNavigation>
+            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t(`AdditionalResources`)}</Typography>
             <BottomNavigation
                 showLabels
                 sx={{
@@ -37,11 +93,12 @@ export const ContactInfo = ({
                     height: 'fit-content',
                     padding: 1,
                 }}>
-                {contactInfo.map(([tooltip, label, link, Icon], index: number) => (
-                    <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
+                {additionalInfo.map(([tooltip, label, link, Icon], index: number) => (
+                    <Tooltip key={`additional-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => openLink(e, link)}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
+                            href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >
                                     <Icon fill={palette.secondary.contrastText} />
@@ -49,13 +106,14 @@ export const ContactInfo = ({
                             }
                             sx={{
                                 alignItems: 'center',
-                                color: palette.primary.contrastText,
+                                color: palette.background.textPrimary,
                                 overflowWrap: 'anywhere',
                             }}
                         />
                     </Tooltip>
                 ))}
             </BottomNavigation>
+            <CopyrightBreadcrumbs sx={{ color: palette.background.textPrimary }} />
         </Box>
     );
 }

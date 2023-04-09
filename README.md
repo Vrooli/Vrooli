@@ -164,7 +164,6 @@ To achieve this grand vision, we must think from first principles. What properti
 [<img align="left" alt="typeScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" style="padding-right:10px;" />](https://www.typescriptlang.org/)
 [<img align="left" alt="Node.js" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" style="padding-right:10px;" />](https://nodejs.org/)
 [<img align="left" alt="PostgreSQL" width="26px" src="./docs/assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/)
-[<img align="left" alt="Cardano" width="26px" src="./docs/assets/cardano.svg" style="padding-right:10px;" />](https://cardano.org/)
 [<img align="left" alt="Docker" width="26px" src="./docs/assets/docker.svg" style="padding-right:10px;" />](https://www.docker.com/)
 [<img align="left" alt="Visual Studio Code" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" style="padding-right:10px;" />](https://code.visualstudio.com/)
 [<img align="left" alt="GitHub" width="26px" src="./docs/assets/github.svg" style="padding-right:10px;" />](https://github.com/)

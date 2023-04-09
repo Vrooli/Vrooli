@@ -1,9 +1,9 @@
 import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
-import { VersionDisplayProps } from "../types";
+import { addSearchParams, useLocation } from "@shared/route";
+import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useCallback, useMemo, useState } from "react";
-import { addSearchParams, usePress } from "utils";
-import { PopoverWithArrow } from "components/dialogs";
-import { useLocation } from "@shared/route";
+import usePress from "utils/hooks/usePress";
+import { VersionDisplayProps } from "../types";
 
 
 /**
@@ -38,14 +38,14 @@ export const VersionDisplay = ({
         return (
             <ListItem
                 button
-                disabled={version === currentVersion}
-                onClick={() => { openVersion(version) }}
+                disabled={version.versionLabel === currentVersion?.versionLabel}
+                onClick={() => { openVersion(version.versionLabel) }}
                 key={index}
                 sx={{
                     padding: '0px 8px',
                 }}
             >
-                <ListItemText primary={version} />
+                <ListItemText primary={version.versionLabel} />
             </ListItem>
         )
     }), [currentVersion, openVersion, versions])
@@ -106,9 +106,9 @@ export const VersionDisplay = ({
                     {...pressEvents}
                     variant="body1"
                     sx={{
-                        cursor: 'pointer',
+                        cursor: listItems.length > 1 ? 'pointer' : 'default',
                     }}
-                >{`${prefix}${currentVersion}`}</Typography>
+                >{`${prefix}${currentVersion.versionLabel}`}</Typography>
             </Tooltip>
         </Box>
     )

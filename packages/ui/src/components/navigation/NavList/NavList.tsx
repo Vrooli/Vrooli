@@ -1,15 +1,16 @@
-import {
-    AccountMenu,
-    ContactInfo,
-    PopupMenu
-} from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
-import { useLocation } from '@shared/route';
-import { useCallback, useMemo, useState } from 'react';
-import { NavListProps } from '../types';
-import { APP_LINKS } from '@shared/consts';
+import { LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
+import { openLink, useLocation } from '@shared/route';
+import { PopupMenu } from 'components/buttons/PopupMenu/PopupMenu';
+import { AccountMenu } from 'components/dialogs/AccountMenu/AccountMenu';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { checkIfLoggedIn, getCurrentUser } from 'utils/authentication/session';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils/navigation/userActions';
+import { SessionContext } from 'utils/SessionContext';
+import { ContactInfo } from '../ContactInfo/ContactInfo';
 
 const navItemStyle = (palette: Palette) => ({
     background: 'transparent',
@@ -21,23 +22,26 @@ const navItemStyle = (palette: Palette) => ({
     },
 })
 
-export const NavList = ({
-    session,
-    sessionChecked,
-}: NavListProps) => {
+export const NavList = () => {
+    const session = useContext(SessionContext);
+    const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn, ACTION_TAGS.Profile] }), [session]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     // Handle account menu
     const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
     const openAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
+        ev.stopPropagation();
         setAccountMenuAnchor(ev.currentTarget)
     }, [setAccountMenuAnchor]);
-    const closeAccountMenu = useCallback(() => setAccountMenuAnchor(null), []);
+    const closeAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
+        ev.stopPropagation();
+        setAccountMenuAnchor(null)
+    }, []);
 
     return (
         <Container sx={{
@@ -48,8 +52,8 @@ export const NavList = ({
             right: '0',
         }}>
             {/* Contact menu */}
-            {!isMobile && <PopupMenu
-                text="Contact"
+            {!isMobile && !getCurrentUser(session).id && <PopupMenu
+                text={t(`Contact`)}
                 variant="text"
                 size="large"
                 sx={navItemStyle(palette)}
@@ -60,7 +64,6 @@ export const NavList = ({
             <AccountMenu
                 anchorEl={accountMenuAnchor}
                 onClose={closeAccountMenu}
-                session={session}
             />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({
@@ -69,9 +72,10 @@ export const NavList = ({
                 sx: navItemStyle(palette),
             })}
             {/* Enter button displayed when not logged in */}
-            {sessionChecked && session?.isLoggedIn !== true && (
+            {!checkIfLoggedIn(session) && (
                 <Button
-                    onClick={() => openLink(setLocation, APP_LINKS.Start)}
+                    href={LINKS.Start}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start) }}
                     startIcon={<LogInIcon />}
                     sx={{
                         background: '#387e30',
@@ -85,11 +89,11 @@ export const NavList = ({
                         },
                     }}
                 >
-                    Log In
+                    {t('LogIn')}
                 </Button>
             )}
             {/* Profile icon */}
-            {session?.isLoggedIn === true && (
+            {checkIfLoggedIn(session) && (
                 <IconButton
                     color="inherit"
                     onClick={openAccountMenu}

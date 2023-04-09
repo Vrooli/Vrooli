@@ -1,25 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    Dialog,
-    DialogContent,
-    useTheme,
-} from '@mui/material';
-import { actionsItems, getObjectSlug, getObjectUrlBase, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
-import { AutocompleteSearchBar } from 'components/inputs';
-import { APP_LINKS } from '@shared/consts';
-import { AutocompleteOption } from 'types';
-import { useLazyQuery } from '@apollo/client';
-import { CommandPaletteProps } from '../types';
-import { homePage, homePageVariables } from 'graphql/generated/homePage';
-import { homePageQuery } from 'graphql/query';
+import { DialogContent, useTheme } from '@mui/material';
+import { LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
-
-const helpText =
-    `Use this dialog to quickly navigate to other pages.
-
-It can be opened at any time by entering CTRL + P.`
+import { feedPopular } from 'api/generated/endpoints/feed_popular';
+import { useCustomLazyQuery } from 'api/hooks';
+import { DialogTitle } from 'components/dialogs/DialogTitle/DialogTitle';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
+import { SiteSearchBar } from 'components/inputs/search';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AutocompleteOption, ShortcutOption } from 'types';
+import { listToAutocomplete } from 'utils/display/listTools';
+import { getUserLanguages } from 'utils/display/translationTools';
+import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
+import { getObjectUrl } from 'utils/navigation/openObject';
+import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
+import { PubSub } from 'utils/pubsub';
+import { SessionContext } from 'utils/SessionContext';
 
 /**
  * Strips URL for comparison against the current URL.
@@ -42,13 +39,14 @@ const stripUrl = (url: string) => {
     return urlParts.join('/');
 }
 
-const titleAria = 'command-palette-dialog-title';
+const titleId = 'command-palette-dialog-title';
 
-const CommandPalette = ({
-    session
-}: CommandPaletteProps) => {
+export const CommandPalette = () => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
+
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [searchString, setSearchString] = useState<string>('');
@@ -65,31 +63,41 @@ const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading }] = useLazyQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const [refetch, { data, loading, error }] = useCustomLazyQuery<PopularResult, PopularInput>(feedPopular, {
+        variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') },
+        errorPolicy: 'all'
+    });
     useEffect(() => { open && refetch() }, [open, refetch, searchString]);
+    useDisplayApolloError(error);
 
+    const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
+        __typename: "Shortcut",
+        label: t(label, { ...(labelArgs ?? {}), defaultValue: label }) as string,
+        id: value,
+    })), [t]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
-        // If "help" typed, add help and faq shortcuts as first result
-        if (searchString.toLowerCase().startsWith('help')) {
+        // If "help" typed (or your language's equivalent), add help and faq shortcuts as first result
+        const lowercaseHelp = t(`Help`).toLowerCase();
+        if (searchString.toLowerCase().startsWith(lowercaseHelp)) {
             firstResults.push({
                 __typename: "Shortcut",
-                label: `Help - Beginner's Guide`,
-                id: APP_LINKS.Welcome,
+                label: t(`ShortcutBeginnersGuide`),
+                id: LINKS.Welcome,
             }, {
                 __typename: "Shortcut",
-                label: 'Help - FAQ',
-                id: APP_LINKS.FAQ,
+                label: t(`ShortcutFaq`),
+                id: LINKS.FAQ,
             });
         }
-        // Group all query results and sort by number of stars
-        const flattened = (Object.values(data?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        // Group all query results and sort by number of bookmarks. Ignore any value that isn't an array
+        const flattened = (Object.values(data ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
-            return b.stars - a.stars;
+            return b.bookmarks - a.bookmarks;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [languages, data, searchString]);
+    }, [t, searchString, data, languages, shortcutsItems]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -99,77 +107,57 @@ const CommandPalette = ({
         // Clear search string and close command palette
         close();
         setSearchString('');
-        // If selected item is an action (i.e. no navigation required), do nothing 
-        // (search bar performs actions automatically)
-        if (newValue.__typename === 'Action') {
-            return;
-        }
-        let newLocation: string;
-        // If selected item is a shortcut, newLocation is in the id field
-        if (newValue.__typename === 'Shortcut') {
-            newLocation = newValue.id
-        }
-        // Otherwise, object url must be constructed
-        else {
-            newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
-        }
+        // Get object url
+        // NOTE: actions don't require navigation, so they are ignored. 
+        // The search bar performs the action automatically
+        const newLocation = getObjectUrl(newValue);
+        if (!Boolean(newLocation)) return;
         // If new pathname is the same, reload page
         const shouldReload = stripUrl(`${window.location.origin}${newLocation}`) === stripUrl(window.location.href);
         // Set new location
         setLocation(newLocation);
-        if (shouldReload) {
-            window.location.reload();
-        }
+        if (shouldReload) window.location.reload();
     }, [close, setLocation]);
 
     return (
-        <Dialog
-            open={open}
+        <LargeDialog
+            id="command-palette-dialog"
+            isOpen={open}
             onClose={close}
-            aria-labelledby={titleAria}
-            sx={{
-                '& .MuiDialog-paper': {
-                    minWidth: 'min(100%, 600px)',
-                    minHeight: 'min(100%, 200px)',
-                    position: 'absolute',
-                    top: '5%',
-                    overflowY: 'visible',
-                }
-            }}
+            titleId={titleId}
+            zIndex={10000}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                helpText={helpText}
-                title={'What would you like to do?'}
+                id={titleId}
+                helpText={t(`CommandPaletteHelp`)}
+                title={t(`CommandPaletteTitle`)}
                 onClose={close}
             />
             <DialogContent sx={{
                 background: palette.background.default,
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 overflowY: 'visible',
+                minHeight: '500px',
             }}>
-                <AutocompleteSearchBar
+                <SiteSearchBar
                     id="command-palette-search"
                     autoFocus={true}
-                    placeholder='Search content and quickly navigate the site'
+                    placeholder='CommandPalettePlaceholder'
                     options={autocompleteOptions}
                     loading={loading}
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
-                    session={session}
                     showSecondaryLabel={true}
                     sxs={{
-                        root: { width: '100%' },
+                        root: {
+                            width: '100%',
+                            top: 0,
+                            marginTop: 2,
+                        },
                         paper: { background: palette.background.paper },
                     }}
                 />
             </DialogContent>
-        </Dialog >
+        </LargeDialog>
     );
 }
-
-export { CommandPalette };

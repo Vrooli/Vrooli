@@ -5,12 +5,14 @@
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
 import { Box, Stack, useTheme } from '@mui/material';
-import { NodeColumn, NodeEdge, SnackSeverity } from 'components';
+import { Node, NodeType } from '@shared/consts';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { firstString } from 'utils/display/stringTools';
+import { usePinchZoom } from 'utils/hooks/usePinchZoom';
+import { PubSub } from 'utils/pubsub';
+import { NodeEdge } from '../edges';
+import { NodeColumn } from '../NodeColumn/NodeColumn';
 import { NodeGraphProps } from '../types';
-import { Node } from 'types';
-import { NodeType } from 'graphql/generated/globalTypes';
-import { firstString, PubSub, usePinchZoom } from 'utils';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -173,7 +175,7 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.get().publishSnack({ message: `Dropped node ${nodeId} not found`, severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: 'Error' });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
@@ -195,7 +197,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'CannotDropNodeHere', severity: 'Error' })
             return;
         }
         // Get the drop row
@@ -299,17 +301,17 @@ export const NodeGraph = ({
         // (i.e. no links, or column dimensions not complete)
         if (!links) return [];
         return links?.map(link => {
-            if (!link.fromId || !link.toId) return null;
-            const fromNode = nodesById[link.fromId];
-            const toNode = nodesById[link.toId];
+            if (!link.from.id || !link.to.id) return null;
+            const fromNode = nodesById[link.from.id];
+            const toNode = nodesById[link.to.id];
             if (!fromNode || !toNode) return null;
             return <NodeEdge
                 key={`edge-${firstString(link.id, 'new-') + fromNode.id + '-to-' + toNode.id}`}
                 fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}
-                isFromRoutineList={fromNode.type === NodeType.RoutineList}
-                isToRoutineList={toNode.type === NodeType.RoutineList}
+                isFromRoutineList={fromNode.nodeType === NodeType.RoutineList}
+                isToRoutineList={toNode.nodeType === NodeType.RoutineList}
                 scale={scale}
                 handleAdd={handleNodeInsert}
                 handleBranch={handleBranchInsert}
@@ -331,7 +333,6 @@ export const NodeGraph = ({
             key={`node-column-${index}`}
             id={`node-column-${index}`}
             columnIndex={index}
-            dragId={dragId}
             handleAction={handleAction}
             handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}
@@ -342,7 +343,7 @@ export const NodeGraph = ({
             scale={scale}
             zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
+    }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
     // Positive modulo function
     const mod = (n: number, m: number) => ((n % m) + m) % m;
@@ -360,10 +361,8 @@ export const NodeGraph = ({
             WebkitTouchCallout: 'none',
             KhtmlUserSelect: 'none',
             minWidth: '100%',
-            // Graph fills remaining space that is not taken up by other elements. 
-            // These are: routine title (64px), other top build icons (48px). This makes the size: 
-            // 100vh - (64 + 48) = calc(100vh - 112px).
-            height: 'calc(100vh - 112px)',
+            // Graph fills remaining space that is not taken up by other elements (i.e. navbar). 
+            height: 'calc(100vh - 48px)',
             margin: 0,
             padding: 0,
             overflowX: 'auto',

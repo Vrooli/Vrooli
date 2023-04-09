@@ -1,36 +1,42 @@
 /**
  * Displays all search options for an organization
  */
-import {
-    Box,
-    Button,
-    Dialog,
-    Grid,
-    useTheme
-} from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
-import { AdvancedSearchDialogProps } from '../types';
-import { useFormik } from 'formik';
+import { Box, Button, Grid, useTheme } from '@mui/material';
+import { CancelIcon, RefreshIcon, SearchIcon } from '@shared/icons';
+import { parseSearchParams } from '@shared/route';
+import { GridActionButtons } from 'components/buttons/GridActionButtons/GridActionButtons';
+import { GeneratedGrid } from 'components/inputs/generated';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { Formik } from 'formik';
+import { generateDefaultProps, generateYupSchema } from 'forms/generators';
 import { FieldData, FormSchema } from 'forms/types';
-import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, convertSearchForFormik, parseSearchParams, searchTypeToParams } from 'utils';
-import { DialogTitle } from 'components';
-import { CancelIcon, SearchIcon } from '@shared/icons';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { convertFormikForSearch, convertSearchForFormik } from 'utils/search/inputToSearch';
+import { searchTypeToParams } from 'utils/search/objectToSearch';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { AdvancedSearchDialogProps } from '../types';
 
-const titleAria = 'advanced-search-dialog-title';
+const titleId = 'advanced-search-dialog-title';
 
 export const AdvancedSearchDialog = ({
     handleClose,
     handleSearch,
     isOpen,
     searchType,
-    session,
     zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
+    const { t } = useTranslation();
+
     // Search schema to use
-    const [schema, setSchema] = useState<FormSchema | null>(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null);
-    useEffect(() => { setSchema(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null) }, [searchType]);
+    const [schema, setSchema] = useState<FormSchema | null>(null);
+    useEffect(() => {
+        async function getSchema() {
+            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType]()).advancedSearchSchema : null)
+        }
+        getSchema();
+    }, [searchType]);
 
     // Parse default values to use in formik
     const initialValues = useMemo(() => {
@@ -55,98 +61,80 @@ export const AdvancedSearchDialog = ({
     // Generate yup validation schema
     const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
 
-    /**
-     * Controls updates and validation of form
-     */
-    const formik = useFormik({
-        initialValues,
-        enableReinitialize: true,
-        validationSchema,
-        onSubmit: (values) => {
-            if (schema) {
-                const searchValue = convertFormikForSearch(values, schema);
-                handleSearch(searchValue);
-            }
-            handleClose();
-        },
-    });
-    const grid = useMemo(() => {
-        if (!schema) return null;
-        return generateGrid({
-            childContainers: schema.containers,
-            fields: schema.fields,
-            formik,
-            layout: schema.formLayout,
-            onUpload: () => { },
-            session,
-            theme,
-            zIndex,
-        })
-    }, [schema, formik, session, theme, zIndex])
-
     return (
-        <Dialog
+        <LargeDialog
             id="advanced-search-dialog"
-            open={isOpen}
+            isOpen={isOpen}
             onClose={handleClose}
-            scroll="body"
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': {
-                    minWidth: 'min(400px, 100%)',
-                },
-                '& .MuiPaper-root': {
-                    margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
-                    display: { xs: 'block', sm: 'inline-block' },
-                    background: theme.palette.background.default,
-                    color: theme.palette.background.textPrimary,
-                },
-                // Remove ::after element that is added to the dialog
-                '& .MuiDialog-container::after': {
-                    content: 'none',
-                },
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
-            <DialogTitle
-                ariaLabel={titleAria}
-                title={'Advanced Search'}
+            <TopBar
+                display="dialog"
                 onClose={handleClose}
+                titleData={{ titleId, titleKey: 'AdvancedSearch' }}
             />
-            <form onSubmit={formik.handleSubmit}>
-                <Box sx={{
-                    padding: { xs: 1, sm: 2 },
-                    margin: 'auto',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    {grid}
-                </Box>
-                {/* Search/Cancel buttons */}
-                <Grid container spacing={1} sx={{
-                    background: theme.palette.primary.dark,
-                    maxWidth: 'min(700px, 100%)',
-                    margin: 0,
-                    paddingBottom: 'env(safe-area-inset-bottom)',
-                }}>
-                    <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
-                        <Button
-                            fullWidth
-                            startIcon={<SearchIcon />}
-                            type="submit"
-                        >Search</Button>
-                    </Grid>
-                    <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
-                        <Button
-                            fullWidth
-                            startIcon={<CancelIcon />}
-                            onClick={handleClose}
-                        >Cancel</Button>
-                    </Grid>
-                </Grid>
-            </form>
-        </Dialog>
+            <Formik
+                enableReinitialize={true}
+                initialValues={initialValues}
+                onSubmit={(values) => {
+                    if (schema) {
+                        const searchValue = convertFormikForSearch(values, schema);
+                        handleSearch(searchValue);
+                    }
+                    handleClose();
+                }}
+                validationSchema={validationSchema}
+            >
+                {(formik) => <>
+                    {/* Reset search button */}
+                    <Button
+                        onClick={() => { formik.resetForm(); }}
+                        startIcon={<RefreshIcon />}
+                        sx={{
+                            display: 'flex',
+                            margin: 'auto',
+                            marginTop: 2,
+                            marginBottom: 2,
+                        }}
+                    >{t(`Reset`)}</Button>
+                    <Box sx={{
+                        margin: 'auto',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        paddingBottom: '64px',
+                    }}>
+                        {/* Search options */}
+                        {schema && <GeneratedGrid
+                            childContainers={schema.containers}
+                            fields={schema.fields}
+                            layout={schema.formLayout}
+                            onUpload={() => { }}
+                            theme={theme}
+                            zIndex={zIndex}
+                        />}
+                    </Box>
+                    {/* Search/Cancel buttons */}
+                    <GridActionButtons display="dialog">
+                        <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
+                            <Button
+                                fullWidth
+                                startIcon={<SearchIcon />}
+                                type="submit"
+                                onClick={formik.handleSubmit as any}
+                            >{t(`Search`)}</Button>
+                        </Grid>
+                        <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
+                            <Button
+                                fullWidth
+                                startIcon={<CancelIcon />}
+                                onClick={handleClose}
+                            >{t(`Cancel`)}</Button>
+                        </Grid>
+                    </GridActionButtons>
+                </>}
+            </Formik>
+        </LargeDialog>
     )
 }

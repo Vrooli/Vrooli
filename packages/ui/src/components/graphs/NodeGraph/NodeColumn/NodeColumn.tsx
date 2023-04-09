@@ -2,12 +2,12 @@
  * Displays a list of nodes vertically.
  */
 import { Box, Stack } from '@mui/material';
+import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
 import { useMemo } from 'react';
-import { NodeColumnProps } from '../types';
+import { getTranslation } from 'utils/display/translationTools';
+import { NodeShape } from 'utils/shape/models/node';
 import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
-import { NodeType } from 'graphql/generated/globalTypes';
-import { Node, NodeEnd, NodeRoutineList } from 'types';
-import { getTranslation } from 'utils';
+import { NodeColumnProps } from '../types';
 
 export const NodeColumn = ({
     handleAction,
@@ -18,15 +18,12 @@ export const NodeColumn = ({
     labelVisible,
     language,
     links,
-    dragId,
     nodes,
     scale = 1,
     zIndex,
 }: NodeColumnProps) => {
     // Padding between cells
     const padding = useMemo(() => calculateNodeSize(25, scale), [scale]);
-    // Highlights column when a dragging node can be dropped on it
-    const isHighlighted = useMemo(() => dragId, [dragId]);
 
     /**
      * Create a node component for the given node data. 
@@ -45,7 +42,7 @@ export const NodeColumn = ({
             nodesWithGaps[node.rowIndex as number] = node;
         })
         // Now that we have a complete array, create a list of nodes
-        return nodesWithGaps.map((node: Node | null, index) => {
+        return nodesWithGaps.map((node: NodeShape | null, index) => {
             // If a placeholder, return a placeholder node
             if (node === null) {
                 return (
@@ -62,26 +59,26 @@ export const NodeColumn = ({
                 handleAction,
                 isLinked: true,
                 scale,
-                label: getTranslation(node, [language], false).title ?? undefined,
+                label: getTranslation(node, [language], false).name ?? undefined,
                 labelVisible,
                 isEditing,
                 canDrag: isEditing,
                 zIndex,
             }
-            // Determine node to display based on node type
-            switch (node.type) {
+            // Determine node to display based on nodeType
+            switch (node.nodeType) {
                 case NodeType.End:
                     return <EndNode
                         {...nodeProps}
                         handleUpdate={handleNodeUpdate}
                         language={language}
-                        linksIn={links.filter(l => l.toId === node.id)}
-                        node={node as NodeEnd}
+                        linksIn={links.filter(l => l.to.id === node.id)}
+                        node={node as Node & { end: NodeEnd }}
                     />
                 case NodeType.Redirect:
                     return <RedirectNode
                         {...nodeProps}
-                        node={node as Node}//as NodeRedirect}
+                        node={node}
                     />
                 case NodeType.RoutineList:
                     return (<RoutineListNode
@@ -89,15 +86,15 @@ export const NodeColumn = ({
                         canExpand={true}
                         handleUpdate={handleNodeUpdate}
                         language={language}
-                        linksIn={links.filter(l => l.toId === node.id)}
-                        linksOut={links.filter(l => l.fromId === node.id)}
-                        node={node as NodeRoutineList}
+                        linksIn={links.filter(l => l.to.id === node.id)}
+                        linksOut={links.filter(l => l.from.id === node.id)}
+                        node={node as Node & { routineList: NodeRoutineList }}
                     />)
                 case NodeType.Start:
                     return <StartNode
                         {...nodeProps}
-                        linksOut={links.filter(l => l.fromId === node.id)}
-                        node={node as Node}
+                        linksOut={links.filter(l => l.from.id === node.id)}
+                        node={node}
                     />
                 default:
                     return null;
@@ -118,9 +115,6 @@ export const NodeColumn = ({
             alignItems="center"
             sx={{
                 // pointerEvents: 'none',
-                backgroundColor: isHighlighted ? '#a2be6547' : 'transparent',
-                borderLeft: isHighlighted ? '1px solid #71c84f' : 'none',
-                borderRight: isHighlighted ? '1px solid #71c84f' : 'none',
                 gap: `${padding * 4}px`,
                 // Fill available if column is empty
                 width: nodes.length === 0 ? '-webkit-fill-available' : 'auto',

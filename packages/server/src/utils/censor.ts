@@ -1,8 +1,6 @@
-import { CustomError } from '../error';
+import { CustomError } from '../events/error';
 import fs from 'fs';
-import { CODE } from '@shared/consts';
-import { isObject } from '@shared/utils';
-import { genErrorCode } from '../logger';
+import { isObject, exists } from '@shared/utils';
 import pkg from 'lodash';
 const { flatten } = pkg;
 
@@ -16,7 +14,7 @@ const profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`)
  * @returns True if any bad words were found
  */
 export const hasProfanity = (...text: (string | null | undefined)[]): boolean => {
-    return text.some(t => t !== null && t !== undefined && t.search(profanityRegex) !== -1);
+    return text.some(t => exists(t) && t.search(profanityRegex) !== -1);
 }
 
 /**
@@ -54,13 +52,14 @@ export const toStringArray = (item: any, fields: string[] | null): string[] | nu
 /**
  * Throws an error if any string/object contains any banned words
  * @param items The items to check
- * @param fields The fields to check (supports dot notation). If not specified, all fields will be checked
+ * @param languages Preferred languages to use for error messages
  */
-export const validateProfanity = (items: any[], fields: string[] | null = null): void => {
-    // Convert items to strings. For objects, recursively convert values to strings
-    let strings: string[] = flatten(items.map(i => toStringArray(i, fields))).filter(i => i !== null) as string[];
-    if (hasProfanity(...strings))
-        throw new CustomError(CODE.BannedWord, 'Banned word detected', { code: genErrorCode('0042') });
+export const validateProfanity = (items: (string | null | undefined)[], languages: string[]): void => {
+    // Filter out non-string items
+    const strings = items.filter(i => typeof i === 'string') as string[];
+    // Check if any strings contain profanity
+    if (hasProfanity(...strings)) 
+        throw new CustomError('0042', 'BannedWord', languages);
 }
 
 /**

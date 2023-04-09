@@ -1,16 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
     Button,
     Dialog,
     DialogActions,
     DialogContent,
-    DialogContentText,
+    DialogContentText
 } from '@mui/material';
-import { firstString, PubSub } from 'utils';
-import { DialogTitle } from 'components';
+import i18next from 'i18next';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { firstString } from 'utils/display/stringTools';
+import { translateSnackMessage } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
 
 interface StateButton {
-    text: string;
+    label: string;
     onClick?: (() => void);
 }
 
@@ -20,39 +24,56 @@ export interface AlertDialogState {
     buttons: StateButton[];
 }
 
-const default_state: AlertDialogState = {
-    buttons: [{ text: 'Ok' }],
-};
+const defaultState = (): AlertDialogState => ({
+    buttons: [{ label: i18next.t('Ok') }],
+});
 
-const titleAria = 'alert-dialog-title';
+const titleId = 'alert-dialog-title';
 const descriptionAria = 'alert-dialog-description';
 
 const AlertDialog = () => {
-    const [state, setState] = useState<AlertDialogState>(default_state)
+    const { t } = useTranslation();
+
+    const [state, setState] = useState<AlertDialogState>(defaultState())
     let open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
-        let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({ ...default_state, ...o }));
+        let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
+            title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
+            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
+            buttons: o.buttons.map((b) => ({
+                label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
+                onClick: b.onClick,
+            })),
+        }));
         return () => { PubSub.get().unsubscribe(dialogSub) };
-    }, [])
+    }, [t])
 
     const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
         if (action) action(event);
-        setState(default_state);
+        setState(defaultState());
     }, []);
 
-    const resetState = useCallback(() => setState(default_state), []);
+    const resetState = useCallback(() => setState(defaultState()), []);
 
     return (
         <Dialog
             open={open}
             disableScrollLock={true}
             onClose={resetState}
-            aria-labelledby={titleAria}
+            aria-labelledby={titleId}
             aria-describedby={descriptionAria}
+            sx={{
+                zIndex: 30000,
+                '& > .MuiDialog-container': {
+                    '& > .MuiPaper-root': {
+                        zIndex: 30000,
+                    },
+                }
+            }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
+                id={titleId}
                 title={firstString(state.title)}
                 onClose={resetState}
             />
@@ -70,7 +91,7 @@ const AlertDialog = () => {
                 {state?.buttons && state.buttons.length > 0 ? (
                     state.buttons.map((b: StateButton, index) => (
                         <Button key={`alert-button-${index}`} onClick={(e) => handleClick(e, b.onClick)} color="secondary">
-                            {b.text}
+                            {b.label}
                         </Button>
                     ))
                 ) : null}

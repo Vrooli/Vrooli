@@ -19,42 +19,51 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":v:d:h" opt; do
-  case $opt in
-    v)
-      VERSION=$OPTARG
-      ;;
-    n)
-      NGINX_LOCATION=$OPTARG
-      ;;
-    h)
-      echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
-      echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
-      echo "  -h --help: Show this help message"
-      exit 0
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      exit 1
-      ;;
-    :)
-      echo "Option -$OPTARG requires an argument." >&2
-      exit 1
-      ;;
-  esac
+SETUP_ARGS=()
+for arg in "$@"; do
+    case $arg in
+    -v | --version)
+        VERSION="${2}"
+        shift
+        shift
+        ;;
+    -n | --nginx-location)
+        NGINX_LOCATION="${2}"
+        shift
+        shift
+        ;;
+    -h | --help)
+        echo "Usage: $0 [-v VERSION] [-n NGINX_LOCATION] [-h]"
+        echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
+        echo "  -n --nginx-location: Nginx proxy location (e.g. \"/root/NginxSSLReverseProxy\")"
+        echo "  -h --help: Show this help message"
+        exit 0
+        ;;
+    *)
+        SETUP_ARGS+=("${arg}")
+        shift
+        ;;
+    esac
 done
 
 # Ask for version number, if not supplied in arguments
 if [ -z "$VERSION" ]; then
-    echo "What version number do you want to deploy? (e.g. 1.0.0)"
+    prompt "What version number do you want to deploy? (e.g. 1.0.0). Leave blank if keeping the same version number."
+    warning "WARNING: Keeping the same version number will overwrite the previous build AND database backup."
     read -r VERSION
+    # If no version number was entered, use the version number found in the package.json files
+    if [ -z "$VERSION" ]; then
+        info "No version number entered. Using version number found in package.json files."
+        VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+        info "Version number found in package.json files: ${VERSION}"
+    fi
 fi
 
 # Check if nginx-proxy and nginx-proxy-le are running
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"
     if [ -z "$NGINX_LOCATION" ]; then
-        echo "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
+        prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
         read -r NGINX_LOCATION
         if [ -z "$NGINX_LOCATION" ]; then
             NGINX_LOCATION="/root/NginxSSLReverseProxy"
@@ -62,7 +71,7 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
     fi
     # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
     if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
-        # Start proxy containers
+        info "Starting proxy containers..."
         cd "${NGINX_LOCATION}" && docker-compose up -d
     else
         error "Could not find docker-compose.yml file in ${NGINX_LOCATION}"
@@ -73,27 +82,48 @@ fi
 # Copy current database and build to a safe location, under a temporary directory.
 cd ${HERE}/..
 DB_TMP="/var/tmp/${VERSION}/postgres"
+DB_CURR="${HERE}/../data/postgres"
 BUILD_TMP="/var/tmp/${VERSION}/old-build"
-# Don't copy database if it already exists in /var/tmp
-if [ ! -d "${DB_TMP}" ]; then
+BUILD_CURR="${HERE}/../packages/ui/dist"
+# Don't copy database if it already exists in /var/tmp, or it doesn't exist in DB_CURR
+if [ -d "${DB_TMP}" ]; then
+    info "Old database already exists at ${DB_TMP}, so not copying it"
+elif [ ! -d "${DB_CURR}" ]; then
+    warning "Current database does not exist at ${DB_CURR}, so not copying it"
+else
     info "Copying old database to ${DB_TMP}"
     cp -rp ${HERE}/../data/postgres "${DB_TMP}"
     if [ $? -ne 0 ]; then
         error "Could not copy database to ${DB_TMP}"
         exit 1
     fi
-else 
-    info "Old database already exists at ${DB_TMP}, so not copying it"
 fi
-if [ ! -d "${BUILD_TMP}" ]; then
+
+# Stash old build if it doesn't already exists in /var/tmp.
+if [ -d "${BUILD_TMP}" ]; then
+    info "Old build already exists at ${BUILD_TMP}, so not moving it"
+elif [ -d "${BUILD_CURR}" ]; then
     info "Moving old build to ${BUILD_TMP}"
-    mv -f ${HERE}/../packages/ui/build "${BUILD_TMP}"
+    mv -f "${BUILD_CURR}" "${BUILD_TMP}"
     if [ $? -ne 0 ]; then
         error "Could not move build to ${BUILD_TMP}"
         exit 1
     fi
+fi
+
+# Extract the zipped build created by build.sh
+BUILD_ZIP="/var/tmp/${VERSION}"
+if [ -f "${BUILD_ZIP}/build.tar.gz" ]; then
+    info "Extracting build at ${BUILD_ZIP}/build.tar.gz"
+    mkdir -p "${BUILD_CURR}"
+    tar -xzf "${BUILD_ZIP}/build.tar.gz" -C "${BUILD_CURR}" --strip-components=1
+    if [ $? -ne 0 ]; then
+        error "Failed to extract build at ${BUILD_ZIP}/build.tar.gz"
+        exit 1
+    fi
 else
-    info "Old build already exists at ${BUILD_TMP}, so not moving it"
+    error "Could not find build at ${BUILD_ZIP}/build.tar.gz"
+    exit 1
 fi
 
 # Stop docker containers
@@ -107,7 +137,7 @@ git pull
 
 # Running setup.sh
 info "Running setup.sh..."
-${HERE}/setup.sh
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}"
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -115,7 +145,7 @@ fi
 
 # Move and decompress build created by build.sh to the correct location.
 info "Moving and decompressing new build to correct location..."
-rm -rf ${HERE}/../packages/ui/build
+rm -rf ${HERE}/../packages/ui/dist
 tar -xzf /var/tmp/${VERSION}/build.tar.gz -C ${HERE}/../packages/ui
 if [ $? -ne 0 ]; then
     error "Could not move and decompress build to correct location"
@@ -127,3 +157,7 @@ info "Restarting docker containers..."
 docker-compose -f ${HERE}/../docker-compose-prod.yml up --build -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
+info "Now that you've deployed, here are some next steps:"
+info "Manually check that the site is working correctly"
+info "Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
+info "Let everyone on social media know that you've deployed a new version of Vrooli!"

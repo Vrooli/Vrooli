@@ -2,13 +2,12 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
-import { SnackSeverity } from 'components';
-import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/generated/walletComplete';
-import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
-import { errorToMessage } from 'graphql/utils/errorParser';
-import { initializeApollo } from 'graphql/utils/initialize';
-import { ApolloError } from 'types';
-import { PubSub } from 'utils';
+import { ApolloError } from '@apollo/client';
+import { WalletComplete } from '@shared/consts';
+import { authWalletComplete } from 'api/generated/endpoints/auth_walletComplete';
+import { authWalletInit } from 'api/generated/endpoints/auth_walletInit';
+import { errorToCode, initializeApollo } from 'api/utils';
+import { PubSub } from 'utils/pubsub';
 
 /**
  * Object returned from await window.cardano[providerKey].enable()
@@ -111,10 +110,10 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
     PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
-        mutation: walletInitMutation,
+        mutation: authWalletInit,
         variables: { input: { stakingAddress } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletInit;
@@ -126,14 +125,14 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
  * @param signedPayload Message signed by wallet
  * @returns Session object if successful, null if not
  */
-const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletCompleteResult | null> => {
+const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletComplete | null> => {
     PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
-        mutation: walletCompleteMutation,
+        mutation: authWalletComplete,
         variables: { input: { stakingAddress, signedPayload } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletComplete;
@@ -161,8 +160,8 @@ const signPayload = async (key: string, walletActions: WalletActions, stakingAdd
  * @param key The wallet provider to use
  * @returns WalletCompleteResult or null
  */
-export const validateWallet = async (key: string): Promise<WalletCompleteResult | null> => {
-    let result: WalletCompleteResult | null = null;
+export const validateWallet = async (key: string): Promise<WalletComplete | null> => {
+    let result: WalletComplete | null = null;
     try {
         // Connect to wallet extension
         const walletActions = await connectWallet(key);
@@ -184,8 +183,8 @@ export const validateWallet = async (key: string): Promise<WalletCompleteResult 
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.get().publishAlertDialog({
-            message: 'Unknown error occurred. Please check that the extension you chose is connected to a DApp-enabled wallet',
-            buttons: [{ text: 'OK' }]
+            messageKey: 'WalletErrorUnknown',
+            buttons: [{ labelKey: 'Ok' }],
         });
     } finally {
         return result;

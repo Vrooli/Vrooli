@@ -6,13 +6,12 @@
  * which can be removed.
  * //TODO do what this comment says
  */
-import { useEffect, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
 import { Button, Grid, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
+import { useEffect, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { PubSub } from 'utils/pubsub';
 import { DropzoneProps } from '../types';
-import { PubSub } from 'utils';
-import { SnackSeverity } from 'components';
 
 const useStyles = makeStyles((theme: Theme) => ({
     gridPad: {
@@ -75,7 +74,7 @@ export const Dropzone = ({
         maxFiles: maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
-                PubSub.get().publishSnack({ message: 'Files not accepted', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'FilesNotAccepted', severity: 'Error' });
                 return;
             }
             setFiles(acceptedFiles.map(file => Object.assign(file, {
@@ -87,7 +86,7 @@ export const Dropzone = ({
     const upload = (e) => {
         e.stopPropagation();
         if (files.length === 0) {
-            PubSub.get().publishSnack({ message: 'No files selected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'NoFilesSelected', severity: 'Error' });
             return;
         }
         onUpload(files);

@@ -15,7 +15,7 @@
             "./src/types"
         ],
         "allowJs": true,
-        "skipLibCheck": true,
+        "skipLibCheck": false,
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "strict": true,
@@ -25,7 +25,9 @@
         "resolveJsonModule": true,
         "isolatedModules": true,
         "jsx": "react-jsx",
-        "removeComments": true
+        "removeComments": true,
+        "declaration": true,
+        "noImplicitAny": false,
     },
     "include": [
         "src"

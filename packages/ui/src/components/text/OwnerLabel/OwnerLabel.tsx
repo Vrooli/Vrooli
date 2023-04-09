@@ -1,9 +1,11 @@
-import { getObjectSlug, getObjectUrlBase, getTranslation, getUserLanguages, ObjectType, openObject } from "utils";
-import { Tooltip, Typography, useTheme } from "@mui/material"
+import { Tooltip, Typography, useTheme } from "@mui/material";
+import { useLocation } from "@shared/route";
+import { useCallback, useContext, useMemo } from "react";
+import { firstString } from "utils/display/stringTools";
+import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getObjectUrl } from "utils/navigation/openObject";
+import { SessionContext } from "utils/SessionContext";
 import { OwnerLabelProps } from "../types";
-import { Comment, Project, Routine, Standard, User } from "types";
-import { Link, useLocation } from "@shared/route";
-import { useCallback, useMemo } from "react";
 
 /**
  * Gets name of user or organization that owns/created this object
@@ -12,16 +14,16 @@ import { useCallback, useMemo } from "react";
  * @returns String of owner, or empty string if no owner
  */
 const getLabel = (
-    owner: Comment['creator'] | Project['owner'] | Routine['owner'] | Standard['creator'] | null | undefined,
+    owner: {
+        __typename: 'Organization' | 'User',
+        handle?: string | null,
+        name?: string | null,
+        translations?: { language: string, name?: string }[],
+    } | null | undefined,
     languages: readonly string[]
 ): string => {
     if (!owner) return '';
-    // Check if user or organization. Only users have a non-translated name
-    if (owner.__typename === 'User' || owner.hasOwnProperty('name')) {
-        return (owner as User).name ?? owner.handle ?? '';
-    } else {
-        return getTranslation(owner, languages, true).name ?? owner.handle ?? '';
-    }
+    return firstString(owner.name, owner.handle, getTranslation(owner, languages, true).name);
 }
 
 export const OwnerLabel = ({
@@ -29,41 +31,40 @@ export const OwnerLabel = ({
     language,
     objectType,
     owner,
-    session,
     sxs,
 }: OwnerLabelProps) => {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const ownerLabel = useMemo(() => getLabel(owner, language ? [language] : getUserLanguages(session)), [language, owner, session]);
 
-    const ownerLink = useMemo<string>(() => {
-        if (!owner) return '';
-        return `${getObjectUrlBase(owner)}/${getObjectSlug(owner)}`
-    }, [owner]);
-
-    const toOwner = useCallback(() => { 
-        if (!owner) return;
-        openObject(owner, setLocation); 
-    }, [owner, setLocation]);
-
-    const handleClick = useCallback((event: any) => {
+    // We set href and onClick so users can open in new tab, while also supporting single-page app navigation TODO not working
+    const link = useMemo<string>(() => owner ? getObjectUrl(owner) : '', [owner]);
+    const toOwner = useCallback(() => {
+        if (link.length === 0) return;
+        setLocation(link);
+    }, [link, setLocation]);
+    const onClick = useCallback((e: any) => {
         if (typeof confirmOpen === 'function') {
-            event.preventDefault();
             confirmOpen(toOwner);
+        } else {
+            toOwner();
         }
+        // Prevent default so we don't use href
+        e.preventDefault();
     }, [confirmOpen, toOwner]);
 
     return (
-        <Link
-            href={ownerLink}
-            onClick={handleClick}
+        <a
+            href={link}
+            onClick={onClick}
             style={{
                 minWidth: 'auto',
                 padding: 0,
             }}
         >
-            <Tooltip title={`Press to view ${objectType === ObjectType.Standard ? 'creator' : 'owner'}`}>
+            <Tooltip title={`Press to view ${objectType === 'Standard' ? 'creator' : 'owner'}`}>
                 <Typography
                     variant="body1"
                     sx={{
@@ -80,6 +81,6 @@ export const OwnerLabel = ({
                     {ownerLabel}
                 </Typography>
             </Tooltip>
-        </Link>
+        </a>
     )
 }

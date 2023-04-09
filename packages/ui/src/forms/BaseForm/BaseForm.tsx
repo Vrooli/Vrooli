@@ -1,77 +1,59 @@
-// Converts JSON into a MUI form
-import { useCallback, useMemo, useState } from 'react';
-import { BaseFormProps } from '../types';
-import { useFormik } from 'formik';
-import { FieldData } from 'forms/types';
-import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
-import { useTheme } from '@mui/material';
+import { exists } from "@shared/utils"
+import { Form } from "formik"
+import { BaseFormProps } from "forms/types"
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react"
+import { usePromptBeforeUnload } from "utils/hooks/usePromptBeforeUnload"
 
-/**
- * Form component that is generated from a JSON schema
- */
-export const BaseForm = ({
-    schema,
-    session,
-    onSubmit,
-    zIndex,
-}: BaseFormProps) => {
-    const theme = useTheme();
+export type BaseFormRef = {
+    handleClose: (onClose: () => void, closeAnyway?: boolean) => void
+}
 
-    // Add non-specified props to each input field
-    const fieldInputs = useMemo<FieldData[]>(() => generateDefaultProps(schema?.fields), [schema?.fields]);
+export const BaseForm = forwardRef<BaseFormRef, BaseFormProps>(({
+    children,
+    dirty,
+    isLoading = false,
+    promptBeforeUnload = true,
+    style
+}, ref) => {
+    // Check for valid props
+    useEffect(() => {
+        if (promptBeforeUnload && !exists(dirty)) {
+            console.warn('BaseForm: promptBeforeUnload is true but dirty is not defined. This will cause the prompt to never appear.');
+        }
+    }, [promptBeforeUnload, dirty])
 
-    // Parse default values from fieldInputs, to use in formik
-    const initialValues = useMemo(() => {
-        let values: { [x: string]: any } = {};
-        fieldInputs.forEach((field) => {
-            values[field.fieldName] = field.props.defaultValue;
-        });
-        return values;
-    }, [fieldInputs])
-
-    // Generate yup schema from overall schema
-    const validationSchema = useMemo(() => generateYupSchema(schema), [schema]);
-
-    // Stores uploaded files, where the key is the field name, and the value is an array of file urls
-    const [uploadedFiles, setUploadedFiles] = useState<{ [x: string]: string[] }>({});
-    /**
-     * Callback for holding uploaded files, if any.
-     * @param fieldName The name of the field that the file is being uploaded to
-     * @param files Array of object URLs of the uploaded files. By URL we mean 
-     * a base64 encoded string. The files has not been uploaded anywhere yet.
-     */
-    const onUpload = useCallback((fieldName: string, files: string[]) => {
-        setUploadedFiles((prev) => {
-            const newFiles = { ...prev, [fieldName]: files };
-            return newFiles;
-        });
-    }, []);
-
-    /**
-     * Controls updates and validation of form
-     */
-    const formik = useFormik({
-        initialValues,
-        validationSchema,
-        onSubmit: (values) => onSubmit(values),
-    });
-    const grid = useMemo(() => {
-        if (!schema) return null;
-        return generateGrid({
-            childContainers: schema.containers,
-            fields: schema.fields,
-            formik,
-            layout: schema.formLayout,
-            onUpload: () => {},
-            session,
-            theme,
-            zIndex,
-        })
-    }, [schema, formik, session, theme, zIndex])
+    // Alert user if they try to close/refresh the tab with unsaved changes
+    usePromptBeforeUnload({ shouldPrompt: promptBeforeUnload && dirty })
+    // Alert user if they try to close the dialog (if the form is in one) with unsaved changes
+    const handleClose = useCallback((onClose: () => void, closeAnyway?: boolean) => {
+        if (dirty && closeAnyway !== true) {
+            if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+                onClose()
+            }
+        } else {
+            onClose()
+        }
+    }, [dirty])
+    useImperativeHandle(ref, () => ({ handleClose }))
 
     return (
-        <form onSubmit={formik.handleSubmit}>
-            {grid}
-        </form>
-    );
-}
+        <Form style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            ...(style ?? {})
+        }}>
+            {/* When loading, display a dark overlay */}
+            {isLoading && <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                zIndex: 1
+            }} />}
+            {children}
+        </Form>
+    )
+})

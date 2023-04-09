@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="Header2Icon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="Header2Icon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     showguides="true" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path6668"
+       d="M 17.792968,5.3281251 C 17.233222,5.3169032 16.66977,5.4285034 16.154296,5.640625 14.888769,6.1438376 14.043707,7.6094179 13.896484,9.1386718 l 0.947266,0.1972657 c 0.446262,0.1789992 0.943112,-0.1224538 1.017579,-0.6875 0.248501,-1.0222576 1.221707,-1.5967762 2.082031,-1.3945312 0.70774,0.084028 1.248448,0.8416051 1.261718,1.6660155 0.09861,1.3745332 -0.602805,2.5819292 -1.373047,3.5292972 -1.237465,1.512218 -2.515405,2.979459 -3.769531,4.472655 -0.430661,0.418844 -0.356518,1.109408 -0.359375,1.695313 h 7.654297 v -1.033474 c 0.06784,-0.465083 -0.263339,-0.875357 -0.669922,-0.832178 -1.44653,0.02244 -3.02951,-0.03214 -4.267578,0.03948 l 1.822265,-2.193359 c 0.874172,-1.087574 1.862155,-2.091717 2.472657,-3.425782 C 21.405485,9.716428 21.349084,7.70361 20.318359,6.484375 19.646945,5.7032818 18.725881,5.3468273 17.792968,5.3281251 Z M 2.8496093,5.375 V 18.589844 H 5.0390625 V 12.8125 h 4.7734372 v 5.777344 H 12.001953 V 5.375 H 9.8124997 v 5.683594 H 5.0390625 V 5.375 Z"
+       sodipodi:nodetypes="sccccccccccccccccsccccccccccccc"
+       style="font-weight:bold;font-size:16.7475px;font-family:Lato;-inkscape-font-specification:'Lato Bold';stroke-width:1.00157;stroke-linecap:round;stroke-linejoin:round" />
+  </g>
+</svg>

@@ -8,14 +8,14 @@
                 * [migrations](./packages/server/src/db/migrations) - Database version control
                 * [seeds](./packages/server/src/db/seeds) - For populating database with real or "mock" data
                 * [schema.prisma](./packages/server/src/db/schema.prisma) - Defines the database structure
+            * [endpoints](./packages/server/src/schema) - GraphQL schema
+                * [index.ts](./packages/server/src/endpoints/index.ts) - Merges schema files into one executable schema
+                * [root.ts](./packages/server/src/endpoints/root.ts) - Contains core type definitions and resolvers
+            * [events](./packages/server/src/events) - Handles tracking awards, triggering notifications, and other event-based actions
+            * [middleware](./packages/server/src/middleware) - Express middleware
             * [models](./packages/server/src/models) - Compositional components representing objects in the database
-            * [schema](./packages/server/src/schema) - GraphQL schema
-                * [index.ts](./packages/server/src/schema/index.ts) - Merges schema files into one executable schema
-                * [root.ts](./packages/server/src/schema/root.ts) - Contains core type definitions and resolvers
+            * [notify](./packages/server/src/notify) - Everything related to notifications. Emailing, push, etc.
             * [utils](./packages/server/src/utils) - Miscellaneous utility functions
-            * [worker](./packages/server/src/worker) - Processes which can be run asynchronously using Redis
-                * [email](./packages/server/src/worker/email) - Send emails
-                * [sms](./packages/server/src/worker/sms) - Send text messages
         * [package.json](./packages/server/package.json) - Dependencies and useful scripts
     * [shared](./packages/shared) - Data shared between packages  
     * [ui](./packages/ui) - What the user sees
@@ -27,12 +27,9 @@
             * [components](./packages/ui/src/components) - Reusable React components
             * [forms](./packages/ui/src/forms) - User input forms
             * [graphql](./packages/ui/src/graphql)
-                * [fragment](./packages/ui/src/graphql/fragment) - Fragments for reducing duplication of query and mutation return selections  
-                    * [full](./packages/ui/src/graphql/fragment/full) - Fragments for returning all fields of a model
-                    * [list](./packages/ui/src/graphql/fragment/list) - Fragments for returning the fields required to display a list item of a model
                 * [generated](./packages/ui/src/graphql/generated) - Code automatically generated from `yarn graphql-generate` script
-                * [mutation](./packages/ui/src/graphql/mutation) - GraphQL mutations
-                * [query](./packages/ui/src/graphql/query) - GraphQL queries
+                * [endpoints](./packages/ui/src/graphql/endpoints) - GraphQL endpoints
+                * [partial](./packages/ui/src/graphql/partial) - Partial GraphQL selections
                 * [utils](./packages/ui/src/graphql/utils) - GraphQL-specific utility functions
             * [pages](./packages/ui/src/pages) - Website pages
             * [utils](./packages/ui/src/utils) - Miscellaneous utility functions

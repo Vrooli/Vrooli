@@ -1,15 +1,17 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { AddBeforeLinkDialogProps } from '../types';
+import { DialogContent, List, ListItem, ListItemText } from '@mui/material';
+import { NodeLink } from '@shared/consts';
+import { LargeDialog } from 'components/dialogs/LargeDialog/LargeDialog';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { useCallback, useMemo } from 'react';
-import { NodeLink } from 'types';
-import { Dialog, DialogContent, List, ListItem, ListItemText } from '@mui/material';
-import { getTranslation, getUserLanguages } from 'utils';
-import { DialogTitle } from 'components/dialogs';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useCallback, useContext, useMemo } from 'react';
+import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
+import { SessionContext } from 'utils/SessionContext';
+import { AddBeforeLinkDialogProps } from '../types';
 
-const titleAria = 'add-before-link-dialog-title';
+const titleId = 'add-before-link-dialog-title';
 
 export const AddBeforeLinkDialog = ({
     isOpen,
@@ -18,41 +20,40 @@ export const AddBeforeLinkDialog = ({
     nodeId,
     nodes,
     links,
-    session,
     zIndex,
 }: AddBeforeLinkDialogProps) => {
+    const session = useContext(SessionContext);
 
     /**
      * Gets the name of a node from its id
      */
     const getNodeName = useCallback((nodeId: string) => {
         const node = nodes.find(n => n.id === nodeId);
-        return getTranslation(node, getUserLanguages(session), true).title;
+        return getTranslation(node, getUserLanguages(session), true).name;
     }, [nodes, session]);
 
     /**
-     * Find links where the "toId" is the nodeId
+     * Find links where the "to.id" is the nodeId
      */
-    const linkOptions = useMemo<NodeLink[]>(() => links.filter(l => l.toId === nodeId), [links, nodeId]);
+    const linkOptions = useMemo<NodeLink[]>(() => links.filter(l => l.to.id === nodeId), [links, nodeId]);
 
     const listOptions: ListMenuItemData<NodeLink>[] = linkOptions.map(o => ({
-        label: `${getNodeName(o.fromId)} ⟶ ${getNodeName(o.toId)}`,
+        label: `${getNodeName(o.from.id)} ⟶ ${getNodeName(o.to.id)}`,
         value: o as NodeLink,
     }));
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            id="add-link-before-dialog"
             onClose={handleClose}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-            }}
+            isOpen={isOpen}
+            titleId={titleId}
+            zIndex={zIndex}
         >
-            <DialogTitle
-                ariaLabel={titleAria}
+            <TopBar
+                display="dialog"
                 onClose={handleClose}
-                title="Select Link"
+                titleData={{ titleId, titleKey: 'LinkSelect' }}
             />
             <DialogContent>
                 <List>
@@ -63,6 +64,6 @@ export const AddBeforeLinkDialog = ({
                     ))}
                 </List>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     )
 }

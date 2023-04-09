@@ -1,12 +1,14 @@
-import { ResourceListItemContextMenuProps } from '../types';
+import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from '@shared/icons';
+import { ListMenu } from 'components/dialogs/ListMenu/ListMenu';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { ListMenu } from 'components';
-import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, SvgComponent } from '@shared/icons';
-import { getTranslation } from 'utils';
+import { getTranslation } from 'utils/display/translationTools';
+import { PubSub } from 'utils/pubsub';
+import { ResourceListItemContextMenuProps } from '../types';
 
 export enum ResourceContextMenuOption {
     AddBefore = 'AddBefore',
     AddAfter = 'AddAfter',
+    Copy = 'Copy',
     Delete = 'Delete',
     Edit = 'Edit',
     Move = 'Move',
@@ -16,10 +18,11 @@ export enum ResourceContextMenuOption {
 const listOptionsMap: { [key in ResourceContextMenuOption]: [string, SvgComponent] } = {
     [ResourceContextMenuOption.AddBefore]: ['Add resource before', MoveLeftIcon],
     [ResourceContextMenuOption.AddAfter]: ['Add resource after', MoveRightIcon],
-    [ResourceContextMenuOption.Edit]: ['Edit resource', EditIcon],
-    [ResourceContextMenuOption.Delete]: ['Delete resource', DeleteIcon],
-    [ResourceContextMenuOption.Move]: ['Move resource', MoveLeftRightIcon],
-    [ResourceContextMenuOption.Share]: ['Share resource', CopyIcon],
+    [ResourceContextMenuOption.Copy]: ['Copy link', CopyIcon],
+    [ResourceContextMenuOption.Edit]: ['Edit', EditIcon],
+    [ResourceContextMenuOption.Delete]: ['Delete', DeleteIcon],
+    [ResourceContextMenuOption.Move]: ['Move', MoveLeftRightIcon],
+    [ResourceContextMenuOption.Share]: ['Share', ShareIcon],
 }
 
 const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(listOptionsMap).map((o) => ({
@@ -30,7 +33,7 @@ const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(l
 
 // Custom context menu for nodes
 export const ResourceListItemContextMenu = ({
-    canEdit,
+    canUpdate,
     id,
     anchorEl,
     index,
@@ -53,6 +56,10 @@ export const ResourceListItemContextMenu = ({
             case ResourceContextMenuOption.AddAfter:
                 onAddAfter(index);
                 break;
+            case ResourceContextMenuOption.Copy:
+                navigator.clipboard.writeText(resource?.link ?? '');
+                PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
+                break;
             case ResourceContextMenuOption.Delete:
                 onDelete(index);
                 break;
@@ -64,9 +71,9 @@ export const ResourceListItemContextMenu = ({
                 break;
             case ResourceContextMenuOption.Share:
                 if (!resource?.link) return;
-                const { title, description } = getTranslation(resource, []); //TODO languages
+                const { name, description } = getTranslation(resource, []); //TODO languages
                 navigator.share({
-                    title: title ?? undefined,
+                    title: name ?? undefined,
                     text: description ?? undefined,
                     url: resource?.link
                 });
@@ -75,13 +82,12 @@ export const ResourceListItemContextMenu = ({
         onClose();
     }
 
-    const listOptionsFiltered = canEdit ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
+    const listOptionsFiltered = canUpdate ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
 
     return (
         <ListMenu
             id={id}
             anchorEl={anchorEl}
-            title='Resource Options'
             data={listOptionsFiltered}
             onSelect={onMenuItemSelect}
             onClose={onClose}

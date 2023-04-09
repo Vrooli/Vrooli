@@ -2,24 +2,29 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS } from "@shared/consts";
-import { SnackSeverity } from "components";
-import { NavigableObject, SetLocation } from "types";
-import { PubSub } from "utils/pubsub";
-import { stringifySearchParams, uuidToBase36 } from "./urlTools";
+import { Bookmark, GqlModelType, LINKS, RunProject, RunRoutine, View, Vote } from "@shared/consts";
+import { SetLocation, stringifySearchParams } from "@shared/route";
+import { isOfType } from "@shared/utils";
+import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
+import { NavigableObject } from "types";
+import { ResourceType } from "utils/consts";
+import { uuidToBase36 } from "./urlTools";
 
-export enum ObjectType {
-    Comment = 'Comment',
-    Organization = 'Organization',
-    Project = 'Project',
-    Routine = 'Routine',
-    Run = 'Run',
-    Standard = 'Standard',
-    Star = 'Star',
-    Tag = 'Tag',
-    User = 'User',
-    View = 'View',
-}
+export type ObjectType = 'Api' |
+    'Bookmark' |
+    'Comment' |
+    'Note' |
+    'Organization' |
+    'Project' |
+    'Question' |
+    'Reminder' |
+    'Routine' |
+    'Run' |
+    'SmartContract' |
+    'Standard' |
+    'Tag' |
+    'User' |
+    'View';
 
 /**
  * Gets URL base for object type
@@ -27,28 +32,16 @@ export enum ObjectType {
  * @returns Search URL base for object type
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
-    switch (object.__typename) {
-        case ObjectType.Organization:
-            return APP_LINKS.Organization;
-        case ObjectType.Project:
-            return APP_LINKS.Project;
-        case ObjectType.Routine:
-            return APP_LINKS.Routine;
-        case ObjectType.Standard:
-            return APP_LINKS.Standard;
-        case ObjectType.User:
-            return APP_LINKS.Profile;
-        case ObjectType.Star:
-        case ObjectType.View:
-            return getObjectUrlBase(object.to as any);
-        case ObjectType.Run:
-            return getObjectUrlBase({
-                __typename: ObjectType.Routine,
-                id: object.routine?.id,
-            } as any);
-        default:
-            return '';
-    }
+    // If object is a user, use 'Profile'
+    if (isOfType(object, 'User')) return LINKS.Profile;
+    // If object is a star/vote/some other type that links to a main object, use the "to" property
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getObjectUrlBase((object as Bookmark | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getObjectUrlBase((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getObjectUrlBase((object as RunProject).projectVersion as any);
+    // Otherwise, use __typename (or root if versioned object)
+    return LINKS[object.__typename.replace('Version', '')];
 }
 
 /**
@@ -56,19 +49,24 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: NavigableObject): string => {
-    // If object is a star/vote/some other type that links to a main object, use that object's slug
-    if (object.to) return getObjectSlug(object.to);
-    // If object is a run, navigate to the routine
-    if (object.routine) return getObjectSlug(object.routine);
-    // If object has a handle, use that (Note: objects with handles don't have versioning, so we don't need to worry about that)
-    if (object.handle) return object.handle;
-    // If object has a versionGroupId, and an id, use versionGroupId/id
-    if (object.versionGroupId && object.id) return `${uuidToBase36(object.versionGroupId)}/${uuidToBase36(object.id)}`;
-    // If object only has a versionGroupId, use that
-    if (object.versionGroupId) return uuidToBase36(object.versionGroupId);
-    // Otherwise, use the id
-    return uuidToBase36(object.id);
+export const getObjectSlug = (object: {
+    __typename: `${GqlModelType}` | 'Action' | 'Shortcut' | 'CalendarEvent',
+    id: string,
+    handle?: string | null,
+    root?: { handle?: string | null, id: string } | null,
+}): string => {
+    // If object is an action/shortcut/event, return blank
+    if (isOfType(object, 'Action', 'Shortcut', 'CalendarEvent')) return '';
+    // If object is a star/vote/some other __typename that links to a main object, use that object's slug
+    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getObjectSlug((object as Bookmark | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getObjectSlug((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getObjectSlug((object as RunProject).projectVersion as any);
+    // If object has root, use its handle or id
+    if (object.root) return object.root.handle ?? uuidToBase36(object.root.id);
+    // Otherwise, use object's handle or id
+    return object.handle ?? uuidToBase36(object.id);
 }
 
 /**
@@ -76,38 +74,86 @@ export const getObjectSlug = (object: NavigableObject): string => {
  * @param object Object being navigated to
  * @returns Stringified search params for object
  */
-export const getObjectSearchParams = (object: any) => {
+export const getObjectSearchParams = (
+    object: {
+        __typename: `${GqlModelType}` | 'Action' | 'Shortcut' | 'CalendarEvent',
+        id: string
+    }
+): string | null => {
+    // If object is an action/shortcut, return blank
+    if (isOfType(object, 'Action', 'Shortcut')) return '';
+    // If object is an event, add start time to search params
+    if (isOfType(object, 'CalendarEvent')) return stringifySearchParams({ start: (object as any).start });
     // If object is a run
-    if (object.__typename === ObjectType.Run) return stringifySearchParams({ run: uuidToBase36(object.id) });
+    if (object.__typename === 'RunRoutine') return stringifySearchParams({ run: uuidToBase36(object.id) });
     return '';
 }
+// Omit<NavigableObject, '__typename'> & { __typename: `${GqlModelType}`}
 
 /**
- * Opens any object with an id and __typename
+ * Finds view page URL for any object with an id and type
+ * @param object Object being navigated to
+ */
+export const getObjectUrl = (object: NavigableObject): string =>
+    isOfType(object, 'Action') ? '' :
+        isOfType(object, 'Shortcut', 'CalendarEvent') ? object.id :
+            `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
+
+/**
+ * Opens any object with an id and type
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObject = (object: NavigableObject, setLocation: SetLocation) => {
-    // Check if __typename is in objectLinkMap
-    if (!ObjectType.hasOwnProperty(object.__typename)) {
-        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
-        return;
-    }
-    // Navigate to object page
-    setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
+export const openObject = (object: NavigableObject, setLocation: SetLocation) => !isOfType(object, 'Action') && setLocation(getObjectUrl(object));
+
+/**
+ * Finds edit page URL for any object with an id and type
+ * @param object Object being navigated to
+ */
+export const getObjectEditUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
+
+/**
+ * Opens the edit page for an object with an id and type
+ * @param object Object to open
+ * @param setLocation Function to set location in history
+ */
+export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectEditUrl(object));
+
+/**
+ * Finds report page URL for any object with an id and type
+ * @param object Object being navigated to
+ */
+export const getObjectReportUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}`;
+
+/**
+ * Opens the report page for an object with an id and type.
+ * 
+ * NOTE: For VIEWING reports, not creating them
+ * @param object Object to open
+ */
+export const openObjectReport = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectReportUrl(object));
+
+/**
+ * Determines if a resource is a URL, wallet payment address, or an ADA handle
+ * @param link String to check
+ * @returns ResourceType if type found, or null if not
+ */
+export const getResourceType = (link: string): ResourceType | null => {
+    if (urlRegex.test(link)) return ResourceType.Url;
+    if (walletAddressRegex.test(link)) return ResourceType.Wallet;
+    if (adaHandleRegex.test(link)) return ResourceType.Handle;
+    return null;
 }
 
 /**
- * Opens the edit page for an object with an id and __typename
- * @param object Object to open
- * @param setLocation Function to set location in history
+ * Finds the URL for a resource
+ * @param link Resource string. May be a URL, handle, or wallet address
+ * @returns link as a URL (i.e. wallet opens in cardanoscan, handle opens in handle.me)
  */
-export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => {
-    // Check if __typename is in objectLinkMap
-    if (!ObjectType.hasOwnProperty(object.__typename)) {
-        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
-        return;
-    }
-    // Navigate to object page TODO multi-step routines have different route. Maybe routine update should redirect when this is detected?
-    setLocation(`${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
+export const getResourceUrl = (link: string): string | undefined => {
+    const resourceType = getResourceType(link);
+    if (resourceType === ResourceType.Url) return link;
+    if (resourceType === ResourceType.Handle) return `https://handle.me/${link}`;
+    if (resourceType === ResourceType.Wallet) return `https://cardanoscan.io/address/${link}`;
+    return undefined;
 }

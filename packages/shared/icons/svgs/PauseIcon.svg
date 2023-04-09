@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="PlayIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="ActionIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path1923-0"
+       style="color:#000000;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.00157;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
+       d="M 16.461642,3.4169922 A 1.889765,1.889765 0 0 0 14.57297,5.305664 v 13.386719 a 1.889765,1.889765 0 0 0 1.888672,1.890625 1.889765,1.889765 0 0 0 1.890625,-1.890625 V 5.305664 A 1.889765,1.889765 0 0 0 16.461642,3.4169922 Z m -8.925237,-1e-7 A 1.889765,1.889765 0 0 0 5.6477331,5.3056639 V 18.692383 A 1.889765,1.889765 0 0 0 7.536405,20.583008 1.889765,1.889765 0 0 0 9.4270297,18.692383 V 5.3056639 A 1.889765,1.889765 0 0 0 7.536405,3.4169921 Z" />
+  </g>
+</svg>

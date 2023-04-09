@@ -1,18 +1,19 @@
+import { BUSINESS_NAME, LINKS } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
 import { BreadcrumbsBase } from '../BreadcrumbsBase/BreadcrumbsBase';
-import { BUSINESS_NAME, LANDING_LINKS, LANDING_URL } from '@shared/consts';
 import { CopyrightBreadcrumbsProps } from '../types';
 
-export const CopyrightBreadcrumbs = ({ 
+export const CopyrightBreadcrumbs = ({
     sx,
-    ...props 
+    ...props
 }: CopyrightBreadcrumbsProps) => {
-    const paths = [
-        [`© ${new Date().getFullYear()} ${BUSINESS_NAME}`, `${LANDING_URL}${LANDING_LINKS.Home}`],
-        ['Privacy', `${LANDING_URL}${LANDING_LINKS.PrivacyPolicy}`],
-        ['Terms', `${LANDING_URL}${LANDING_LINKS.Terms}`]
-    ].map(row => ({ text: row[0], link: row[1] }))
+    const { t } = useTranslation();
     return BreadcrumbsBase({
-        paths: paths,
+        paths: [
+            [`© ${new Date().getFullYear()} ${BUSINESS_NAME}`, LINKS.Home],
+            [t(`Privacy`), LINKS.Privacy],
+            [t(`Terms`), LINKS.Terms]
+        ].map(row => ({ text: row[0], link: row[1] })),
         ariaLabel: 'Copyright breadcrumb',
         sx: {
             ...sx,

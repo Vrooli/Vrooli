@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="StarOutlineIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="StarFilledIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     showguides="true" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="color:#000000;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.584233;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none"
+       d="M 11.319554,3.1376249 8.7220868,8.3931845 2.911535,9.2374227 C 2.2919621,9.3281149 2.0446179,10.087798 2.4924048,10.52472 l 4.2054092,4.090419 -0.9903153,5.776196 c -0.1049814,0.616279 0.5428032,1.085812 1.0974807,0.795485 l 5.1969576,-2.72779 5.197839,2.726349 c 0.55536,0.290397 1.203334,-0.180554 1.096868,-0.79721 l -0.993845,-5.775107 4.2041,-4.091928 C 21.955852,10.084239 21.708118,9.3231653 21.087605,9.2329948 L 15.276521,8.3921926 12.67659,3.1373536 C 12.28172,2.5987825 11.679171,2.5766583 11.319554,3.1376249 Z"
+       id="path6260"
+       sodipodi:nodetypes="cccccccccccccccc" />
+  </g>
+</svg>

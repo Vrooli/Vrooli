@@ -10,6 +10,65 @@
 // To learn more about the benefits of this model and instructions on how to
 // opt-in, read https://cra.link/PWA
 
+function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+
+    for (var i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+export async function requestNotificationPermission() {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        console.info("Notification permission granted!");
+    } else {
+        console.error("Notification permission denied");
+    }
+    return permission;
+}
+
+export async function subscribeUserToPush() {
+    if (!('PushManager' in window)) {
+        console.warn('Push notifications are not supported in this browser. This could be because the browser is too old or because it is running in a non-secure context (http instead of https).');
+        return null;
+    }
+    const permission = await requestNotificationPermission();
+    if (permission !== 'granted') {
+        console.warn('Push permissions not granted.')
+        return null;
+    }
+    try {
+        const registration = await navigator.serviceWorker.register(
+            `${import.meta.env.BASE_URL}service-worker.js`,
+            { scope: import.meta.env.BASE_URL }
+        );
+        const subscribeOptions = {
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(
+                import.meta.env.VITE_VAPID_PUBLIC_KEY
+            ),
+        };
+        console.log('push notification subscribeOptions: ', subscribeOptions);
+        const pushSubscription = await registration.pushManager.subscribe(subscribeOptions);
+        console.log(
+            'Received PushSubscription: ',
+            JSON.stringify(pushSubscription),
+        );
+        return pushSubscription;
+    } catch (error) {
+        console.error('Error subscribing to push notifications:', error);
+        return null;
+    }
+}
+
 const isLocalhost = Boolean(
     window.location.hostname === 'localhost' ||
     // [::1] is the IPv6 localhost address.
@@ -19,21 +78,27 @@ const isLocalhost = Boolean(
 );
 
 export function register(config) {
-    if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+    console.log('register 1', config, import.meta.env, 'serviceWorker' in navigator);
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+        console.log('register 2');
         // The URL constructor is available in all browsers that support SW.
-        const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href);
+        const publicUrl = new URL(import.meta.env.BASE_URL, window.location.href);
+        console.log('register 3', publicUrl, 'window.location.origin: ', window.location.origin);
         if (publicUrl.origin !== window.location.origin) {
-            // Our service worker won't work if PUBLIC_URL is on a different origin
+            console.log('register 4 - bad origin')
+            // Our service worker won't work if PUBLIC_URL/BASE_URL is on a different origin
             // from what our page is served on. This might happen if a CDN is used to
             // serve assets; see https://github.com/facebook/create-react-app/issues/2374
             return;
         }
 
+        console.log('register 5');
         // Function for checking registration of service worker
         const checkRegister = () => {
-            console.log('checking register...');
-            const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
+            const swUrl = `${window.location.origin}/service-worker.js`;
+            console.log('register 6 - checking register...', swUrl);
             if (isLocalhost) {
+                console.log('register 7 is localhost');
                 // This is running on localhost. Let's check if a service worker still exists or not.
                 checkValidServiceWorker(swUrl, config);
 
@@ -46,18 +111,20 @@ export function register(config) {
                     );
                 });
             } else {
+                console.log('register 8 is not localhost');
                 // Is not localhost. Just register service worker
                 registerValidSW(swUrl, config);
             }
         }
 
+        console.log('register 9');
         // Check for registration on load and visibility change
         window.addEventListener('load', checkRegister);
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                checkRegister();
-            }
-        });
+        // document.addEventListener('visibilitychange', () => {
+        //     if (document.visibilityState === 'visible') {
+        //         checkRegister();
+        //     }
+        // });
     }
 }
 
@@ -95,6 +162,10 @@ function registerValidSW(swUrl, config) {
                             if (config && config.onSuccess) {
                                 config.onSuccess(registration);
                             }
+                        }
+                        // If running in standalone, request notification permission
+                        if (window.matchMedia('(display-mode: standalone)').matches) {
+                            Notification.requestPermission();
                         }
                     }
                 };

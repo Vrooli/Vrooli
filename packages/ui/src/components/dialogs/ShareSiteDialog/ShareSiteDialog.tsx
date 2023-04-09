@@ -1,29 +1,36 @@
 /**
  * Dialog for spreading the word about the site.
  */
-import { APP_LINKS } from '@shared/consts';
-import { Box, Dialog, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { ShareSiteDialogProps } from '../types';
-import { useState } from 'react';
-import QRCode from "react-qr-code";
+import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
+import { LINKS } from '@shared/consts';
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { usePress } from 'utils';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
+import { TopBar } from 'components/navigation/TopBar/TopBar';
+import { useTranslation } from 'react-i18next';
+import QRCode from "react-qr-code";
+import { getDeviceInfo } from 'utils/display/device';
+import usePress from 'utils/hooks/usePress';
+import { PubSub } from 'utils/pubsub';
+import { LargeDialog } from '../LargeDialog/LargeDialog';
+import { ShareSiteDialogProps } from '../types';
 
 // Invite link
-const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
+const inviteLink = `https://vrooli.com${LINKS.Start}`;
 // Title for social media posts
 const postTitle = 'Vrooli - Visual Work Routines';
 // Invite message for social media posts
 const postText = `The future of work in a decentralized world. ${inviteLink}`;
+
+const emailUrl = `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`;
+const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`;
+const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`;
 
 const buttonProps = (palette: Palette) => ({
     height: '48px',
     width: '48px',
 })
 
-const titleAria = 'share-site-dialog-title';
+const titleId = 'share-site-dialog-title';
 
 export const ShareSiteDialog = ({
     open,
@@ -31,13 +38,13 @@ export const ShareSiteDialog = ({
     zIndex,
 }: ShareSiteDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
-    const [copied, setCopied] = useState<boolean>(false);
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
+
     const copyInviteLink = () => {
         navigator.clipboard.writeText(inviteLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 5000);
+        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: 'Success' });
     }
 
     /**
@@ -52,11 +59,11 @@ export const ShareSiteDialog = ({
     }
 
     /**
-    * When QR code is long-pressed in PWA, open copy/save photo dialog
+    * When QR code is long-pressed in standalone (i.e. app is downloaded), open copy/save photo dialog
     */
     const handleQRCodeLongPress = () => {
-        const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-        if (!isPWA) return;
+        const { isStandalone } = getDeviceInfo();
+        if (!isStandalone) return;
         // Find image using parent element's ID
         const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;
         if (!qrCode) return;
@@ -78,20 +85,21 @@ export const ShareSiteDialog = ({
     });
 
     return (
-        <Dialog
+        <LargeDialog
+            id="share-site-dialog"
+            isOpen={open}
             onClose={onClose}
-            open={open}
-            sx={{
-                zIndex,
-                '& .MuiDialogContent-root': {
-                    minWidth: 'min(400px, 100%)',
-                },
-            }}
+            titleId={titleId}
+            zIndex={zIndex}
         >
-            <DialogTitle ariaLabel={titleAria} title="Spread the Word 🌍" onClose={onClose} />
+            <TopBar
+                display="dialog"
+                onClose={onClose}
+                titleData={{ titleId, titleKey: 'SpreadTheWord' }}
+            />
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
-                    <Tooltip title="Copy invite link">
+                    <Tooltip title={t('CopyLink')}>
                         <ColorIconButton
                             onClick={copyInviteLink}
                             background={palette.secondary.main}
@@ -100,34 +108,37 @@ export const ShareSiteDialog = ({
                             <CopyIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Share by email">
+                    <Tooltip title={t('ShareByEmail')}>
                         <ColorIconButton
-                            onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`)}
+                            href={emailUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <EmailIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Tweet about us">
+                    <Tooltip title={t('TweetIt')}>
                         <ColorIconButton
-                            onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`)}
+                            href={twitterUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <TwitterIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Post on LinkedIn">
+                    <Tooltip title={t('LinkedInPost')}>
                         <ColorIconButton
-                            onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`)}
+                            href={linkedInUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
                             <LinkedInIcon fill={palette.secondary.contrastText} />
                         </ColorIconButton>
                     </Tooltip>
-                    <Tooltip title="Share by another method">
+                    <Tooltip title={t('Other')}>
                         <ColorIconButton
                             onClick={shareNative}
                             background={palette.secondary.main}
@@ -155,8 +166,7 @@ export const ShareSiteDialog = ({
                         value="https://vrooli.com"
                     />
                 </Box>
-                {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1} mt={2}>🎉 Copied! 🎉</Typography> : null}
             </Box>
-        </Dialog>
+        </LargeDialog>
     )
 }

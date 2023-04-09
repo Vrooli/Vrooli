@@ -7,16 +7,16 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme,
+    useTheme
 } from '@mui/material';
-import { UnlinkedNodesDialogProps } from '../types';
-import { noSelect } from 'styles';
-import { useCallback } from 'react';
-import { NodeType } from 'graphql/generated/globalTypes';
-import { Node, NodeEnd, NodeRoutineList } from 'types';
-import { EndNode, RedirectNode, RoutineListNode } from 'components';
-import { getTranslation } from 'utils';
+import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
+import { EndNode, RedirectNode, RoutineListNode } from 'components/graphs/NodeGraph';
+import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { noSelect } from 'styles';
+import { getTranslation } from 'utils/display/translationTools';
+import { UnlinkedNodesDialogProps } from '../types';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -27,6 +27,7 @@ export const UnlinkedNodesDialog = ({
     zIndex,
 }: UnlinkedNodesDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     /**
      * Generates a simple node from a node type
@@ -39,25 +40,25 @@ export const UnlinkedNodesDialog = ({
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
-            label: getTranslation(node, [language], false).title ?? null,
+            label: getTranslation(node, [language], false).name ?? null,
             labelVisible: false,
-            scale: 0.8,
+            scale: -0.5,
             zIndex,
         }
-        // Determine node to display based on node type
-        switch (node.type) {
+        // Determine node to display based on nodeType
+        switch (node.nodeType) {
             case NodeType.End:
                 return <EndNode
                     {...nodeProps}
                     handleUpdate={() => { }} // Intentionally blank
                     language={language}
                     linksIn={[]}
-                    node={node as NodeEnd}
+                    node={node as Node & { end: NodeEnd }}
                 />
             case NodeType.Redirect:
                 return <RedirectNode
                     {...nodeProps}
-                    node={node as Node}//as NodeRedirect}
+                    node={node as any}//as NodeRedirect}
                 />
             case NodeType.RoutineList:
                 return <RoutineListNode
@@ -68,7 +69,7 @@ export const UnlinkedNodesDialog = ({
                     handleUpdate={() => { }} // Intentionally blank
                     linksIn={[]}
                     linksOut={[]}
-                    node={node as NodeRoutineList}
+                    node={node as Node & { routineList: NodeRoutineList }}
                 />
             default:
                 return null;
@@ -76,7 +77,7 @@ export const UnlinkedNodesDialog = ({
     }, [language, zIndex])
 
     return (
-        <Tooltip title="Unlinked nodes">
+        <Tooltip title={t('NodeUnlinked', { count: 2 })}>
             <Box id="unlinked-nodes-dialog" sx={{
                 alignSelf: open ? 'baseline' : 'auto',
                 borderRadius: 3,
@@ -110,9 +111,9 @@ export const UnlinkedNodesDialog = ({
                     width: '100%'
                 }}>
                     <UnlinkedNodesIcon fill={palette.secondary.contrastText} />
-                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
-                    <Tooltip title={open ? 'Shrink' : 'Expand'}>
-                        <IconButton edge="end" color="inherit" aria-label={open ? 'Shrink' : 'Expand'}>
+                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? (t('Unlinked') + ' ') : ''}({nodes.length})</Typography>
+                    <Tooltip title={t(open ? 'Shrink' : 'Expand')}>
+                        <IconButton edge="end" color="inherit" aria-label={t(open ? 'Shrink' : 'Expand')}>
                             {open ? <ExpandLessIcon fill={palette.secondary.contrastText} /> : <ExpandMoreIcon fill={palette.secondary.contrastText} />}
                         </IconButton>
                     </Tooltip>
@@ -122,20 +123,18 @@ export const UnlinkedNodesDialog = ({
                         {nodes.map((node) => (
                             <Box key={node.id} sx={{ display: 'flex', alignItems: 'center' }}>
                                 {/* Miniature version of node */}
-                                <Box sx={{
-                                    height: '50px',
-                                }}>
+                                <Box>
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}
-                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).title}</Typography>)}
+                                {node.nodeType === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).name}</Typography>)}
                                 {/* Delete node icon */}
-                                <Tooltip title={`Delete ${getTranslation(node, [language], true).title} node`} placement="left">
+                                <Tooltip title={t('NodeDeleteWithName', { nodeName: getTranslation(node, [language], true).name })} placement="left">
                                     <Box sx={{ marginLeft: 'auto' }}>
                                         <IconButton
                                             color="inherit"
                                             onClick={() => handleNodeDelete(node.id)}
-                                            aria-label={'Delete unlinked node'}
+                                            aria-label={t('NodeUnlinkedDelete')}
                                         >
                                             <DeleteIcon fill={palette.background.textPrimary} />
                                         </IconButton>

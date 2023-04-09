@@ -1,13 +1,13 @@
 /**
  * Shows valid/invalid/incomplete status of some object
  */
-import { useCallback, useMemo, useState } from 'react';
 import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import Markdown from 'markdown-to-jsx';
-import { StatusButtonProps } from '../types';
-import { Status } from 'utils';
-import { noSelect } from 'styles';
 import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from '@shared/icons';
+import Markdown from 'markdown-to-jsx';
+import { useCallback, useMemo, useState } from 'react';
+import { noSelect } from 'styles';
+import { Status } from 'utils/consts';
+import { StatusButtonProps } from '../types';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -53,7 +53,7 @@ export const StatusButton = ({
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
-    const openMenu = useCallback((event) => {
+    const openMenu = useCallback((event: any) => {
         if (!anchorEl) setAnchorEl(event.currentTarget);
     }, [anchorEl])
     const closeMenu = () => {

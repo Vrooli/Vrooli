@@ -1,15 +1,15 @@
+import { DropzoneStandardInputProps } from '../types';
+
 /**
- * Input for entering (and viewing format of) Dropzone data that 
- * must match a certain schema.
- */
- import { DropzoneStandardInputProps } from '../types';
- 
- export const DropzoneStandardInput = ({
+* Input for entering (and viewing format of) Dropzone data that 
+* must match a certain schema.
+*/
+export const DropzoneStandardInput = ({
     isEditing,
-    onPropsChange,
- }: DropzoneStandardInputProps) => {
-     //TODO
-     return (
-         <></>
-     );
- }
+}: DropzoneStandardInputProps) => {
+    //TODO
+    // defaultValue?: DropzoneProps['defaultValue'];
+    return (
+        <></>
+    );
+}

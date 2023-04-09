@@ -6,7 +6,7 @@ import { Request } from 'express';
  */
 export const safeOrigins = (): Array<string | RegExp> => {
     let origins: Array<string | RegExp> = ['https://cardano-mainnet.blockfrost.io'];
-    if (process.env.REACT_APP_SERVER_LOCATION === 'local') {
+    if (process.env.VITE_SERVER_LOCATION === 'local') {
         origins.push(
             /^http:\/\/localhost(?::[0-9]+)?$/,
             /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,

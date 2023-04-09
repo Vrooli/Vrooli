@@ -1,85 +1,47 @@
-/**
- * Input for entering (and viewing format of) JSON data that 
- * must match a certain schema.
- */
+import { Stack, useTheme } from '@mui/material';
 import { JsonStandardInputProps } from '../types';
-import { jsonStandardInputForm as validationSchema } from '@shared/validation';
-import { useEffect, useMemo, useState } from 'react';
-import { useFormik } from 'formik';
-import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from '@mui/material';
-import { HelpButton, StatusButton } from 'components/buttons';
-import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status } from 'utils';
-import Markdown from 'markdown-to-jsx';
-import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
 export const JsonStandardInput = ({
-    defaultValue,
-    format,
     isEditing,
-    onPropsChange,
-    variables,
 }: JsonStandardInputProps) => {
     const { palette } = useTheme();
 
-    // Last valid schema format
-    const [internalValue, setInternalValue] = useState<string>('{}');
+    // // const [defaultValueField, , defaultValueHelpers] = useField<JsonProps['defaultValue']>('defaultValue');
+    // const [formatField, formatMeta, formatHelpers] = useField<JsonProps['format']>('format');
+    // // const [variablesField, , variablesHelpers] = useField<JsonProps['variables']>('variables');
 
-    const formik = useFormik({
-        initialValues: {
-            format: internalValue,
-            defaultValue: defaultValue ?? '',
-            variables: variables ?? {},
-        },
-        enableReinitialize: true,
-        validationSchema,
-        onSubmit: () => { },
-    });
+    // // Last valid schema format
+    // const [internalValue, setInternalValue] = useState<string>(jsonToString(formatField.value ?? {}) ?? '');
 
-    /**
-    * Set internal value when format changes
-    */
-    useEffect(() => {
-        if (!isEditing) return;
-        // Compare to current internal value
-        if (isEqualJSON(formik.values.format, internalValue)) return;
-        setInternalValue(jsonToString(format) ?? '');
-    }, [format, formik.values.format, internalValue, isEditing]);
+    // /**
+    // * Set internal value when formatField.value changes.
+    // */
+    // useEffect(() => {
+    //     if (!isEditing) return;
+    //     // Compare to current internal value
+    //     if (isEqualJSON(formatField.value, internalValue)) return;
+    //     setInternalValue(jsonToString(formatField.value ?? {}) ?? '');
+    // }, [formatField.value, internalValue, isEditing]);
 
-    // Check if formik.values.format is valid JSON
-    useEffect(() => {
-        if (isJson(formik.values.format)) {
-            setInternalValue(formik.values.format);
-        }
-    }, [formik.values.format]);
+    // // Update formatField only when internalValue is valid
+    // useEffect(() => {
+    //     if (isJson(internalValue)) {
+    //         formatHelpers.setValue(JSON.parse(internalValue));
+    //     }
+    // }, [formatField.value, formatHelpers, internalValue]);
 
-    // Update format only when it is valid
-    useEffect(() => {
-        if (internalValue.length > 2) {
-            onPropsChange({
-                format: JSON.parse(internalValue),
-            });
-        }
-    }, [format, internalValue, onPropsChange]);
 
-    // Update other props separately
-    useEffect(() => {
-        onPropsChange({
-            defaultValue: formik.values.defaultValue,
-            variables: formik.values.variables,
-        });
-    }, [formik.values.defaultValue, formik.values.variables, onPropsChange]);
-
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
-    const togglePreview = () => setIsPreviewOn(!isPreviewOn);
-    const { previewMarkdown, isValueValid } = useMemo(() => ({
-        previewMarkdown: jsonToMarkdown(formik.values.format),
-        isValueValid: internalValue.length > 2 && isJson(formik.values.format),
-    }), [formik.values.format, internalValue.length]);
+    // const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
+    // const togglePreview = () => setIsPreviewOn(!isPreviewOn);
+    // const { previewMarkdown, isValueValid } = useMemo(() => ({
+    //     previewMarkdown: jsonToMarkdown(formatField.value ?? {}),
+    //     isValueValid: internalValue.length > 2 && isJson(formatField.value),
+    // }), [formatField.value, internalValue.length]);
 
     return (
         <Stack direction="column" spacing={0}>
             {/* Bar above TextField, for status and HelpButton */}
-            <Box sx={{
+            {/* <Box sx={{
                 display: 'flex',
                 width: '100%',
                 padding: '0.5rem',
@@ -95,9 +57,9 @@ export const JsonStandardInput = ({
                         marginLeft: 1,
                         marginRight: 'auto',
                     }}
-                />
-                {/* Toggle preview */}
-                <Tooltip title={isPreviewOn ? 'Preview mode' : 'Edit mode'} placement="top" sx={{ marginLeft: 'auto' }}>
+                /> */}
+            {/* Toggle preview */}
+            {/* <Tooltip title={isPreviewOn ? 'Preview mode' : 'Edit mode'} placement="top" sx={{ marginLeft: 'auto' }}>
                     <IconButton size="small" onClick={togglePreview}>
                         {
                             isPreviewOn ?
@@ -110,10 +72,10 @@ export const JsonStandardInput = ({
                     markdown={jsonHelpText}
                     sxRoot={{ marginRight: 1 }}
                 />
-            </Box>
+            </Box> */}
             {/* Displays inputted JSON to the left, and info about the current variable being edited to the right */}
             {/* TextField for entering markdown, or markdown display if previewing */}
-            {
+            {/* {
                 isPreviewOn ?
                     <Box sx={{
                         border: `1px solid ${palette.background.textPrimary}`,
@@ -122,7 +84,7 @@ export const JsonStandardInput = ({
                         {
                             previewMarkdown ?
                                 <Markdown>{previewMarkdown}</Markdown> :
-                                <p>{`Error: Invalid JSON - ${formik.values.format}`}</p>
+                                <p>{`Error: Invalid JSON - ${internalValue}`}</p>
                         }
                     </Box> :
                     <TextField
@@ -130,22 +92,22 @@ export const JsonStandardInput = ({
                         disabled={!isEditing}
                         placeholder={"Enter JSON format. Click the '?' button for help."}
                         multiline
-                        value={formik.values.format}
-                        onChange={formik.handleChange}
+                        value={internalValue}
+                        onChange={(e) => setInternalValue(e.target.value)}
                         style={{
                             minWidth: '-webkit-fill-available',
                             maxWidth: '-webkit-fill-available',
                             minHeight: '50px',
                             maxHeight: '800px',
                             background: 'transparent',
-                            borderColor: formik.errors.format ? 'red' : 'unset',
+                            borderColor: formatMeta.error ? 'red' : 'unset',
                             borderRadius: '0 0 0.5rem 0.5rem',
                             borderTop: 'none',
                             fontFamily: 'inherit',
                             fontSize: 'inherit',
                         }}
                     />
-            }
+            } */}
             {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
              parts of the JSON, and an input for entering the currently-selected section of JSON */}
             {/* TODO */}

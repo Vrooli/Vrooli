@@ -1,172 +1,52 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Box, Grid, Stack, Typography, useTheme } from '@mui/material';
-import { CommentContainerProps } from '../types';
-import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
-import { useLazyQuery, useMutation } from '@apollo/client';
-import { commentCreateVariables, commentCreate_commentCreate } from 'graphql/generated/commentCreate';
-import { MarkdownInput } from 'components/inputs';
-import { useFormik } from 'formik';
-import { commentCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils';
-import { addSearchParams, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { TimeFrame } from 'graphql/generated/globalTypes';
-import { comments, commentsVariables } from 'graphql/generated/comments';
-import { useLocation } from '@shared/route';
-import { commentsQuery } from 'graphql/query';
-import { Comment, CommentThread as ThreadType } from 'types';
+import { Button, Stack, useTheme } from '@mui/material';
+import { Comment, CommentThread as ThreadType } from '@shared/consts';
+import { CreateIcon } from '@shared/icons';
+import { uuidValidate } from '@shared/uuid';
+import { SearchButtons } from 'components/buttons/SearchButtons/SearchButtons';
+import { CommentUpsertInput } from 'components/inputs/CommentUpsertInput/CommentUpsertInput';
 import { CommentThread } from 'components/lists/comment';
-import { DUMMY_ID, uuidValidate } from '@shared/uuid';
-import { uuid } from '@shared/uuid';
-import { GridSubmitButtons } from 'components/buttons';
-import { getCurrentUser } from 'utils/authentication';
-
-const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFindMany } from 'utils/hooks/useFindMany';
+import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
+import { CommentContainerProps } from '../types';
 
 export function CommentContainer({
+    forceAddCommentOpen,
+    isOpen,
     language,
     objectId,
     objectType,
-    session,
-    sxs,
+    onAddCommentClose,
     zIndex,
 }: CommentContainerProps) {
-    const { palette } = useTheme();
-    const [, setLocation] = useLocation();
-    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    const { breakpoints } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
+    const { t } = useTranslation();
 
-    const [sortBy, setSortBy] = useState<string>(defaultSortBy);
-    const [searchString, setSearchString] = useState<string>('');
-    const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
-    // Handle URL params
-    const searchParams = useReactSearch(null);
-    useEffect(() => {
-        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
-        if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
-        if (typeof searchParams.time === 'object' &&
-            !Array.isArray(searchParams.time) &&
-            searchParams.time.hasOwnProperty('after') &&
-            searchParams.time.hasOwnProperty('before')) {
-            setTimeFrame({
-                after: new Date((searchParams.time as any).after),
-                before: new Date((searchParams.time as any).before),
-            });
-        }
-    }, [searchParams]);
-
-    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
-    const after = useRef<string | undefined>(undefined);
-
-    /**
-     * When sort and filter options change, update the URL
-     */
-    useEffect(() => {
-        addSearchParams(setLocation, {
-            search: searchString.length > 0 ? searchString : undefined,
-            sort: sortBy,
-            time: timeFrame ? {
-                after: timeFrame.after?.toISOString() ?? '',
-                before: timeFrame.before?.toISOString() ?? '',
-            } : undefined,
-        })
-    }, [searchString, sortBy, timeFrame, setLocation]);
-
-    const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<comments, commentsVariables>(commentsQuery, {
-        variables: ({
-            input: {
-                after: after.current,
-                take: 20,
-                sortBy,
-                searchString,
-                createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
-                    after: timeFrame.after?.toISOString(),
-                    before: timeFrame.before?.toISOString(),
-                } : undefined,
-                [`${objectType.toLowerCase()}Id`]: objectId,
-                ...advancedSearchParams
-            }
-        } as any),
-        errorPolicy: 'all',
+    const {
+        advancedSearchParams,
+        advancedSearchSchema,
+        allData,
+        setAdvancedSearchParams,
+        setAllData,
+        setSortBy,
+        setTimeFrame,
+        sortBy,
+        sortByOptions,
+        timeFrame,
+    } = useFindMany<ThreadType>({
+        canSearch: uuidValidate(objectId),
+        searchType: 'Comment',
+        resolve: (result) => result.threads,
+        where: {
+            [`${objectType.toLowerCase()}Id`]: objectId,
+        },
     });
-    const [allData, setAllData] = useState<ThreadType[]>([]);
-
-    // On search filters/sort change, reset the page
-    useEffect(() => {
-        after.current = undefined;
-        if (uuidValidate(objectId)) getPageData();
-    }, [advancedSearchParams, searchString, sortBy, timeFrame, getPageData, objectId]);
-
-    // Fetch more data by setting "after"
-    const loadMore = useCallback(() => {
-        if (!pageData || !uuidValidate(objectId)) return;
-        const queryData: any = Object.values(pageData)[0];
-        if (!queryData || !queryData.pageInfo) return [];
-        if (queryData.pageInfo?.hasNextPage) {
-            const { endCursor } = queryData.pageInfo;
-            if (endCursor) {
-                after.current = endCursor;
-                getPageData();
-            }
-        }
-    }, [getPageData, objectId, pageData]);
-
-    /**
-     * Helper method for converting fetched data to an array of object data
-     */
-    const parseData = useCallback((data: comments | undefined): ThreadType[] => {
-        if (!data) return [];
-        return data.comments.threads ?? [];
-    }, []);
-
-    // Handle advanced search
-    useEffect(() => {
-        // Open advanced search dialog, if needed
-        if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
-        // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
-        const { advanced, search, sort, time, ...otherParams } = searchParams;
-        // Find valid advanced search params
-        const allAdvancedSearchParams = advancedSearchSchema?.fields?.map(f => f.fieldName) ?? [];
-        // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
-        const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
-        setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, [searchParams]);
-
-    // Handle advanced search dialog
-    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
-    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
-    const handleAdvancedSearchDialogClose = useCallback(() => {
-        setAdvancedSearchDialogOpen(false)
-    }, []);
-    const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
-        // Remove undefined and 0 values
-        const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
-        // Remove schema fields from search params
-        removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
-        // Add set fields to search params
-        addSearchParams(setLocation, valuesWithoutBlanks);
-        setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [setLocation]);
-
-    // Parse newly fetched data, and determine if it should be appended to the existing data
-    useEffect(() => {
-        // Close advanced search dialog
-        // handleAdvancedSearchDialogClose();
-        const parsedData = parseData(pageData);
-        if (!parsedData) {
-            setAllData([]);
-            return;
-        }
-        if (after.current) {
-            setAllData(curr => [...curr, ...parsedData]);
-        } else {
-            setAllData(parsedData);
-        }
-    }, [pageData, parseData, handleAdvancedSearchDialogClose]);
 
     /**
      * When new comment is created, add it to the list of comments
@@ -180,117 +60,76 @@ export function CommentContainer({
             endCursor: null,
             totalInThread: 0,
         }, ...curr]);
-    }, []);
+    }, [setAllData]);
 
-    const [addMutation, { loading: loadingAdd }] = useMutation(commentCreateMutation);
-    const formik = useFormik({
-        initialValues: {
-            id: DUMMY_ID,
-            createdFor: objectType,
-            forId: objectId,
-            translationsCreate: [{
-                id: DUMMY_ID,
-                language,
-                text: '',
-            }],
-        },
-        validationSchema,
-        onSubmit: (values) => {
-            mutationWrapper<commentCreate_commentCreate, commentCreateVariables>({
-                mutation: addMutation,
-                input: {
-                    id: uuid(),
-                    createdFor: values.createdFor,
-                    forId: values.forId,
-                    translationsCreate: values.translationsCreate.map(t => ({
-                        ...t,
-                        id: t.id === DUMMY_ID ? uuid() : t.id,
-                    })),
-                },
-                successCondition: (data) => data !== null,
-                successMessage: () => 'Comment created',
-                onSuccess: (data) => {
-                    formik.resetForm();
-                    onCommentAdd(data);
-                },
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(isMobile);
+    // Show add comment input if on desktop. For mobile, we'll show a button
+    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)) }, [forceAddCommentOpen, isMobile]);
+    const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
+    const handleAddCommentClose = useCallback(() => {
+        setIsAddCommentOpen(false);
+        if (onAddCommentClose) onAddCommentClose();
+    }, [onAddCommentClose]);
 
-    // Current text, as well as errors
-    const { text, errorText, touchedText, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            text: value?.text ?? '',
-            errorText: error?.text ?? '',
-            touchedText: touched?.text ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
+    // The add component is always visible on desktop.
+    // If forceAddCommentOpen is true (i.e. parent container wants add comment to be open), 
+    // then we should scroll and focus the add comment input
+    useEffect(() => {
+        if (!forceAddCommentOpen || isMobile) return;
+        const addCommentInput = document.getElementById('markdown-input-add-comment-root');
+        if (addCommentInput) {
+            addCommentInput.scrollIntoView({ behavior: 'smooth' });
+            addCommentInput.focus();
         }
-    }, [formik, language]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
+    }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <Box
-            id="comments"
-            sx={{
-                overflow: 'overlay',
-                background: palette.background.paper,
-                width: 'min(100%, 700px)',
-                ...(sxs?.root ?? {}),
-            }}
-        >
+        <ContentCollapse isOpen={isOpen} title="Comments">
             {/* Add comment */}
-            <form>
-                <Box sx={{ margin: 2 }}>
-                    <Typography component="h3" variant="h6" textAlign="left">Add comment</Typography>
-                    <MarkdownInput
-                        id="add-comment"
-                        placeholder="Please be nice to each other."
-                        value={text}
-                        minRows={3}
-                        onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                        error={touchedText && Boolean(errorText)}
-                        helperText={touchedText ? errorText : null}
-                    />
-                    <Grid container spacing={1} sx={{
-                        width: 'min(100%, 400px)',
-                        marginLeft: 'auto',
-                        marginTop: 1,
-                    }}>
-                        <GridSubmitButtons
-                            disabledSubmit={!userId}
-                            errors={errors}
-                            isCreate={true}
-                            loading={formik.isSubmitting || loadingAdd}
-                            onCancel={formik.resetForm}
-                            onSetSubmitting={formik.setSubmitting}
-                            onSubmit={formik.submitForm}
+            {
+                isAddCommentOpen && <CommentUpsertInput
+                    comment={undefined}
+                    language={language}
+                    objectId={objectId}
+                    objectType={objectType}
+                    onCancel={handleAddCommentClose}
+                    onCompleted={onCommentAdd}
+                    parent={null} // parent is the thread. This is a top-level comment, so no parent
+                    zIndex={zIndex}
+                />
+            }
+            {/* Sort & filter */}
+            {allData.length > 0 ? <>
+                <SearchButtons
+                    advancedSearchParams={advancedSearchParams}
+                    advancedSearchSchema={advancedSearchSchema}
+                    searchType="Comment"
+                    setAdvancedSearchParams={setAdvancedSearchParams}
+                    setSortBy={setSortBy}
+                    setTimeFrame={setTimeFrame}
+                    sortBy={sortBy}
+                    sortByOptions={sortByOptions}
+                    timeFrame={timeFrame}
+                    zIndex={zIndex}
+                />
+                {/* Comments list */}
+                <Stack direction="column" spacing={2}>
+                    {allData.map((thread, index) => (
+                        <CommentThread
+                            key={index}
+                            canOpen={true}
+                            data={thread}
+                            language={language}
+                            zIndex={zIndex}
                         />
-                    </Grid>
-                </Box>
-            </form>
-            {/* Comments list */}
-            <Stack direction="column" spacing={2}>
-                {allData.map((thread, index) => (
-                    <CommentThread
-                        key={index}
-                        canOpen={true}
-                        data={thread}
-                        language={language}
-                        session={session}
-                        zIndex={zIndex}
-                    />
-                ))}
-            </Stack>
-        </Box>
+                    ))}
+                </Stack>
+            </> : (!isAddCommentOpen && isMobile) ? <Button
+                fullWidth
+                startIcon={<CreateIcon />}
+                onClick={handleAddCommentOpen}
+                sx={{ marginTop: 2 }}
+            >{t(`AddComment`)}</Button> : null}
+        </ContentCollapse>
     );
 }

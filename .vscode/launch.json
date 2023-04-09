@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Docker: Attach to Node",
+            "type": "node",
+            "request": "attach",
+            "remoteRoot": "/srv/app/packages/server",
+            "localRoot": "${workspaceFolder}/packages/server",
+            "port": 9229,
+            "address": "localhost",
+            "protocol": "inspector",
+            "restart": true,
+            "sourceMaps": true,
+            "skipFiles": [
+                "/node_modules/**/*.js"
+            ],
+            "dockerRunCommand": "--env --publish 5329:5329 --publish 9229:9229 --name ${containerName} ${image}",
+        }
+    ]
+}

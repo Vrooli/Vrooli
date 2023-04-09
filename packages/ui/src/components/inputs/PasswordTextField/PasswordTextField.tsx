@@ -1,23 +1,21 @@
-import { useCallback, useState } from "react";
 import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, OutlinedInput, useTheme } from '@mui/material';
-import { PasswordTextFieldProps } from "../types";
 import { InvisibleIcon, VisibleIcon } from "@shared/icons";
+import { useField } from "formik";
+import { useCallback, useState } from "react";
+import { useTranslation } from 'react-i18next';
+import { PasswordTextFieldProps } from "../types";
 
 export const PasswordTextField = ({
     autoComplete = 'current-password',
     autoFocus = false,
-    error = false,
     fullWidth = true,
-    helperText = undefined,
-    id = 'password',
     label,
-    name = 'password',
-    onBlur = () => { },
-    onChange,
-    value,
+    name,
     ...props
 }: PasswordTextFieldProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
+    const [field, meta] = useField(name);
 
     const [showPassword, setShowPassword] = useState<boolean>(false);
 
@@ -26,18 +24,18 @@ export const PasswordTextField = ({
     }, [showPassword]);
 
     return (
-        <FormControl fullWidth={fullWidth} variant="outlined" {...props}>
-            <InputLabel htmlFor={id}>{label ?? 'Password'}</InputLabel>
+        <FormControl fullWidth={fullWidth} variant="outlined" {...props as any}>
+            <InputLabel htmlFor={name}>{label ?? 'Password'}</InputLabel>
             <OutlinedInput
-                id={id}
+                id={name}
                 name={name}
                 type={showPassword ? 'text' : 'password'}
-                value={value}
-                onBlur={onBlur}
-                onChange={onChange}
+                value={field.value}
+                onBlur={field.onBlur}
+                onChange={field.onChange}
                 autoComplete={autoComplete}
                 autoFocus={autoFocus}
-                error={error}
+                error={meta.touched && !!meta.error}
                 endAdornment={
                     <InputAdornment position="end">
                         <IconButton
@@ -46,16 +44,16 @@ export const PasswordTextField = ({
                             edge="end"
                         >
                             {
-                            showPassword ? 
-                            <InvisibleIcon fill={palette.background.textSecondary} /> : 
-                            <VisibleIcon fill={palette.background.textSecondary} />
+                                showPassword ?
+                                    <InvisibleIcon fill={palette.background.textSecondary} /> :
+                                    <VisibleIcon fill={palette.background.textSecondary} />
                             }
                         </IconButton>
                     </InputAdornment>
                 }
-                label={label ?? 'Password'}
+                label={label ?? t('Password')}
             />
-            <FormHelperText id="adornment-password-error-text" sx={{ color: palette.error.main }}>{helperText}</FormHelperText>
+            <FormHelperText id="adornment-password-error-text" sx={{ color: palette.error.main }}>{meta.touched && meta.error}</FormHelperText>
         </FormControl>
     )
 }

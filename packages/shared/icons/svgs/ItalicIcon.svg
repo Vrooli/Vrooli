@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   version="1.1"
+   id="svg5"
+   inkscape:export-filename="ItalicIcon.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   sodipodi:docname="ItalicIcon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     showguides="true" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       d="M 14.248776,20.109528 H 6.0041766 L 6.6686241,17.233886 H 9.3155215 L 11.733674,6.7661137 H 9.0867773 L 9.7512248,3.8904721 H 17.995823 L 17.331377,6.7661137 H 14.68448 L 12.266326,17.233886 h 2.646898 z"
+       style="font-style:italic;font-weight:bold;font-size:16px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold Italic';white-space:pre;stroke-width:1.51181;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:0.304878"
+       id="path29208"
+       sodipodi:nodetypes="ccccccccccccc" />
+  </g>
+</svg>
