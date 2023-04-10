@@ -4,15 +4,25 @@
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
-# Generate a new RSA key pair using ssh-keygen with 4096 bits and PEM format, output private key to jwtRS256.key
-warning "Don't add a passphrase when prompted by ssh-keygen."
-ssh-keygen -t rsa -b 4096 -m PEM -f jwtRS256.key
+# Go to root directory of the project
+cd "${HERE}/.."
 
-# Extract the public key from the private key using openssl, output public key to jwtRS256.key.pub
-openssl rsa -in jwtRS256.key -pubout -outform PEM -out jwtRS256.key.pub
+PUB_KEY_NAME="jwt_pub.pem"
+PRIV_KEY_NAME="jwt_priv.pem"
 
-# Display the contents of the private key file jwtRS256.key
-cat jwtRS256.key
+# If keys already exist, inform user and soft exit
+if [ -f "${PUB_KEY_NAME}" ] || [ -f "${PRIV_KEY_NAME}" ]; then
+    # If one key exists, but not the other, show error and exit
+    if [ ! -f "${PUB_KEY_NAME}" ] || [ ! -f "${PRIV_KEY_NAME}" ]; then
+        error "One JWT key exists, but not the other. Delete them both and try again."
+        exit 1
+    fi
+    info "JWT keys already exist. Delete them first if you want to generate new ones."
+    exit 0
+fi
 
-# Display the contents of the public key file jwtRS256.key.pub
-cat jwtRS256.key.pub
+# Use openssl to generate private key and public key
+info "Generating new JWT keys..."
+openssl genpkey -algorithm RSA -out "${PRIV_KEY_NAME}" -pkeyopt rsa_keygen_bits:2048
+openssl rsa -pubout -in "${PRIV_KEY_NAME}" -out "${PUB_KEY_NAME}"
+info "JWT keys generated and saved to ${PRIV_KEY_NAME} and ${PUB_KEY_NAME} in the root directory of the project."

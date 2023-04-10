@@ -1,6 +1,7 @@
 import { COOKIE, Session, SessionUser } from '@shared/consts';
 import { uuidValidate } from '@shared/uuid';
 import { NextFunction, Request, Response } from 'express';
+import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import { CustomError } from '../events/error';
 import { logger } from '../events/logger';
@@ -9,10 +10,9 @@ import { isSafeOrigin } from '../utils';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
-const privateKey = {
-    key: process.env.JWT_SECRET,
-    passphrase: process.env.JWT_SECRET_PASSPHRASE,
-}
+
+const privateKey = fs.readFileSync('../../../../jwt_priv.pem', 'utf8');
+const publicKey = fs.readFileSync('../../../../jwt_pub.pem', 'utf8');
 
 /**
  * Parses a request's accept-language header
@@ -55,12 +55,8 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         next(error);
         return;
     }
-    if (!process.env.JWT_SECRET) {
-        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0003' });
-        return;
-    }
     // Verify that the session token is valid
-    jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
+    jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
             // If from unsafe origin, deny access.
             let error: CustomError | undefined;
@@ -117,7 +113,7 @@ const basicToken = (): BasicToken => ({
  * @param session 
  * @returns 
  */
-export async function generateSessionJwt(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
+export async function generateSessionJwt(res: Response, session: RecursivePartial<Session>): Promise<void> {
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,
@@ -125,11 +121,7 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
         // Make sure users are unique by id
         users: [...new Map((session.users ?? []).map((user: SessionUser) => [user.id, user])).values()],
     }
-    if (!process.env.JWT_SECRET) {
-        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0004' });
-        return;
-    }
-    const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
+    const token = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
     res.cookie(COOKIE.Jwt, token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -143,16 +135,12 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
  * @param apiToken
  * @returns 
  */
-export async function generateApiJwt(res: Response, apiToken: string): Promise<undefined> {
+export async function generateApiJwt(res: Response, apiToken: string): Promise<void> {
     const tokenContents: ApiToken = {
         ...basicToken(),
         apiToken,
     }
-    if (!process.env.JWT_SECRET) {
-        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0005' });
-        return;
-    }
-    const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
+    const token = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
     res.cookie(COOKIE.Jwt, token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -172,11 +160,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
         logger.error('❗️ No session token found', { trace: '0006' });
         return;
     }
-    if (!process.env.JWT_SECRET) {
-        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0007' });
-        return;
-    }
-    jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
+    jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
             logger.error('❗️ Session token is invalid', { trace: '0008' });
             return;
@@ -185,7 +169,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
             ...payload,
             timeZone,
         }
-        const newToken = jwt.sign(tokenContents, process.env.JWT_SECRET as string);
+        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
         res.cookie(COOKIE.Jwt, newToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -206,11 +190,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         logger.error('❗️ No session token found', { trace: '0445' });
         return;
     }
-    if (!process.env.JWT_SECRET) {
-        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0446' });
-        return;
-    }
-    jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
+    jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
             logger.error('❗️ Session token is invalid', { trace: '0447' });
             return;
@@ -219,7 +199,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
             ...payload,
             users: payload.users?.length > 0 ? [{ ...payload.users[0], ...user }, ...payload.users.slice(1)] : [],
         }
-        const newToken = jwt.sign(tokenContents, process.env.JWT_SECRET as string);
+        const newToken = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
         res.cookie(COOKIE.Jwt, newToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',

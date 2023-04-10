@@ -1,2 +1,5 @@
 .git
-dist
+.vscode
+build
+data
+dis
