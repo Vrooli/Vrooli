@@ -18,6 +18,10 @@ COPY --chown=node:node packages/shared/translations/package.json packages/shared
 # Install local packages
 RUN yarn install --production
 
+# Install modclean and clean node_modules
+RUN yarn global add modclean
+RUN modclean --run
+
 # Stage 1: Copy files from stage 0, copy RSA keys, and set port
 FROM node:16-alpine as stage1
 
