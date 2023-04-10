@@ -34,7 +34,7 @@ const main = async () => {
     logger.info('Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['VITE_SERVER_LOCATION', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
+    const requiredEnvs = ['PROJECT_DIR', 'VITE_SERVER_LOCATION', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);
@@ -47,7 +47,7 @@ const main = async () => {
     const requiredKeyFiles = ['jwt_priv.pem', 'jwt_pub.pem'];
     for (const keyFile of requiredKeyFiles) {
         try {
-            const key = fs.readFileSync(`../../${keyFile}`);
+            const key = fs.readFileSync(`${process.env.PROJECT_DIR}/${keyFile}`);
             if (!key) {
                 logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: '0448' });
                 process.exit(1);

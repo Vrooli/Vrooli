@@ -50,7 +50,7 @@ WORKDIR ${PROJECT_DIR}
 COPY --from=stage0 ${PROJECT_DIR} ./
 
 # Install local packages
-RUN yarn install --production
+RUN yarn install
 
 # Install global packages
 RUN yarn global add typescript ts-node nodemon prisma@4.11.0
@@ -71,9 +71,6 @@ COPY --from=stage1 /usr/local/share/.config/yarn/global /usr/local/share/.config
 # Update and install unix packages
 RUN apk update && \
     apk add --no-cache netcat-openbsd
-
-# Set non-root user
-USER node
 
 # Set port
 EXPOSE ${VIRTUAL_PORT} 9229

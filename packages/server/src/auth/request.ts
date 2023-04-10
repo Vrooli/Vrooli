@@ -10,9 +10,8 @@ import { isSafeOrigin } from '../utils';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
-
-const privateKey = fs.readFileSync('../../../../jwt_priv.pem', 'utf8');
-const publicKey = fs.readFileSync('../../../../jwt_pub.pem', 'utf8');
+const privateKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_priv.pem`, 'utf8');
+const publicKey = fs.readFileSync(`${process.env.PROJECT_DIR}/jwt_pub.pem`, 'utf8');
 
 /**
  * Parses a request's accept-language header

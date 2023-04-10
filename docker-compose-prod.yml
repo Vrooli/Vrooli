@@ -37,7 +37,7 @@ services:
   server:
     build:
       context: .
-      dockerfile: ./packages/server/Dockerfile
+      dockerfile: ./packages/server/Dockerfile-prod
       args:
         PROJECT_DIR: "${PROJECT_DIR}"
     container_name: server
