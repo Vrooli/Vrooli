@@ -33,52 +33,64 @@ const parseAcceptLanguage = (req: Request): string[] => {
  * Verifies if a user is authenticated, using an http cookie. 
  * Also populates helpful request properties, which can be used by endpoints
  * @param req The request object
- * @param _ The response object. Has to be passed in, but it's not used.
+ * @param res The response object. Has to be passed in, but it's not used.
  * @param next The next function to call.
  */
-export async function authenticate(req: Request, _: Response, next: NextFunction) {
-    const { cookies } = req;
-    // Check if request is coming from a safe origin. 
-    // This is useful for handling public API requests.
-    req.fromSafeOrigin = isSafeOrigin(req);
-    // Add user's preferred language to the request. Later on we'll 
-    // use the preferred languages set in the user's account for localization, 
-    // but this is a good fallback.
-    req.languages = parseAcceptLanguage(req);
-    // Check if a valid session cookie was supplied
-    const token = cookies[COOKIE.Jwt];
-    if (token === null || token === undefined) {
-        // If from unsafe origin, deny access.
-        let error: CustomError | undefined;
-        if (!req.fromSafeOrigin) error = new CustomError('0247', 'UnsafeOriginNoApiToken', req.languages);
-        next(error);
-        return;
-    }
-    // Verify that the session token is valid
-    jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
-        if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
+export async function authenticate(req: Request, res: Response, next: NextFunction) {
+    try {
+        const { cookies } = req;
+        // Check if request is coming from a safe origin. 
+        // This is useful for handling public API requests.
+        req.fromSafeOrigin = isSafeOrigin(req);
+        // Add user's preferred language to the request. Later on we'll 
+        // use the preferred languages set in the user's account for localization, 
+        // but this is a good fallback.
+        req.languages = parseAcceptLanguage(req);
+        // Check if a valid session cookie was supplied
+        const token = cookies[COOKIE.Jwt];
+        if (token === null || token === undefined) {
             // If from unsafe origin, deny access.
             let error: CustomError | undefined;
-            if (!req.fromSafeOrigin) error = new CustomError('0248', 'UnsafeOriginNoApiToken', req.languages);
+            if (!req.fromSafeOrigin) error = new CustomError('0247', 'UnsafeOriginNoApiToken', req.languages);
             next(error);
             return;
         }
-        // Now, set token and role variables for other middleware to use
-        req.apiToken = payload.apiToken ?? false;
-        req.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
-        req.timeZone = payload.timeZone ?? 'UTC';
-        // Users, but make sure they all have unique ids
-        req.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
-        // Find preferred languages for first user. Combine with languages in request header
-        if (req.users.length && req.users[0].languages && req.users[0].languages.length) {
-            let languages: string[] = req.users[0].languages
-            languages.push(...req.languages);
-            languages = [...new Set(languages)];
-            req.languages = languages;
-        }
-        req.validToken = true;
-        next();
-    })
+        // Verify that the session token is valid
+        jwt.verify(token, publicKey, { algorithms: ['RS256'] }, async (error: any, payload: any) => {
+            try {
+                if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
+                    // If from unsafe origin, deny access.
+                    let error: CustomError | undefined;
+                    if (!req.fromSafeOrigin) error = new CustomError('0248', 'UnsafeOriginNoApiToken', req.languages);
+                    next(error);
+                    return;
+                }
+                // Now, set token and role variables for other middleware to use
+                req.apiToken = payload.apiToken ?? false;
+                req.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
+                req.timeZone = payload.timeZone ?? 'UTC';
+                // Users, but make sure they all have unique ids
+                req.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
+                // Find preferred languages for first user. Combine with languages in request header
+                if (req.users.length && req.users[0].languages && req.users[0].languages.length) {
+                    let languages: string[] = req.users[0].languages
+                    languages.push(...req.languages);
+                    languages = [...new Set(languages)];
+                    req.languages = languages;
+                }
+                req.validToken = true;
+                next();
+            } catch (error) {
+                logger.error('Error verifying token', { trace: '0450', error });
+                // Remove the cookie
+                res.clearCookie(COOKIE.Jwt);
+                next(error);
+            }
+        })
+    } catch (error) {
+        logger.error('Error authenticating request', { trace: '0451', error });
+        next(error);
+    }
 }
 
 /**
