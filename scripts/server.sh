@@ -9,8 +9,8 @@ if [ "${NODE_ENV}" = "development" ]; then
 fi
 
 info 'Waiting for database and redis to start...'
-${PROJECT_DIR}/scripts/wait-for.sh redis:5432 -t 120 -- echo 'Database is up'
-# ${PROJECT_DIR}/scripts/wait-for.sh ${REDIS_CONN} -t 60 -- echo 'Redis is up'
+${PROJECT_DIR}/scripts/wait-for.sh db:5432 -t 120 -- echo 'Database is up'
+${PROJECT_DIR}/scripts/wait-for.sh redis:6379 -t 60 -- echo 'Redis is up'
 
 PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 
