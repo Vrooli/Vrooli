@@ -1,0 +1,44 @@
+# Stage 0: Copy required files and install dependencies
+FROM node:16-alpine as stage0
+
+# Set working directory
+ARG PROJECT_DIR
+WORKDIR ${PROJECT_DIR}
+
+# Copy main package.json, as well as packages this container will use.
+COPY --chown=node:node package.json yarn.lock ./
+COPY --chown=node:node packages/server/package.json packages/server/
+COPY --chown=node:node packages/shared/consts/package.json packages/shared/consts/
+COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
+COPY --chown=node:node packages/shared/utils/package.json packages/shared/utils/
+COPY --chown=node:node packages/shared/uuid/package.json packages/shared/uuid/
+COPY --chown=node:node packages/shared/validation/package.json packages/shared/validation/
+COPY --chown=node:node packages/shared/translations/package.json packages/shared/translations/
+
+# Install local packages
+RUN yarn install --production
+
+# Install modclean and clean node_modules
+RUN yarn global add modclean
+RUN modclean --run
+
+# Stage 1: Copy files from stage 0, copy RSA keys, and set port
+FROM node:16-alpine as stage1
+
+# Set working directory
+ARG PROJECT_DIR
+ARG VIRTUAL_PORT
+WORKDIR ${PROJECT_DIR}
+
+# Copy entire working directory contents from stage 0
+COPY --from=stage0 --chown=node:node ${PROJECT_DIR} ./
+
+# Copy required script files
+COPY --chown=node:node scripts/* scripts/
+
+# Copy RSA public and private key files
+COPY --chown=node:node jwt_pub.pem ./
+COPY --chown=node:node jwt_priv.pem ./
+
+# Set port
+EXPOSE ${VIRTUAL_PORT}

@@ -1,21 +1,21 @@
-import { GqlModelType, SessionUser } from "@shared/consts";
+import { GqlModelType } from "@shared/consts";
 import { Trigger } from "../events";
 import { getLogic } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 
 /**
  * Used in mutate.trigger.onCommon of non-root and non-version objects. 
  * Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
-export const onCommonPlain = async ({ 
-    created, 
-    deletedIds, 
-    objectType, 
+export const onCommonPlain = async ({
+    created,
+    deletedIds,
+    objectType,
     ownerOrganizationField,
     ownerUserField,
-    prisma, 
-    updated, 
-    userData 
+    prisma,
+    updated,
+    userData
 }: {
     created: { id: string }[],
     deletedIds: string[],
@@ -24,7 +24,7 @@ export const onCommonPlain = async ({
     ownerUserField?: string,
     prisma: PrismaType,
     updated: { id: string }[]
-    userData: SessionUser,
+    userData: SessionUserToken,
 }) => {
     // Find owners of created and updated items
     const ownerMap: { [key: string]: { id: string, __typename: 'User' | 'Organization' } } = {};

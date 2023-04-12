@@ -96,6 +96,13 @@ if [ "${AUTO_DETECT_VERSION}" = false ]; then
     done
 fi
 
+# Navigate to server directory
+cd ${HERE}/../packages/server
+
+# Build server
+info "Building server..."
+yarn build
+
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
 

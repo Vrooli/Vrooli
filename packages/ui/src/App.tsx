@@ -270,16 +270,21 @@ export function App() {
         };
     }, []);
 
-    const checkSession = useCallback((session?: Session) => {
-        if (session) {
-            setSession(session);
+    const checkSession = useCallback((data?: Session) => {
+        if (data) {
+            setSession(data);
             return;
         }
         // Check if previous log in exists
         mutationWrapper<Session, ValidateSessionInput>({
             mutation: validateSession,
             input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-            onSuccess: (data) => { setSession(data) },
+            onSuccess: (data) => {
+                //TODO store in local storage. validateSession will only return full data for the current user.
+                //Other logged in users will not have their full data returned (will be in shape SessionUserToken
+                //instead of SessionUser). Not sure if this is a problem yet.
+                setSession(data)
+            },
             showDefaultErrorSnack: false,
             onError: (error: any) => {
                 let isInvalidSession = false;
@@ -299,12 +304,13 @@ export function App() {
                     });
                 }
                 // If not logged in as guest and failed to log in as user, set guest session
-                if (!session) {
+                if (!data) {
                     setSession(guestSession)
                 }
             },
         })
     }, [validateSession])
+    console.log('CURRENT SESSION', session)
 
     useEffect(() => {
         checkSession();
@@ -414,7 +420,7 @@ export function App() {
             PubSub.get().unsubscribe(isLeftHandedSub);
             PubSub.get().unsubscribe(welcomeSub);
         })
-    }, [checkSession, setThemeAndMeta]);
+    }, [checkSession, setActiveFocusMode, setThemeAndMeta]);
 
     return (
         <StyledEngineProvider injectFirst>

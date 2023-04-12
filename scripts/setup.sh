@@ -113,10 +113,11 @@ cd "${HERE}/.." && yarn cache clean && yarn
 
 "${HERE}/shared.sh"
 
-# header "Combining node_modules from all packages into one"
-
 header "Generating type models for Prisma"
 cd "${HERE}/../packages/server" && yarn prisma-generate
+
+header "Generating JWT key pair for authentication"
+source "${HERE}/genJwt.sh"
 
 info "Done! You may need to restart your editor for syntax highlighting to work correctly."
 info "If you haven't already, copy .env-example to .env and edit it to match your environment."

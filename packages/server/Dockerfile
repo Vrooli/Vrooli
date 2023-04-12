@@ -32,6 +32,10 @@ COPY --chown=node:node packages/ui/public packages/ui/public
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
 
+# Copy RSA public and private key files
+COPY --chown=node:node jwt_pub.pem ./
+COPY --chown=node:node jwt_priv.pem ./
+
 # Assign working directory to node
 RUN chown -R node:node .
 
@@ -65,8 +69,8 @@ COPY --from=stage1 ${PROJECT_DIR} ./
 COPY --from=stage1 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
 
 # Update and install unix packages
-RUN apk update
-RUN apk add netcat-openbsd
+RUN apk update && \
+    apk add --no-cache netcat-openbsd
 
 # Set port
 EXPOSE ${VIRTUAL_PORT} 9229

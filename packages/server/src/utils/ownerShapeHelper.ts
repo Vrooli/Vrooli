@@ -1,7 +1,7 @@
-import { GqlModelType, SessionUser } from "@shared/consts";
+import { GqlModelType } from "@shared/consts";
 import { lowercaseFirstLetter } from "@shared/utils";
 import { shapeHelper, ShapeHelperOutput } from "../builders";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 
 type OwnerShapeHelperProps<
     FieldName extends 'ownedBy',
@@ -14,7 +14,7 @@ type OwnerShapeHelperProps<
     prisma: PrismaType;
     relation: FieldName;
     relTypes: readonly ('Connect' | 'Disconnect')[];
-    userData: SessionUser;
+    userData: SessionUserToken;
 }
 
 /**

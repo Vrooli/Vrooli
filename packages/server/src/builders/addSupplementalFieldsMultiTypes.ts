@@ -1,5 +1,4 @@
-import { SessionUser } from '@shared/consts';
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { addSupplementalFields } from "./addSupplementalFields";
 import { PartialGraphQLInfo } from "./types";
 
@@ -20,7 +19,7 @@ export const addSupplementalFieldsMultiTypes = async <
     data: TData,
     partial: TPartial,
     prisma: PrismaType,
-    userData: SessionUser | null,
+    userData: SessionUserToken | null,
 ): Promise<{ [K in keyof TData]: any[] }> => {
     // Flatten data object into an array and create an array of partials that match the data array
     const combinedData: any[] = [];

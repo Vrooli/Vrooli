@@ -1,8 +1,8 @@
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { GqlModelType } from '@shared/consts';
 import pkg from 'lodash';
 import { getLogic } from "../getters";
 import { ObjectMap } from "../models";
-import { PrismaType, SingleOrArray } from "../types";
+import { PrismaType, SessionUserToken, SingleOrArray } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
@@ -20,7 +20,7 @@ const { merge } = pkg;
  */
 export const addSupplementalFields = async (
     prisma: PrismaType,
-    userData: SessionUser | null,
+    userData: SessionUserToken | null,
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: SingleOrArray<PartialGraphQLInfo>,
 ): Promise<{ [x: string]: any }[]> => {

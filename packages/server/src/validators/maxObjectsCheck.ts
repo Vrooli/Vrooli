@@ -11,10 +11,10 @@
  * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
  * the organization's governance structure.
  */
-import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from '@shared/consts';
+import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from '@shared/consts';
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { QueryAction } from "../utils/types";
 
 /**
@@ -126,7 +126,7 @@ export async function maxObjectsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     prisma: PrismaType,
-    userData: SessionUser,
+    userData: SessionUserToken,
 ) {
     // Initialize counts. This is used to count how many objects a user or organization will have after every action is applied.
     const counts: { [key in GqlModelType]?: { [ownerId: string]: { private: number, public: number } } } = {}

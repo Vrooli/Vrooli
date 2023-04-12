@@ -1,8 +1,8 @@
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { GqlModelType } from '@shared/consts';
 import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
 
@@ -225,7 +225,7 @@ export type StandardPolicy = {
  */
 export async function getMultiTypePermissions(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
-    userData: SessionUser | null,
+    userData: SessionUserToken | null,
 ): Promise<{ [id: string]: { [x: string]: any } }> {
     // Initialize result
     const permissionsById: { [id: string]: { [key in QueryAction]?: boolean } } = {};
@@ -262,7 +262,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     type: `${GqlModelType}`,
     ids: string[],
     prisma: PrismaType,
-    userData: SessionUser | null,
+    userData: SessionUserToken | null,
 ): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
@@ -309,7 +309,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
 export async function permissionsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
-    userData: SessionUser | null,
+    userData: SessionUserToken | null,
 ) {
     // Get permissions
     const permissionsById = await getMultiTypePermissions(authDataById, userData);

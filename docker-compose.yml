@@ -45,7 +45,6 @@ services:
     restart: always
     environment:
       NODE_ENV: "development"
-      JWT_SECRET: "${JWT_SECRET}"
       PROJECT_DIR: "${PROJECT_DIR}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: "${PORT_SERVER}"

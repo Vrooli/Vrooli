@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
+import { Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou } from '@shared/consts';
 import { transferValidation } from "@shared/validation";
 import { GraphQLResolveInfo } from "graphql";
 import { ApiModel, NoteModel, OrganizationModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
@@ -8,7 +8,7 @@ import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { Notify } from "../notify";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../validators";
 import { ModelLogic } from "./types";
 
@@ -47,7 +47,7 @@ export const transfer = (prisma: PrismaType) => ({
      */
     checkTransferRequests: async (
         owners: { id: string, __typename: 'Organization' | 'User' }[],
-        userData: SessionUser,
+        userData: SessionUserToken,
     ): Promise<boolean[]> => {
         // Grab all create organization IDs
         const orgIds = owners.filter(o => o.__typename === 'Organization').map(o => o.id);
@@ -69,7 +69,7 @@ export const transfer = (prisma: PrismaType) => ({
      */
     requestSend: async (
         input: TransferRequestSendInput,
-        userData: SessionUser,
+        userData: SessionUserToken,
     ): Promise<string> => {
         // Find the object and its owner
         const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
@@ -111,7 +111,7 @@ export const transfer = (prisma: PrismaType) => ({
     requestReceive: async (
         info: GraphQLResolveInfo | PartialGraphQLInfo,
         input: TransferRequestReceiveInput,
-        userData: SessionUser,
+        userData: SessionUserToken,
     ): Promise<string> => {
         return '';//TODO
     },
@@ -120,7 +120,7 @@ export const transfer = (prisma: PrismaType) => ({
      * @param transferId The ID of the transfer request
      * @param userData The session data of the user who is cancelling the transfer request
      */
-    cancel: async (transferId: string, userData: SessionUser) => {
+    cancel: async (transferId: string, userData: SessionUserToken) => {
         // Find the transfer request
         const transfer = await prisma.transfer.findUnique({
             where: { id: transferId },
@@ -162,7 +162,7 @@ export const transfer = (prisma: PrismaType) => ({
      * @param transferId The ID of the transfer request
      * @param userData The session data of the user who is accepting the transfer request
      */
-    accept: async (transferId: string, userData: SessionUser) => {
+    accept: async (transferId: string, userData: SessionUserToken) => {
         // Find the transfer request
         const transfer = await prisma.transfer.findUnique({
             where: { id: transferId },
@@ -216,7 +216,7 @@ export const transfer = (prisma: PrismaType) => ({
      * @param userData The session data of the user who is rejecting the transfer request
      * @param reason Optional reason for rejecting the transfer request
      */
-    deny: async (transferId: string, userData: SessionUser, reason?: string) => {
+    deny: async (transferId: string, userData: SessionUserToken, reason?: string) => {
         // Find the transfer request
         const transfer = await prisma.transfer.findUnique({
             where: { id: transferId },

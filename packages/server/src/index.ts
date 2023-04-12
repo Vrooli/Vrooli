@@ -5,6 +5,7 @@ import { ApolloServer } from 'apollo-server-express';
 import cookieParser from 'cookie-parser';
 import cors from "cors";
 import express from 'express';
+import fs from 'fs';
 import { graphqlUploadExpress } from 'graphql-upload';
 import i18next from 'i18next';
 import Stripe from 'stripe';
@@ -33,11 +34,26 @@ const main = async () => {
     logger.info('Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['VITE_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
+    const requiredEnvs = ['PROJECT_DIR', 'VITE_SERVER_LOCATION', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);
             logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: '0007' });
+            process.exit(1);
+        }
+    }
+
+    // Check for JWT public/private key files
+    const requiredKeyFiles = ['jwt_priv.pem', 'jwt_pub.pem'];
+    for (const keyFile of requiredKeyFiles) {
+        try {
+            const key = fs.readFileSync(`${process.env.PROJECT_DIR}/${keyFile}`);
+            if (!key) {
+                logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: '0448' });
+                process.exit(1);
+            }
+        } catch (error) {
+            logger.error(`🚨 ${keyFile} not found. Stopping server`, { trace: '0449', error });
             process.exit(1);
         }
     }
@@ -61,7 +77,7 @@ const main = async () => {
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
     // For parsing cookies
-    app.use(cookieParser(process.env.JWT_SECRET));
+    app.use(cookieParser());
 
     // For authentication
     app.use(auth.authenticate);

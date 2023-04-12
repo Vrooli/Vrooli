@@ -40,7 +40,8 @@ import { SessionContext } from 'utils/SessionContext';
 import { shapeProfile } from 'utils/shape/models/profile';
 import { AccountMenuProps } from '../types';
 
-// Maximum accounts to sign in with
+// Maximum accounts to sign in with. 
+// Limited by cookie size (4kb)
 const MAX_ACCOUNTS = 10;
 
 export const AccountMenu = ({

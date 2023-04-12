@@ -1,9 +1,9 @@
-import { GqlModelType, SessionUser } from "@shared/consts";
+import { GqlModelType } from "@shared/consts";
 import { exists } from "@shared/utils";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { transfer } from "../models";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
@@ -57,7 +57,7 @@ export const preShapeRoot = async ({
     deleteList: string[],
     objectType: GqlModelType | `${GqlModelType}`,
     prisma: PrismaType,
-    userData: SessionUser,
+    userData: SessionUserToken,
 }): Promise<{
     versionMap: Record<string, HasCompleteVersionData>,
     triggerMap: Record<string, { hasCompleteAndPublic: boolean, wasCompleteAndPublic: boolean }>,
@@ -149,7 +149,7 @@ export const preShapeRoot = async ({
             triggerMap[id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some((v: any) => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: true, // Doesn't matter
-                hasBeenTransferred: original.hasBeenTransferred,    
+                hasBeenTransferred: original.hasBeenTransferred,
                 hasParent: exists(original.parent),
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner

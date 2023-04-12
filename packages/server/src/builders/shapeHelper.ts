@@ -1,7 +1,7 @@
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { GqlModelType } from '@shared/consts';
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";
 
@@ -157,7 +157,7 @@ export type ShapeHelperProps<
      * Session data of the user performing the operation. Relationship building is only used when performing 
      * create, update, and delete operations, so id is always required
      */
-    userData: SessionUser,
+    userData: SessionUserToken,
 }
 /**
  * Creates the relationship operations for a mutater shape create or update function

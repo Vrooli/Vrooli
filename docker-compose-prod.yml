@@ -28,23 +28,19 @@ services:
     networks:
       - proxy
       - app
-    volumes:
-      - ./packages/ui:${PROJECT_DIR}/packages/ui:z
-      - ./packages/shared:${PROJECT_DIR}/packages/shared:z
     depends_on:
       - server
     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
   server:
     build:
       context: .
-      dockerfile: ./packages/server/Dockerfile
+      dockerfile: ./packages/server/Dockerfile-prod
       args:
         PROJECT_DIR: "${PROJECT_DIR}"
     container_name: server
     restart: always
     environment:
       NODE_ENV: "production"
-      JWT_SECRET: "${JWT_SECRET}"
       PROJECT_DIR: "${PROJECT_DIR}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: ${PORT_SERVER}

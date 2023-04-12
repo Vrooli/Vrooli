@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { Count, GqlModelType, SessionUser, View, ViewFor, ViewSearchInput, ViewSortBy } from "@shared/consts";
+import { Count, GqlModelType, View, ViewFor, ViewSearchInput, ViewSortBy } from "@shared/consts";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 import { onlyValidIds, selPad } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { CustomError } from "../events";
 import { getLabels, getLogic } from "../getters";
 import { initializeRedis } from "../redisConn";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -280,7 +280,7 @@ export const ViewModel: ModelLogic<{
      * A user may view their own objects, but it does not count towards its view count.
      * @returns True if view updated correctly
      */
-    view: async (prisma: PrismaType, userData: SessionUser, input: ViewInput): Promise<boolean> => {
+    view: async (prisma: PrismaType, userData: SessionUserToken, input: ViewInput): Promise<boolean> => {
         // Get Prisma delegate for viewed object
         const { delegate } = getLogic(['delegate'], input.viewFor, userData.languages, 'ViewModel.view');
         // Check if object being viewed on exists

@@ -1,8 +1,8 @@
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { GqlModelType } from '@shared/consts';
 import { getDotNotationValue, setDotNotationValue } from "@shared/utils";
 import { ObjectMap } from "../models";
 import { SupplementalConverter } from "../models/types";
-import { PrismaType, RecursivePartial } from "../types";
+import { PrismaType, RecursivePartial, SessionUserToken } from "../types";
 import { PartialGraphQLInfo } from "./types";
 
 /**
@@ -40,7 +40,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     objectType: `${GqlModelType}`,
     partial: PartialGraphQLInfo,
     prisma: PrismaType,
-    userData: SessionUser | null,
+    userData: SessionUserToken | null,
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];
     // Get supplemental info for object

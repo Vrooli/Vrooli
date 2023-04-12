@@ -6,7 +6,7 @@ import pkg from '@prisma/client';
 import { COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LogOutInput, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@shared/consts";
 import { emailLogInFormValidation, emailRequestPasswordChangeSchema, emailSignUpFormValidation, password as passwordValidation } from '@shared/validation';
 import { gql } from 'apollo-server-express';
-import { getUser, hashPassword, logIn, setupPasswordReset, toSession, validateCode, validateVerificationCode } from '../auth';
+import { getUser, hashPassword, logIn, sessionUserTokenToUser, setupPasswordReset, toSession, toSessionUser, validateCode, validateVerificationCode } from '../auth';
 import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
 import { Award, Trigger } from '../events';
@@ -203,7 +203,7 @@ export const resolvers: {
                 const session = await logIn(input?.password as string, user, prisma, req);
                 if (session) {
                     // Set session token
-                    await generateSessionJwt(res, session);
+                    await generateSessionJwt(res, session as any);
                     return session;
                 } else {
                     throw new CustomError('0138', 'BadCredentials', req.languages);
@@ -236,13 +236,13 @@ export const resolvers: {
                         create: [{
                             name: 'Work',
                             description: 'This is an auto-generated focus mode. You can edit or delete it.',
-                            reminderList: { create: [{}] },
-                            resourceList: { create: [{}] },
+                            reminderList: { create: {} },
+                            resourceList: { create: {} },
                         }, {
                             name: 'Study',
                             description: 'This is an auto-generated focus mode. You can edit or delete it.',
-                            reminderList: { create: [{}] },
-                            resourceList: { create: [{}] },
+                            reminderList: { create: {} },
+                            resourceList: { create: {} },
                         }]
                     }
                 }
@@ -254,7 +254,7 @@ export const resolvers: {
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
-            await generateSessionJwt(res, session);
+            await generateSessionJwt(res, session as any);
             // Trigger new account
             await Trigger(prisma, req.languages).acountNew(user.id, input.email);
             // Return user data
@@ -276,7 +276,7 @@ export const resolvers: {
             const success = await setupPasswordReset(user, prisma);
             return { __typename: 'Success', success };
         },
-        emailResetPassword: async (_, { input }, { prisma, req }, info) => {
+        emailResetPassword: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ info, maxUser: 10, req });
             // Validate input format
             passwordValidation.validateSync(input.newPassword, { abortEarly: false });
@@ -307,13 +307,16 @@ export const resolvers: {
                     password: hashPassword(input.newPassword)
                 }
             })
-            // Return session
-            return await toSession(user, prisma, req);
+            // Create session from user object
+            const session = await toSession(user, prisma, req);
+            // Set up session token
+            await generateSessionJwt(res, session as any);
+            return session;
         },
         guestLogIn: async (_p, _d, { req, res }, info) => {
             await rateLimit({ info, maxUser: 500, req });
             // Create session
-            const session: Session = {
+            const session = {
                 __typename: 'Session' as const,
                 isLoggedIn: false,
                 users: []
@@ -335,10 +338,10 @@ export const resolvers: {
                 const session = {
                     __typename: 'Session' as const,
                     isLoggedIn: true,
-                    users: req.users.filter(u => u.id !== input.id)
+                    users: req.users.filter(u => u.id !== input.id).map(sessionUserTokenToUser)
                 };
                 await generateSessionJwt(res, session);
-                return session;
+                return session as any;
             }
         },
         validateSession: async (_, { input }, { prisma, req, res }, info) => {
@@ -369,17 +372,18 @@ export const resolvers: {
             res.clearCookie(COOKIE.Jwt);
             throw new CustomError('0148', 'NotVerified', req.languages);
         },
-        switchCurrentAccount: async (_, { input }, { req, res }) => {
+        switchCurrentAccount: async (_, { input }, { prisma, req, res }) => {
             // Find index of user in session
             const index = req.users?.findIndex(u => u.id === input.id) ?? -1;
             // If user not found, throw error
             if (!req.users || index === -1) throw new CustomError('0272', 'NoUser', req.languages);
             // Filter out user from session, then place at front
-            const users = req.users.filter(u => u.id !== input.id) ?? [];
-            const session = { isLoggedIn: true, users: [req.users[index], ...users] };
+            const otherUsers = (req.users.filter(u => u.id !== input.id) ?? []).map(sessionUserTokenToUser);
+            const currentUser = await toSessionUser(req.users[index], prisma, req);
+            const session = { isLoggedIn: true, users: [currentUser, ...otherUsers] };
             // Set up session token
             await generateSessionJwt(res, session);
-            return session;
+            return session as any;
         },
         /**
          * Starts handshake for establishing trust between backend and user wallet
@@ -477,13 +481,13 @@ export const resolvers: {
                             create: [{
                                 name: 'Work',
                                 description: 'This is an auto-generated focus mode. You can edit or delete it.',
-                                reminderList: { create: [{}] },
-                                resourceList: { create: [{}] },
+                                reminderList: { create: {} },
+                                resourceList: { create: {} },
                             }, {
                                 name: 'Study',
                                 description: 'This is an auto-generated focus mode. You can edit or delete it.',
-                                reminderList: { create: [{}] },
-                                resourceList: { create: [{}] },
+                                reminderList: { create: {} },
+                                resourceList: { create: {} },
                             }]
                         }
                     },
@@ -533,7 +537,7 @@ export const resolvers: {
             // Create session token
             const session = await toSession({ id: userId as string }, prisma, req)
             // Add session token to return payload
-            await generateSessionJwt(res, session);
+            await generateSessionJwt(res, session as any);
             return {
                 firstLogIn,
                 session,
