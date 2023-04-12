@@ -1,11 +1,11 @@
-import { COOKIE, Session, SessionUser } from '@shared/consts';
+import { COOKIE } from '@shared/consts';
 import { uuidValidate } from '@shared/uuid';
 import { NextFunction, Request, Response } from 'express';
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import { CustomError } from '../events/error';
 import { logger } from '../events/logger';
-import { RecursivePartial } from '../types';
+import { ApiToken, BasicToken, RecursivePartial, SessionToken, SessionUserToken } from '../types';
 import { isSafeOrigin } from '../utils';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
@@ -68,7 +68,7 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         req.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
         req.timeZone = payload.timeZone ?? 'UTC';
         // Users, but make sure they all have unique ids
-        req.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
+        req.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
         // Find preferred languages for first user. Combine with languages in request header
         if (req.users.length && req.users[0].languages && req.users[0].languages.length) {
             let languages: string[] = req.users[0].languages
@@ -80,21 +80,6 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         next();
     })
 }
-
-interface BasicToken {
-    iat: number;
-    iss: string;
-    exp: number;
-}
-interface SessionToken extends BasicToken {
-    isLoggedIn: boolean;
-    timeZone?: string;
-    // Supports logging in with multiple accounts
-    users: SessionUser[];
-}
-interface ApiToken extends BasicToken {
-    apiToken: string;
-};
 
 /**
  * Generates the minimum data required for a session token
@@ -112,13 +97,29 @@ const basicToken = (): BasicToken => ({
  * @param session 
  * @returns 
  */
-export async function generateSessionJwt(res: Response, session: RecursivePartial<Session>): Promise<void> {
+export async function generateSessionJwt(
+    res: Response,
+    session: RecursivePartial<Pick<Request, 'isLoggedIn' | 'languages' | 'timeZone' | 'users'>>
+): Promise<void> {
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,
         timeZone: session.timeZone ?? undefined,
         // Make sure users are unique by id
-        users: [...new Map((session.users ?? []).map((user: SessionUser) => [user.id, user])).values()],
+        users: [...new Map((session.users ?? []).map((user) => [user.id, {
+            id: user.id,
+            activeFocusMode: user.activeFocusMode ? {
+                mode: {
+                    id: user.activeFocusMode.mode?.id,
+                },
+                stopCondition: user.activeFocusMode.stopCondition,
+                stopTime: user.activeFocusMode.stopTime,
+            } : undefined,
+            handle: user.handle,
+            hasPremium: user.hasPremium ?? false,
+            languages: user.languages ?? [],
+            name: user.name ?? undefined,
+        }])).values()]
     }
     const token = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
     res.cookie(COOKIE.Jwt, token, {
@@ -182,7 +183,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
  * Updates one or more user properties in the session token.
  * Does not extend the max age of the token.
  */
-export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUser>): Promise<undefined> {
+export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUserToken>): Promise<undefined> {
     const { cookies } = req;
     const token = cookies[COOKIE.Jwt];
     if (token === null || token === undefined) {
@@ -196,7 +197,21 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         }
         const tokenContents: SessionToken = {
             ...payload,
-            users: payload.users?.length > 0 ? [{ ...payload.users[0], ...user }, ...payload.users.slice(1)] : [],
+            users: payload.users?.length > 0 ? [{
+                ...payload.users[0], ...{
+                    activeFocusMode: user.activeFocusMode ? {
+                        mode: {
+                            id: user.activeFocusMode.mode?.id,
+                        },
+                        stopCondition: user.activeFocusMode.stopCondition,
+                        stopTime: user.activeFocusMode.stopTime,
+                    } : undefined,
+                    handle: user.handle,
+                    hasPremium: user.hasPremium ?? false,
+                    languages: user.languages ?? [],
+                    name: user.name ?? undefined,
+                }
+            }, ...payload.users.slice(1)] : [],
         }
         const newToken = jwt.sign(tokenContents, privateKey, { algorithm: 'RS256' });
         res.cookie(COOKIE.Jwt, newToken, {
@@ -222,7 +237,7 @@ export async function requireLoggedIn(req: Request, _: any, next: any) {
  * @param req Request object
  * @returns First userId in Session object, or null if not found/invalid
  */
-export const getUser = (req: { users?: Request['users'] }): SessionUser | null => {
+export const getUser = (req: { users?: Request['users'] }): SessionUserToken | null => {
     if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
     const user = req.users[0];
     return typeof user.id === 'string' && uuidValidate(user.id) ? user : null;
@@ -245,7 +260,7 @@ export type RequestConditions = {
     isOfficialUser?: boolean;
 }
 
-type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } ? SessionUser : undefined;
+type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } ? SessionUserToken : undefined;
 
 /**
  * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate

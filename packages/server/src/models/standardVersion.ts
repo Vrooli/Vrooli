@@ -1,10 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { MaxObjects, SessionUser, StandardCreateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, VersionYou } from '@shared/consts';
+import { MaxObjects, StandardCreateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, VersionYou } from '@shared/consts';
 import { standardVersionValidation } from "@shared/validation";
 import { randomString } from "../auth/wallet";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { bestLabel, defaultPermissions, postShapeVersion, translationShapeHelper } from "../utils";
 import { sortify } from "../utils/objectTools";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -40,7 +40,7 @@ const querier = () => ({
     async findMatchingStandardVersion(
         prisma: PrismaType,
         data: StandardCreateInput,
-        userData: SessionUser,
+        userData: SessionUserToken,
         uniqueToCreator: boolean,
         isInternal: boolean
     ): Promise<{ [x: string]: any } | null> {

@@ -1,7 +1,7 @@
-import { GqlModelType, SessionUser } from "@shared/consts";
+import { GqlModelType } from "@shared/consts";
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 
 type VersionsCheckProps = {
     prisma: PrismaType,
@@ -17,7 +17,7 @@ type VersionsCheckProps = {
         data: { versionLabel?: string | null | undefined },
     }[],
     deleteList: string[],
-    userData: SessionUser,
+    userData: SessionUserToken,
 }
 
 const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);

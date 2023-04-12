@@ -1,7 +1,7 @@
-import { GqlModelType, SessionUser } from "@shared/consts";
+import { GqlModelType } from "@shared/consts";
 import { calculateVersionsFromString } from "@shared/validation";
 import { getLogic } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 
 /**
  * Used in mutate.shape.post of version objects. Updates  
@@ -14,7 +14,7 @@ export const postShapeVersion = async ({ created, deletedIds, objectType, prisma
     objectType: GqlModelType | `${GqlModelType}`,
     prisma: PrismaType,
     updated: { id: string }[]
-    userData: SessionUser,
+    userData: SessionUserToken,
 }) => {
     // Get prisma delegate for root object
     const { delegate } = getLogic(

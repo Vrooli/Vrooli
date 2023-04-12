@@ -1,7 +1,7 @@
-import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, SessionUser, VisibilityType } from '@shared/consts';
+import { CopyInput, Count, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from '@shared/consts';
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { PrismaType, RecursivePartial } from "../types";
+import { PrismaType, RecursivePartial, SessionUserToken } from "../types";
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
@@ -26,11 +26,11 @@ export interface CUDHelperInput {
     objectType: `${GqlModelType}`,
     partialInfo: PartialGraphQLInfo,
     prisma: PrismaType,
-    updateMany?: { 
+    updateMany?: {
         where: { [x: string]: any },
         data: { [x: string]: any },
     }[] | null | undefined,
-    userData: SessionUser,
+    userData: SessionUserToken,
 }
 
 export interface CUDResult<GraphQLObject extends { [x: string]: any }> {
@@ -75,7 +75,7 @@ export type ReadManyHelperProps<
     input: Input;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: { languages: string[], users?: SessionUser[] };
+    req: { languages: string[], users?: SessionUserToken[] };
 }
 
 type FindUniqueInput = {
@@ -89,7 +89,7 @@ export type ReadOneHelperProps = {
     input: FindUniqueInput;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
-    req: { languages: string[], users?: SessionUser[] };
+    req: { languages: string[], users?: SessionUserToken[] };
 }
 
 export type RelBuilderHelperProps<
@@ -107,7 +107,7 @@ export type RelBuilderHelperProps<
     objectType: `${GqlModelType}`,
     prisma: PrismaType,
     relationshipName: RelName,
-    userData: SessionUser,
+    userData: SessionUserToken,
 }
 
 export type UpdateHelperProps = {

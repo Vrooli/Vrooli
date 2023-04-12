@@ -1,7 +1,7 @@
-import { GqlModelType, SessionUser } from "@shared/consts";
+import { GqlModelType } from "@shared/consts";
 import { Trigger } from "../events";
 import { TransferModel } from "../models";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 
 /**
  * Used in mutate.trigger.onCommon of version objects. Has two purposes:
@@ -16,7 +16,7 @@ export const onCommonRoot = async ({ created, deletedIds, objectType, preMap, pr
     preMap: { [key in GqlModelType]?: any },
     prisma: PrismaType,
     updated: { id: string }[]
-    userData: SessionUser,
+    userData: SessionUserToken,
 }) => {
     // Loop through created items
     for (let i = 0; i < created.length; i++) {

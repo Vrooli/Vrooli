@@ -97,7 +97,7 @@ export const endpoints = {
         const { email: emailPartial } = await import('./partial/email');
         const { success: successPartial } = await import('./partial/success');
         return {
-            create: toMutation('emailCreate', 'PhoneCreateInput', emailPartial, 'full'),
+            create: toMutation('emailCreate', 'EmailCreateInput', emailPartial, 'full'),
             verify: toMutation('sendVerificationEmail', 'SendVerificationEmailInput', successPartial, 'full'),
         }
     },

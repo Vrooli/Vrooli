@@ -1,10 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { MaxObjects, SessionUser, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardYou } from "@shared/consts";
+import { MaxObjects, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardYou } from "@shared/consts";
 import { standardValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../validators";
@@ -191,7 +191,7 @@ export const StandardModel: ModelLogic<{
         async findMatchingStandardVersion(
             prisma: PrismaType,
             data: StandardCreateInput,
-            userData: SessionUser,
+            userData: SessionUserToken,
             uniqueToCreator: boolean,
             isInternal: boolean
         ): Promise<{ [x: string]: any } | null> {

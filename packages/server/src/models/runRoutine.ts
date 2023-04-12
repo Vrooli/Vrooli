@@ -1,10 +1,10 @@
 import { Prisma, RunStatus, run_routine } from "@prisma/client";
-import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, RunRoutineYou, SessionUser } from '@shared/consts';
+import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineCreateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineUpdateInput, RunRoutineYou } from '@shared/consts';
 import { runRoutineValidation } from "@shared/validation";
 import { addSupplementalFields, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { CustomError, Trigger } from "../events";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { defaultPermissions, oneIsPublic } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
@@ -169,7 +169,7 @@ export const RunRoutineModel: ModelLogic<{
          * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
          * will just be looking at the routine instead of using it.
          */
-        async complete(prisma: PrismaType, userData: SessionUser, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
+        async complete(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
             const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
             let run: run_routine | null;
@@ -262,7 +262,7 @@ export const RunRoutineModel: ModelLogic<{
         /**
          * Cancels a run
          */
-        async cancel(prisma: PrismaType, userData: SessionUser, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
+        async cancel(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
             const partial = toPartialGqlInfo(info, RunRoutineModel.format.gqlRelMap, userData.languages, true);
             // Find in database

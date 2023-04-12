@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects, SessionUser } from "@shared/consts";
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, CommentUpdateInput, CommentYou, MaxObjects } from "@shared/consts";
 import { lowercaseFirstLetter } from "@shared/utils";
 import { commentValidation } from "@shared/validation";
 import { Request } from "express";
@@ -7,7 +7,7 @@ import { getUser } from "../auth";
 import { addSupplementalFields, combineQueries, modelToGql, selectHelper, toPartialGqlInfo } from "../builders";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { getSingleTypePermissions } from "../validators";
@@ -131,7 +131,7 @@ export const CommentModel: ModelLogic<{
          */
         async searchThreads(
             prisma: PrismaType,
-            userData: SessionUser | null,
+            userData: SessionUserToken | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
             info: GraphQLInfo | PartialGraphQLInfo,
             nestLimit: number = 2,

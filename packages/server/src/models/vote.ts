@@ -1,12 +1,12 @@
-import { CustomError, Trigger } from "../events";
-import { SessionUser, Vote, VoteFor, VoteInput, VoteSearchInput, VoteSortBy } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
-import { ApiModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
-import { SelectWrap } from "../builders/types";
-import { onlyValidIds, selPad } from "../builders";
 import { Prisma } from "@prisma/client";
+import { Vote, VoteFor, VoteInput, VoteSearchInput, VoteSortBy } from '@shared/consts';
 import { exists } from "@shared/utils";
+import { ApiModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
+import { onlyValidIds, selPad } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { CustomError, Trigger } from "../events";
+import { PrismaType, SessionUserToken } from "../types";
+import { ModelLogic } from "./types";
 
 const forMapper: { [key in VoteFor]: string } = {
     Api: 'api',
@@ -142,7 +142,7 @@ export const VoteModel: ModelLogic<{
      * A user may vote on their own project/routine/etc.
      * @returns True if cast correctly (even if skipped because of duplicate)
      */
-    vote: async (prisma: PrismaType, userData: SessionUser, input: VoteInput): Promise<boolean> => {
+    vote: async (prisma: PrismaType, userData: SessionUserToken, input: VoteInput): Promise<boolean> => {
         // Define prisma type for voted-on object
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
         // Check if object being voted on exists

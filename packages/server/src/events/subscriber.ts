@@ -1,8 +1,8 @@
+import { SubscribableObject } from '@shared/consts';
 import { getLogic } from "../getters";
-import { SessionUser, SubscribableObject } from '@shared/consts';
-import { PrismaType } from "../types";
-import { CustomError } from "./error";
 import { subscribableMapper } from "../models";
+import { PrismaType, SessionUserToken } from "../types";
+import { CustomError } from "./error";
 
 /**
  * Handles notifying users of new activity on object they're subscribed to. 
@@ -24,7 +24,7 @@ export const Subscriber = (prisma: PrismaType) => ({
      */
     subscribe: async (
         object: { __typename: SubscribableObject, id: string },
-        userData: SessionUser,
+        userData: SessionUserToken,
         silent?: boolean
     ) => {
         // Find the object and its owner
@@ -54,7 +54,7 @@ export const Subscriber = (prisma: PrismaType) => ({
      */
     unsubscribe: async (
         subscriptionId: string,
-        userData: SessionUser
+        userData: SessionUserToken
     ) => {
         // Find the subscription
         const subscription = await prisma.notification_subscription.findUnique({
@@ -81,7 +81,7 @@ export const Subscriber = (prisma: PrismaType) => ({
      */
     update: async (
         subscriptionId: string,
-        userData: SessionUser,
+        userData: SessionUserToken,
         silent: boolean
     ) => {
         // Find the subscription

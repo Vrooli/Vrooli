@@ -1,9 +1,9 @@
 import { Request } from "express";
 import { GraphQLResolveInfo } from "graphql";
-import { initializeRedis } from "../redisConn";
+import { getUser } from "../auth";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
-import { getUser } from "../auth";
+import { initializeRedis } from "../redisConn";
 
 /**
  * Applies a rate limit check to a key in redis. 
@@ -15,7 +15,6 @@ import { getUser } from "../auth";
  * @param languages Languages preferred to display error message
  */
 export async function checkRateLimit(client: any, key: string, max: number, window: number, languages: string[]) {
-    // If 
     // Increment and get the current count.
     const count = await client.incr(key);
     // If limit reached, throw error.

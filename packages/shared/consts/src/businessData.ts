@@ -13,4 +13,4 @@ export const SOCIALS = {
     Twitter: 'https://twitter.com/VrooliOfficial'
 }
 export const APP_URL = 'https://vrooli.com';
-export const WHITE_PAPER_URL = 'https://docs.google.com/document/d/13Nag4UFxfuz-rVofhNEtqhZ63wOklzPjpbanGv_Po0Y/edit?usp=sharing';
+export const WHITE_PAPER_URL = 'https://docs.google.com/document/d/1XaawTSq87ui5NB_t2rpMbobInj73apOKRrUWmJkDDmw/edit?usp=sharing';

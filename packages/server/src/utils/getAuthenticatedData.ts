@@ -1,7 +1,7 @@
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { GqlModelType } from '@shared/consts';
 import { permissionsSelectHelper } from "../builders";
 import { getLogic } from "../getters";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 
 /**
  * Given the IDs of every object which needs to be authenticated, queries for all data required to perform authentication.
@@ -9,7 +9,7 @@ import { PrismaType } from "../types";
 export const getAuthenticatedData = async (
     idsByType: { [key in GqlModelType]?: string[] },
     prisma: PrismaType,
-    userData: SessionUser | null,
+    userData: SessionUserToken | null,
 ): Promise<{ [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } }> => {
     // Initialize the return object
     const authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } } = {};

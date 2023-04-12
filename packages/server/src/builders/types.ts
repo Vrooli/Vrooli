@@ -1,6 +1,6 @@
+import { GqlModelType, PageInfo, TimeFrame, VisibilityType } from '@shared/consts';
 import { GraphQLResolveInfo } from "graphql";
-import { GqlModelType, PageInfo, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
-import { SingleOrArray } from "../types";
+import { SessionUserToken, SingleOrArray } from "../types";
 
 /**
  * Recursively pads object with "select" fields
@@ -230,6 +230,6 @@ export type BuiltRelationship<
 
 export type VisibilityBuilderProps = {
     objectType: `${GqlModelType}`,
-    userData: SessionUser | null | undefined,
+    userData: SessionUserToken | null | undefined,
     visibility?: VisibilityType | null | undefined,
 }

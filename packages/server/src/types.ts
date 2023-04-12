@@ -1,7 +1,32 @@
 import pkg from '@prisma/client';
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { FocusModeStopCondition, GqlModelType, SessionUser } from '@shared/consts';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from './middleware';
+
+export interface BasicToken {
+    iat: number;
+    iss: string;
+    exp: number;
+}
+export interface ApiToken extends BasicToken {
+    apiToken: string;
+};
+
+// Tokens store more limited data than the session object returned by the API. 
+// This is because the maximum size of a cookie is 4kb
+export interface SessionToken extends BasicToken {
+    isLoggedIn: boolean;
+    timeZone?: string;
+    // Supports logging in with multiple accounts
+    users: SessionUserToken[];
+}
+export type SessionUserToken = Pick<SessionUser, 'id' | 'handle' | 'hasPremium' | 'languages' | 'name'> & {
+    activeFocusMode?: {
+        mode: { id: string; },
+        stopCondition: FocusModeStopCondition,
+        stopTime?: Date | null,
+    } | null;
+}
 
 // Request type
 declare global {
@@ -31,7 +56,7 @@ declare global {
             /**
              * Users logged in with this session (if isLoggedIn is true)
              */
-            users?: SessionUser[];
+            users?: SessionUserToken[];
             validToken?: boolean;
         }
     }

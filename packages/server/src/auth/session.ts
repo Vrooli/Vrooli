@@ -2,7 +2,7 @@ import { Session, SessionUser } from '@shared/consts';
 import { getActiveFocusMode } from '@shared/utils';
 import { Request } from "express";
 import { CustomError, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { getUser } from './request';
 
 export const focusModeSelect = (startDate: Date, endDate: Date) => ({
@@ -184,7 +184,15 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         }
     })
     // Find active focus mode
-    const activeFocusMode = getActiveFocusMode(getUser(req)?.activeFocusMode, (userData.focusModes as any) ?? []);
+    const currentActiveFocusMode = getUser(req)?.activeFocusMode;
+    const currentModeData = (userData.focusModes as any).find((fm: any) => fm.id === currentActiveFocusMode?.mode?.id);
+    const activeFocusMode = getActiveFocusMode(
+        currentModeData ? {
+            ...currentActiveFocusMode,
+            mode: currentModeData,
+        } as any : undefined,
+        (userData.focusModes as any) ?? []
+    );
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
     let languages: string[] = userData.languages.map((l) => l.language).filter(Boolean) as string[];
@@ -218,6 +226,44 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
 }
 
 /**
+ * Converts SessionUserToken object o SessionUser object, 
+ * by adding dummy fields. Useful for avoiding type errors
+ * @param user SessionUserToken object
+ * @returns SessionUser object
+ */
+export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => ({
+    __typename: 'SessionUser' as const,
+    apisCount: 0,
+    bookmarkLists: [],
+    focusModes: [],
+    membershipsCount: 0,
+    notesCount: 0,
+    projectsCount: 0,
+    questionsAskedCount: 0,
+    routinesCount: 0,
+    smartContractsCount: 0,
+    standardsCount: 0,
+    ...user,
+    activeFocusMode: user.activeFocusMode ? {
+        __typename: 'ActiveFocusMode' as const,
+        ...user.activeFocusMode,
+        mode: {
+            __typename: 'FocusMode' as const,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            name: '',
+            description: undefined,
+            filters: [],
+            labels: [],
+            reminderList: undefined,
+            resourceList: undefined,
+            schedule: undefined,
+            ...user.activeFocusMode.mode,
+        }
+    } : undefined,
+})
+
+/**
  * Creates session object from user and existing session data
  * @param user User object
  * @param prisma 
@@ -230,6 +276,6 @@ export const toSession = async (user: { id: string }, prisma: PrismaType, req: P
         __typename: 'Session' as const,
         isLoggedIn: true,
         // Make sure users are unique by id
-        users: [sessionUser, ...(req.users ?? []).filter((u: SessionUser) => u.id !== sessionUser.id)],
+        users: [sessionUser, ...(req.users ?? []).filter((u: SessionUserToken) => u.id !== sessionUser.id).map(sessionUserTokenToUser)],
     }
 }
