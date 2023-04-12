@@ -3,7 +3,8 @@
 # Prepares project for deployment to VPS:
 # 1. Asks for version number, and updates all package.json files accordingly.
 # 2. Builds the React app, making sure to include environment variables and post-build commands.
-# 3. Copies the build to the VPS, under a temporary directory.
+# 3. Builds all Docker containers, making sure to include environment variables and post-build commands.
+# 3. Copies the tarballs for the React app and Docker containers to the VPS.
 #
 # Arguments (all optional):
 # -v: Version number to use (e.g. "1.0.0")
@@ -179,32 +180,64 @@ else
     cd ../..
 fi
 
-# Copy build to VPS
-if [ -z "$DEPLOY" ]; then
-    prompt "Build successful! Would you like to send the build to the production server? (y/N)"
-    read -r DEPLOY
-fi
-
 # Compress build
 info "Compressing build..."
-tar -czf build.tar.gz dist
+tar -czf ${HERE}/../build.tar.gz dist
 trap "rm build.tar.gz" EXIT
 if [ $? -ne 0 ]; then
     error "Failed to compress build"
     exit 1
 fi
 
+# Build Docker images
+cd ${HERE}/..
+info "Building (and Pulling) Docker images..."
+docker-compose --env-file .env -f docker-compose-prod.yml build
+docker pull postgres:13-alpine
+docker pull redis:7-alpine
+
+# Save and compress Docker images
+info "Saving Docker images..."
+docker save -o production-docker-images.tar ui:prod server:prod postgres:13-alpine redis:7-alpine
+if [ $? -ne 0 ]; then
+    error "Failed to save Docker images"
+    exit 1
+fi
+trap "rm production-docker-images.tar*" EXIT
+info "Compressing Docker images..."
+gzip -f production-docker-images.tar
+if [ $? -ne 0 ]; then
+    error "Failed to compress Docker images"
+    exit 1
+fi
+
+# Copy build to VPS
+if [ -z "$DEPLOY" ]; then
+    prompt "Build successful! Would you like to send the build to the production server? (y/N)"
+    read -r DEPLOY
+fi
+
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
     source "${HERE}/keylessSsh.sh"
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
-    prompt "Going to copy build to ${BUILD_DIR}. Press any key to continue..."
+    prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -r
     rsync -r build.tar.gz root@${BUILD_DIR}
     if [ $? -ne 0 ]; then
-        error "Failed to copy build to ${BUILD_DIR}"
+        error "Failed to copy build.tar.gz to ${BUILD_DIR}"
         exit 1
     fi
-    success "build.tar.gz copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
+    rsync -r production-docker-images.tar.gz root@${BUILD_DIR}
+    if [ $? -ne 0 ]; then
+        error "Failed to copy production-docker-images.tar.gz to ${BUILD_DIR}"
+        exit 1
+    fi
+    rsync -r .env-prod root@${BUILD_DIR}
+    if [ $? -ne 0 ]; then
+        error "Failed to copy .env-prod to ${BUILD_DIR}"
+        exit 1
+    fi
+    success "Files copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
 else
     BUILD_DIR="/var/tmp/${VERSION}"
     info "Copying build locally to ${BUILD_DIR}."
@@ -212,8 +245,15 @@ else
     mkdir -p "${BUILD_DIR}"
     cp -p build.tar.gz ${BUILD_DIR}
     if [ $? -ne 0 ]; then
-        error "Failed to copy build to ${BUILD_DIR}"
+        error "Failed to copy build.tar.gz to ${BUILD_DIR}"
         exit 1
     fi
-    success "build.tar.gz copied to ${BUILD_DIR}!"
+    cp -p production-docker-images.tar.gz ${BUILD_DIR}
+    if [ $? -ne 0 ]; then
+        error "Failed to copy production-docker-images.tar.gz to ${BUILD_DIR}"
+        exit 1
+    fi
+    # If building locally, use .env and rename it to .env-prod
+    cp -p .env ${BUILD_DIR}/.env-prod
+    success "Files copied to ${BUILD_DIR}!"
 fi
