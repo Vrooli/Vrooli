@@ -34,4 +34,4 @@
             * [pages](./packages/ui/src/pages) - Website pages
             * [utils](./packages/ui/src/utils) - Miscellaneous utility functions
         * [package.json](./packages/ui/package.json) - Dependencies and useful scripts
-* [.env-example](./.env-example) - Environment variables. Rename to `.env` before starting
+* [.env-example](./.env-example) - Environment variables

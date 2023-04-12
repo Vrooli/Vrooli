@@ -8,6 +8,7 @@ services:
       args:
         PROJECT_DIR: "${PROJECT_DIR}"
     container_name: ui
+    image: ui:dev
     restart: always
     environment:
       NODE_ENV: "development"
@@ -42,6 +43,7 @@ services:
       args:
         PROJECT_DIR: "${PROJECT_DIR}"
     container_name: server
+    image: server:dev
     restart: always
     environment:
       NODE_ENV: "development"

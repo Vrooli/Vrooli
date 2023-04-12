@@ -8,6 +8,7 @@ services:
       args:
         PROJECT_DIR: "${PROJECT_DIR}"
     container_name: ui
+    image: ui:prod
     restart: always
     environment:
       NODE_ENV: "production"
@@ -38,6 +39,7 @@ services:
       args:
         PROJECT_DIR: "${PROJECT_DIR}"
     container_name: server
+    image: server:prod
     restart: always
     environment:
       NODE_ENV: "production"

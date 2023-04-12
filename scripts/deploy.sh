@@ -126,9 +126,22 @@ else
     exit 1
 fi
 
+# Transfer and load Docker images
+if [ -f "${BUILD_ZIP}/production-docker-images.tar.gz" ]; then
+    info "Loading Docker images from ${BUILD_ZIP}/production-docker-images.tar.gz"
+    docker load -i "${BUILD_ZIP}/production-docker-images.tar.gz"
+    if [ $? -ne 0 ]; then
+        error "Failed to load Docker images from ${BUILD_ZIP}/production-docker-images.tar.gz"
+        exit 1
+    fi
+else
+    error "Could not find Docker images archive at ${BUILD_ZIP}/production-docker-images.tar.gz"
+    exit 1
+fi
+
 # Stop docker containers
 info "Stopping docker containers..."
-docker-compose down
+docker-compose --env-file ${BUILD_ZIP}/.env-prod down
 
 # Pull the latest changes from the repository.
 info "Pulling latest changes from repository..."
@@ -158,7 +171,7 @@ fi
 
 # Restart docker containers.
 info "Restarting docker containers..."
-docker-compose -f ${HERE}/../docker-compose-prod.yml up --build -d
+docker-compose --env-file ${BUILD_ZIP}/.env-prod -f ${HERE}/../docker-compose-prod.yml up -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
 info "Now that you've deployed, here are some next steps:"

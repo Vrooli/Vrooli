@@ -55,6 +55,17 @@ else
     # TODO - Not working for some reason
     # info "Select option 2 (Internet Site) then enter \"http://mirrors.kernel.org/ubuntu\" when prompted."
     #sudo apt-get install -y mailutils
+    # While we're here, also check if .env and .env-prod exist. If not, create them using .env-example.
+    if [ ! -f "${HERE}/../.env" ]; then
+        header "Creating .env file"
+        cp "${HERE}/../.env-example" "${HERE}/../.env"
+        warning "Please update the .env file with your own values."
+    fi
+    if [ ! -f "${HERE}/../.env-prod" ]; then
+        header "Creating .env-prod file"
+        cp "${HERE}/../.env-example" "${HERE}/../.env-prod"
+        warning "Please update the .env-prod file with your own values."
+    fi
 fi
 
 header "Installing nvm"
