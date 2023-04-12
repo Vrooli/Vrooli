@@ -134,6 +134,10 @@ docker-compose down
 info "Pulling latest changes from repository..."
 git fetch
 git pull
+if [ $? -ne 0 ]; then
+    error "Could not pull latest changes from repository. You likely have uncommitted changes."
+    exit 1
+fi
 
 # Running setup.sh
 info "Running setup.sh..."
