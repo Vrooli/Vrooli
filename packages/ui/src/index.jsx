@@ -7,6 +7,7 @@ import { App } from './App';
 import './i18n'; // Must import for translations to work
 import reportWebVitals from './reportWebVitals';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import { PubSub } from './utils/pubsub';
 
 const client = initializeApollo();
 
@@ -25,14 +26,34 @@ root.render(
 // unregister() to register() below. Note this comes with some pitfalls.
 // Learn more about service workers: https://cra.link/PWA
 serviceWorkerRegistration.register({
-    onUpdate: registration => {
-        alert('New version available! The site will now update.');
+    onUpdate: (registration) => {
         if (registration && registration.waiting) {
             registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            window.location.reload();
         }
-        window.location.reload();
-    }
+    },
 });
+
+// Listen for service worker state changes
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        console.log('SERVICE WORKER MESSAGE', event)
+        if (event.data && event.data.type === 'SW_UPDATE_START') {
+            console.log('SW_UPDATE_START', event)
+            // Display a notification when the service worker starts updating
+            PubSub.get().publishSnack({ message: 'Downloading new updates...' });
+        }
+    });
+
+    navigator.serviceWorker.ready.then((registration) => {
+        registration.installing?.addEventListener('statechange', (event) => {
+            if (event.target.state === 'activated') {
+                alert('New version available! The site will now update.');
+            }
+        });
+    });
+}
+
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

@@ -17,7 +17,7 @@ const { registerRoute } = (workbox.routing);
 const { CacheFirst } = (workbox.strategies);
 
 const CACHE_NAME = 'vrooli-cache';
-const CURRENT_CACHE_VERSION = '2023-04-12'; // Change this value to force a cache update
+const CURRENT_CACHE_VERSION = '2023-04-13.e'; // Change this value to force a cache update
 
 clientsClaim();
 
@@ -87,6 +87,15 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('install', (event) => {
+    console.log('Service worker installing...', event);
+    // Send a message to the main application, so we can show a snack 
+    // message warning the user that the application is being updated
+    self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+            console.log('service worker sending message to client', client)
+            client.postMessage({ type: 'SW_UPDATE_START' });
+        });
+    });
     event.waitUntil(self.skipWaiting());
 });
 

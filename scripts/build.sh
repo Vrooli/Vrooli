@@ -66,6 +66,7 @@ check_var SERVER_LOCATION
 check_var PORT_SERVER
 check_var SERVER_URL
 check_var SITE_IP
+check_var VAPID_PUBLIC_KEY
 
 # Ask for version number, if not supplied in arguments
 AUTO_DETECT_VERSION=false
@@ -114,8 +115,9 @@ echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>.env
 echo "VITE_PORT_SERVER=${PORT_SERVER}" >>.env
 echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
 echo "VITE_SITE_IP=${SITE_IP}" >>.env
+echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
 # Set trap to remove .env file on exit
-trap "rm .env" EXIT
+trap "rm ${HERE}/../packages/ui/.env" EXIT
 
 # Generate query/mutation selectors
 if [ -z "$GRAPHQL_GENERATE" ]; then

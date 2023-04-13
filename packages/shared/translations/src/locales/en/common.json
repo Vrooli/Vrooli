@@ -375,6 +375,7 @@
     "Proposal": "Proposal",
     "PullRequestsAsc": "Pull Requests ↑",
     "PullRequestsDesc": "Pull Requests ↓",
+    "PushDeviceCreated": "Push device created",
     "PushNotification_one": "Push Notification",
     "PushNotification_other": "Push Notifications",
     "PushNotificationToggleDescription": "Toggle all push notifications on or off.",

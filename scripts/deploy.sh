@@ -73,7 +73,13 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
             if [ -d "${NGINX_LOCATION}" ]; then
                 break
             else
-                error "Not found at that location. Type location again, or enter nothing to clone"
+                error "Not found at that location."
+                prompt "Do you want to try again? Say no to clone and set up proxy containers (yes/no):"
+                read -r TRY_AGAIN
+                if [[ "$TRY_AGAIN" =~ ^(no|n)$ ]]; then
+                    info "Proceeding with cloning..."
+                    break
+                fi
             fi
         done
     fi
@@ -82,12 +88,14 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
     if [ ! -d "${NGINX_LOCATION}" ]; then
         info "NginxSSLReverseProxy not installed. Cloning and setting up..."
         git clone https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
+        chmod +x "${NGINX_LOCATION}/scripts/*"
+        "${NGINX_LOCATION}/scripts/fullSetup.sh"
     fi
 
     # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
     if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
         info "Starting proxy containers..."
-        cd "${NGINX_LOCATION}" && chmod +x ./scripts/fullSetup.sh && ./scripts/fullSetup.sh && docker-compose up -d
+        cd "${NGINX_LOCATION}" && docker-compose up -d
     else
         error "Could not find docker-compose.yml file in ${NGINX_LOCATION}"
         exit 1
@@ -141,23 +149,6 @@ else
     exit 1
 fi
 
-# Transfer and load Docker images
-if [ -f "${BUILD_ZIP}/production-docker-images.tar.gz" ]; then
-    info "Loading Docker images from ${BUILD_ZIP}/production-docker-images.tar.gz"
-    docker load -i "${BUILD_ZIP}/production-docker-images.tar.gz"
-    if [ $? -ne 0 ]; then
-        error "Failed to load Docker images from ${BUILD_ZIP}/production-docker-images.tar.gz"
-        exit 1
-    fi
-else
-    error "Could not find Docker images archive at ${BUILD_ZIP}/production-docker-images.tar.gz"
-    exit 1
-fi
-
-# Stop docker containers
-info "Stopping docker containers..."
-docker-compose --env-file ${BUILD_ZIP}/.env-prod down
-
 # Pull the latest changes from the repository.
 info "Pulling latest changes from repository..."
 git fetch
@@ -175,6 +166,23 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Transfer and load Docker images
+if [ -f "${BUILD_ZIP}/production-docker-images.tar.gz" ]; then
+    info "Loading Docker images from ${BUILD_ZIP}/production-docker-images.tar.gz"
+    docker load -i "${BUILD_ZIP}/production-docker-images.tar.gz"
+    if [ $? -ne 0 ]; then
+        error "Failed to load Docker images from ${BUILD_ZIP}/production-docker-images.tar.gz"
+        exit 1
+    fi
+else
+    error "Could not find Docker images archive at ${BUILD_ZIP}/production-docker-images.tar.gz"
+    exit 1
+fi
+
+# Stop docker containers
+info "Stopping docker containers..."
+docker-compose --env-file ${BUILD_ZIP}/.env-prod down
+
 # Move and decompress build created by build.sh to the correct location.
 info "Moving and decompressing new build to correct location..."
 rm -rf ${HERE}/../packages/ui/dist
@@ -190,6 +198,6 @@ docker-compose --env-file ${BUILD_ZIP}/.env-prod -f ${HERE}/../docker-compose-pr
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
 info "Now that you've deployed, here are some next steps:"
-info "Manually check that the site is working correctly"
-info "Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
-info "Let everyone on social media know that you've deployed a new version of Vrooli!"
+info "- Manually check that the site is working correctly"
+info "- Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
+info "- Let everyone on social media know that you've deployed a new version of Vrooli!"
