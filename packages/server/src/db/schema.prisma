@@ -634,8 +634,8 @@ model notification {
 
 model push_device {
     id       String    @id @default(uuid()) @db.Uuid
-    endpoint String    @unique @db.VarChar(1024)
-    p256dh   String    @db.VarChar(1024)
+    endpoint String    @db.VarChar(1024)
+    p256dh   String    @unique @db.VarChar(1024)
     auth     String    @db.VarChar(1024)
     expires  DateTime? @db.Timestamptz(6)
     name     String?   @db.VarChar(128)

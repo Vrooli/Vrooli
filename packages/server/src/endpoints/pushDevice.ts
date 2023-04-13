@@ -1,9 +1,9 @@
+import { PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
-import { rateLimit } from '../middleware';
 import { createHelper, updateHelper } from '../actions';
 import { assertRequestFrom } from '../auth';
-import { PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     input PushDeviceKeysInput {
@@ -11,6 +11,7 @@ export const typeDef = gql`
         p256dh: String!
     }
     input PushDeviceCreateInput {
+        deviceId: String!
         endpoint: String!
         expires: Date
         keys: PushDeviceKeysInput!
@@ -23,6 +24,7 @@ export const typeDef = gql`
 
     type PushDevice {
         id: ID!
+        deviceId: String!
         expires: Date
         name: String
     }

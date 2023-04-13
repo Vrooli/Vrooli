@@ -101,6 +101,9 @@ fi
 # Navigate to server directory
 cd ${HERE}/../packages/server
 
+# Build shared
+"${HERE}/shared.sh"
+
 # Build server
 info "Building server..."
 yarn build
