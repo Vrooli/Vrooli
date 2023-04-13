@@ -10,15 +10,17 @@
         "test": "tests"
     },
     "prisma": {
-        "schema": "./src/db/schema.prisma",
-        "seed": "./src/db/seeds/init.ts"
+        "schema": "./dist/db/schema.prisma",
+        "seed": "./dist/db/seeds/init.js"
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "build": "yarn tsc && yarn post-build",
-        "post-build": "yarn post-build-message-signing && yarn post-build-email-templates",
+        "post-build": "yarn post-build-message-signing && yarn post-build-email-templates && yarn post-build-prisma && yarn post-build-censor",
         "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f dist/$WPATH/emurgo_message_signing.js ]",
         "post-build-email-templates": "cp -R src/notify/email/templates dist/notify/email/",
+        "post-build-prisma": "cp src/db/schema.prisma dist/db/schema.prisma",
+        "post-build-censor": "cp src/utils/censorDictionary.txt dist/utils/censorDictionary.txt",
         "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",

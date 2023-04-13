@@ -11,6 +11,7 @@ source "${HERE}/prettify.sh"
 # Read arguments
 REINSTALL_MODULES=""
 ON_REMOTE=""
+ENVIRONMENT="dev"
 for arg in "$@"; do
     case $arg in
     -f | --force)
@@ -23,11 +24,16 @@ for arg in "$@"; do
         shift
         shift
         ;;
+    -p | --prod)
+        ENVIRONMENT="prod"
+        shift
+        ;;
     -h | --help)
         echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE]"
         echo "  -h --help: Show this help message"
         echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
+        echo "  -p --prod: If set, will skip steps that are only required for development"
         exit 0
         ;;
     esac
@@ -79,8 +85,12 @@ header "Installing Node (includes npm)"
 nvm install 16.16.0
 nvm alias default v16.16.0
 
-header "Installing Yarn"
-npm install -g yarn
+if [ "${ENVIRONMENT}" = "dev" ]; then
+    header "Installing Yarn"
+    npm install -g yarn
+else
+    info "Skipping Yarn installation - production environment detected"
+fi
 
 header "Installing global dependencies"
 yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.11.0 vite

@@ -15,6 +15,15 @@ COPY --chown=node:node packages/shared/uuid/package.json packages/shared/uuid/
 COPY --chown=node:node packages/shared/validation/package.json packages/shared/validation/
 COPY --chown=node:node packages/shared/translations/package.json packages/shared/translations/
 
+# Copy all files from packages/server/dist and every directory's dist in packages/shared 
+COPY --chown=node:node packages/server/dist packages/server/dist
+COPY --chown=node:node packages/shared/consts/dist packages/shared/consts/dist
+COPY --chown=node:node packages/shared/route/dist packages/shared/route/dist
+COPY --chown=node:node packages/shared/utils/dist packages/shared/utils/dist
+COPY --chown=node:node packages/shared/uuid/dist packages/shared/uuid/dist
+COPY --chown=node:node packages/shared/validation/dist packages/shared/validation/dist
+COPY --chown=node:node packages/shared/translations/dist packages/shared/translations/dist
+
 # Install local packages
 RUN yarn install --production
 

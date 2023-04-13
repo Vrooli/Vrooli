@@ -154,7 +154,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-"${HERE}/setup.sh" "${SETUP_ARGS[@]}"
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
