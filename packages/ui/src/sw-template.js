@@ -17,7 +17,7 @@ const { registerRoute } = (workbox.routing);
 const { CacheFirst } = (workbox.strategies);
 
 const CACHE_NAME = 'vrooli-cache';
-const CURRENT_CACHE_VERSION = '2023-04-05'; // Change this value to force a cache update
+const CURRENT_CACHE_VERSION = '2023-04-12'; // Change this value to force a cache update
 
 clientsClaim();
 
@@ -101,6 +101,8 @@ self.addEventListener('activate', (event) => {
                     }
                 })
             );
+        }).then(() => {
+            self.clients.claim();
         })
     );
 });
@@ -153,5 +155,16 @@ self.addEventListener('notificationclick', (event) => {
     }
 });
 
+self.addEventListener('periodicsync', (event) => {
+    console.log('periodicsync', event);
+    // if (event.tag === UPDATE_CHECK) {
+    //     event.waitUntil(checkForUpdates());
+    // }
+});
 
-
+self.addEventListener('message', (event) => {
+    console.log('message', event);
+    // if (event.data === UPDATE_CHECK) {
+    //     event.waitUntil(checkForUpdates());
+    // }
+});

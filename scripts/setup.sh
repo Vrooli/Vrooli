@@ -85,15 +85,8 @@ header "Installing Node (includes npm)"
 nvm install 16.16.0
 nvm alias default v16.16.0
 
-if [ "${ENVIRONMENT}" = "dev" ]; then
-    header "Installing Yarn"
-    npm install -g yarn
-else
-    info "Skipping Yarn installation - production environment detected"
-fi
-
-header "Installing global dependencies"
-yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.11.0 vite
+header "Installing Yarn"
+npm install -g yarn
 
 if ! command -v docker &>/dev/null; then
     info "Docker is not installed. Installing Docker..."
@@ -121,24 +114,35 @@ else
     info "Detected: $(docker-compose --version)"
 fi
 
-# If reinstalling modules, delete all node_modules directories
-if [ -z "${REINSTALL_MODULES}" ]; then
-    prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
-    read -r REINSTALL_MODULES
-fi
-if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
-    header "Deleting all node_modules directories"
-    find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
-    header "Deleting yarn.lock"
-    rm "${HERE}/../yarn.lock"
-fi
-header "Installing local dependencies"
-cd "${HERE}/.." && yarn cache clean && yarn
+# Less needs to be done for production environments
+if [ "${ENVIRONMENT}" = "dev" ]; then
+    header "Installing global dependencies"
+    yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.11.0 vite
 
-"${HERE}/shared.sh"
+    # If reinstalling modules, delete all node_modules directories before installing dependencies
+    if [ -z "${REINSTALL_MODULES}" ]; then
+        prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
+        read -r REINSTALL_MODULES
+    fi
+    if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
+        header "Deleting all node_modules directories"
+        find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
+        header "Deleting yarn.lock"
+        rm "${HERE}/../yarn.lock"
+    fi
+    header "Installing local dependencies"
+    cd "${HERE}/.." && yarn cache clean && yarn
 
-header "Generating type models for Prisma"
-cd "${HERE}/../packages/server" && yarn prisma-generate
+    header "Generating type models for Prisma"
+    cd "${HERE}/../packages/server" && prisma generate --schema ./src/db/schema.prisma
+
+    "${HERE}/shared.sh"
+else
+    info "Skipping global dependencies installation - production environment detected"
+    info "Skipping local dependencies installation - production environment detected"
+    info "Skipping type models generation - production environment detected"
+    info "Skipping shared.sh - production environment detected"
+fi
 
 header "Generating JWT key pair for authentication"
 source "${HERE}/genJwt.sh"

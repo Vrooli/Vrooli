@@ -63,16 +63,31 @@ fi
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"
     if [ -z "$NGINX_LOCATION" ]; then
-        prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
-        read -r NGINX_LOCATION
-        if [ -z "$NGINX_LOCATION" ]; then
-            NGINX_LOCATION="/root/NginxSSLReverseProxy"
-        fi
+        while true; do
+            prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
+            read -r NGINX_LOCATION
+            if [ -z "$NGINX_LOCATION" ]; then
+                NGINX_LOCATION="/root/NginxSSLReverseProxy"
+            fi
+
+            if [ -d "${NGINX_LOCATION}" ]; then
+                break
+            else
+                error "Not found at that location. Type location again, or enter nothing to clone"
+            fi
+        done
     fi
+
+    # Check if the NginxSSLReverseProxy directory exists
+    if [ ! -d "${NGINX_LOCATION}" ]; then
+        info "NginxSSLReverseProxy not installed. Cloning and setting up..."
+        git clone https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
+    fi
+
     # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
     if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
         info "Starting proxy containers..."
-        cd "${NGINX_LOCATION}" && docker-compose up -d
+        cd "${NGINX_LOCATION}" && chmod +x ./scripts/fullSetup.sh && ./scripts/fullSetup.sh && docker-compose up -d
     else
         error "Could not find docker-compose.yml file in ${NGINX_LOCATION}"
         exit 1
