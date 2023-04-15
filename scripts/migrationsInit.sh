@@ -7,7 +7,7 @@
 HERE=$(dirname $0)
 source "${HERE}/prettify.sh"
 
-PRISMA_SCHEMA_FILE="src/db/schema.prisma"
+PRISMA_SCHEMA_FILE="dist/db/schema.prisma"
 
 cd ${PROJECT_DIR}/packages/server
 
@@ -19,8 +19,16 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # Delete all migrations in src/db/migrations folder by moving them to /tmp
-info "Deleting existing migrations..."
-mv src/db/migrations/* /tmp
+if [ -d "src/db/migrations" ]; then
+    info "Migrations folder exists. Moving all migrations to /tmp"
+    mv src/db/migrations/* /tmp
+fi
+
+# Copy schema.prisma to dist folder
+if [ -f "src/db/schema.prisma" ]; then
+    info "Copying schema.prisma to dist folder"
+    cp src/db/schema.prisma dist/db/schema.prisma
+fi
 
 # Migrate without applying schema
 info "Creating initial migration..."
