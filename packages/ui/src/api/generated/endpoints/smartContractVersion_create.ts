@@ -116,10 +116,10 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
             canTransfer
             canUpdate
             canRead
-            canVote
+            canReact
             isBookmarked
-            isUpvoted
             isViewed
+            reaction
         }
     }
     translations {

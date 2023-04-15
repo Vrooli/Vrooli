@@ -10,16 +10,19 @@
         "test": "tests"
     },
     "prisma": {
-        "schema": "./src/db/schema.prisma",
-        "seed": "./src/db/seeds/init.ts"
+        "schema": "./dist/db/schema.prisma",
+        "seed": "./dist/db/seeds/init.js"
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
+        "pre-build": "yarn pre-build-prisma",
+        "pre-build-prisma": "[ -f src/db/schema.prisma ] && cp src/db/schema.prisma dist/db/schema.prisma || echo 'schema.prisma not found, skipping copy' && [ -d src/db/migrations ] && rm -rf dist/db/migrations && cp -r src/db/migrations dist/db/migrations || echo 'migrations directory not found, skipping copy' && prisma migrate deploy && yarn prisma-generate",
         "build": "yarn tsc && yarn post-build",
-        "post-build": "yarn post-build-message-signing && yarn post-build-email-templates",
-        "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f dist/$WPATH/emurgo_message_signing.js ]",
-        "post-build-email-templates": "cp -R src/notify/email/templates dist/notify/email/",
-        "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js",
+        "post-build": "yarn post-build-message-signing && yarn post-build-email-templates && yarn post-build-censor",
+        "post-build-message-signing": "WPATH=\"auth/message_signing/rust/pkg\" && mkdir -p dist/$WPATH && cp src/$WPATH/*.wasm dist/$WPATH/ && cp src/$WPATH/*.json dist/$WPATH/ && [ -f src/$WPATH/emurgo_message_signing.js ] && cp src/$WPATH/emurgo_message_signing.js dist/$WPATH/ || echo 'emurgo_message_signing.js not found, skipping copy'",
+        "post-build-email-templates": "[ -d src/notify/email/templates ] && cp -R src/notify/email/templates dist/notify/email/ || echo 'email templates directory not found, skipping copy'",
+        "post-build-censor": "[ -f src/utils/censorDictionary.txt ] && cp src/utils/censorDictionary.txt dist/utils/censorDictionary.txt || echo 'censorDictionary.txt not found, skipping copy'",
+        "start-development": "yarn pre-build && yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
         "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/consts/src/graphqlTypes.ts"
@@ -28,7 +31,7 @@
         "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
-        "@prisma/client": "^4.11.0",
+        "@prisma/client": "^4.12.0",
         "@shared/consts": "*",
         "@shared/translations": "*",
         "@shared/utils": "*",
@@ -72,6 +75,6 @@
         "@types/node-cron": "^3.0.1",
         "@types/nodemailer": "^6.4.4",
         "@types/web-push": "^3.3.2",
-        "prisma": "^4.11.0"
+        "@prisma/client": "^4.12.0"
     }
 }

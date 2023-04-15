@@ -279,7 +279,7 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             canRun
             canUpdate
             canRead
-            canVote
+            canReact
         }
     }
   }

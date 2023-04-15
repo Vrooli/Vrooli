@@ -33,8 +33,8 @@ export default defineConfig({
             { find: '@shared/validation', replacement: path.resolve(__dirname, '../shared/validation/src') },
         ]
     },
-    // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
     build: {
-        sourcemap: true
+        // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
+        sourcemap: false,
     }
 })

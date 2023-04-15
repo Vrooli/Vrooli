@@ -50,6 +50,7 @@ export async function subscribeUserToPush() {
             `${import.meta.env.BASE_URL}service-worker.js`,
             { scope: import.meta.env.BASE_URL }
         );
+        console.log('getting subscribeoptions', import.meta.env)
         const subscribeOptions = {
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(

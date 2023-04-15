@@ -27,7 +27,10 @@ export const handle = yup.string().transform(blankToUndefined).min(3, minStrErr)
     }
 )
 export const hexColor = yup.string().transform(blankToUndefined).max(16, maxStrErr)
-export const pushNotificationKeys = yup.array().of(yup.string().transform(blankToUndefined).max(256, maxStrErr))
+export const pushNotificationKeys = yup.object().shape({
+    p256dh: yup.string().transform(blankToUndefined).max(256, maxStrErr),
+    auth: yup.string().transform(blankToUndefined).max(256, maxStrErr),
+});
 export const smartContractCallData = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
 export const url = yup.string().transform(blankToUndefined).max(1024, maxStrErr).test(
     'link',

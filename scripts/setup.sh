@@ -11,6 +11,7 @@ source "${HERE}/prettify.sh"
 # Read arguments
 REINSTALL_MODULES=""
 ON_REMOTE=""
+ENVIRONMENT="dev"
 for arg in "$@"; do
     case $arg in
     -f | --force)
@@ -23,11 +24,16 @@ for arg in "$@"; do
         shift
         shift
         ;;
+    -p | --prod)
+        ENVIRONMENT="prod"
+        shift
+        ;;
     -h | --help)
         echo "Usage: $0 [-h HELP] [-f FORCE] [-r REMOTE]"
         echo "  -h --help: Show this help message"
         echo "  -f --force: (y/N) If set to \"y\", will delete all node_modules directories and reinstall"
         echo "  -r --remote: (Y/n) True if this script is being run on the remote server"
+        echo "  -p --prod: If set, will skip steps that are only required for development"
         exit 0
         ;;
     esac
@@ -45,8 +51,11 @@ if [ -z "${ON_REMOTE}" ]; then
 fi
 if [ "${ON_REMOTE}" = "y" ] || [ "${ON_REMOTE}" = "Y" ] || [ "${ON_REMOTE}" = "yes" ] || [ "${ON_REMOTE}" = "Yes" ]; then
     header "Enabling PasswordAuthentication"
-    sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-    sudo sed -i 's/PubkeyAuthentication no/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
+    sudo sed -i 's/#\?PasswordAuthentication .*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+    sudo sed -i 's/#\?PubkeyAuthentication .*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
+    sudo sed -i 's/#\?AuthorizedKeysFile .*/AuthorizedKeysFile .ssh\/authorized_keys/g' /etc/ssh/sshd_config
+    chmod 700 ~/.ssh
+    chmod 600 ~/.ssh/authorized_keys
     sudo service sshd restart
 else
     # Otherwise, make sure mailx is installed. This may be used by some scripts which
@@ -79,12 +88,10 @@ nvm alias default v16.16.0
 header "Installing Yarn"
 npm install -g yarn
 
-header "Installing global dependencies"
-yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.11.0 vite
-
 if ! command -v docker &>/dev/null; then
     info "Docker is not installed. Installing Docker..."
     curl -fsSL https://get.docker.com -o get-docker.sh
+    trap 'rm -f get-docker.sh' EXIT
     sudo sh get-docker.sh
     # Check if Docker installation failed
     if ! command -v docker &>/dev/null; then
@@ -98,7 +105,7 @@ fi
 if ! command -v docker-compose &>/dev/null; then
     info "Docker Compose is not installed. Installing Docker Compose..."
     sudo curl -L "https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
+    sudo chmod a+rx /usr/local/bin/docker-compose
     # Check if Docker Compose installation failed
     if ! command -v docker-compose &>/dev/null; then
         echo "Error: Docker Compose installation failed."
@@ -108,24 +115,35 @@ else
     info "Detected: $(docker-compose --version)"
 fi
 
-# If reinstalling modules, delete all node_modules directories
-if [ -z "${REINSTALL_MODULES}" ]; then
-    prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
-    read -r REINSTALL_MODULES
-fi
-if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
-    header "Deleting all node_modules directories"
-    find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
-    header "Deleting yarn.lock"
-    rm "${HERE}/../yarn.lock"
-fi
-header "Installing local dependencies"
-cd "${HERE}/.." && yarn cache clean && yarn
+# Less needs to be done for production environments
+if [ "${ENVIRONMENT}" = "dev" ]; then
+    header "Installing global dependencies"
+    yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.12.0 vite
 
-"${HERE}/shared.sh"
+    # If reinstalling modules, delete all node_modules directories before installing dependencies
+    if [ -z "${REINSTALL_MODULES}" ]; then
+        prompt "Force install node_modules? This will delete all node_modules and the yarn.lock file. (y/N)"
+        read -r REINSTALL_MODULES
+    fi
+    if [ "${REINSTALL_MODULES}" = "y" ] || [ "${REINSTALL_MODULES}" = "Y" ] || [ "${REINSTALL_MODULES}" = "yes" ] || [ "${REINSTALL_MODULES}" = "Yes" ]; then
+        header "Deleting all node_modules directories"
+        find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
+        header "Deleting yarn.lock"
+        rm "${HERE}/../yarn.lock"
+    fi
+    header "Installing local dependencies"
+    cd "${HERE}/.." && yarn cache clean && yarn
 
-header "Generating type models for Prisma"
-cd "${HERE}/../packages/server" && yarn prisma-generate
+    header "Generating type models for Prisma"
+    cd "${HERE}/../packages/server" && prisma generate --schema ./src/db/schema.prisma
+
+    "${HERE}/shared.sh"
+else
+    info "Skipping global dependencies installation - production environment detected"
+    info "Skipping local dependencies installation - production environment detected"
+    info "Skipping type models generation - production environment detected"
+    info "Skipping shared.sh - production environment detected"
+fi
 
 header "Generating JWT key pair for authentication"
 source "${HERE}/genJwt.sh"

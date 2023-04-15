@@ -47,6 +47,6 @@ tags {
     ...Tag_list
 }
 you {
-    isUpvoted
+    reaction
 }
 }`;

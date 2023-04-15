@@ -123,10 +123,10 @@ mutation apiUpdate($input: ApiUpdateInput!) {
         canTransfer
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
         isViewed
+        reaction
     }
   }
 }`;

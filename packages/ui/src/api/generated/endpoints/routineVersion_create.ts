@@ -234,7 +234,7 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
         canRun
         canUpdate
         canRead
-        canVote
+        canReact
     }
   }
 }`;

@@ -1,10 +1,10 @@
+import { FindByIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, IssueUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, IssueSortBy, Issue, IssueSearchInput, IssueCreateInput, IssueUpdateInput, IssueStatus, IssueFor, IssueCloseInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { resolveUnion } from './resolvers';
 import { CustomError } from '../events';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
+import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
     enum IssueSortBy {
@@ -93,9 +93,9 @@ export const typeDef = gql`
         canBookmark: Boolean!
         canReport: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
     }
 
     input IssueTranslationCreateInput {

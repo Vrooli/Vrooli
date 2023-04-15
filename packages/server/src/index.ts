@@ -36,8 +36,9 @@ const main = async () => {
     // Check for required .env variables
     const requiredEnvs = ['PROJECT_DIR', 'VITE_SERVER_LOCATION', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
+        console.log('checking env', env, process.env[env])
         if (!process.env[env]) {
-            console.error('uh oh', process.env[env]);
+            console.log('oh nooooo', env, process.env);
             logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: '0007' });
             process.exit(1);
         }

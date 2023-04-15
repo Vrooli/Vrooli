@@ -47,9 +47,9 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
             canReply
             canReport
             canUpdate
-            canVote
+            canReact
             isBookmarked
-            isUpvoted
+            reaction
         }
     }
     question {
@@ -95,7 +95,7 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
             ...Tag_list
         }
         you {
-            isUpvoted
+            reaction
         }
     }
     translations {

@@ -24,12 +24,12 @@ import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { ForgotPasswordForm, LogInForm, ResetPasswordForm, SignUpForm } from 'forms/auth';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { getCurrentUser } from 'utils/authentication/session';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { Forms } from 'utils/consts';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
 import { PubSub } from 'utils/pubsub';
+import { setupPush } from 'utils/push';
 import { SessionContext } from 'utils/SessionContext';
 import { StartViewProps } from '../types';
 
@@ -151,8 +151,8 @@ export const StartView = ({
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? LINKS.Welcome : (redirect ?? LINKS.Home));
-            // Request user to enable notifications
-            subscribeUserToPush();
+            // Set up push notifications
+            setupPush();
         }
     }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect])
 

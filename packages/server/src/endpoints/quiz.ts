@@ -78,10 +78,10 @@ export const typeDef = gql`
         canBookmark: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         hasCompleted: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
     }
 
     input QuizTranslationCreateInput {

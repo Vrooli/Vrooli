@@ -8,6 +8,10 @@ import * as Auth from './auth';
 import * as Award from './award';
 import * as Bookmark from './bookmark';
 import * as BookmarkList from './bookmarkList';
+import * as Chat from './chat';
+import * as ChatInvite from './chatInvite';
+import * as ChatMessage from './chatMessage';
+import * as ChatParticipant from './chatParticipant';
 import * as Comment from './comment';
 import * as Duplicate from './copy';
 import * as DeleteOneOrMany from './deleteOneOrMany';
@@ -49,6 +53,7 @@ import * as Quiz from './quiz';
 import * as QuizAttempt from './quizAttempt';
 import * as QuizQuestion from './quizQuestion';
 import * as QuizQuestionResponse from './quizQuestionResponse';
+import * as Reaction from './reaction';
 import * as Reminder from './reminder';
 import * as ReminderItem from './reminderItem';
 import * as ReminderList from './reminderList';
@@ -90,7 +95,6 @@ import * as Translate from './translate';
 import * as Unions from './unions';
 import * as User from './user';
 import * as View from './view';
-import * as Vote from './vote';
 import * as Wallet from './wallet';
 const { merge } = pkg;
 
@@ -108,6 +112,10 @@ const schemas: SchemaType[] = [
     Award,
     Bookmark,
     BookmarkList,
+    Chat,
+    ChatInvite,
+    ChatMessage,
+    ChatParticipant,
     Comment,
     DeleteOneOrMany,
     Duplicate,
@@ -149,6 +157,7 @@ const schemas: SchemaType[] = [
     QuizAttempt,
     QuizQuestion,
     QuizQuestionResponse,
+    Reaction,
     Reminder,
     ReminderItem,
     ReminderList,
@@ -189,7 +198,6 @@ const schemas: SchemaType[] = [
     Unions,
     User,
     View,
-    Vote,
     Wallet
 ]
 

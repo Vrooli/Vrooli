@@ -1,4 +1,5 @@
 export * from './difference';
+export * from './emotions';
 export * from './exists';
 export * from './focusModes';
 export * from './getDotNotationValue';

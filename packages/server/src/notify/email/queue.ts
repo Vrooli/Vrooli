@@ -4,7 +4,7 @@ import fs from 'fs';
 import { HOST, PORT } from '../../redisConn.js';
 import { emailProcess } from './process.js';
 
-const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/notify/email/templates/welcome.html`).toString();
+const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/dist/notify/email/templates/welcome.html`).toString();
 
 const emailQueue = new Bull('email', { redis: { port: PORT, host: HOST } });
 emailQueue.process(emailProcess);

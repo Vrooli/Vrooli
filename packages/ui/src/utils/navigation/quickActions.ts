@@ -229,20 +229,30 @@ export const performAction = async (option: ActionOption, session: Session | nul
             session && clearSearchHistory(session);
             break;
         case 'activate-dark-mode':
-            documentNodeWrapper<User, ProfileUpdateInput>({
-                node: userProfileUpdate,
-                input: { theme: 'dark' },
-                onSuccess: () => { PubSub.get().publishTheme('dark'); },
-                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
-            })
+            // If logged in, update user profile and publish theme change.
+            if (session?.isLoggedIn) {
+                documentNodeWrapper<User, ProfileUpdateInput>({
+                    node: userProfileUpdate,
+                    input: { theme: 'dark' },
+                    onSuccess: () => { PubSub.get().publishTheme('dark'); },
+                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
+                })
+            }
+            // Otherwise, just publish theme change.
+            else PubSub.get().publishTheme('dark');
             break;
         case 'activate-light-mode':
-            documentNodeWrapper<User, ProfileUpdateInput>({
-                node: userProfileUpdate,
-                input: { theme: 'light' },
-                onSuccess: () => { PubSub.get().publishTheme('light'); },
-                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
-            })
+            // If logged in, update user profile and publish theme change.
+            if (session?.isLoggedIn) {
+                documentNodeWrapper<User, ProfileUpdateInput>({
+                    node: userProfileUpdate,
+                    input: { theme: 'light' },
+                    onSuccess: () => { PubSub.get().publishTheme('light'); },
+                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: 'Error', data: error }); }
+                })
+            }
+            // Otherwise, just publish theme change.
+            else PubSub.get().publishTheme('light');
             break;
     }
 }

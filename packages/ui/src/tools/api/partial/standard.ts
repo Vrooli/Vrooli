@@ -1,6 +1,6 @@
 import { Standard, StandardYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const standardYou: GqlPartial<StandardYou> = {
     __typename: 'StandardYou',
@@ -10,10 +10,10 @@ export const standardYou: GqlPartial<StandardYou> = {
         canTransfer: true,
         canUpdate: true,
         canRead: true,
-        canVote: true,
+        canReact: true,
         isBookmarked: true,
-        isUpvoted: true,
         isViewed: true,
+        reaction: true,
     },
     full: {},
     list: {},

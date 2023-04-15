@@ -70,6 +70,43 @@ export const endpoints = {
             update: toMutation('bookmarkListUpdate', 'BookmarkListUpdateInput', bookmarkListPartial, 'full'),
         }
     },
+    chat: async () => {
+        const { chat: chatPartial } = await import('./partial/chat');
+        return {
+            findOne: toQuery('chat', 'FindByIdInput', chatPartial, 'full'),
+            findMany: toQuery('chats', 'ChatSearchInput', ...(await toSearch(chatPartial))),
+            create: toMutation('chatCreate', 'ChatCreateInput', chatPartial, 'full'),
+            update: toMutation('chatUpdate', 'ChatUpdateInput', chatPartial, 'full'),
+        }
+    },
+    chatInvite: async () => {
+        const { chatInvite: chatInvitePartial } = await import('./partial/chatInvite');
+        return {
+            findOne: toQuery('chatInvite', 'FindByIdInput', chatInvitePartial, 'full'),
+            findMany: toQuery('chatInvites', 'ChatInviteSearchInput', ...(await toSearch(chatInvitePartial))),
+            create: toMutation('chatInviteCreate', 'ChatInviteCreateInput', chatInvitePartial, 'full'),
+            update: toMutation('chatInviteUpdate', 'ChatInviteUpdateInput', chatInvitePartial, 'full'),
+            accept: toMutation('chatInviteAccept', 'FindByIdInput', chatInvitePartial, 'full'),
+            decline: toMutation('chatInviteDecline', 'FindByIdInput', chatInvitePartial, 'full'),
+        }
+    },
+    chatMessage: async () => {
+        const { chatMessage: chatMessagePartial } = await import('./partial/chatMessage');
+        return {
+            findOne: toQuery('chatMessage', 'FindByIdInput', chatMessagePartial, 'full'),
+            findMany: toQuery('chatMessages', 'ChatMessageSearchInput', ...(await toSearch(chatMessagePartial))),
+            create: toMutation('chatMessageCreate', 'ChatMessageCreateInput', chatMessagePartial, 'full'),
+            update: toMutation('chatMessageUpdate', 'ChatMessageUpdateInput', chatMessagePartial, 'full'),
+        }
+    },
+    chatParticipant: async () => {
+        const { chatParticipant: chatParticipantPartial } = await import('./partial/chatParticipant');
+        return {
+            findOne: toQuery('chatParticipant', 'FindByIdInput', chatParticipantPartial, 'full'),
+            findMany: toQuery('chatParticipants', 'ChatParticipantSearchInput', ...(await toSearch(chatParticipantPartial))),
+            update: toMutation('chatParticipantUpdate', 'ChatParticipantUpdateInput', chatParticipantPartial, 'full'),
+        }
+    },
     comment: async () => {
         const { comment: commentPartial, commentThread: commentThreadPartial } = await import('./partial/comment');
         return {
@@ -350,6 +387,14 @@ export const endpoints = {
             findMany: toQuery('quizQuestionResponses', 'QuizQuestionResponseSearchInput', ...(await toSearch(quizQuestionResponsePartial))),
             create: toMutation('quizQuestionResponseCreate', 'QuizQuestionResponseCreateInput', quizQuestionResponsePartial, 'full'),
             update: toMutation('quizQuestionResponseUpdate', 'QuizQuestionResponseUpdateInput', quizQuestionResponsePartial, 'full'),
+        }
+    },
+    reaction: async () => {
+        const { reaction: reactionPartial } = await import('./partial/reaction');
+        const { success: successPartial } = await import('./partial/success');
+        return {
+            findMany: toQuery('reactions', 'ReactionSearchInput', ...(await toSearch(reactionPartial))),
+            react: toMutation('react', 'ReactInput', successPartial, 'full'),
         }
     },
     reminder: async () => {
@@ -640,14 +685,6 @@ export const endpoints = {
         const { view: viewPartial } = await import('./partial/view');
         return {
             findMany: toQuery('views', 'ViewSearchInput', ...(await toSearch(viewPartial))),
-        }
-    },
-    vote: async () => {
-        const { vote: votePartial } = await import('./partial/vote');
-        const { success: successPartial } = await import('./partial/success');
-        return {
-            findMany: toQuery('votes', 'VoteSearchInput', ...(await toSearch(votePartial))),
-            vote: toMutation('vote', 'VoteInput', successPartial, 'full'),
         }
     },
     wallet: async () => {

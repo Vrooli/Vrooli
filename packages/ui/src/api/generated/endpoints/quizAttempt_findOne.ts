@@ -44,10 +44,10 @@ query quizAttempt($input: FindByIdInput!) {
                     canBookmark
                     canUpdate
                     canRead
-                    canVote
+                    canReact
                     hasCompleted
                     isBookmarked
-                    isUpvoted
+                    reaction
                 }
             }
             user {
@@ -100,10 +100,10 @@ query quizAttempt($input: FindByIdInput!) {
             canBookmark
             canUpdate
             canRead
-            canVote
+            canReact
             hasCompleted
             isBookmarked
-            isUpvoted
+            reaction
         }
     }
     user {

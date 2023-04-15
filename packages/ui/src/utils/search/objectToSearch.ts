@@ -5,6 +5,10 @@ export enum SearchType {
     ApiVersion = 'ApiVersion',
     Bookmark = 'Bookmark',
     BookmarkList = 'BookmarkList',
+    Chat = 'Chat',
+    ChatInvite = 'ChatInvite',
+    ChatMessage = 'ChatMessage',
+    ChatParticipant = 'ChatParticipant',
     Comment = 'Comment',
     FocusMode = 'FocusMode',
     Issue = 'Issue',
@@ -32,6 +36,7 @@ export enum SearchType {
     QuizAttempt = 'QuizAttempt',
     QuizQuestion = 'QuizQuestion',
     QuizQuestionResponse = 'QuizQuestionResponse',
+    Reaction = 'Reaction',
     Reminder = 'Reminder',
     ReportResponse = 'ReportResponse',
     Report = 'Report',
@@ -63,7 +68,6 @@ export enum SearchType {
     Transfer = 'Transfer',
     User = 'User',
     View = 'View',
-    Vote = 'Vote',
 }
 
 export enum HistoryPageTabOption {
@@ -101,6 +105,10 @@ export const searchTypeToParams: { [key in SearchType]: () => Promise<SearchPara
     ApiVersion: async () => (await import('./schemas/apiVersion')).apiVersionSearchParams(),
     Bookmark: async () => (await import('./schemas/bookmark')).bookmarkSearchParams(),
     BookmarkList: async () => (await import('./schemas/bookmarkList')).bookmarkListSearchParams(),
+    Chat: async () => (await import('./schemas/chat')).chatSearchParams(),
+    ChatInvite: async () => (await import('./schemas/chatInvite')).chatInviteSearchParams(),
+    ChatMessage: async () => (await import('./schemas/chatMessage')).chatMessageSearchParams(),
+    ChatParticipant: async () => (await import('./schemas/chatParticipant')).chatParticipantSearchParams(),
     Comment: async () => (await import('./schemas/comment')).commentSearchParams(),
     FocusMode: async () => (await import('./schemas/focusMode')).focusModeSearchParams(),
     Issue: async () => (await import('./schemas/issue')).issueSearchParams(),
@@ -128,6 +136,7 @@ export const searchTypeToParams: { [key in SearchType]: () => Promise<SearchPara
     QuizAttempt: async () => (await import('./schemas/quizAttempt')).quizAttemptSearchParams(),
     QuizQuestion: async () => (await import('./schemas/quizQuestion')).quizQuestionSearchParams(),
     QuizQuestionResponse: async () => (await import('./schemas/quizQuestionResponse')).quizQuestionResponseSearchParams(),
+    Reaction: async () => (await import('./schemas/reaction')).reactionSearchParams(),
     Reminder: async () => (await import('./schemas/reminder')).reminderSearchParams(),
     Report: async () => (await import('./schemas/report')).reportSearchParams(),
     ReportResponse: async () => (await import('./schemas/reportResponse')).reportResponseSearchParams(),
@@ -159,5 +168,4 @@ export const searchTypeToParams: { [key in SearchType]: () => Promise<SearchPara
     Transfer: async () => (await import('./schemas/transfer')).transferSearchParams(),
     User: async () => (await import('./schemas/user')).userSearchParams(),
     View: async () => (await import('./schemas/view')).viewSearchParams(),
-    Vote: async () => (await import('./schemas/vote')).voteSearchParams(),
 };

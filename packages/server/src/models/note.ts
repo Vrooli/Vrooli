@@ -1,21 +1,21 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { getSingleTypePermissions } from "../validators";
-import { NoteVersionModel } from "./noteVersion";
-import { BookmarkModel } from "./bookmark";
-import { ModelLogic } from "./types";
-import { ViewModel } from "./view";
-import { VoteModel } from "./vote";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { OrganizationModel } from "./organization";
 import { noteValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { NoteVersionModel } from "./noteVersion";
+import { OrganizationModel } from "./organization";
+import { ReactionModel } from "./reaction";
+import { ModelLogic } from "./types";
+import { ViewModel } from "./view";
 
 const __typename = 'Note' as const;
-type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canReact'>;
 const suppFields = ['you'] as const;
 export const NoteModel: ModelLogic<{
     IsTransferable: true,
@@ -84,7 +84,7 @@ export const NoteModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     }
                 }
             },

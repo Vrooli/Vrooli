@@ -1,5 +1,5 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { BookmarkFor, ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, VoteFor } from '@shared/consts';
+import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import { FormSchema } from 'forms/types';
 import React from 'react';
@@ -191,8 +191,8 @@ export interface VoteButtonProps {
     direction?: 'row' | 'column';
     disabled?: boolean;
     score?: number; // Net score - can be negative
-    isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
+    emoji?: string | null; // If not passed, then there is neither an upvote nor a downvote
     objectId: string;
-    voteFor: VoteFor;
-    onChange: (isUpvote: boolean | null, newScore: number) => void;
+    voteFor: ReactionFor;
+    onChange: (newEmoji: string | null, newScore: number) => void;
 }

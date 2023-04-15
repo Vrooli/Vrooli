@@ -35,9 +35,9 @@ query comments($input: CommentSearchInput!) {
                     canReply
                     canReport
                     canUpdate
-                    canVote
+                    canReact
                     isBookmarked
-                    isUpvoted
+                    reaction
                 }
             }
             endCursor
@@ -69,9 +69,9 @@ query comments($input: CommentSearchInput!) {
                 canReply
                 canReport
                 canUpdate
-                canVote
+                canReact
                 isBookmarked
-                isUpvoted
+                reaction
             }
         }
         endCursor
@@ -103,9 +103,9 @@ query comments($input: CommentSearchInput!) {
             canReply
             canReport
             canUpdate
-            canVote
+            canReact
             isBookmarked
-            isUpvoted
+            reaction
         }
     }
     endCursor

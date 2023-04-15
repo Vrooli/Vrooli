@@ -252,7 +252,7 @@ query routine($input: FindByIdInput!) {
             canRun
             canUpdate
             canRead
-            canVote
+            canReact
         }
     }
     stats {
@@ -297,10 +297,10 @@ query routine($input: FindByIdInput!) {
         canBookmark
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
         isViewed
+        reaction
     }
   }
 }`;

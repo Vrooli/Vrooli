@@ -1,19 +1,19 @@
-import { routineValidation } from "@shared/validation";
-import { BookmarkModel } from "./bookmark";
-import { VoteModel } from "./vote";
-import { ViewModel } from "./view";
-import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, RoutineYou, MaxObjects } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { OrganizationModel } from "./organization";
-import { getSingleTypePermissions } from "../validators";
-import { SelectWrap } from "../builders/types";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { RoutineVersionModel } from "./routineVersion";
-import { getLabels } from "../getters";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { MaxObjects, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineYou } from '@shared/consts';
+import { routineValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { getLabels } from "../getters";
+import { PrismaType } from "../types";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { OrganizationModel } from "./organization";
+import { ReactionModel } from "./reaction";
+import { RoutineVersionModel } from "./routineVersion";
+import { ModelLogic } from "./types";
+import { ViewModel } from "./view";
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -198,7 +198,7 @@ import { noNull, shapeHelper } from "../builders";
 // })
 
 const __typename = 'Routine' as const;
-type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
+type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canReact'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const RoutineModel: ModelLogic<{
     IsTransferable: true,
@@ -270,7 +270,7 @@ export const RoutineModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
                 }

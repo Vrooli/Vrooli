@@ -1,4 +1,4 @@
-import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReportFor, VoteFor } from "@shared/consts";
+import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor } from "@shared/consts";
 import { SetLocation } from "@shared/route";
 import { exists, setDotNotationValue } from "@shared/utils";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
@@ -95,8 +95,9 @@ export const useObjectActions = ({
                 break;
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                const isUpvotedLocation = getYouDot(object, 'isUpvoted');
-                if (data.success && isUpvotedLocation && object) setObject(setDotNotationValue(object, isUpvotedLocation as any, action === ObjectActionComplete.VoteUp));
+                const reactionLocation = getYouDot(object, 'reaction');
+                const emoji = action === ObjectActionComplete.VoteUp ? '👍' : action === ObjectActionComplete.VoteDown ? '👎' : null;
+                if (data.success && reactionLocation && object) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
                 break;
         }
     }, [object, setLocation, setObject]);
@@ -115,7 +116,7 @@ export const useObjectActions = ({
     });
     const { handleVote, hasVotingSupport } = useVoter({
         objectId: object?.id,
-        objectType: objectType as VoteFor,
+        objectType: objectType as ReactionFor,
         onActionComplete,
     });
     console.log('objectName', getDisplay(object))
@@ -189,7 +190,7 @@ export const useObjectActions = ({
                 break;
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
-                handleVote(action === ObjectAction.VoteUp);
+                handleVote(action === ObjectAction.VoteUp ? '👍' : '👎');
                 break;
         }
     }, [beforeNavigation, handleBookmark, handleCopy, handleVote, object, openAddCommentDialog, openDeleteDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, setLocation]);

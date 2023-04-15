@@ -182,7 +182,7 @@ query routineVersions($input: RoutineVersionSearchInput!) {
                 canRun
                 canUpdate
                 canRead
-                canVote
+                canReact
             }
         }
     }

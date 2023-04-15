@@ -1,10 +1,12 @@
 generator client {
     provider = "prisma-client-js"
+    // previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
     provider = "postgresql"
     url      = env("DB_URL")
+    // extensions = [citext]
 }
 
 model award {
@@ -43,7 +45,8 @@ model api {
     tags                  api_tags[]
     issues                issue[]
     bookmarkedBy          bookmark[]                  @relation("bookmark_api")
-    votedBy               vote[]                      @relation("vote_api")
+    reactions             reaction[]                  @relation("reaction_api")
+    reactionSummaries     reaction_summary[]          @relation("reaction_summary_api")
     viewedBy              view[]                      @relation("view_api")
     pullRequests          pull_request[]
     versions              api_version[]
@@ -62,6 +65,16 @@ model api_labels {
     label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
     @@unique([labelledId, labelId], name: "api_labels_labelledid_labelid_unique")
+}
+
+model api_tags {
+    id       String @id @default(uuid()) @db.Uuid
+    taggedId String @db.Uuid
+    tagTag   String @db.VarChar(128)
+    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
+    tagged   api    @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagTag], name: "api_tags_taggedid_tagTag_unique")
 }
 
 model api_version {
@@ -102,16 +115,6 @@ model api_version_translation {
     language     String      @db.VarChar(3)
     apiVersionId String      @db.Uuid
     apiVersion   api_version @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
-}
-
-model api_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
-    tagTag   String @db.VarChar(128)
-    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   api    @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "api_tags_taggedid_tagTag_unique")
 }
 
 model api_key {
@@ -179,6 +182,111 @@ model bookmark_list {
     @@unique([label], name: "bookmark_list_label_unique")
 }
 
+model chat {
+    id                     String                      @id @default(uuid()) @db.Uuid
+    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    inviteId               String?                     @db.Uuid
+    openToAnyoneWithInvite Boolean                     @default(false)
+    creatorId              String?                     @db.Uuid
+    organizationId         String?                     @db.Uuid
+    creator                user?                       @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+    organization           organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    restrictedToRoles      chat_roles[]
+    messages               chat_message[]
+    participants           chat_participants[]
+    invites                chat_invite[]
+    labels                 chat_labels[]
+    translations           chat_translation[]
+    subscriptions          notification_subscription[]
+}
+
+model chat_translation {
+    id          String  @id @default(uuid()) @db.Uuid
+    chatId      String  @db.Uuid
+    chat        chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    language    String  @db.VarChar(3)
+    name        String? @db.VarChar(128)
+    description String? @db.VarChar(2048)
+
+    @@unique([chatId, language], name: "chat_translation_chatid_language_unique")
+}
+
+model chat_message {
+    id                String                     @id @default(uuid()) @db.Uuid
+    created_at        DateTime                   @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime                   @default(now()) @db.Timestamptz(6)
+    score             Int                        @default(0)
+    isFork            Boolean                    @default(false)
+    forkId            String?                    @db.Uuid
+    userId            String?                    @db.Uuid
+    chatId            String?                    @db.Uuid
+    chat              chat?                      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    fork              chat_message?              @relation("chat_message_fork", fields: [forkId], references: [id], onDelete: Cascade)
+    children          chat_message[]             @relation("chat_message_fork")
+    user              user?                      @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
+    translations      chat_message_translation[]
+    reactions         reaction[]                 @relation("reaction_chat_message")
+    reactionSummaries reaction_summary[]         @relation("reaction_summary_chat_message")
+    reports           report[]
+}
+
+model chat_message_translation {
+    id        String       @id @default(uuid()) @db.Uuid
+    text      String       @db.VarChar(32768)
+    language  String       @db.VarChar(3)
+    messageId String       @db.Uuid
+    message   chat_message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+    @@unique([messageId, language])
+}
+
+model chat_participants {
+    id         String   @id @default(uuid()) @db.Uuid
+    created_at DateTime @default(now()) @db.Timestamptz(6)
+    updated_at DateTime @default(now()) @db.Timestamptz(6)
+    chatId     String   @db.Uuid
+    chat       chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    userId     String   @db.Uuid
+    user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([chatId, userId])
+}
+
+model chat_invite {
+    id         String           @id @default(uuid()) @db.Uuid
+    created_at DateTime         @default(now()) @db.Timestamptz(6)
+    updated_at DateTime         @default(now()) @db.Timestamptz(6)
+    status     ChatInviteStatus @default(Pending)
+    message    String?          @db.VarChar(4096)
+    chatId     String           @db.Uuid
+    chat       chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    userId     String           @db.Uuid
+    user       user             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([chatId, userId], name: "chat_invite_chatid_userid_unique")
+}
+
+model chat_labels {
+    id         String @id @default(uuid()) @db.Uuid
+    labelledId String @db.Uuid
+    labelId    String @db.Uuid
+    labelled   chat   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
+    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+    @@unique([labelledId, labelId], name: "chat_labels_labelledid_labelid_unique")
+}
+
+model chat_roles {
+    id     String @id @default(uuid()) @db.Uuid
+    chatId String @db.Uuid
+    chat   chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    roleId String @db.Uuid
+    role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+    @@unique([chatId, roleId], name: "chat_roles_chatid_roleid_unique")
+}
+
 model comment {
     id                     String                      @id @default(uuid()) @db.Uuid
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
@@ -216,7 +324,8 @@ model comment {
     translations           comment_translation[]
     reports                report[]
     bookmarkedBy           bookmark[]                  @relation("bookmark_comment")
-    votedBy                vote[]                      @relation("vote_comment")
+    reactions              reaction[]                  @relation("reaction_comment")
+    reactionSummaries      reaction_summary[]          @relation("reaction_summary_comment")
     parents                comment[]                   @relation("comment_parent")
     subscriptions          notification_subscription[]
 }
@@ -325,7 +434,8 @@ model issue {
     labels                  issue_labels[]
     reports                 report[]
     translations            issue_translation[]
-    votedBy                 vote[]                      @relation("vote_issue")
+    reactions               reaction[]                  @relation("reaction_issue")
+    reactionSummaries       reaction_summary[]          @relation("reaction_summary_issue")
     bookmarkedBy            bookmark[]                  @relation("bookmark_issue")
     viewedBy                view[]                      @relation("view_issue")
     subscriptions           notification_subscription[]
@@ -361,6 +471,7 @@ model label {
     ownedByUserId         String?                 @db.Uuid
     ownedByOrganizationId String?                 @db.Uuid
     apis                  api_labels[]
+    chats                 chat_labels[]
     issues                issue_labels[]
     meetings              meeting_labels[]
     notes                 note_labels[]
@@ -556,7 +667,8 @@ model note {
     tags                    note_tags[]
     bookmarkedBy            bookmark[]                  @relation("bookmark_note")
     viewedBy                view[]                      @relation("view_note")
-    votedBy                 vote[]                      @relation("vote_note")
+    reactions               reaction[]                  @relation("reaction_note")
+    reactionSummaries       reaction_summary[]          @relation("reaction_summary_note")
     transfers               transfer[]                  @relation("transfer_note")
     subscriptions           notification_subscription[]
     questions               question[]
@@ -649,6 +761,7 @@ model notification_subscription {
     context         String?         @db.VarChar(2048)
     silent          Boolean         @default(false)
     apiId           String?         @db.Uuid
+    chatId          String?         @db.Uuid
     commentId       String?         @db.Uuid
     issueId         String?         @db.Uuid
     meetingId       String?         @db.Uuid
@@ -664,6 +777,7 @@ model notification_subscription {
     smartContractId String?         @db.Uuid
     standardId      String?         @db.Uuid
     api             api?            @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    chat            chat?           @relation(fields: [chatId], references: [id], onDelete: Cascade)
     comment         comment?        @relation(fields: [commentId], references: [id], onDelete: Cascade)
     issue           issue?          @relation(fields: [issueId], references: [id], onDelete: Cascade)
     meeting         meeting?        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
@@ -697,6 +811,7 @@ model organization {
     resourceListId     String?                     @unique @db.Uuid
     createdById        String?                     @db.Uuid
     createdBy          user?                       @relation("organization_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    chats              chat[]
     emails             email[]
     issues             issue[]
     labels             label[]
@@ -873,31 +988,32 @@ model member_invite {
 }
 
 model post {
-    id             String             @id @default(uuid()) @db.Uuid
-    created_at     DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime           @default(now()) @db.Timestamptz(6)
-    repostedFromId String?            @db.Uuid
-    resourceListId String?            @unique @db.Uuid
-    isPinned       Boolean            @default(false)
-    isPrivate      Boolean            @default(false)
-    isDeleted      Boolean            @default(false)
-    score          Int                @default(0)
-    bookmarks      Int                @default(0)
-    views          Int                @default(0)
-    organizationId String?            @db.Uuid
-    userId         String?            @db.Uuid
-    organization   organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    user           user?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-    repostedFrom   post?              @relation("repost", fields: [repostedFromId], references: [id], onDelete: SetNull)
-    reposts        post[]             @relation("repost")
-    resourceList   resource_list?     @relation("resource_list_post", fields: [resourceListId], references: [id], onDelete: SetNull)
-    comments       comment[]
-    viewedBy       view[]             @relation("view_post")
-    votedBy        vote[]             @relation("vote_post")
-    bookmarkedBy   bookmark[]         @relation("bookmark_post")
-    reports        report[]
-    tags           post_tags[]
-    translations   post_translation[]
+    id                String             @id @default(uuid()) @db.Uuid
+    created_at        DateTime           @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime           @default(now()) @db.Timestamptz(6)
+    repostedFromId    String?            @db.Uuid
+    resourceListId    String?            @unique @db.Uuid
+    isPinned          Boolean            @default(false)
+    isPrivate         Boolean            @default(false)
+    isDeleted         Boolean            @default(false)
+    score             Int                @default(0)
+    bookmarks         Int                @default(0)
+    views             Int                @default(0)
+    organizationId    String?            @db.Uuid
+    userId            String?            @db.Uuid
+    organization      organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user              user?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    repostedFrom      post?              @relation("repost", fields: [repostedFromId], references: [id], onDelete: SetNull)
+    reposts           post[]             @relation("repost")
+    resourceList      resource_list?     @relation("resource_list_post", fields: [resourceListId], references: [id], onDelete: SetNull)
+    comments          comment[]
+    viewedBy          view[]             @relation("view_post")
+    reactions         reaction[]         @relation("reaction_post")
+    reactionSummaries reaction_summary[] @relation("reaction_summary_post")
+    bookmarkedBy      bookmark[]         @relation("bookmark_post")
+    reports           report[]
+    tags              post_tags[]
+    translations      post_translation[]
 }
 
 model post_tags {
@@ -992,7 +1108,8 @@ model project {
     versions              project_version[]
     bookmarkedBy          bookmark[]                  @relation("bookmark_project")
     viewedBy              view[]                      @relation("view_project")
-    votedBy               vote[]                      @relation("vote_project")
+    reactions             reaction[]                  @relation("reaction_project")
+    reactionSummaries     reaction_summary[]          @relation("reaction_summary_project")
     pullRequests          pull_request[]
     stats                 stats_project[]
     questions             question[]
@@ -1184,7 +1301,8 @@ model question {
     reports           report[]
     tags              question_tags[]
     bookmarkedBy      bookmark[]                  @relation("bookmark_question")
-    votedBy           vote[]                      @relation("vote_question")
+    reactions         reaction[]                  @relation("reaction_question")
+    reactionSummaries reaction_summary[]          @relation("reaction_summary_question")
     viewedBy          view[]                      @relation("view_question")
     translations      question_translation[]
     subscriptions     notification_subscription[]
@@ -1212,20 +1330,21 @@ model question_tags {
 }
 
 model question_answer {
-    id           String                        @id @default(uuid()) @db.Uuid
-    created_at   DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime                      @default(now()) @db.Timestamptz(6)
-    score        Int                           @default(0)
-    bookmarks    Int                           @default(0)
-    isAccepted   Boolean                       @default(false)
-    questionId   String                        @db.Uuid
-    createdById  String?                       @db.Uuid
-    question     question                      @relation(fields: [questionId], references: [id], onDelete: Cascade)
-    createdBy    user?                         @relation("question_answer_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    comments     comment[]
-    bookmarkedBy bookmark[]                    @relation("bookmark_question_answer")
-    votedBy      vote[]                        @relation("vote_question_answer")
-    translations question_answer_translation[]
+    id                String                        @id @default(uuid()) @db.Uuid
+    created_at        DateTime                      @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime                      @default(now()) @db.Timestamptz(6)
+    score             Int                           @default(0)
+    bookmarks         Int                           @default(0)
+    isAccepted        Boolean                       @default(false)
+    questionId        String                        @db.Uuid
+    createdById       String?                       @db.Uuid
+    question          question                      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    createdBy         user?                         @relation("question_answer_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    comments          comment[]
+    bookmarkedBy      bookmark[]                    @relation("bookmark_question_answer")
+    reactions         reaction[]                    @relation("reaction_question_answer")
+    reactionSummaries reaction_summary[]            @relation("reaction_summary_question_answer")
+    translations      question_answer_translation[]
 }
 
 model question_answer_translation {
@@ -1259,7 +1378,8 @@ model quiz {
     createdBy              user?                       @relation(fields: [createdById], references: [id], onDelete: SetNull)
     quizQuestions          quiz_question[]
     bookmarkedBy           bookmark[]                  @relation("bookmark_quiz")
-    votedBy                vote[]                      @relation("vote_quiz")
+    reactions              reaction[]                  @relation("reaction_quiz")
+    reactionSummaries      reaction_summary[]          @relation("reaction_summary_quiz")
     translations           quiz_translation[]
     stats                  stats_quiz[]
     attempts               quiz_attempt[]
@@ -1331,6 +1451,75 @@ model quiz_question_translation {
     @@unique([questionId, language])
 }
 
+model reaction {
+    id               String           @id @default(uuid()) @db.Uuid
+    created_at       DateTime         @default(now()) @db.Timestamptz(6)
+    updated_at       DateTime         @default(now()) @db.Timestamptz(6)
+    emoji            String           @db.VarChar(32)
+    byId             String           @db.Uuid
+    apiId            String?          @db.Uuid
+    chatMessageId    String?          @db.Uuid
+    commentId        String?          @db.Uuid
+    issueId          String?          @db.Uuid
+    noteId           String?          @db.Uuid
+    postId           String?          @db.Uuid
+    projectId        String?          @db.Uuid
+    questionId       String?          @db.Uuid
+    questionAnswerId String?          @db.Uuid
+    quizId           String?          @db.Uuid
+    routineId        String?          @db.Uuid
+    smartContractId  String?          @db.Uuid
+    standardId       String?          @db.Uuid
+    by               user             @relation("reaction_by", fields: [byId], references: [id], onDelete: Cascade)
+    api              api?             @relation("reaction_api", fields: [apiId], references: [id], onDelete: Cascade)
+    chatMessage      chat_message?    @relation("reaction_chat_message", fields: [chatMessageId], references: [id], onDelete: Cascade)
+    comment          comment?         @relation("reaction_comment", fields: [commentId], references: [id], onDelete: Cascade)
+    issue            issue?           @relation("reaction_issue", fields: [issueId], references: [id], onDelete: Cascade)
+    note             note?            @relation("reaction_note", fields: [noteId], references: [id], onDelete: Cascade)
+    post             post?            @relation("reaction_post", fields: [postId], references: [id], onDelete: Cascade)
+    project          project?         @relation("reaction_project", fields: [projectId], references: [id], onDelete: Cascade)
+    question         question?        @relation("reaction_question", fields: [questionId], references: [id], onDelete: Cascade)
+    questionAnswer   question_answer? @relation("reaction_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)
+    quiz             quiz?            @relation("reaction_quiz", fields: [quizId], references: [id], onDelete: Cascade)
+    routine          routine?         @relation("reaction_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract    smart_contract?  @relation("reaction_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard         standard?        @relation("reaction_standard", fields: [standardId], references: [id], onDelete: Cascade)
+}
+
+model reaction_summary {
+    id               String           @id @default(uuid()) @db.Uuid
+    created_at       DateTime         @default(now()) @db.Timestamptz(6)
+    updated_at       DateTime         @default(now()) @db.Timestamptz(6)
+    emoji            String           @db.VarChar(32)
+    count            Int              @default(0)
+    apiId            String?          @db.Uuid
+    chatMessageId    String?          @db.Uuid
+    commentId        String?          @db.Uuid
+    issueId          String?          @db.Uuid
+    noteId           String?          @db.Uuid
+    postId           String?          @db.Uuid
+    projectId        String?          @db.Uuid
+    questionId       String?          @db.Uuid
+    questionAnswerId String?          @db.Uuid
+    quizId           String?          @db.Uuid
+    routineId        String?          @db.Uuid
+    smartContractId  String?          @db.Uuid
+    standardId       String?          @db.Uuid
+    api              api?             @relation("reaction_summary_api", fields: [apiId], references: [id], onDelete: Cascade)
+    chatMessage      chat_message?    @relation("reaction_summary_chat_message", fields: [chatMessageId], references: [id], onDelete: Cascade)
+    comment          comment?         @relation("reaction_summary_comment", fields: [commentId], references: [id], onDelete: Cascade)
+    issue            issue?           @relation("reaction_summary_issue", fields: [issueId], references: [id], onDelete: Cascade)
+    note             note?            @relation("reaction_summary_note", fields: [noteId], references: [id], onDelete: Cascade)
+    post             post?            @relation("reaction_summary_post", fields: [postId], references: [id], onDelete: Cascade)
+    project          project?         @relation("reaction_summary_project", fields: [projectId], references: [id], onDelete: Cascade)
+    question         question?        @relation("reaction_summary_question", fields: [questionId], references: [id], onDelete: Cascade)
+    questionAnswer   question_answer? @relation("reaction_summary_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)
+    quiz             quiz?            @relation("reaction_summary_quiz", fields: [quizId], references: [id], onDelete: Cascade)
+    routine          routine?         @relation("reaction_summary_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract    smart_contract?  @relation("reaction_summary_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard         standard?        @relation("reaction_summary_standard", fields: [standardId], references: [id], onDelete: Cascade)
+}
+
 model reminder_list {
     id         String      @id @default(uuid()) @db.Uuid
     created_at DateTime    @default(now()) @db.Timestamptz(6)
@@ -1374,6 +1563,7 @@ model report {
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     status                 ReportStatus
     apiVersionId           String?                     @db.Uuid
+    chatMessageId          String?                     @db.Uuid
     commentId              String?                     @db.Uuid
     issueId                String?                     @db.Uuid
     noteVersionId          String?                     @db.Uuid
@@ -1388,6 +1578,7 @@ model report {
     userId                 String?                     @db.Uuid
     createdById            String?                     @db.Uuid
     apiVersion             api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    chatMessage            chat_message?               @relation(fields: [chatMessageId], references: [id], onDelete: Cascade)
     comment                comment?                    @relation(fields: [commentId], references: [id], onDelete: Cascade)
     issue                  issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
     noteVersion            note_version?               @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
@@ -1490,6 +1681,7 @@ model role {
     organization   organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     members        member[]
     meetings       meeting_roles[]
+    chats          chat_roles[]
     translations   role_translation[]
 
     @@unique([organizationId, name], name: "role_organizationId_name_unique")
@@ -1535,7 +1727,8 @@ model routine {
     bookmarkedBy          bookmark[]                  @relation("bookmark_routine")
     versions              routine_version[]
     viewedBy              view[]                      @relation("view_routine")
-    votedBy               vote[]                      @relation("vote_routine")
+    reactions             reaction[]                  @relation("reaction_routine")
+    reactionSummaries     reaction_summary[]          @relation("reaction_summary_routine")
     pullRequests          pull_request[]
     stats                 stats_routine[]
     questions             question[]
@@ -1851,7 +2044,8 @@ model smart_contract {
     bookmarkedBy          bookmark[]                  @relation("bookmark_smart_contract")
     versions              smart_contract_version[]
     viewedBy              view[]                      @relation("view_smart_contract")
-    votedBy               vote[]                      @relation("vote_smart_contract")
+    reactions             reaction[]                  @relation("reaction_smart_contract")
+    reactionSummaries     reaction_summary[]          @relation("reaction_summary_smart_contract")
     pullRequests          pull_request[]
     stats                 stats_smart_contract[]
     questions             question[]
@@ -1951,7 +2145,8 @@ model standard {
     bookmarkedBy          bookmark[]                  @relation("bookmark_standard")
     versions              standard_version[]
     viewedBy              view[]                      @relation("view_standard")
-    votedBy               vote[]                      @relation("vote_standard")
+    reactions             reaction[]                  @relation("reaction_standard")
+    reactionSummaries     reaction_summary[]          @relation("reaction_summary_standard")
     pullRequests          pull_request[]
     stats                 stats_standard[]
     questions             question[]
@@ -2305,6 +2500,7 @@ model user {
     currentStreak                  Int                         @default(0)
     longestStreak                  Int                         @default(0)
     accountTabsOrder               String?                     @db.VarChar(255)
+    botSettings                    String?                     @db.VarChar(4096)
     notificationSettings           String?                     @db.VarChar(2048)
     bookmarks                      Int                         @default(0)
     views                          Int                         @default(0)
@@ -2315,6 +2511,10 @@ model user {
     apis                           api[]                       @relation("api_ownedByUser")
     apiKeys                        api_key[]
     awards                         award[]
+    chatsCreated                   chat[]
+    chats                          chat_participants[]
+    chatsInvited                   chat_invite[]
+    chatMessages                   chat_message[]              @relation("chat_message_user")
     comments                       comment[]                   @relation("comment_ownedByUser")
     emails                         email[]
     organizationsCreated           organization[]              @relation("organization_createdBy")
@@ -2365,7 +2565,7 @@ model user {
     translations                   user_translation[]
     viewed                         view[]                      @relation("view_by")
     viewedBy                       view[]                      @relation("view_user")
-    voted                          vote[]                      @relation("vote_by")
+    reacted                        reaction[]                  @relation("reaction_by")
     wallets                        wallet[]
     stats                          stats_user[]
 }
@@ -2419,39 +2619,6 @@ model view {
     user            user?           @relation("view_user", fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model vote {
-    id               String           @id @default(uuid()) @db.Uuid
-    created_at       DateTime         @default(now()) @db.Timestamptz(6)
-    updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    isUpvote         Boolean          @default(true)
-    byId             String           @db.Uuid
-    apiId            String?          @db.Uuid
-    commentId        String?          @db.Uuid
-    issueId          String?          @db.Uuid
-    noteId           String?          @db.Uuid
-    postId           String?          @db.Uuid
-    projectId        String?          @db.Uuid
-    questionId       String?          @db.Uuid
-    questionAnswerId String?          @db.Uuid
-    quizId           String?          @db.Uuid
-    routineId        String?          @db.Uuid
-    smartContractId  String?          @db.Uuid
-    standardId       String?          @db.Uuid
-    by               user             @relation("vote_by", fields: [byId], references: [id], onDelete: Cascade)
-    api              api?             @relation("vote_api", fields: [apiId], references: [id], onDelete: Cascade)
-    comment          comment?         @relation("vote_comment", fields: [commentId], references: [id], onDelete: Cascade)
-    issue            issue?           @relation("vote_issue", fields: [issueId], references: [id], onDelete: Cascade)
-    note             note?            @relation("vote_note", fields: [noteId], references: [id], onDelete: Cascade)
-    post             post?            @relation("vote_post", fields: [postId], references: [id], onDelete: Cascade)
-    project          project?         @relation("vote_project", fields: [projectId], references: [id], onDelete: Cascade)
-    question         question?        @relation("vote_question", fields: [questionId], references: [id], onDelete: Cascade)
-    questionAnswer   question_answer? @relation("vote_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)
-    quiz             quiz?            @relation("vote_quiz", fields: [quizId], references: [id], onDelete: Cascade)
-    routine          routine?         @relation("vote_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract    smart_contract?  @relation("vote_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard         standard?        @relation("vote_standard", fields: [standardId], references: [id], onDelete: Cascade)
-}
-
 model wallet {
     id                String        @id @default(uuid()) @db.Uuid
     created_at        DateTime      @default(now()) @db.Timestamptz(6)
@@ -2486,7 +2653,7 @@ enum AwardCategory {
     IssueCreate
     NoteCreate
     ObjectBookmark
-    ObjectVote
+    ObjectReact
     OrganizationCreate
     OrganizationJoin
     PostCreate
@@ -2506,6 +2673,12 @@ enum AwardCategory {
     StandardCreate
     Streak
     UserInvite
+}
+
+enum ChatInviteStatus {
+    Pending
+    Accepted
+    Declined
 }
 
 enum FocusModeFilterType {

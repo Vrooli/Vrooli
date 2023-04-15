@@ -1,11 +1,13 @@
 import { ReportStatus } from "@prisma/client";
-import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, SubscribableObject } from '@shared/consts';
+import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from '@shared/consts';
 import i18next, { TFuncKey } from 'i18next';
+import { selectHelper, toPartialGqlInfo } from "../builders";
+import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
-import { OrganizationModel, subscribableMapper } from "../models";
+import { OrganizationModel, PushDeviceModel, subscribableMapper } from "../models";
 import { initializeRedis } from "../redisConn";
-import { PrismaType } from "../types";
+import { PrismaType, SessionUserToken } from "../types";
 import { sendMail } from "./email";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
@@ -383,42 +385,57 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
     /**
      * Sets up a push device to receive notifications
      */
-    registerPushDevice: async ({ endpoint, p256dh, auth, expires, userId }: {
+    registerPushDevice: async ({ endpoint, p256dh, auth, expires, userData, info }: {
         endpoint: string,
         p256dh: string,
         auth: string,
         expires?: Date,
-        userId: string,
-    }) => {
-        // Check if the device is already registered
-        const device = await prisma.push_device.findUnique({
-            where: { endpoint },
-            select: { id: true }
-        })
-        // If it is, update the auth and p256dh keys
-        if (device) {
-            await prisma.push_device.update({
-                where: { id: device.id },
-                data: { auth, p256dh, expires }
+        name?: string,
+        userData: SessionUserToken,
+        info: GraphQLInfo | PartialGraphQLInfo,
+    }): Promise<PushDevice> => {
+        const partialInfo = toPartialGqlInfo(info, PushDeviceModel.format.gqlRelMap, userData.languages, true);
+        let select: { [key: string]: any } | undefined;
+        let result: any = {};
+        try {
+            select = selectHelper(partialInfo)?.select;
+            // Check if the device is already registered
+            const device = await prisma.push_device.findUnique({
+                where: { endpoint },
+                select: { id: true }
             })
-        }
-        // If it isn't, create a new device
-        await prisma.push_device.create({
-            data: {
-                endpoint,
-                auth,
-                p256dh,
-                expires,
-                user: { connect: { id: userId } }
+            // If it is, update the auth and p256dh keys
+            if (device) {
+                result = await prisma.push_device.update({
+                    where: { id: device.id },
+                    data: { auth, p256dh, expires },
+                    select,
+                })
             }
-        })
+            // If it isn't, create a new device
+            else {
+                result = await prisma.push_device.create({
+                    data: {
+                        endpoint,
+                        auth,
+                        p256dh,
+                        expires,
+                        user: { connect: { id: userData.id } }
+                    },
+                    select,
+                })
+            }
+            return result;
+        } catch (error) {
+            throw new CustomError('0452', 'InternalError', userData.languages, { error, select, result });
+        }
     },
     /**
      * Removes a push device from the database
      * @param deviceId The device's id
      * @param userId The user's id
      */
-    unregisterPushDevice: async (deviceId: string, userId: string) => {
+    unregisterPushDevice: async (deviceId: string, userId: string): Promise<Success> => {
         // Check if the device is registered to the user
         const device = await prisma.push_device.findUnique({
             where: { id: deviceId },
@@ -427,7 +444,8 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         if (!device || device.userId !== userId)
             throw new CustomError('0307', 'PushDeviceNotFound', languages);
         // If it is, delete it  
-        await prisma.push_device.delete({ where: { id: deviceId } })
+        const deletedDevice = await prisma.push_device.delete({ where: { id: deviceId } })
+        return { __typename: 'Success' as const, success: Boolean(deletedDevice) };
     },
     /**
      * Updates a user's notification settings

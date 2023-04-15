@@ -332,13 +332,13 @@ export type ApiYou = {
   __typename: 'ApiYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type Award = {
@@ -361,7 +361,7 @@ export enum AwardCategory {
   IssueCreate = 'IssueCreate',
   NoteCreate = 'NoteCreate',
   ObjectBookmark = 'ObjectBookmark',
-  ObjectVote = 'ObjectVote',
+  ObjectReact = 'ObjectReact',
   OrganizationCreate = 'OrganizationCreate',
   OrganizationJoin = 'OrganizationJoin',
   PostCreate = 'PostCreate',
@@ -552,6 +552,333 @@ export type BookmarkUpdateInput = {
   listUpdate?: InputMaybe<BookmarkListUpdateInput>;
 };
 
+export type Chat = {
+  __typename: 'Chat';
+  id: Scalars['ID'];
+  invites: Array<ChatInvite>;
+  invitesCount: Scalars['Int'];
+  labels: Array<Label>;
+  labelsCount: Scalars['Int'];
+  messages: Array<ChatMessage>;
+  openToAnyoneWithInvite: Scalars['Boolean'];
+  organization?: Maybe<Organization>;
+  participants: Array<User>;
+  participantsCount: Scalars['Int'];
+  restrictedToRoles: Array<Role>;
+  translations: Array<ChatTranslation>;
+  translationsCount: Scalars['Int'];
+  you: ChatYou;
+};
+
+export type ChatCreateInput = {
+  id: Scalars['ID'];
+  invitesCreate?: InputMaybe<Array<ChatInviteCreateInput>>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
+  organizationConnect?: InputMaybe<Scalars['ID']>;
+  restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
+  translationsCreate?: InputMaybe<Array<ChatTranslationCreateInput>>;
+};
+
+export type ChatEdge = {
+  __typename: 'ChatEdge';
+  cursor: Scalars['String'];
+  node: Chat;
+};
+
+export type ChatInvite = {
+  __typename: 'ChatInvite';
+  chat: Chat;
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  message?: Maybe<Scalars['String']>;
+  status: ChatInviteStatus;
+  updated_at: Scalars['Date'];
+  user: User;
+  you: ChatInviteYou;
+};
+
+export type ChatInviteCreateInput = {
+  chatConnect: Scalars['ID'];
+  id: Scalars['ID'];
+  message?: InputMaybe<Scalars['String']>;
+  userConnect: Scalars['ID'];
+};
+
+export type ChatInviteEdge = {
+  __typename: 'ChatInviteEdge';
+  cursor: Scalars['String'];
+  node: ChatInvite;
+};
+
+export type ChatInviteSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  chatId?: InputMaybe<Scalars['ID']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ChatInviteSortBy>;
+  status?: InputMaybe<ChatInviteStatus>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ChatInviteSearchResult = {
+  __typename: 'ChatInviteSearchResult';
+  edges: Array<ChatInviteEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ChatInviteSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  UserNameAsc = 'UserNameAsc',
+  UserNameDesc = 'UserNameDesc'
+}
+
+export enum ChatInviteStatus {
+  Accepted = 'Accepted',
+  Declined = 'Declined',
+  Pending = 'Pending'
+}
+
+export type ChatInviteUpdateInput = {
+  id: Scalars['ID'];
+  message?: InputMaybe<Scalars['String']>;
+};
+
+export type ChatInviteYou = {
+  __typename: 'ChatInviteYou';
+  canDelete: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
+};
+
+export type ChatMessage = {
+  __typename: 'ChatMessage';
+  chat: Chat;
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  reports: Array<Report>;
+  reportsCount: Scalars['Int'];
+  score: Scalars['Int'];
+  translations: Array<ChatMessageTranslation>;
+  translationsCount: Scalars['Int'];
+  updated_at: Scalars['Date'];
+  user: User;
+  you: ChatMessageYou;
+};
+
+export type ChatMessageCreateInput = {
+  chatConnect: Scalars['ID'];
+  forkId?: InputMaybe<Scalars['ID']>;
+  id: Scalars['ID'];
+  isFork: Scalars['Boolean'];
+  translationsCreate?: InputMaybe<Array<ChatMessageTranslationCreateInput>>;
+};
+
+export type ChatMessageEdge = {
+  __typename: 'ChatMessageEdge';
+  cursor: Scalars['String'];
+  node: ChatMessage;
+};
+
+export type ChatMessageSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  chatId?: InputMaybe<Scalars['ID']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  minScore?: InputMaybe<Scalars['Int']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ChatMessageSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export type ChatMessageSearchResult = {
+  __typename: 'ChatMessageSearchResult';
+  edges: Array<ChatMessageEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ChatMessageSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  ScoreAsc = 'ScoreAsc',
+  ScoreDesc = 'ScoreDesc'
+}
+
+export type ChatMessageTranslation = {
+  __typename: 'ChatMessageTranslation';
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type ChatMessageTranslationCreateInput = {
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type ChatMessageTranslationUpdateInput = {
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  text?: InputMaybe<Scalars['String']>;
+};
+
+export type ChatMessageUpdateInput = {
+  id: Scalars['ID'];
+  translationsCreate?: InputMaybe<Array<ChatMessageTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<ChatMessageTranslationUpdateInput>>;
+};
+
+export type ChatMessageYou = {
+  __typename: 'ChatMessageYou';
+  canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
+  canReply: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
+};
+
+export type ChatMessageedOn = ApiVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | SmartContractVersion | StandardVersion;
+
+export type ChatParticipant = {
+  __typename: 'ChatParticipant';
+  chat: Chat;
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  updated_at: Scalars['Date'];
+  user: User;
+};
+
+export type ChatParticipantEdge = {
+  __typename: 'ChatParticipantEdge';
+  cursor: Scalars['String'];
+  node: ChatParticipant;
+};
+
+export type ChatParticipantSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  chatId?: InputMaybe<Scalars['ID']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ChatParticipantSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ChatParticipantSearchResult = {
+  __typename: 'ChatParticipantSearchResult';
+  edges: Array<ChatParticipantEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ChatParticipantSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  UserNameAsc = 'UserNameAsc',
+  UserNameDesc = 'UserNameDesc'
+}
+
+export type ChatParticipantUpdateInput = {
+  id: Scalars['ID'];
+};
+
+export type ChatSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ChatSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ChatSearchResult = {
+  __typename: 'ChatSearchResult';
+  edges: Array<ChatEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ChatSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  InvitesAsc = 'InvitesAsc',
+  InvitesDesc = 'InvitesDesc',
+  MessagesAsc = 'MessagesAsc',
+  MessagesDesc = 'MessagesDesc',
+  ParticipantsAsc = 'ParticipantsAsc',
+  ParticipantsDesc = 'ParticipantsDesc'
+}
+
+export type ChatTranslation = {
+  __typename: 'ChatTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  name?: Maybe<Scalars['String']>;
+};
+
+export type ChatTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  name?: InputMaybe<Scalars['String']>;
+};
+
+export type ChatTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
+};
+
+export type ChatUpdateInput = {
+  id: Scalars['ID'];
+  invitesCreate?: InputMaybe<Array<ChatInviteCreateInput>>;
+  invitesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  invitesUpdate?: InputMaybe<Array<ChatInviteUpdateInput>>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
+  restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
+  restrictedToRolesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  translationsCreate?: InputMaybe<Array<ChatTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<ChatTranslationUpdateInput>>;
+};
+
+export type ChatYou = {
+  __typename: 'ChatYou';
+  canDelete: Scalars['Boolean'];
+  canInvite: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
+};
+
 export type Comment = {
   __typename: 'Comment';
   bookmarkedBy?: Maybe<Array<User>>;
@@ -672,12 +999,12 @@ export type CommentYou = {
   __typename: 'CommentYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canReply: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type CommentedOn = ApiVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | SmartContractVersion | StandardVersion;
@@ -728,6 +1055,10 @@ export enum DeleteType {
   Api = 'Api',
   ApiVersion = 'ApiVersion',
   Bookmark = 'Bookmark',
+  Chat = 'Chat',
+  ChatInvite = 'ChatInvite',
+  ChatMessage = 'ChatMessage',
+  ChatParticipant = 'ChatParticipant',
   Comment = 'Comment',
   Email = 'Email',
   FocusMode = 'FocusMode',
@@ -941,6 +1272,10 @@ export enum GqlModelType {
   Award = 'Award',
   Bookmark = 'Bookmark',
   BookmarkList = 'BookmarkList',
+  Chat = 'Chat',
+  ChatInvite = 'ChatInvite',
+  ChatMessage = 'ChatMessage',
+  ChatParticipant = 'ChatParticipant',
   Comment = 'Comment',
   Copy = 'Copy',
   Email = 'Email',
@@ -987,6 +1322,7 @@ export enum GqlModelType {
   QuizAttempt = 'QuizAttempt',
   QuizQuestion = 'QuizQuestion',
   QuizQuestionResponse = 'QuizQuestionResponse',
+  Reaction = 'Reaction',
   Reminder = 'Reminder',
   ReminderItem = 'ReminderItem',
   ReminderList = 'ReminderList',
@@ -1028,7 +1364,6 @@ export enum GqlModelType {
   Transfer = 'Transfer',
   User = 'User',
   View = 'View',
-  Vote = 'Vote',
   Wallet = 'Wallet'
 }
 
@@ -1208,12 +1543,12 @@ export type IssueYou = {
   canBookmark: Scalars['Boolean'];
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type Label = {
@@ -1701,6 +2036,15 @@ export type Mutation = {
   bookmarkListCreate: BookmarkList;
   bookmarkListUpdate: BookmarkList;
   bookmarkUpdate: Bookmark;
+  chatCreate: Chat;
+  chatInviteAccept: ChatInvite;
+  chatInviteCreate: ChatInvite;
+  chatInviteDecline: ChatInvite;
+  chatInviteUpdate: ChatInvite;
+  chatMessageCreate: ChatMessage;
+  chatMessageUpdate: ChatMessage;
+  chatParticipantUpdate: ChatParticipant;
+  chatUpdate: Chat;
   commentCreate: Comment;
   commentUpdate: Comment;
   copy: CopyResult;
@@ -1771,6 +2115,7 @@ export type Mutation = {
   quizAttemptUpdate: QuizAttempt;
   quizCreate: Quiz;
   quizUpdate: Quiz;
+  react: Success;
   reminderCreate: Reminder;
   reminderListCreate: ReminderList;
   reminderListUpdate: ReminderList;
@@ -1827,7 +2172,6 @@ export type Mutation = {
   transferUpdate: Transfer;
   userDeleteOne: Success;
   validateSession: Session;
-  vote: Success;
   walletComplete: WalletComplete;
   walletInit: Scalars['String'];
   walletUpdate: Wallet;
@@ -1892,6 +2236,51 @@ export type MutationBookmarkListUpdateArgs = {
 
 export type MutationBookmarkUpdateArgs = {
   input: BookmarkUpdateInput;
+};
+
+
+export type MutationChatCreateArgs = {
+  input: ChatCreateInput;
+};
+
+
+export type MutationChatInviteAcceptArgs = {
+  input: FindByIdInput;
+};
+
+
+export type MutationChatInviteCreateArgs = {
+  input: ChatInviteCreateInput;
+};
+
+
+export type MutationChatInviteDeclineArgs = {
+  input: FindByIdInput;
+};
+
+
+export type MutationChatInviteUpdateArgs = {
+  input: ChatInviteUpdateInput;
+};
+
+
+export type MutationChatMessageCreateArgs = {
+  input: ChatMessageCreateInput;
+};
+
+
+export type MutationChatMessageUpdateArgs = {
+  input: ChatMessageUpdateInput;
+};
+
+
+export type MutationChatParticipantUpdateArgs = {
+  input: ChatParticipantUpdateInput;
+};
+
+
+export type MutationChatUpdateArgs = {
+  input: ChatUpdateInput;
 };
 
 
@@ -2225,6 +2614,11 @@ export type MutationQuizUpdateArgs = {
 };
 
 
+export type MutationReactArgs = {
+  input: ReactInput;
+};
+
+
 export type MutationReminderCreateArgs = {
   input: ReminderCreateInput;
 };
@@ -2492,11 +2886,6 @@ export type MutationUserDeleteOneArgs = {
 
 export type MutationValidateSessionArgs = {
   input: ValidateSessionInput;
-};
-
-
-export type MutationVoteArgs = {
-  input: VoteInput;
 };
 
 
@@ -3082,13 +3471,13 @@ export type NoteYou = {
   __typename: 'NoteYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type Notification = {
@@ -4034,7 +4423,7 @@ export enum ProjectVersionContentsSortBy {
 }
 
 export type ProjectVersionCreateInput = {
-  directoryListingsCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
+  directoriesCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
@@ -4221,9 +4610,9 @@ export type ProjectVersionTranslationUpdateInput = {
 };
 
 export type ProjectVersionUpdateInput = {
-  directoryListingsCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
-  directoryListingsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  directoryListingsUpdate?: InputMaybe<Array<ProjectVersionDirectoryUpdateInput>>;
+  directoriesCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
+  directoriesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  directoriesUpdate?: InputMaybe<Array<ProjectVersionDirectoryUpdateInput>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
@@ -4253,13 +4642,13 @@ export type ProjectYou = {
   __typename: 'ProjectYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type PullRequest = {
@@ -4392,6 +4781,7 @@ export type PullRequestYou = {
 
 export type PushDevice = {
   __typename: 'PushDevice';
+  deviceId: Scalars['String'];
   expires?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
@@ -4425,6 +4815,14 @@ export type Query = {
   bookmarkList?: Maybe<BookmarkList>;
   bookmarkLists: BookmarkListSearchResult;
   bookmarks: BookmarkSearchResult;
+  chat?: Maybe<Chat>;
+  chatInvite?: Maybe<ChatInvite>;
+  chatInvites: ChatInviteSearchResult;
+  chatMessage?: Maybe<ChatMessage>;
+  chatMessages: ChatMessageSearchResult;
+  chatParticipant?: Maybe<ChatParticipant>;
+  chatParticipants: ChatParticipantSearchResult;
+  chats: ChatSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   findHandles: Array<Scalars['String']>;
@@ -4482,6 +4880,7 @@ export type Query = {
   quizQuestionResponses: QuizQuestionResponseSearchResult;
   quizQuestions: QuizQuestionSearchResult;
   quizzes: QuizSearchResult;
+  reactions: ReactionSearchResult;
   readAssets: Array<Maybe<Scalars['String']>>;
   reminder?: Maybe<Reminder>;
   reminders: ReminderSearchResult;
@@ -4538,7 +4937,6 @@ export type Query = {
   user?: Maybe<User>;
   users: UserSearchResult;
   views: ViewSearchResult;
-  votes: VoteSearchResult;
 };
 
 
@@ -4584,6 +4982,46 @@ export type QueryBookmarkListsArgs = {
 
 export type QueryBookmarksArgs = {
   input: BookmarkSearchInput;
+};
+
+
+export type QueryChatArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryChatInviteArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryChatInvitesArgs = {
+  input: ChatInviteSearchInput;
+};
+
+
+export type QueryChatMessageArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryChatMessagesArgs = {
+  input: ChatMessageSearchInput;
+};
+
+
+export type QueryChatParticipantArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryChatParticipantsArgs = {
+  input: ChatParticipantSearchInput;
+};
+
+
+export type QueryChatsArgs = {
+  input: ChatSearchInput;
 };
 
 
@@ -4854,6 +5292,11 @@ export type QueryQuizQuestionsArgs = {
 
 export type QueryQuizzesArgs = {
   input: QuizSearchInput;
+};
+
+
+export type QueryReactionsArgs = {
+  input: ReactionSearchInput;
 };
 
 
@@ -5136,11 +5579,6 @@ export type QueryViewsArgs = {
   input: ViewSearchInput;
 };
 
-
-export type QueryVotesArgs = {
-  input: VoteSearchInput;
-};
-
 export type Question = {
   __typename: 'Question';
   answers: Array<QuestionAnswer>;
@@ -5366,11 +5804,11 @@ export type QuestionYou = {
   __typename: 'QuestionYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type Quiz = {
@@ -5755,13 +6193,71 @@ export type QuizYou = {
   __typename: 'QuizYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   hasCompleted: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
+  reaction?: Maybe<Scalars['String']>;
 };
+
+export type ReactInput = {
+  emoji?: InputMaybe<Scalars['String']>;
+  forConnect: Scalars['ID'];
+  reactionFor: ReactionFor;
+};
+
+export type Reaction = {
+  __typename: 'Reaction';
+  by: User;
+  emoji: Scalars['String'];
+  id: Scalars['ID'];
+  to: ReactionTo;
+};
+
+export type ReactionEdge = {
+  __typename: 'ReactionEdge';
+  cursor: Scalars['String'];
+  node: Reaction;
+};
+
+export enum ReactionFor {
+  Api = 'Api',
+  ChatMessage = 'ChatMessage',
+  Comment = 'Comment',
+  Issue = 'Issue',
+  Note = 'Note',
+  Post = 'Post',
+  Project = 'Project',
+  Question = 'Question',
+  QuestionAnswer = 'QuestionAnswer',
+  Quiz = 'Quiz',
+  Routine = 'Routine',
+  SmartContract = 'SmartContract',
+  Standard = 'Standard'
+}
+
+export type ReactionSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ReactionSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type ReactionSearchResult = {
+  __typename: 'ReactionSearchResult';
+  edges: Array<ReactionEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ReactionSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export type ReactionTo = Api | ChatMessage | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard;
 
 export type ReadAssetsInput = {
   files: Array<Scalars['String']>;
@@ -6864,11 +7360,11 @@ export type RoutineVersionYou = {
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canRun: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   runs: Array<RunRoutine>;
 };
 
@@ -6877,13 +7373,13 @@ export type RoutineYou = {
   canBookmark: Scalars['Boolean'];
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type RunProject = {
@@ -7877,13 +8373,13 @@ export type SmartContractYou = {
   __typename: 'SmartContractYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export type Standard = {
@@ -8180,13 +8676,13 @@ export type StandardYou = {
   __typename: 'StandardYou';
   canBookmark: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
   canRead: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
   isBookmarked: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
 };
 
 export enum StatPeriodType {
@@ -8913,6 +9409,7 @@ export type User = {
   questionsAskedCount: Scalars['Int'];
   quizzesCreated?: Maybe<Array<Quiz>>;
   quizzesTaken?: Maybe<Array<Quiz>>;
+  reacted?: Maybe<Array<Reaction>>;
   reportResponses?: Maybe<Array<ReportResponse>>;
   reportsCreated?: Maybe<Array<Report>>;
   reportsReceived: Array<Report>;
@@ -8942,7 +9439,6 @@ export type User = {
   viewed?: Maybe<Array<View>>;
   viewedBy?: Maybe<Array<View>>;
   views: Scalars['Int'];
-  voted?: Maybe<Array<Vote>>;
   wallets?: Maybe<Array<Wallet>>;
   you: UserYou;
 };
@@ -9073,63 +9569,6 @@ export enum VisibilityType {
   Private = 'Private',
   Public = 'Public'
 }
-
-export type Vote = {
-  __typename: 'Vote';
-  by: User;
-  id: Scalars['ID'];
-  isUpvote?: Maybe<Scalars['Boolean']>;
-  to: VoteTo;
-};
-
-export type VoteEdge = {
-  __typename: 'VoteEdge';
-  cursor: Scalars['String'];
-  node: Vote;
-};
-
-export enum VoteFor {
-  Api = 'Api',
-  Comment = 'Comment',
-  Issue = 'Issue',
-  Note = 'Note',
-  Post = 'Post',
-  Project = 'Project',
-  Question = 'Question',
-  QuestionAnswer = 'QuestionAnswer',
-  Quiz = 'Quiz',
-  Routine = 'Routine',
-  SmartContract = 'SmartContract',
-  Standard = 'Standard'
-}
-
-export type VoteInput = {
-  forConnect: Scalars['ID'];
-  isUpvote?: InputMaybe<Scalars['Boolean']>;
-  voteFor: VoteFor;
-};
-
-export type VoteSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<VoteSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
-};
-
-export type VoteSearchResult = {
-  __typename: 'VoteSearchResult';
-  edges: Array<VoteEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum VoteSortBy {
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
-
-export type VoteTo = Api | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard;
 
 export type Wallet = {
   __typename: 'Wallet';
@@ -9286,6 +9725,44 @@ export type ResolversTypes = {
   BookmarkTo: ResolversTypes['Api'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['Tag'] | ResolversTypes['User'];
   BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
+  Chat: ResolverTypeWrapper<Chat>;
+  ChatCreateInput: ChatCreateInput;
+  ChatEdge: ResolverTypeWrapper<ChatEdge>;
+  ChatInvite: ResolverTypeWrapper<ChatInvite>;
+  ChatInviteCreateInput: ChatInviteCreateInput;
+  ChatInviteEdge: ResolverTypeWrapper<ChatInviteEdge>;
+  ChatInviteSearchInput: ChatInviteSearchInput;
+  ChatInviteSearchResult: ResolverTypeWrapper<ChatInviteSearchResult>;
+  ChatInviteSortBy: ChatInviteSortBy;
+  ChatInviteStatus: ChatInviteStatus;
+  ChatInviteUpdateInput: ChatInviteUpdateInput;
+  ChatInviteYou: ResolverTypeWrapper<ChatInviteYou>;
+  ChatMessage: ResolverTypeWrapper<ChatMessage>;
+  ChatMessageCreateInput: ChatMessageCreateInput;
+  ChatMessageEdge: ResolverTypeWrapper<ChatMessageEdge>;
+  ChatMessageSearchInput: ChatMessageSearchInput;
+  ChatMessageSearchResult: ResolverTypeWrapper<ChatMessageSearchResult>;
+  ChatMessageSortBy: ChatMessageSortBy;
+  ChatMessageTranslation: ResolverTypeWrapper<ChatMessageTranslation>;
+  ChatMessageTranslationCreateInput: ChatMessageTranslationCreateInput;
+  ChatMessageTranslationUpdateInput: ChatMessageTranslationUpdateInput;
+  ChatMessageUpdateInput: ChatMessageUpdateInput;
+  ChatMessageYou: ResolverTypeWrapper<ChatMessageYou>;
+  ChatMessageedOn: ResolversTypes['ApiVersion'] | ResolversTypes['Issue'] | ResolversTypes['NoteVersion'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['PullRequest'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
+  ChatParticipant: ResolverTypeWrapper<ChatParticipant>;
+  ChatParticipantEdge: ResolverTypeWrapper<ChatParticipantEdge>;
+  ChatParticipantSearchInput: ChatParticipantSearchInput;
+  ChatParticipantSearchResult: ResolverTypeWrapper<ChatParticipantSearchResult>;
+  ChatParticipantSortBy: ChatParticipantSortBy;
+  ChatParticipantUpdateInput: ChatParticipantUpdateInput;
+  ChatSearchInput: ChatSearchInput;
+  ChatSearchResult: ResolverTypeWrapper<ChatSearchResult>;
+  ChatSortBy: ChatSortBy;
+  ChatTranslation: ResolverTypeWrapper<ChatTranslation>;
+  ChatTranslationCreateInput: ChatTranslationCreateInput;
+  ChatTranslationUpdateInput: ChatTranslationUpdateInput;
+  ChatUpdateInput: ChatUpdateInput;
+  ChatYou: ResolverTypeWrapper<ChatYou>;
   Comment: ResolverTypeWrapper<Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversTypes['CommentedOn'], owner?: Maybe<ResolversTypes['Owner']> }>;
   CommentCreateInput: CommentCreateInput;
   CommentFor: CommentFor;
@@ -9632,6 +10109,14 @@ export type ResolversTypes = {
   QuizTranslationUpdateInput: QuizTranslationUpdateInput;
   QuizUpdateInput: QuizUpdateInput;
   QuizYou: ResolverTypeWrapper<QuizYou>;
+  ReactInput: ReactInput;
+  Reaction: ResolverTypeWrapper<Omit<Reaction, 'to'> & { to: ResolversTypes['ReactionTo'] }>;
+  ReactionEdge: ResolverTypeWrapper<ReactionEdge>;
+  ReactionFor: ReactionFor;
+  ReactionSearchInput: ReactionSearchInput;
+  ReactionSearchResult: ResolverTypeWrapper<ReactionSearchResult>;
+  ReactionSortBy: ReactionSortBy;
+  ReactionTo: ResolversTypes['Api'] | ResolversTypes['ChatMessage'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
   Reminder: ResolverTypeWrapper<Reminder>;
   ReminderCreateInput: ReminderCreateInput;
@@ -9937,14 +10422,6 @@ export type ResolversTypes = {
   ViewSortBy: ViewSortBy;
   ViewTo: ResolversTypes['Api'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['User'];
   VisibilityType: VisibilityType;
-  Vote: ResolverTypeWrapper<Omit<Vote, 'to'> & { to: ResolversTypes['VoteTo'] }>;
-  VoteEdge: ResolverTypeWrapper<VoteEdge>;
-  VoteFor: VoteFor;
-  VoteInput: VoteInput;
-  VoteSearchInput: VoteSearchInput;
-  VoteSearchResult: ResolverTypeWrapper<VoteSearchResult>;
-  VoteSortBy: VoteSortBy;
-  VoteTo: ResolversTypes['Api'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   Wallet: ResolverTypeWrapper<Wallet>;
   WalletComplete: ResolverTypeWrapper<WalletComplete>;
   WalletCompleteInput: WalletCompleteInput;
@@ -9995,6 +10472,39 @@ export type ResolversParentTypes = {
   BookmarkTo: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Tag'] | ResolversParentTypes['User'];
   BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: Scalars['Boolean'];
+  Chat: Chat;
+  ChatCreateInput: ChatCreateInput;
+  ChatEdge: ChatEdge;
+  ChatInvite: ChatInvite;
+  ChatInviteCreateInput: ChatInviteCreateInput;
+  ChatInviteEdge: ChatInviteEdge;
+  ChatInviteSearchInput: ChatInviteSearchInput;
+  ChatInviteSearchResult: ChatInviteSearchResult;
+  ChatInviteUpdateInput: ChatInviteUpdateInput;
+  ChatInviteYou: ChatInviteYou;
+  ChatMessage: ChatMessage;
+  ChatMessageCreateInput: ChatMessageCreateInput;
+  ChatMessageEdge: ChatMessageEdge;
+  ChatMessageSearchInput: ChatMessageSearchInput;
+  ChatMessageSearchResult: ChatMessageSearchResult;
+  ChatMessageTranslation: ChatMessageTranslation;
+  ChatMessageTranslationCreateInput: ChatMessageTranslationCreateInput;
+  ChatMessageTranslationUpdateInput: ChatMessageTranslationUpdateInput;
+  ChatMessageUpdateInput: ChatMessageUpdateInput;
+  ChatMessageYou: ChatMessageYou;
+  ChatMessageedOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['Issue'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['PullRequest'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
+  ChatParticipant: ChatParticipant;
+  ChatParticipantEdge: ChatParticipantEdge;
+  ChatParticipantSearchInput: ChatParticipantSearchInput;
+  ChatParticipantSearchResult: ChatParticipantSearchResult;
+  ChatParticipantUpdateInput: ChatParticipantUpdateInput;
+  ChatSearchInput: ChatSearchInput;
+  ChatSearchResult: ChatSearchResult;
+  ChatTranslation: ChatTranslation;
+  ChatTranslationCreateInput: ChatTranslationCreateInput;
+  ChatTranslationUpdateInput: ChatTranslationUpdateInput;
+  ChatUpdateInput: ChatUpdateInput;
+  ChatYou: ChatYou;
   Comment: Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversParentTypes['CommentedOn'], owner?: Maybe<ResolversParentTypes['Owner']> };
   CommentCreateInput: CommentCreateInput;
   CommentSearchInput: CommentSearchInput;
@@ -10294,6 +10804,12 @@ export type ResolversParentTypes = {
   QuizTranslationUpdateInput: QuizTranslationUpdateInput;
   QuizUpdateInput: QuizUpdateInput;
   QuizYou: QuizYou;
+  ReactInput: ReactInput;
+  Reaction: Omit<Reaction, 'to'> & { to: ResolversParentTypes['ReactionTo'] };
+  ReactionEdge: ReactionEdge;
+  ReactionSearchInput: ReactionSearchInput;
+  ReactionSearchResult: ReactionSearchResult;
+  ReactionTo: ResolversParentTypes['Api'] | ResolversParentTypes['ChatMessage'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
   Reminder: Reminder;
   ReminderCreateInput: ReminderCreateInput;
@@ -10553,12 +11069,6 @@ export type ResolversParentTypes = {
   ViewSearchInput: ViewSearchInput;
   ViewSearchResult: ViewSearchResult;
   ViewTo: ResolversParentTypes['Api'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['User'];
-  Vote: Omit<Vote, 'to'> & { to: ResolversParentTypes['VoteTo'] };
-  VoteEdge: VoteEdge;
-  VoteInput: VoteInput;
-  VoteSearchInput: VoteSearchInput;
-  VoteSearchResult: VoteSearchResult;
-  VoteTo: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
   Wallet: Wallet;
   WalletComplete: WalletComplete;
   WalletCompleteInput: WalletCompleteInput;
@@ -10681,13 +11191,13 @@ export type ApiVersionTranslationResolvers<ContextType = any, ParentType extends
 export type ApiYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ApiYou'] = ResolversParentTypes['ApiYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10763,6 +11273,150 @@ export type BookmarkToResolvers<ContextType = any, ParentType extends ResolversP
   __resolveType: TypeResolveFn<'Api' | 'Comment' | 'Issue' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard' | 'Tag' | 'User', ParentType, ContextType>;
 };
 
+export type ChatResolvers<ContextType = any, ParentType extends ResolversParentTypes['Chat'] = ResolversParentTypes['Chat']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  invites?: Resolver<Array<ResolversTypes['ChatInvite']>, ParentType, ContextType>;
+  invitesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
+  labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  messages?: Resolver<Array<ResolversTypes['ChatMessage']>, ParentType, ContextType>;
+  openToAnyoneWithInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
+  participants?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  participantsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  restrictedToRoles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
+  translations?: Resolver<Array<ResolversTypes['ChatTranslation']>, ParentType, ContextType>;
+  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ChatYou'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatEdge'] = ResolversParentTypes['ChatEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatInviteResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatInvite'] = ResolversParentTypes['ChatInvite']> = {
+  chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['ChatInviteStatus'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ChatInviteYou'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatInviteEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatInviteEdge'] = ResolversParentTypes['ChatInviteEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatInviteSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatInviteSearchResult'] = ResolversParentTypes['ChatInviteSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ChatInviteEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatInviteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatInviteYou'] = ResolversParentTypes['ChatInviteYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessage'] = ResolversParentTypes['ChatMessage']> = {
+  chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
+  reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  translations?: Resolver<Array<ResolversTypes['ChatMessageTranslation']>, ParentType, ContextType>;
+  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ChatMessageYou'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageEdge'] = ResolversParentTypes['ChatMessageEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageSearchResult'] = ResolversParentTypes['ChatMessageSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ChatMessageEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageTranslation'] = ResolversParentTypes['ChatMessageTranslation']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageYou'] = ResolversParentTypes['ChatMessageYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReply?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatMessageedOnResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageedOn'] = ResolversParentTypes['ChatMessageedOn']> = {
+  __resolveType: TypeResolveFn<'ApiVersion' | 'Issue' | 'NoteVersion' | 'Post' | 'ProjectVersion' | 'PullRequest' | 'Question' | 'QuestionAnswer' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
+};
+
+export type ChatParticipantResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatParticipant'] = ResolversParentTypes['ChatParticipant']> = {
+  chat?: Resolver<ResolversTypes['Chat'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatParticipantEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatParticipantEdge'] = ResolversParentTypes['ChatParticipantEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['ChatParticipant'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatParticipantSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatParticipantSearchResult'] = ResolversParentTypes['ChatParticipantSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ChatParticipantEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatSearchResult'] = ResolversParentTypes['ChatSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ChatEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatTranslation'] = ResolversParentTypes['ChatTranslation']> = {
+  description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ChatYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatYou'] = ResolversParentTypes['ChatYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type CommentResolvers<ContextType = any, ParentType extends ResolversParentTypes['Comment'] = ResolversParentTypes['Comment']> = {
   bookmarkedBy?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10805,12 +11459,12 @@ export type CommentTranslationResolvers<ContextType = any, ParentType extends Re
 export type CommentYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['CommentYou'] = ResolversParentTypes['CommentYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReply?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10948,12 +11602,12 @@ export type IssueYouResolvers<ContextType = any, ParentType extends ResolversPar
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11161,6 +11815,15 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   bookmarkListCreate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListCreateArgs, 'input'>>;
   bookmarkListUpdate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListUpdateArgs, 'input'>>;
   bookmarkUpdate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkUpdateArgs, 'input'>>;
+  chatCreate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatCreateArgs, 'input'>>;
+  chatInviteAccept?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteAcceptArgs, 'input'>>;
+  chatInviteCreate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteCreateArgs, 'input'>>;
+  chatInviteDecline?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteDeclineArgs, 'input'>>;
+  chatInviteUpdate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteUpdateArgs, 'input'>>;
+  chatMessageCreate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageCreateArgs, 'input'>>;
+  chatMessageUpdate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageUpdateArgs, 'input'>>;
+  chatParticipantUpdate?: Resolver<ResolversTypes['ChatParticipant'], ParentType, ContextType, RequireFields<MutationChatParticipantUpdateArgs, 'input'>>;
+  chatUpdate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatUpdateArgs, 'input'>>;
   commentCreate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentCreateArgs, 'input'>>;
   commentUpdate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentUpdateArgs, 'input'>>;
   copy?: Resolver<ResolversTypes['CopyResult'], ParentType, ContextType, RequireFields<MutationCopyArgs, 'input'>>;
@@ -11231,6 +11894,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   quizAttemptUpdate?: Resolver<ResolversTypes['QuizAttempt'], ParentType, ContextType, RequireFields<MutationQuizAttemptUpdateArgs, 'input'>>;
   quizCreate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizCreateArgs, 'input'>>;
   quizUpdate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizUpdateArgs, 'input'>>;
+  react?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationReactArgs, 'input'>>;
   reminderCreate?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType, RequireFields<MutationReminderCreateArgs, 'input'>>;
   reminderListCreate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListCreateArgs, 'input'>>;
   reminderListUpdate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListUpdateArgs, 'input'>>;
@@ -11287,7 +11951,6 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   transferUpdate?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferUpdateArgs, 'input'>>;
   userDeleteOne?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationUserDeleteOneArgs, 'input'>>;
   validateSession?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationValidateSessionArgs, 'input'>>;
-  vote?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationVoteArgs, 'input'>>;
   walletComplete?: Resolver<ResolversTypes['WalletComplete'], ParentType, ContextType, RequireFields<MutationWalletCompleteArgs, 'input'>>;
   walletInit?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<MutationWalletInitArgs, 'input'>>;
   walletUpdate?: Resolver<ResolversTypes['Wallet'], ParentType, ContextType, RequireFields<MutationWalletUpdateArgs, 'input'>>;
@@ -11492,13 +12155,13 @@ export type NoteVersionTranslationResolvers<ContextType = any, ParentType extend
 export type NoteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteYou'] = ResolversParentTypes['NoteYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11978,13 +12641,13 @@ export type ProjectVersionYouResolvers<ContextType = any, ParentType extends Res
 export type ProjectYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectYou'] = ResolversParentTypes['ProjectYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12041,6 +12704,7 @@ export type PullRequestYouResolvers<ContextType = any, ParentType extends Resolv
 };
 
 export type PushDeviceResolvers<ContextType = any, ParentType extends ResolversParentTypes['PushDevice'] = ResolversParentTypes['PushDevice']> = {
+  deviceId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   expires?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -12057,6 +12721,14 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   bookmarkList?: Resolver<Maybe<ResolversTypes['BookmarkList']>, ParentType, ContextType, RequireFields<QueryBookmarkListArgs, 'input'>>;
   bookmarkLists?: Resolver<ResolversTypes['BookmarkListSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarkListsArgs, 'input'>>;
   bookmarks?: Resolver<ResolversTypes['BookmarkSearchResult'], ParentType, ContextType, RequireFields<QueryBookmarksArgs, 'input'>>;
+  chat?: Resolver<Maybe<ResolversTypes['Chat']>, ParentType, ContextType, RequireFields<QueryChatArgs, 'input'>>;
+  chatInvite?: Resolver<Maybe<ResolversTypes['ChatInvite']>, ParentType, ContextType, RequireFields<QueryChatInviteArgs, 'input'>>;
+  chatInvites?: Resolver<ResolversTypes['ChatInviteSearchResult'], ParentType, ContextType, RequireFields<QueryChatInvitesArgs, 'input'>>;
+  chatMessage?: Resolver<Maybe<ResolversTypes['ChatMessage']>, ParentType, ContextType, RequireFields<QueryChatMessageArgs, 'input'>>;
+  chatMessages?: Resolver<ResolversTypes['ChatMessageSearchResult'], ParentType, ContextType, RequireFields<QueryChatMessagesArgs, 'input'>>;
+  chatParticipant?: Resolver<Maybe<ResolversTypes['ChatParticipant']>, ParentType, ContextType, RequireFields<QueryChatParticipantArgs, 'input'>>;
+  chatParticipants?: Resolver<ResolversTypes['ChatParticipantSearchResult'], ParentType, ContextType, RequireFields<QueryChatParticipantsArgs, 'input'>>;
+  chats?: Resolver<ResolversTypes['ChatSearchResult'], ParentType, ContextType, RequireFields<QueryChatsArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
   findHandles?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType, RequireFields<QueryFindHandlesArgs, 'input'>>;
@@ -12114,6 +12786,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   quizQuestionResponses?: Resolver<ResolversTypes['QuizQuestionResponseSearchResult'], ParentType, ContextType, RequireFields<QueryQuizQuestionResponsesArgs, 'input'>>;
   quizQuestions?: Resolver<ResolversTypes['QuizQuestionSearchResult'], ParentType, ContextType, RequireFields<QueryQuizQuestionsArgs, 'input'>>;
   quizzes?: Resolver<ResolversTypes['QuizSearchResult'], ParentType, ContextType, RequireFields<QueryQuizzesArgs, 'input'>>;
+  reactions?: Resolver<ResolversTypes['ReactionSearchResult'], ParentType, ContextType, RequireFields<QueryReactionsArgs, 'input'>>;
   readAssets?: Resolver<Array<Maybe<ResolversTypes['String']>>, ParentType, ContextType, RequireFields<QueryReadAssetsArgs, 'input'>>;
   reminder?: Resolver<Maybe<ResolversTypes['Reminder']>, ParentType, ContextType, RequireFields<QueryReminderArgs, 'input'>>;
   reminders?: Resolver<ResolversTypes['ReminderSearchResult'], ParentType, ContextType, RequireFields<QueryRemindersArgs, 'input'>>;
@@ -12170,7 +12843,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType, RequireFields<QueryUserArgs, 'input'>>;
   users?: Resolver<ResolversTypes['UserSearchResult'], ParentType, ContextType, RequireFields<QueryUsersArgs, 'input'>>;
   views?: Resolver<ResolversTypes['ViewSearchResult'], ParentType, ContextType, RequireFields<QueryViewsArgs, 'input'>>;
-  votes?: Resolver<ResolversTypes['VoteSearchResult'], ParentType, ContextType, RequireFields<QueryVotesArgs, 'input'>>;
 };
 
 export type QuestionResolvers<ContextType = any, ParentType extends ResolversParentTypes['Question'] = ResolversParentTypes['Question']> = {
@@ -12259,11 +12931,11 @@ export type QuestionTranslationResolvers<ContextType = any, ParentType extends R
 export type QuestionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionYou'] = ResolversParentTypes['QuestionYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12416,13 +13088,37 @@ export type QuizTranslationResolvers<ContextType = any, ParentType extends Resol
 export type QuizYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizYou'] = ResolversParentTypes['QuizYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   hasCompleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ReactionResolvers<ContextType = any, ParentType extends ResolversParentTypes['Reaction'] = ResolversParentTypes['Reaction']> = {
+  by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  emoji?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  to?: Resolver<ResolversTypes['ReactionTo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ReactionEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionEdge'] = ResolversParentTypes['ReactionEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Reaction'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ReactionSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionSearchResult'] = ResolversParentTypes['ReactionSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ReactionEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ReactionToResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionTo'] = ResolversParentTypes['ReactionTo']> = {
+  __resolveType: TypeResolveFn<'Api' | 'ChatMessage' | 'Comment' | 'Issue' | 'Note' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
 };
 
 export type ReminderResolvers<ContextType = any, ParentType extends ResolversParentTypes['Reminder'] = ResolversParentTypes['Reminder']> = {
@@ -12827,11 +13523,11 @@ export type RoutineVersionYouResolvers<ContextType = any, ParentType extends Res
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRun?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   runs?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12840,13 +13536,13 @@ export type RoutineYouResolvers<ContextType = any, ParentType extends ResolversP
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13211,13 +13907,13 @@ export type SmartContractVersionTranslationResolvers<ContextType = any, ParentTy
 export type SmartContractYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractYou'] = ResolversParentTypes['SmartContractYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13328,13 +14024,13 @@ export type StandardVersionTranslationResolvers<ContextType = any, ParentType ex
 export type StandardYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['StandardYou'] = ResolversParentTypes['StandardYou']> = {
   canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13775,6 +14471,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   questionsAskedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   quizzesCreated?: Resolver<Maybe<Array<ResolversTypes['Quiz']>>, ParentType, ContextType>;
   quizzesTaken?: Resolver<Maybe<Array<ResolversTypes['Quiz']>>, ParentType, ContextType>;
+  reacted?: Resolver<Maybe<Array<ResolversTypes['Reaction']>>, ParentType, ContextType>;
   reportResponses?: Resolver<Maybe<Array<ResolversTypes['ReportResponse']>>, ParentType, ContextType>;
   reportsCreated?: Resolver<Maybe<Array<ResolversTypes['Report']>>, ParentType, ContextType>;
   reportsReceived?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
@@ -13804,7 +14501,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   viewed?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
   viewedBy?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  voted?: Resolver<Maybe<Array<ResolversTypes['Vote']>>, ParentType, ContextType>;
   wallets?: Resolver<Maybe<Array<ResolversTypes['Wallet']>>, ParentType, ContextType>;
   you?: Resolver<ResolversTypes['UserYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13874,30 +14570,6 @@ export type ViewToResolvers<ContextType = any, ParentType extends ResolversParen
   __resolveType: TypeResolveFn<'Api' | 'Issue' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard' | 'User', ParentType, ContextType>;
 };
 
-export type VoteResolvers<ContextType = any, ParentType extends ResolversParentTypes['Vote'] = ResolversParentTypes['Vote']> = {
-  by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isUpvote?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
-  to?: Resolver<ResolversTypes['VoteTo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type VoteEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['VoteEdge'] = ResolversParentTypes['VoteEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['Vote'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type VoteSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['VoteSearchResult'] = ResolversParentTypes['VoteSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['VoteEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type VoteToResolvers<ContextType = any, ParentType extends ResolversParentTypes['VoteTo'] = ResolversParentTypes['VoteTo']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Comment' | 'Issue' | 'Note' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
-};
-
 export type WalletResolvers<ContextType = any, ParentType extends ResolversParentTypes['Wallet'] = ResolversParentTypes['Wallet']> = {
   handles?: Resolver<Array<ResolversTypes['Handle']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -13938,6 +14610,24 @@ export type Resolvers<ContextType = any> = {
   BookmarkListSearchResult?: BookmarkListSearchResultResolvers<ContextType>;
   BookmarkSearchResult?: BookmarkSearchResultResolvers<ContextType>;
   BookmarkTo?: BookmarkToResolvers<ContextType>;
+  Chat?: ChatResolvers<ContextType>;
+  ChatEdge?: ChatEdgeResolvers<ContextType>;
+  ChatInvite?: ChatInviteResolvers<ContextType>;
+  ChatInviteEdge?: ChatInviteEdgeResolvers<ContextType>;
+  ChatInviteSearchResult?: ChatInviteSearchResultResolvers<ContextType>;
+  ChatInviteYou?: ChatInviteYouResolvers<ContextType>;
+  ChatMessage?: ChatMessageResolvers<ContextType>;
+  ChatMessageEdge?: ChatMessageEdgeResolvers<ContextType>;
+  ChatMessageSearchResult?: ChatMessageSearchResultResolvers<ContextType>;
+  ChatMessageTranslation?: ChatMessageTranslationResolvers<ContextType>;
+  ChatMessageYou?: ChatMessageYouResolvers<ContextType>;
+  ChatMessageedOn?: ChatMessageedOnResolvers<ContextType>;
+  ChatParticipant?: ChatParticipantResolvers<ContextType>;
+  ChatParticipantEdge?: ChatParticipantEdgeResolvers<ContextType>;
+  ChatParticipantSearchResult?: ChatParticipantSearchResultResolvers<ContextType>;
+  ChatSearchResult?: ChatSearchResultResolvers<ContextType>;
+  ChatTranslation?: ChatTranslationResolvers<ContextType>;
+  ChatYou?: ChatYouResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;
   CommentSearchResult?: CommentSearchResultResolvers<ContextType>;
   CommentThread?: CommentThreadResolvers<ContextType>;
@@ -14084,6 +14774,10 @@ export type Resolvers<ContextType = any> = {
   QuizSearchResult?: QuizSearchResultResolvers<ContextType>;
   QuizTranslation?: QuizTranslationResolvers<ContextType>;
   QuizYou?: QuizYouResolvers<ContextType>;
+  Reaction?: ReactionResolvers<ContextType>;
+  ReactionEdge?: ReactionEdgeResolvers<ContextType>;
+  ReactionSearchResult?: ReactionSearchResultResolvers<ContextType>;
+  ReactionTo?: ReactionToResolvers<ContextType>;
   Reminder?: ReminderResolvers<ContextType>;
   ReminderEdge?: ReminderEdgeResolvers<ContextType>;
   ReminderItem?: ReminderItemResolvers<ContextType>;
@@ -14221,10 +14915,6 @@ export type Resolvers<ContextType = any> = {
   ViewEdge?: ViewEdgeResolvers<ContextType>;
   ViewSearchResult?: ViewSearchResultResolvers<ContextType>;
   ViewTo?: ViewToResolvers<ContextType>;
-  Vote?: VoteResolvers<ContextType>;
-  VoteEdge?: VoteEdgeResolvers<ContextType>;
-  VoteSearchResult?: VoteSearchResultResolvers<ContextType>;
-  VoteTo?: VoteToResolvers<ContextType>;
   Wallet?: WalletResolvers<ContextType>;
   WalletComplete?: WalletCompleteResolvers<ContextType>;
 };

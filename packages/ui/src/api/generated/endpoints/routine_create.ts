@@ -252,7 +252,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
             canRun
             canUpdate
             canRead
-            canVote
+            canReact
         }
     }
     stats {
@@ -297,10 +297,10 @@ mutation routineCreate($input: RoutineCreateInput!) {
         canBookmark
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
         isViewed
+        reaction
     }
   }
 }`;

@@ -1,6 +1,6 @@
 import { Issue, IssueTranslation, IssueYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const issueTranslation: GqlPartial<IssueTranslation> = {
     __typename: 'IssueTranslation',
@@ -23,9 +23,9 @@ export const issueYou: GqlPartial<IssueYou> = {
         canReport: true,
         canUpdate: true,
         canRead: true,
-        canVote: true,
+        canReact: true,
         isBookmarked: true,
-        isUpvoted: true,
+        reaction: true,
     },
     full: {},
     list: {},

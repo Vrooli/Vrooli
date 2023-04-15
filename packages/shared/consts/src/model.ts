@@ -17,6 +17,7 @@ export enum InputType {
     IntegerInput = 'IntegerInput',
     LanguageInput = 'LanguageInput',
     Markdown = 'Markdown',
+    Prompt = 'Prompt',
     Radio = 'Radio',
     Selector = 'Selector',
     Slider = 'Slider',

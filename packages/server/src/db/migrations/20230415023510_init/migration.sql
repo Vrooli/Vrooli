@@ -3,7 +3,10 @@ CREATE EXTENSION IF NOT EXISTS citext;
 CREATE TYPE "AccountStatus" AS ENUM ('Deleted', 'Unlocked', 'SoftLocked', 'HardLocked');
 
 -- CreateEnum
-CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCreate', 'CommentCreate', 'IssueCreate', 'NoteCreate', 'ObjectBookmark', 'ObjectVote', 'OrganizationCreate', 'OrganizationJoin', 'PostCreate', 'ProjectCreate', 'PullRequestCreate', 'PullRequestComplete', 'QuestionAnswer', 'QuestionCreate', 'QuizPass', 'ReportEnd', 'ReportContribute', 'Reputation', 'RunRoutine', 'RunProject', 'RoutineCreate', 'SmartContractCreate', 'StandardCreate', 'Streak', 'UserInvite');
+CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCreate', 'CommentCreate', 'IssueCreate', 'NoteCreate', 'ObjectBookmark', 'ObjectReact', 'OrganizationCreate', 'OrganizationJoin', 'PostCreate', 'ProjectCreate', 'PullRequestCreate', 'PullRequestComplete', 'QuestionAnswer', 'QuestionCreate', 'QuizPass', 'ReportEnd', 'ReportContribute', 'Reputation', 'RunRoutine', 'RunProject', 'RoutineCreate', 'SmartContractCreate', 'StandardCreate', 'Streak', 'UserInvite');
+
+-- CreateEnum
+CREATE TYPE "ChatInviteStatus" AS ENUM ('Pending', 'Accepted', 'Declined');
 
 -- CreateEnum
 CREATE TYPE "FocusModeFilterType" AS ENUM ('Blur', 'Hide', 'ShowMore');
@@ -100,6 +103,15 @@ CREATE TABLE "api_labels" (
 );
 
 -- CreateTable
+CREATE TABLE "api_tags" (
+    "id" UUID NOT NULL,
+    "taggedId" UUID NOT NULL,
+    "tagTag" VARCHAR(128) NOT NULL,
+
+    CONSTRAINT "api_tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "api_version" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -131,15 +143,6 @@ CREATE TABLE "api_version_translation" (
     "apiVersionId" UUID NOT NULL,
 
     CONSTRAINT "api_version_translation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "api_tags" (
-    "id" UUID NOT NULL,
-    "taggedId" UUID NOT NULL,
-    "tagTag" VARCHAR(128) NOT NULL,
-
-    CONSTRAINT "api_tags_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -192,6 +195,96 @@ CREATE TABLE "bookmark_list" (
     "userId" UUID NOT NULL,
 
     CONSTRAINT "bookmark_list_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "inviteId" UUID,
+    "openToAnyoneWithInvite" BOOLEAN NOT NULL DEFAULT false,
+    "creatorId" UUID,
+    "organizationId" UUID,
+
+    CONSTRAINT "chat_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat_translation" (
+    "id" UUID NOT NULL,
+    "chatId" UUID NOT NULL,
+    "language" VARCHAR(3) NOT NULL,
+    "name" VARCHAR(128),
+    "description" VARCHAR(2048),
+
+    CONSTRAINT "chat_translation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat_message" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "score" INTEGER NOT NULL DEFAULT 0,
+    "isFork" BOOLEAN NOT NULL DEFAULT false,
+    "forkId" UUID,
+    "userId" UUID,
+    "chatId" UUID,
+
+    CONSTRAINT "chat_message_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat_message_translation" (
+    "id" UUID NOT NULL,
+    "text" VARCHAR(32768) NOT NULL,
+    "language" VARCHAR(3) NOT NULL,
+    "messageId" UUID NOT NULL,
+
+    CONSTRAINT "chat_message_translation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat_participants" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "chatId" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+
+    CONSTRAINT "chat_participants_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat_invite" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" "ChatInviteStatus" NOT NULL DEFAULT 'Pending',
+    "message" VARCHAR(4096),
+    "chatId" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+
+    CONSTRAINT "chat_invite_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat_labels" (
+    "id" UUID NOT NULL,
+    "labelledId" UUID NOT NULL,
+    "labelId" UUID NOT NULL,
+
+    CONSTRAINT "chat_labels_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chat_roles" (
+    "id" UUID NOT NULL,
+    "chatId" UUID NOT NULL,
+    "roleId" UUID NOT NULL,
+
+    CONSTRAINT "chat_roles_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -603,6 +696,7 @@ CREATE TABLE "notification_subscription" (
     "context" VARCHAR(2048),
     "silent" BOOLEAN NOT NULL DEFAULT false,
     "apiId" UUID,
+    "chatId" UUID,
     "commentId" UUID,
     "issueId" UUID,
     "meetingId" UUID,
@@ -1140,6 +1234,54 @@ CREATE TABLE "quiz_question_translation" (
 );
 
 -- CreateTable
+CREATE TABLE "reaction" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "emoji" VARCHAR(32) NOT NULL,
+    "byId" UUID NOT NULL,
+    "apiId" UUID,
+    "chatMessageId" UUID,
+    "commentId" UUID,
+    "issueId" UUID,
+    "noteId" UUID,
+    "postId" UUID,
+    "projectId" UUID,
+    "questionId" UUID,
+    "questionAnswerId" UUID,
+    "quizId" UUID,
+    "routineId" UUID,
+    "smartContractId" UUID,
+    "standardId" UUID,
+
+    CONSTRAINT "reaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "reaction_summary" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "emoji" VARCHAR(32) NOT NULL,
+    "count" INTEGER NOT NULL DEFAULT 0,
+    "apiId" UUID,
+    "chatMessageId" UUID,
+    "commentId" UUID,
+    "issueId" UUID,
+    "noteId" UUID,
+    "postId" UUID,
+    "projectId" UUID,
+    "questionId" UUID,
+    "questionAnswerId" UUID,
+    "quizId" UUID,
+    "routineId" UUID,
+    "smartContractId" UUID,
+    "standardId" UUID,
+
+    CONSTRAINT "reaction_summary_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "reminder_list" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1187,6 +1329,7 @@ CREATE TABLE "report" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "ReportStatus" NOT NULL,
     "apiVersionId" UUID,
+    "chatMessageId" UUID,
     "commentId" UUID,
     "issueId" UUID,
     "noteVersionId" UUID,
@@ -2006,6 +2149,7 @@ CREATE TABLE "user" (
     "currentStreak" INTEGER NOT NULL DEFAULT 0,
     "longestStreak" INTEGER NOT NULL DEFAULT 0,
     "accountTabsOrder" VARCHAR(255),
+    "botSettings" VARCHAR(4096),
     "notificationSettings" VARCHAR(2048),
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
@@ -2054,29 +2198,6 @@ CREATE TABLE "view" (
     "userId" UUID,
 
     CONSTRAINT "view_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "vote" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "isUpvote" BOOLEAN NOT NULL DEFAULT true,
-    "byId" UUID NOT NULL,
-    "apiId" UUID,
-    "commentId" UUID,
-    "issueId" UUID,
-    "noteId" UUID,
-    "postId" UUID,
-    "projectId" UUID,
-    "questionId" UUID,
-    "questionAnswerId" UUID,
-    "quizId" UUID,
-    "routineId" UUID,
-    "smartContractId" UUID,
-    "standardId" UUID,
-
-    CONSTRAINT "vote_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2153,6 +2274,9 @@ CREATE UNIQUE INDEX "award_userId_category_key" ON "award"("userId", "category")
 CREATE UNIQUE INDEX "api_labels_labelledId_labelId_key" ON "api_labels"("labelledId", "labelId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "api_tags_taggedId_tagTag_key" ON "api_tags"("taggedId", "tagTag");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "api_version_callLink_key" ON "api_version"("callLink");
 
 -- CreateIndex
@@ -2165,13 +2289,28 @@ CREATE UNIQUE INDEX "api_version_pullRequestId_key" ON "api_version"("pullReques
 CREATE UNIQUE INDEX "api_version_rootId_versionIndex_key" ON "api_version"("rootId", "versionIndex");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "api_tags_taggedId_tagTag_key" ON "api_tags"("taggedId", "tagTag");
-
--- CreateIndex
 CREATE UNIQUE INDEX "api_key_key_key" ON "api_key"("key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "bookmark_list_label_key" ON "bookmark_list"("label");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chat_translation_chatId_language_key" ON "chat_translation"("chatId", "language");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chat_message_translation_messageId_language_key" ON "chat_message_translation"("messageId", "language");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chat_participants_chatId_userId_key" ON "chat_participants"("chatId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chat_invite_chatId_userId_key" ON "chat_invite"("chatId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chat_labels_labelledId_labelId_key" ON "chat_labels"("labelledId", "labelId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chat_roles_chatId_roleId_key" ON "chat_roles"("chatId", "roleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "comment_translation_commentId_language_key" ON "comment_translation"("commentId", "language");
@@ -2537,6 +2676,12 @@ ALTER TABLE "api_labels" ADD CONSTRAINT "api_labels_labelledId_fkey" FOREIGN KEY
 ALTER TABLE "api_labels" ADD CONSTRAINT "api_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "api_tags" ADD CONSTRAINT "api_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "api_tags" ADD CONSTRAINT "api_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "api_version" ADD CONSTRAINT "api_version_rootId_fkey" FOREIGN KEY ("rootId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2547,12 +2692,6 @@ ALTER TABLE "api_version" ADD CONSTRAINT "api_version_pullRequestId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "api_version_translation" ADD CONSTRAINT "api_version_translation_apiVersionId_fkey" FOREIGN KEY ("apiVersionId") REFERENCES "api_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "api_tags" ADD CONSTRAINT "api_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "api_tags" ADD CONSTRAINT "api_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "api_key" ADD CONSTRAINT "api_key_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2610,6 +2749,51 @@ ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "bookmark_list" ADD CONSTRAINT "bookmark_list_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat" ADD CONSTRAINT "chat_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat" ADD CONSTRAINT "chat_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_translation" ADD CONSTRAINT "chat_translation_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_forkId_fkey" FOREIGN KEY ("forkId") REFERENCES "chat_message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_message_translation" ADD CONSTRAINT "chat_message_translation_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "chat_message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_participants" ADD CONSTRAINT "chat_participants_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_participants" ADD CONSTRAINT "chat_participants_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_invite" ADD CONSTRAINT "chat_invite_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_invite" ADD CONSTRAINT "chat_invite_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_labels" ADD CONSTRAINT "chat_labels_labelledId_fkey" FOREIGN KEY ("labelledId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_labels" ADD CONSTRAINT "chat_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_roles" ADD CONSTRAINT "chat_roles_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "chat_roles" ADD CONSTRAINT "chat_roles_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "comment" ADD CONSTRAINT "comment_apiVersionId_fkey" FOREIGN KEY ("apiVersionId") REFERENCES "api_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2826,6 +3010,9 @@ ALTER TABLE "push_device" ADD CONSTRAINT "push_device_userId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3125,6 +3312,87 @@ ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_quizId_fkey" FOREIGN K
 ALTER TABLE "quiz_question_translation" ADD CONSTRAINT "quiz_question_translation_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "quiz_question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_chatMessageId_fkey" FOREIGN KEY ("chatMessageId") REFERENCES "chat_message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction" ADD CONSTRAINT "reaction_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_chatMessageId_fkey" FOREIGN KEY ("chatMessageId") REFERENCES "chat_message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "reminder" ADD CONSTRAINT "reminder_reminderListId_fkey" FOREIGN KEY ("reminderListId") REFERENCES "reminder_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3132,6 +3400,9 @@ ALTER TABLE "reminder_item" ADD CONSTRAINT "reminder_item_reminderId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_apiVersionId_fkey" FOREIGN KEY ("apiVersionId") REFERENCES "api_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "report" ADD CONSTRAINT "report_chatMessageId_fkey" FOREIGN KEY ("chatMessageId") REFERENCES "chat_message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3501,45 +3772,6 @@ ALTER TABLE "view" ADD CONSTRAINT "view_standardId_fkey" FOREIGN KEY ("standardI
 
 -- AddForeignKey
 ALTER TABLE "view" ADD CONSTRAINT "view_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vote" ADD CONSTRAINT "vote_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "wallet" ADD CONSTRAINT "wallet_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;

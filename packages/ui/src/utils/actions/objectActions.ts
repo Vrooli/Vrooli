@@ -1,5 +1,6 @@
 import { Session } from "@shared/consts";
 import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
+import { getReactionScore } from "@shared/utils";
 import { ListMenuItemData } from "components/dialogs/types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { getYou, ListObjectType } from "utils/display/listTools";
@@ -7,7 +8,7 @@ import { getYou, ListObjectType } from "utils/display/listTools";
 /**
  * All available actions an object can possibly have
  */
- export enum ObjectAction {
+export enum ObjectAction {
     Bookmark = 'Bookmark',
     BookmarkUndo = 'BookmarkUndo',
     Comment = 'Comment',
@@ -50,15 +51,15 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
     if (!object) return [];
     console.log('action getavailableactions', session)
     const isLoggedIn = checkIfLoggedIn(session);
-    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canVote, isBookmarked, isUpvoted } = getYou(object)
+    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object)
     let options: ObjectAction[] = [];
     // Check edit
     if (isLoggedIn && canUpdate) {
         options.push(ObjectAction.Edit);
     }
     // Check VoteUp/VoteDown
-    if (isLoggedIn && canVote) {
-        options.push(isUpvoted ? ObjectAction.VoteDown : ObjectAction.VoteUp);
+    if (isLoggedIn && canReact) {
+        options.push(getReactionScore(reaction) > 0 ? ObjectAction.VoteDown : ObjectAction.VoteUp);
     }
     // Check Bookmark/BookmarkUndo
     if (isLoggedIn && canBookmark) {
@@ -100,7 +101,7 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
 /**
  * Maps an ObjectAction to [label, Icon, iconColor, preview]
  */
- const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boolean] } = ({
+const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boolean] } = ({
     [ObjectAction.Bookmark]: ['Bookmark', BookmarkOutlineIcon, "#cbae30", false],
     [ObjectAction.BookmarkUndo]: ['Unstar', BookmarkFilledIcon, "#cbae30", false],
     [ObjectAction.Comment]: ['Comment', ReplyIcon, 'default', false],

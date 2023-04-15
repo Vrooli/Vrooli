@@ -110,7 +110,7 @@ export const typeDef = gql`
         translations: [UserTranslation!]!
         viewed: [View!]
         viewedBy: [View!]
-        voted: [Vote!]
+        reacted: [Reaction!]
         wallets: [Wallet!]
         you: UserYou!
     }

@@ -9,6 +9,8 @@
     "resolutions": {
         "babel-loader": "8.1.0"
     },
-    "dependencies": {},
+    "dependencies": {
+        "prisma": "4.12.0"
+    },
     "version": "1.3.1"
 }

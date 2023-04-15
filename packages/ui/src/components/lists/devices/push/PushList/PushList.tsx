@@ -14,9 +14,9 @@ import { ListContainer } from 'components/containers/ListContainer/ListContainer
 import { useFormik } from 'formik';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { requestNotificationPermission, subscribeUserToPush } from 'serviceWorkerRegistration';
 import { getDeviceInfo } from 'utils/display/device';
 import { PubSub } from 'utils/pubsub';
+import { setupPush } from 'utils/push';
 import { updateArray } from 'utils/shape/general';
 import { PushListItem } from '../PushListItem/PushListItem';
 import { PushListProps } from '../types';
@@ -88,17 +88,6 @@ export const PushList = ({
             },
         })
     }, [deleteMutation, handleUpdate, list, loadingDelete]);
-
-    const setupPush = async () => {
-        const result = await requestNotificationPermission();
-        if (result === 'denied') {
-            PubSub.get().publishSnack({ messageKey: 'PushPermissionDenied', severity: 'Error' });
-        }
-        const subscription: PushSubscription | null = await subscribeUserToPush();
-        if (!subscription) {
-            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: 'Error' });
-        }
-    };
 
     return (
         <form onSubmit={formik.handleSubmit}>

@@ -1,5 +1,5 @@
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReportFor, Success, VoteFor } from '@shared/consts';
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success } from '@shared/consts';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany_deleteOne';
 import { useCustomMutation } from 'api/hooks';
@@ -38,13 +38,13 @@ export function CommentThreadItem({
         objectId: object?.id,
         objectType: object?.__typename as CommentFor,
     }), [object]);
-    const { isBookmarked, isUpvoted } = useMemo(() => getYou(object as any), [object]);
+    const { isBookmarked, reaction } = useMemo(() => getYou(object as any), [object]);
 
-    const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText } = useMemo(() => {
-        const { canDelete, canUpdate, canReply, canReport, canBookmark, canVote } = data?.you ?? {};
+    const { canDelete, canUpdate, canReply, canReport, canBookmark, canReact, displayText } = useMemo(() => {
+        const { canDelete, canUpdate, canReply, canReport, canBookmark, canReact } = data?.you ?? {};
         const languages = getUserLanguages(session);
         const { text } = getTranslation(data, languages, true);
-        return { canDelete, canUpdate, canReply, canReport, canBookmark, canVote, displayText: text };
+        return { canDelete, canUpdate, canReply, canReport, canBookmark, canReact, displayText: text };
     }, [data, session]);
 
     const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
@@ -154,10 +154,10 @@ export function CommentThreadItem({
                     {isOpen && <Stack direction="row" spacing={1}>
                         <VoteButton
                             direction="row"
-                            disabled={!canVote}
+                            disabled={!canReact}
+                            emoji={reaction}
                             objectId={data?.id ?? ''}
-                            voteFor={VoteFor.Comment}
-                            isUpvoted={isUpvoted}
+                            voteFor={ReactionFor.Comment}
                             score={data?.score}
                             onChange={() => { }}
                         />

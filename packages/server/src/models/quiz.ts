@@ -1,19 +1,19 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
-import { ModelLogic } from "./types";
-import { getSingleTypePermissions } from "../validators";
-import { BookmarkModel } from "./bookmark";
-import { VoteModel } from "./vote";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
 import { quizValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { PrismaType } from "../types";
+import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, translationShapeHelper } from "../utils";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { ProjectModel } from "./project";
+import { ReactionModel } from "./reaction";
+import { RoutineModel } from "./routine";
+import { ModelLogic } from "./types";
 
 const __typename = 'Quiz' as const;
-type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
+type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canReact'>;
 const suppFields = ['you'] as const;
 export const QuizModel: ModelLogic<{
     IsTransferable: false,
@@ -68,7 +68,7 @@ export const QuizModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     }
                 }
             },

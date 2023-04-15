@@ -10,7 +10,7 @@ export const awardVariants: { [key in Exclude<`${AwardCategory}`, 'AccountAnnive
     QuizPass: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     Reputation: [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
     ObjectBookmark: [1, 100, 500],
-    ObjectVote: [1, 100, 1000, 10000],
+    ObjectReact: [1, 100, 1000, 10000],
     PullRequestCreate: [1, 5, 10, 25, 50, 100, 250, 500],
     PullRequestComplete: [1, 5, 10, 25, 50, 100, 250, 500],
     ApiCreate: [1, 5, 10, 25, 50],
@@ -113,12 +113,12 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: 'ObjectBookmarkBody', bodyVariables: { count: level }, level };
     },
-    ObjectVote: (count, findNext = false) => {
+    ObjectReact: (count, findNext = false) => {
         // [1, 100, 1000, 10000]
-        const tit = <C extends number>(count: C) => `${'ObjectVote'}${count}Title` as const
+        const tit = <C extends number>(count: C) => `${'ObjectReact'}${count}Title` as const
         const [level, name] = awardTier([[1, tit(1)], [100, tit(100)], [1000, tit(1000)], [10000, tit(10000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: 'ObjectVoteBody', bodyVariables: { count: level }, level };
+        return { name, body: 'ObjectReactBody', bodyVariables: { count: level }, level };
     },
     OrganizationCreate: (count, findNext = false) => {
         // [1, 2, 5, 10]

@@ -1,10 +1,10 @@
-import { CustomError } from '../events/error';
+import { exists, isObject } from '@shared/utils';
 import fs from 'fs';
-import { isObject, exists } from '@shared/utils';
 import pkg from 'lodash';
+import { CustomError } from '../events/error';
 const { flatten } = pkg;
 
-const profanity = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/utils/censorDictionary.txt`).toString().split("\n");
+const profanity = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`).toString().split("\n");
 // Add spacing around words (e.g. "document" contains "cum", but shouldn't be censored)
 const profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`).join('|'), 'gi');
 
@@ -58,7 +58,7 @@ export const validateProfanity = (items: (string | null | undefined)[], language
     // Filter out non-string items
     const strings = items.filter(i => typeof i === 'string') as string[];
     // Check if any strings contain profanity
-    if (hasProfanity(...strings)) 
+    if (hasProfanity(...strings))
         throw new CustomError('0042', 'BannedWord', languages);
 }
 

@@ -85,10 +85,10 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
             canTransfer
             canUpdate
             canRead
-            canVote
+            canReact
             isBookmarked
-            isUpvoted
             isViewed
+            reaction
         }
     }
     translations {

@@ -10,12 +10,12 @@ import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
+import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
-import { VoteModel } from "./vote";
 
 const __typename = 'Api' as const;
-type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canReact'>;
 const suppFields = ['you'] as const;
 export const ApiModel: ModelLogic<{
     IsTransferable: true,
@@ -63,7 +63,7 @@ export const ApiModel: ModelLogic<{
             tags: 'Tag',
             issues: 'Issue',
             bookmarkedBy: 'User',
-            votedBy: 'Vote',
+            reactions: 'Reaction',
             viewedBy: 'View',
             pullRequests: 'PullRequest',
             versions: 'ApiVersion',
@@ -88,7 +88,7 @@ export const ApiModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     }
                 }
             },

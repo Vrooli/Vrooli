@@ -1,8 +1,8 @@
+import { FindByIdInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Note, NoteSearchInput, NoteCreateInput, NoteUpdateInput, NoteSortBy } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum NoteSortBy {
@@ -90,9 +90,9 @@ export const typeDef = gql`
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
         isViewed: Boolean!
     }
 

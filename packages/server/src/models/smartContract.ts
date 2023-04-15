@@ -1,22 +1,22 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractYou } from '@shared/consts';
-import { PrismaType } from "../types";
-import { SmartContractVersionModel } from "./smartContractVersion";
-import { ModelLogic } from "./types";
-import { getSingleTypePermissions } from "../validators";
-import { BookmarkModel } from "./bookmark";
-import { ViewModel } from "./view";
-import { VoteModel } from "./vote";
-import { getLabels } from "../getters";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { OrganizationModel } from "./organization";
-import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { smartContractValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
+import { getLabels } from "../getters";
+import { PrismaType } from "../types";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
+import { rootObjectDisplay } from "../utils/rootObjectDisplay";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { OrganizationModel } from "./organization";
+import { ReactionModel } from "./reaction";
+import { SmartContractVersionModel } from "./smartContractVersion";
+import { ModelLogic } from "./types";
+import { ViewModel } from "./view";
 
 const __typename = 'SmartContract' as const;
-type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<SmartContractYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canReact'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const SmartContractModel: ModelLogic<{
     IsTransferable: true,
@@ -85,7 +85,7 @@ export const SmartContractModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'smartContract.translatedName')
                 }

@@ -19,10 +19,10 @@ import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { Field, Formik } from 'formik';
 import { BaseForm } from 'forms/BaseForm/BaseForm';
 import { useTranslation } from 'react-i18next';
-import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { clickSize } from 'styles';
 import { Forms } from 'utils/consts';
 import { PubSub } from 'utils/pubsub';
+import { setupPush } from 'utils/push';
 import { formNavLink, formPaper, formSubmit } from '../../styles';
 import { SignUpFormProps } from '../../types';
 
@@ -71,8 +71,8 @@ export const SignUpForm = ({
                                 buttons: [{
                                     labelKey: 'Ok', onClick: () => {
                                         setLocation(LINKS.Welcome);
-                                        // Request user to enable notifications
-                                        subscribeUserToPush();
+                                        // Set up push notifications
+                                        setupPush();
                                     }
                                 }]
                             });

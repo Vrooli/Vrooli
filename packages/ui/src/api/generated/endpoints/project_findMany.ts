@@ -73,10 +73,10 @@ query projects($input: ProjectSearchInput!) {
                 canTransfer
                 canUpdate
                 canRead
-                canVote
+                canReact
                 isBookmarked
-                isUpvoted
                 isViewed
+                reaction
             }
         }
     }

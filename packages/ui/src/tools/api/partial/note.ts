@@ -1,6 +1,6 @@
 import { Note, NoteYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const noteYou: GqlPartial<NoteYou> = {
     __typename: 'NoteYou',
@@ -10,10 +10,10 @@ export const noteYou: GqlPartial<NoteYou> = {
         canTransfer: true,
         canUpdate: true,
         canRead: true,
-        canVote: true,
+        canReact: true,
         isBookmarked: true,
-        isUpvoted: true,
         isViewed: true,
+        reaction: true,
     },
     full: {},
     list: {},

@@ -66,6 +66,7 @@ check_var SERVER_LOCATION
 check_var PORT_SERVER
 check_var SERVER_URL
 check_var SITE_IP
+check_var VAPID_PUBLIC_KEY
 
 # Ask for version number, if not supplied in arguments
 AUTO_DETECT_VERSION=false
@@ -100,9 +101,16 @@ fi
 # Navigate to server directory
 cd ${HERE}/../packages/server
 
+# Build shared
+"${HERE}/shared.sh"
+
 # Build server
 info "Building server..."
 yarn build
+if [ $? -ne 0 ]; then
+    error "Failed to build server"
+    exit 1
+fi
 
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
@@ -114,8 +122,9 @@ echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>.env
 echo "VITE_PORT_SERVER=${PORT_SERVER}" >>.env
 echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
 echo "VITE_SITE_IP=${SITE_IP}" >>.env
+echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
 # Set trap to remove .env file on exit
-trap "rm .env" EXIT
+trap "rm ${HERE}/../packages/ui/.env" EXIT
 
 # Generate query/mutation selectors
 if [ -z "$GRAPHQL_GENERATE" ]; then
@@ -222,19 +231,9 @@ if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || 
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
     read -r
-    rsync -r build.tar.gz root@${BUILD_DIR}
+    rsync -ri build.tar.gz production-docker-images.tar.gz .env-prod root@${BUILD_DIR}
     if [ $? -ne 0 ]; then
-        error "Failed to copy build.tar.gz to ${BUILD_DIR}"
-        exit 1
-    fi
-    rsync -r production-docker-images.tar.gz root@${BUILD_DIR}
-    if [ $? -ne 0 ]; then
-        error "Failed to copy production-docker-images.tar.gz to ${BUILD_DIR}"
-        exit 1
-    fi
-    rsync -r .env-prod root@${BUILD_DIR}
-    if [ $? -ne 0 ]; then
-        error "Failed to copy .env-prod to ${BUILD_DIR}"
+        error "Failed to copy files to ${BUILD_DIR}"
         exit 1
     fi
     success "Files copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
@@ -243,17 +242,17 @@ else
     info "Copying build locally to ${BUILD_DIR}."
     # Make sure to create missing directories
     mkdir -p "${BUILD_DIR}"
-    cp -p build.tar.gz ${BUILD_DIR}
+    cp -p build.tar.gz production-docker-images.tar.gz ${BUILD_DIR}
     if [ $? -ne 0 ]; then
-        error "Failed to copy build.tar.gz to ${BUILD_DIR}"
-        exit 1
-    fi
-    cp -p production-docker-images.tar.gz ${BUILD_DIR}
-    if [ $? -ne 0 ]; then
-        error "Failed to copy production-docker-images.tar.gz to ${BUILD_DIR}"
+        error "Failed to copy build.tar.gz and production-docker-images.tar.gz to ${BUILD_DIR}"
         exit 1
     fi
     # If building locally, use .env and rename it to .env-prod
     cp -p .env ${BUILD_DIR}/.env-prod
-    success "Files copied to ${BUILD_DIR}!"
+    if [ $? -ne 0 ]; then
+        error "Failed to copy .env to ${BUILD_DIR}/.env-prod"
+        exit 1
+    fi
 fi
+
+success "Build process completed successfully! Now run deploy.sh on the VPS to finish deployment, or locally to test deployment."

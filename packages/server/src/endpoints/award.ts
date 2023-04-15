@@ -1,8 +1,8 @@
-import { gql } from 'apollo-server-express';
 import { Award, AwardCategory, AwardSearchInput, AwardSortBy } from '@shared/consts';
-import { FindManyResult, GQLEndpoint } from '../types';
+import { gql } from 'apollo-server-express';
 import { readManyHelper } from '../actions';
 import { rateLimit } from '../middleware';
+import { FindManyResult, GQLEndpoint } from '../types';
 
 export const typeDef = gql`
     enum AwardSortBy {
@@ -20,7 +20,7 @@ export const typeDef = gql`
         IssueCreate
         NoteCreate
         ObjectBookmark
-        ObjectVote
+        ObjectReact
         OrganizationCreate
         OrganizationJoin
         PostCreate

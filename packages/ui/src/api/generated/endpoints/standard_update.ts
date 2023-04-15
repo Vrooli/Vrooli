@@ -150,10 +150,10 @@ mutation standardUpdate($input: StandardUpdateInput!) {
         canTransfer
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
         isViewed
+        reaction
     }
   }
 }`;

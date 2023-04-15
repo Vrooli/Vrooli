@@ -16,5 +16,5 @@ export const defaultPermissions = ({ isAdmin, isDeleted, isLoggedIn, isPublic }:
     canTransfer: () => isLoggedIn && isAdmin && !isDeleted,
     canUpdate: () => isLoggedIn && !isDeleted && isAdmin,
     canUse: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
-    canVote: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
+    canReact: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
 })

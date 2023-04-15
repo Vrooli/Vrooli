@@ -5,6 +5,10 @@ import { ApiVersionModel } from './apiVersion';
 import { AwardModel } from './award';
 import { BookmarkModel } from './bookmark';
 import { BookmarkListModel } from './bookmarkList';
+import { ChatModel } from './chat';
+import { ChatInviteModel } from './chatInvite';
+import { ChatMessageModel } from './chatMessage';
+import { ChatParticipantModel } from './chatParticipant';
 import { CommentModel } from './comment';
 import { EmailModel } from './email';
 import { FocusModeModel } from './focusMode';
@@ -43,6 +47,7 @@ import { QuizModel } from './quiz';
 import { QuizAttemptModel } from './quizAttempt';
 import { QuizQuestionModel } from './quizQuestion';
 import { QuizQuestionResponseModel } from './quizQuestionResponse';
+import { ReactionModel } from './reaction';
 import { ReminderModel } from './reminder';
 import { ReminderItemModel } from './reminderItem';
 import { ReminderListModel } from './reminderList';
@@ -81,7 +86,6 @@ import { TransferModel } from './transfer';
 import { ModelLogic } from './types';
 import { UserModel } from './user';
 import { ViewModel } from './view';
-import { VoteModel } from './vote';
 import { WalletModel } from './wallet';
 
 /**
@@ -94,6 +98,10 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     Award: AwardModel,
     Bookmark: BookmarkModel,
     BookmarkList: BookmarkListModel,
+    Chat: ChatModel,
+    ChatInvite: ChatInviteModel,
+    ChatMessage: ChatMessageModel,
+    ChatParticipant: ChatParticipantModel,
     Comment: CommentModel,
     Email: EmailModel,
     FocusMode: FocusModeModel,
@@ -132,6 +140,7 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     QuizAttempt: QuizAttemptModel,
     QuizQuestion: QuizQuestionModel,
     QuizQuestionResponse: QuizQuestionResponseModel,
+    Reaction: ReactionModel,
     Reminder: ReminderModel,
     ReminderItem: ReminderItemModel,
     ReminderList: ReminderListModel,
@@ -168,7 +177,6 @@ export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     Tag: TagModel,
     Transfer: TransferModel,
     User: UserModel,
-    Vote: VoteModel,
     View: ViewModel,
     Wallet: WalletModel,
 }
@@ -179,6 +187,10 @@ export * from './apiVersion';
 export * from './award';
 export * from './bookmark';
 export * from './bookmarkList';
+export * from './chat';
+export * from './chatInvite';
+export * from './chatMessage';
+export * from './chatParticipant';
 export * from './comment';
 export * from './email';
 export * from './focusMode';
@@ -217,6 +229,7 @@ export * from './quiz';
 export * from './quizAttempt';
 export * from './quizQuestion';
 export * from './quizQuestionResponse';
+export * from './reaction';
 export * from './reminder';
 export * from './reminderItem';
 export * from './reminderList';
@@ -254,6 +267,5 @@ export * from './tag';
 export * from './transfer';
 export * from './user';
 export * from './view';
-export * from './vote';
 export * from './wallet';
 

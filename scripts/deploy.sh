@@ -63,12 +63,35 @@ fi
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"
     if [ -z "$NGINX_LOCATION" ]; then
-        prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
-        read -r NGINX_LOCATION
-        if [ -z "$NGINX_LOCATION" ]; then
-            NGINX_LOCATION="/root/NginxSSLReverseProxy"
-        fi
+        while true; do
+            prompt "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
+            read -r NGINX_LOCATION
+            if [ -z "$NGINX_LOCATION" ]; then
+                NGINX_LOCATION="/root/NginxSSLReverseProxy"
+            fi
+
+            if [ -d "${NGINX_LOCATION}" ]; then
+                break
+            else
+                error "Not found at that location."
+                prompt "Do you want to try again? Say no to clone and set up proxy containers (yes/no):"
+                read -r TRY_AGAIN
+                if [[ "$TRY_AGAIN" =~ ^(no|n)$ ]]; then
+                    info "Proceeding with cloning..."
+                    break
+                fi
+            fi
+        done
     fi
+
+    # Check if the NginxSSLReverseProxy directory exists
+    if [ ! -d "${NGINX_LOCATION}" ]; then
+        info "NginxSSLReverseProxy not installed. Cloning and setting up..."
+        git clone https://github.com/MattHalloran/NginxSSLReverseProxy.git "${NGINX_LOCATION}"
+        chmod +x "${NGINX_LOCATION}/scripts/*"
+        "${NGINX_LOCATION}/scripts/fullSetup.sh"
+    fi
+
     # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
     if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
         info "Starting proxy containers..."
@@ -126,6 +149,23 @@ else
     exit 1
 fi
 
+# Pull the latest changes from the repository.
+info "Pulling latest changes from repository..."
+git fetch
+git pull
+if [ $? -ne 0 ]; then
+    error "Could not pull latest changes from repository. You likely have uncommitted changes."
+    exit 1
+fi
+
+# Running setup.sh
+info "Running setup.sh..."
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p
+if [ $? -ne 0 ]; then
+    error "setup.sh failed"
+    exit 1
+fi
+
 # Transfer and load Docker images
 if [ -f "${BUILD_ZIP}/production-docker-images.tar.gz" ]; then
     info "Loading Docker images from ${BUILD_ZIP}/production-docker-images.tar.gz"
@@ -143,23 +183,6 @@ fi
 info "Stopping docker containers..."
 docker-compose --env-file ${BUILD_ZIP}/.env-prod down
 
-# Pull the latest changes from the repository.
-info "Pulling latest changes from repository..."
-git fetch
-git pull
-if [ $? -ne 0 ]; then
-    error "Could not pull latest changes from repository. You likely have uncommitted changes."
-    exit 1
-fi
-
-# Running setup.sh
-info "Running setup.sh..."
-"${HERE}/setup.sh" "${SETUP_ARGS[@]}"
-if [ $? -ne 0 ]; then
-    error "setup.sh failed"
-    exit 1
-fi
-
 # Move and decompress build created by build.sh to the correct location.
 info "Moving and decompressing new build to correct location..."
 rm -rf ${HERE}/../packages/ui/dist
@@ -175,6 +198,6 @@ docker-compose --env-file ${BUILD_ZIP}/.env-prod -f ${HERE}/../docker-compose-pr
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
 info "Now that you've deployed, here are some next steps:"
-info "Manually check that the site is working correctly"
-info "Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
-info "Let everyone on social media know that you've deployed a new version of Vrooli!"
+info "- Manually check that the site is working correctly"
+info "- Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
+info "- Let everyone on social media know that you've deployed a new version of Vrooli!"
