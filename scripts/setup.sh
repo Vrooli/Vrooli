@@ -91,6 +91,7 @@ npm install -g yarn
 if ! command -v docker &>/dev/null; then
     info "Docker is not installed. Installing Docker..."
     curl -fsSL https://get.docker.com -o get-docker.sh
+    trap 'rm -f get-docker.sh' EXIT
     sudo sh get-docker.sh
     # Check if Docker installation failed
     if ! command -v docker &>/dev/null; then
