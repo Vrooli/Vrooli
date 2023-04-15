@@ -1,4 +1,4 @@
-import { InputType, StandardVersion } from "@shared/consts";
+import { StandardVersion } from "@shared/consts";
 import { FieldData } from "forms/types";
 
 export interface StandardVersionToFieldDataProps {
@@ -41,7 +41,7 @@ export const standardVersionToFieldData = ({
         fieldName,
         helpText,
         label: name,
-        type: standardType as InputType,
+        type: standardType as any,
         props: parsedProps,
         yup: parsedYup,
     }
