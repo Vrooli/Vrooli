@@ -1,8 +1,8 @@
+import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, FindByIdInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { ApiSortBy, FindByIdInput, Api, ApiSearchInput, ApiCreateInput, ApiUpdateInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum ApiSortBy {
@@ -93,9 +93,9 @@ export const typeDef = gql`
         canBookmark: Boolean!
         canTransfer: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
         isViewed: Boolean!
     }
 

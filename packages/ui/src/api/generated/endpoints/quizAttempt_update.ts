@@ -44,10 +44,10 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
                     canBookmark
                     canUpdate
                     canRead
-                    canVote
+                    canReact
                     hasCompleted
                     isBookmarked
-                    isUpvoted
+                    reaction
                 }
             }
             user {
@@ -100,10 +100,10 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
             canBookmark
             canUpdate
             canRead
-            canVote
+            canReact
             hasCompleted
             isBookmarked
-            isUpvoted
+            reaction
         }
     }
     user {

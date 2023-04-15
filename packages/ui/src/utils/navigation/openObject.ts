@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { Bookmark, GqlModelType, LINKS, RunProject, RunRoutine, View, Vote } from "@shared/consts";
+import { Bookmark, GqlModelType, LINKS, Reaction, RunProject, RunRoutine, View } from "@shared/consts";
 import { SetLocation, stringifySearchParams } from "@shared/route";
 import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
@@ -17,14 +17,14 @@ export type ObjectType = 'Api' |
     'Organization' |
     'Project' |
     'Question' |
+    'Reaction' |
     'Reminder' |
     'Routine' |
     'Run' |
     'SmartContract' |
     'Standard' |
     'Tag' |
-    'User' |
-    'View';
+    'User';
 
 /**
  * Gets URL base for object type
@@ -35,7 +35,7 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
     // If object is a user, use 'Profile'
     if (isOfType(object, 'User')) return LINKS.Profile;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getObjectUrlBase((object as Bookmark | View | Vote).to as any);
+    if (isOfType(object, 'Bookmark', 'Reaction', 'View')) return getObjectUrlBase((object as Bookmark | Reaction | View).to as any);
     // If the object is a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getObjectUrlBase((object as RunRoutine).routineVersion as any);
     // If the object is a run project, use the project version
@@ -58,7 +58,7 @@ export const getObjectSlug = (object: {
     // If object is an action/shortcut/event, return blank
     if (isOfType(object, 'Action', 'Shortcut', 'CalendarEvent')) return '';
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
-    if (isOfType(object, 'Bookmark', 'View', 'Vote')) return getObjectSlug((object as Bookmark | View | Vote).to as any);
+    if (isOfType(object, 'Bookmark', 'Reaction', 'View')) return getObjectSlug((object as Bookmark | Reaction | View).to as any);
     // If the object is a run routine, use the routine version
     if (isOfType(object, 'RunRoutine')) return getObjectSlug((object as RunRoutine).routineVersion as any);
     // If the object is a run project, use the project version

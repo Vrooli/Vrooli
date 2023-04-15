@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
+import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects } from '@shared/consts';
+import { issueValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
-import { Issue, IssueCreateInput, IssueFor, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, MaxObjects, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, labelShapeHelper, oneIsPublic, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
+import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
-import { VoteModel } from "./vote";
-import { issueValidation } from "@shared/validation";
 
 const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs['create'] } = {
     Api: 'api',
@@ -20,7 +20,7 @@ const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs['create'] } =
 }
 
 const __typename = 'Issue' as const;
-type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReport' | 'canRead' | 'canVote'>;
+type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReport' | 'canRead' | 'canReact'>;
 const suppFields = ['you'] as const;
 export const IssueModel: ModelLogic<{
     IsTransferable: false,
@@ -75,7 +75,7 @@ export const IssueModel: ModelLogic<{
             comments: 'Comment',
             labels: 'Label',
             reports: 'Report',
-            votedBy: 'Vote',
+            reactions: 'Reaction',
             bookmarkedBy: 'User',
             viewedBy: 'View',
         },
@@ -93,7 +93,7 @@ export const IssueModel: ModelLogic<{
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     }
                 }
             },

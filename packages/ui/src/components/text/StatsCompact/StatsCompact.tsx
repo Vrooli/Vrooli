@@ -1,5 +1,5 @@
 import { Stack } from "@mui/material";
-import { VoteFor } from "@shared/consts";
+import { ReactionFor } from "@shared/consts";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { useMemo } from "react";
@@ -37,18 +37,18 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             }}
         >
             {/* Votes */}
-            {object && object.__typename in VoteFor && <VoteButton
+            {object && object.__typename in ReactionFor && <VoteButton
                 direction="row"
-                disabled={!you.canVote}
+                disabled={!you.canReact}
+                emoji={you.reaction}
                 objectId={object.id}
-                voteFor={object.__typename as VoteFor}
-                isUpvoted={you.isUpvoted}
+                voteFor={object.__typename as ReactionFor}
                 score={counts.score}
-                onChange={(isUpvote, score) => {
+                onChange={(newEmoji, newScore) => {
                     object && handleObjectUpdate({
                         ...object,
-                        isUpvoted: isUpvote, //TODO
-                        score: score, //TODO
+                        reaction: newEmoji, //TODO
+                        score: newScore, //TODO
                     });
                 }}
             />}

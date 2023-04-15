@@ -107,6 +107,10 @@ cd ${HERE}/../packages/server
 # Build server
 info "Building server..."
 yarn build
+if [ $? -ne 0 ]; then
+    error "Failed to build server"
+    exit 1
+fi
 
 # Navigate to UI directory
 cd ${HERE}/../packages/ui

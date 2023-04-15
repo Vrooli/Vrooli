@@ -81,9 +81,9 @@ mutation issueCreate($input: IssueCreateInput!) {
         canReport
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
+        reaction
     }
   }
 }`;

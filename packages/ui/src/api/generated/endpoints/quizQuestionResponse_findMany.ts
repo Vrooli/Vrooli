@@ -46,10 +46,10 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                         canBookmark
                         canUpdate
                         canRead
-                        canVote
+                        canReact
                         hasCompleted
                         isBookmarked
-                        isUpvoted
+                        reaction
                     }
                 }
                 user {

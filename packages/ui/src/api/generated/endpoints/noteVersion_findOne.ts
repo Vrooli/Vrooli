@@ -85,10 +85,10 @@ query noteVersion($input: FindVersionInput!) {
             canTransfer
             canUpdate
             canRead
-            canVote
+            canReact
             isBookmarked
-            isUpvoted
             isViewed
+            reaction
         }
     }
     translations {

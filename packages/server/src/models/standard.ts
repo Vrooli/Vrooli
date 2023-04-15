@@ -10,13 +10,13 @@ import { rootObjectDisplay } from "../utils/rootObjectDisplay";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
 import { OrganizationModel } from "./organization";
+import { ReactionModel } from "./reaction";
 import { StandardVersionModel } from "./standardVersion";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
-import { VoteModel } from "./vote";
 
 const __typename = 'Standard' as const;
-type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canReact'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const StandardModel: ModelLogic<{
     IsTransferable: true,
@@ -87,7 +87,7 @@ export const StandardModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
                 }

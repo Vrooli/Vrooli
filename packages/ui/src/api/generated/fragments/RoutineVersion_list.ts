@@ -169,6 +169,6 @@ you {
     canRun
     canUpdate
     canRead
-    canVote
+    canReact
 }
 }`;

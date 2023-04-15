@@ -7,8 +7,8 @@ import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, onCommonPlain, tagShapeHelper, translationShapeHelper } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
+import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
-import { VoteModel } from "./vote";
 
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs['create'] } = {
     Api: 'api',
@@ -21,7 +21,7 @@ const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs['cr
 }
 
 const __typename = 'Question' as const;
-type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canVote'>;
+type Permissions = Pick<QuestionYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canRead' | 'canReact'>;
 const suppFields = ['you'] as const;
 export const QuestionModel: ModelLogic<{
     IsTransferable: false,
@@ -78,7 +78,7 @@ export const QuestionModel: ModelLogic<{
             reports: 'Report',
             tags: 'Tag',
             bookmarkedBy: 'User',
-            votedBy: 'User',
+            reactions: 'Reaction',
             viewedBy: 'User',
         },
         joinMap: { bookmarkedBy: 'user', tags: 'tag' },
@@ -95,7 +95,7 @@ export const QuestionModel: ModelLogic<{
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                 }
             },

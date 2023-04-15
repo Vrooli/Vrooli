@@ -149,10 +149,10 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
         canTransfer
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
         isViewed
+        reaction
     }
   }
 }`;

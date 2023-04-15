@@ -1,10 +1,10 @@
-import { gql } from 'apollo-server-express';
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from '@shared/consts';
-import { CreateOneResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { rateLimit } from '../middleware';
-import { resolveUnion } from './resolvers';
+import { gql } from 'apollo-server-express';
 import { createHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
 import { CommentModel } from '../models';
+import { CreateOneResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
+import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
     enum CommentFor {
@@ -70,9 +70,9 @@ export const typeDef = gql`
         canBookmark: Boolean!
         canReply: Boolean!
         canReport: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
     }
 
     input CommentTranslationCreateInput {

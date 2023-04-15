@@ -1,8 +1,8 @@
+import { FindByIdInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, FindByIdInput } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -106,9 +106,9 @@ export const typeDef = gql`
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
         isViewed: Boolean!
     }
 

@@ -187,7 +187,7 @@ query routines($input: RoutineSearchInput!) {
                     canRun
                     canUpdate
                     canRead
-                    canVote
+                    canReact
                 }
             }
             id
@@ -222,10 +222,10 @@ query routines($input: RoutineSearchInput!) {
                 canBookmark
                 canUpdate
                 canRead
-                canVote
+                canReact
                 isBookmarked
-                isUpvoted
                 isViewed
+                reaction
             }
         }
     }

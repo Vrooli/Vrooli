@@ -24,6 +24,7 @@ const typeMap: { [key in InputType]: (props: GeneratedInputComponentProps) => JS
     [InputType.IntegerInput]: GeneratedIntegerInput,
     [InputType.LanguageInput]: GeneratedLanguageInput,
     [InputType.Markdown]: GeneratedMarkdownInput,
+    [InputType.Prompt]: GeneratedTextField, //TODO: implement prompt
     [InputType.Radio]: GeneratedRadio,
     [InputType.Selector]: GeneratedSelector,
     [InputType.Slider]: GeneratedSlider,

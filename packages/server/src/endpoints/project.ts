@@ -1,8 +1,8 @@
+import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy } from '@shared/consts';
-import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { rateLimit } from '../middleware';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 
 export const typeDef = gql`
     enum ProjectSortBy {
@@ -100,9 +100,9 @@ export const typeDef = gql`
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
         isViewed: Boolean!
     }
 

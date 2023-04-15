@@ -1,5 +1,5 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { AwardCategory, BookmarkFor, CopyType, GqlModelType, SubscribableObject, VoteFor } from "@shared/consts";
+import { AwardCategory, BookmarkFor, CopyType, GqlModelType, ReactionFor, SubscribableObject } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
 import { isObjectSubscribable, Notify } from "../notify";
 import { PrismaType } from "../types";
@@ -13,7 +13,7 @@ export type ActionTrigger = 'AccountNew' |
     'ObjectDelete' |
     'Fork' |
     'ObjectBookmark' |
-    'ObjectVote' |
+    'ObjectReact' |
     'OrganizationJoin' |
     'PullRequestClose' |
     'QuestionAnswer' |
@@ -260,11 +260,11 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // // Increase reputation score of object owner(s)
         // asdfasdf
     },
-    objectVote: async (isUpvote: boolean | null, objectType: VoteFor, objectId: string, userId: string) => {
-        // const notification = Notify(prisma, languages).pushObjectVote();
-        // // Send notification to owner(s), depending on how many votes the object already has
+    objectReact: async (previousReaction: string | null | undefined, currentReaction: string | null | undefined, objectType: ReactionFor, objectId: string, userId: string) => {
+        // const notification = Notify(prisma, languages).pushObjectReact();
+        // // If previousReaction is null, Send notification to owner(s), depending on how many votes the object already has
         // asdf
-        // // Increase reputation score of object owner(s)
+        // // Increase/decrease reputation score of object owner(s), depending on sentiment of currentReaction compared to previousReaction
         // asdfasdf
     },
     organizationJoin: async (organizationId: string, userId: string) => {

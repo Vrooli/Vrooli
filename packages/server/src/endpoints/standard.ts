@@ -101,9 +101,9 @@ export const typeDef = gql`
         canTransfer: Boolean!
         canUpdate: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         isBookmarked: Boolean!
-        isUpvoted: Boolean
+        reaction: String
         isViewed: Boolean!
     }
 

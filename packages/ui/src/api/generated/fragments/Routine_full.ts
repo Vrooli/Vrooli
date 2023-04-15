@@ -63,9 +63,9 @@ you {
     canBookmark
     canUpdate
     canRead
-    canVote
+    canReact
     isBookmarked
-    isUpvoted
     isViewed
+    reaction
 }
 }`;

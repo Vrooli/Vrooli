@@ -9,6 +9,10 @@ export const typeDef = gql`
         Api
         ApiVersion
         Bookmark
+        Chat
+        ChatInvite
+        ChatMessage
+        ChatParticipant
         Comment
         Email
         FocusMode

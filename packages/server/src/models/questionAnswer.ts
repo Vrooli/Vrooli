@@ -1,11 +1,11 @@
 import { Prisma } from "@prisma/client";
-import { SelectWrap } from "../builders/types";
 import { MaxObjects, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput } from '@shared/consts';
+import { questionAnswerValidation } from "@shared/validation";
+import { shapeHelper } from "../builders";
+import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { ModelLogic } from "./types";
-import { questionAnswerValidation } from "@shared/validation";
-import { shapeHelper } from "../builders";
 
 const __typename = 'QuestionAnswer' as const;
 const suppFields = [] as const;
@@ -44,7 +44,7 @@ export const QuestionAnswerModel: ModelLogic<{
             createdBy: 'User',
             comments: 'Comment',
             question: 'Question',
-            votedBy: 'Vote',
+            reactions: 'Reaction',
         },
         countFields: {
             commentsCount: true,

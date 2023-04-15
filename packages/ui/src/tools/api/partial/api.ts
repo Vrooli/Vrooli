@@ -1,6 +1,6 @@
 import { Api, ApiYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const apiYou: GqlPartial<ApiYou> = {
     __typename: 'ApiYou',
@@ -10,10 +10,10 @@ export const apiYou: GqlPartial<ApiYou> = {
         canTransfer: true,
         canUpdate: true,
         canRead: true,
-        canVote: true,
+        canReact: true,
         isBookmarked: true,
-        isUpvoted: true,
         isViewed: true,
+        reaction: true,
     },
 }
 

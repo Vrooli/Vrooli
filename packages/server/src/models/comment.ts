@@ -12,11 +12,11 @@ import { bestLabel, defaultPermissions, onCommonPlain, oneIsPublic, SearchMap, t
 import { SortMap } from "../utils/sortMap";
 import { getSingleTypePermissions } from "../validators";
 import { BookmarkModel } from "./bookmark";
+import { ReactionModel } from "./reaction";
 import { ModelLogic } from "./types";
-import { VoteModel } from "./vote";
 
 const __typename = 'Comment' as const;
-type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReply' | 'canReport' | 'canVote'>;
+type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canReply' | 'canReport' | 'canReact'>;
 const suppFields = ['you'] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
@@ -80,7 +80,7 @@ export const CommentModel: ModelLogic<{
             standardVersion: 'StandardVersion',
             reports: 'Report',
             bookmarkedBy: 'User',
-            votedBy: 'Vote',
+            reactions: 'Reaction',
             parents: 'Comment',
         },
         joinMap: { bookmarkedBy: 'user' },
@@ -95,7 +95,7 @@ export const CommentModel: ModelLogic<{
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     }
                 }
             },

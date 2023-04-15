@@ -103,9 +103,9 @@ query comment($input: FindByIdInput!) {
         canReply
         canReport
         canUpdate
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
+        reaction
     }
   }
 }`;

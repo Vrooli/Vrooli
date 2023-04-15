@@ -44,10 +44,10 @@ query quizQuestion($input: FindByIdInput!) {
                     canBookmark
                     canUpdate
                     canRead
-                    canVote
+                    canReact
                     hasCompleted
                     isBookmarked
-                    isUpvoted
+                    reaction
                 }
             }
             user {

@@ -74,9 +74,9 @@ query issues($input: IssueSearchInput!) {
                 canReport
                 canUpdate
                 canRead
-                canVote
+                canReact
                 isBookmarked
-                isUpvoted
+                reaction
             }
         }
     }

@@ -46,10 +46,10 @@ query projectVersions($input: ProjectVersionSearchInput!) {
                     canTransfer
                     canUpdate
                     canRead
-                    canVote
+                    canReact
                     isBookmarked
-                    isUpvoted
                     isViewed
+                    reaction
                 }
             }
             translations {

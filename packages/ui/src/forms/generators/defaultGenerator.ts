@@ -35,6 +35,10 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: '',
         ...props
     }),
+    [InputType.Prompt]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id' | 'name'> => ({
+        defaultValue: '',
+        ...props
+    }), //TODO change when custom prompt input implemented, if it's needed
     [InputType.Radio]: (props: Partial<RadioProps>) => ({
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
         ...props
@@ -114,7 +118,7 @@ export const createDefaultFieldData = ({
 }: CreateDefaultFieldDataProps): FieldData | null => {
     if (!type || !defaultMap[type]) return null;
     return ({
-        type,
+        type: type as any,
         props: defaultMap[type]({}),
         fieldName: fieldName ?? '',
         label: label ?? '',

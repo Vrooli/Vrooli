@@ -49,8 +49,8 @@ you {
     canReport
     canUpdate
     canRead
-    canVote
+    canReact
     isBookmarked
-    isUpvoted
+    reaction
 }
 }`;

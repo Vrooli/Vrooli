@@ -47,9 +47,9 @@ query questionAnswer($input: FindByIdInput!) {
             canReply
             canReport
             canUpdate
-            canVote
+            canReact
             isBookmarked
-            isUpvoted
+            reaction
         }
     }
     question {
@@ -95,7 +95,7 @@ query questionAnswer($input: FindByIdInput!) {
             ...Tag_list
         }
         you {
-            isUpvoted
+            reaction
         }
     }
     translations {

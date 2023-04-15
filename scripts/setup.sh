@@ -117,7 +117,7 @@ fi
 # Less needs to be done for production environments
 if [ "${ENVIRONMENT}" = "dev" ]; then
     header "Installing global dependencies"
-    yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.11.0 vite
+    yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.12.0 vite
 
     # If reinstalling modules, delete all node_modules directories before installing dependencies
     if [ -z "${REINSTALL_MODULES}" ]; then

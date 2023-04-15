@@ -81,9 +81,9 @@ mutation issueClose($input: IssueCloseInput!) {
         canReport
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
+        reaction
     }
   }
 }`;

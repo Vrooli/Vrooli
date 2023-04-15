@@ -1,22 +1,22 @@
-import { projectValidation } from "@shared/validation";
-import { BookmarkModel } from "./bookmark";
-import { VoteModel } from "./vote";
-import { ViewModel } from "./view";
-import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, ProjectYou, MaxObjects } from '@shared/consts';
-import { PrismaType } from "../types";
-import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { OrganizationModel } from "./organization";
-import { getSingleTypePermissions } from "../validators";
-import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
-import { ProjectVersionModel } from "./projectVersion";
+import { MaxObjects, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectYou } from '@shared/consts';
+import { projectValidation } from "@shared/validation";
+import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
+import { PrismaType } from "../types";
+import { defaultPermissions, labelShapeHelper, onCommonRoot, oneIsPublic, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../utils";
 import { rootObjectDisplay } from "../utils/rootObjectDisplay";
-import { noNull, shapeHelper } from "../builders";
+import { getSingleTypePermissions } from "../validators";
+import { BookmarkModel } from "./bookmark";
+import { OrganizationModel } from "./organization";
+import { ProjectVersionModel } from "./projectVersion";
+import { ReactionModel } from "./reaction";
+import { ModelLogic } from "./types";
+import { ViewModel } from "./view";
 
 const __typename = 'Project' as const;
-type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canVote'>;
+type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canBookmark' | 'canTransfer' | 'canRead' | 'canReact'>;
 const suppFields = ['you', 'translatedName'] as const;
 export const ProjectModel: ModelLogic<{
     IsTransferable: true,
@@ -90,7 +90,7 @@ export const ProjectModel: ModelLogic<{
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
                         isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
                         isViewed: await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        isUpvoted: await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                        reaction: await ReactionModel.query.getReactions(prisma, userData?.id, ids, __typename),
                     },
                     translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
                 }

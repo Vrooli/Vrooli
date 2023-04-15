@@ -340,10 +340,10 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
         canTransfer
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
         isViewed
+        reaction
     }
   }
 }`;

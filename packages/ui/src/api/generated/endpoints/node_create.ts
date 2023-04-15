@@ -279,7 +279,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
             canRun
             canUpdate
             canRead
-            canVote
+            canReact
         }
     }
   }

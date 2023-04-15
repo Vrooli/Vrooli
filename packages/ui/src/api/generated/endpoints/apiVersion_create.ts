@@ -93,10 +93,10 @@ mutation apiVersionCreate($input: ApiVersionCreateInput!) {
             canTransfer
             canUpdate
             canRead
-            canVote
+            canReact
             isBookmarked
-            isUpvoted
             isViewed
+            reaction
         }
     }
     translations {

@@ -31,9 +31,9 @@ you {
     canBookmark
     canUpdate
     canRead
-    canVote
+    canReact
     hasCompleted
     isBookmarked
-    isUpvoted
+    reaction
 }
 }`;

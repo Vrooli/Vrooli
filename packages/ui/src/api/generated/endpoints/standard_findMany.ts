@@ -80,10 +80,10 @@ query standards($input: StandardSearchInput!) {
                 canTransfer
                 canUpdate
                 canRead
-                canVote
+                canReact
                 isBookmarked
-                isUpvoted
                 isViewed
+                reaction
             }
         }
     }

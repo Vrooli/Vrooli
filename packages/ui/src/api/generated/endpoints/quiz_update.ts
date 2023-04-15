@@ -45,10 +45,10 @@ mutation quizUpdate($input: QuizUpdateInput!) {
                         canBookmark
                         canUpdate
                         canRead
-                        canVote
+                        canReact
                         hasCompleted
                         isBookmarked
-                        isUpvoted
+                        reaction
                     }
                 }
                 user {
@@ -144,10 +144,10 @@ mutation quizUpdate($input: QuizUpdateInput!) {
         canBookmark
         canUpdate
         canRead
-        canVote
+        canReact
         hasCompleted
         isBookmarked
-        isUpvoted
+        reaction
     }
   }
 }`;

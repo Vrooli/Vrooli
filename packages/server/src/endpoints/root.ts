@@ -18,6 +18,10 @@ export const typeDef = gql`
         Award
         Bookmark
         BookmarkList
+        Chat
+        ChatInvite
+        ChatMessage
+        ChatParticipant
         Comment
         Copy
         Email
@@ -64,6 +68,7 @@ export const typeDef = gql`
         QuizAttempt
         QuizQuestion
         QuizQuestionResponse
+        Reaction
         Reminder
         ReminderItem
         ReminderList
@@ -105,7 +110,6 @@ export const typeDef = gql`
         Transfer
         User
         View
-        Vote
         Wallet
     }
 

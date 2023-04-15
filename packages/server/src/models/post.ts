@@ -55,7 +55,7 @@ export const PostModel: ModelLogic<{
             resourceList: 'ResourceList',
             comments: 'Comment',
             bookmarkedBy: 'User',
-            votedBy: 'Vote',
+            reactions: 'Reaction',
             viewedBy: 'View',
             reports: 'Report',
             tags: 'Tag',

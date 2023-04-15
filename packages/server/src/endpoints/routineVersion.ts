@@ -140,7 +140,7 @@ export const typeDef = gql`
         canUpdate: Boolean!
         canRun: Boolean!
         canRead: Boolean!
-        canVote: Boolean!
+        canReact: Boolean!
         runs: [RunRoutine!]!
     }
 

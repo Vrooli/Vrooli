@@ -70,7 +70,7 @@ query questions($input: QuestionSearchInput!) {
                 ...Tag_list
             }
             you {
-                isUpvoted
+                reaction
             }
         }
     }

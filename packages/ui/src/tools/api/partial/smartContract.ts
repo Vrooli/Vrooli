@@ -1,6 +1,6 @@
 import { SmartContract, SmartContractYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const smartContractYou: GqlPartial<SmartContractYou> = {
     __typename: 'SmartContractYou',
@@ -10,10 +10,10 @@ export const smartContractYou: GqlPartial<SmartContractYou> = {
         canTransfer: true,
         canUpdate: true,
         canRead: true,
-        canVote: true,
+        canReact: true,
         isBookmarked: true,
-        isUpvoted: true,
         isViewed: true,
+        reaction: true,
     },
     full: {},
     list: {},

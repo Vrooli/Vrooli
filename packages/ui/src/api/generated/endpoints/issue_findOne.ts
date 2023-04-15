@@ -81,9 +81,9 @@ query issue($input: FindByIdInput!) {
         canReport
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
+        reaction
     }
   }
 }`;

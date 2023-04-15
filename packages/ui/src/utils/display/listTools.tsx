@@ -41,10 +41,10 @@ export type YouInflated = {
     canShare: boolean;
     canBookmark: boolean;
     canUpdate: boolean;
-    canVote: boolean;
+    canReact: boolean;
     isBookmarked: boolean;
-    isUpvoted: boolean | null;
     isViewed: boolean;
+    reaction: string | null; // Your reaction to object, or thumbs up/down if vote instead of reaction
 }
 
 /**
@@ -100,10 +100,10 @@ export const defaultYou: YouInflated = {
     canShare: false,
     canBookmark: false,
     canUpdate: false,
-    canVote: false,
+    canReact: false,
     isBookmarked: false,
-    isUpvoted: null,
     isViewed: false,
+    reaction: null,
 };
 
 /**
@@ -113,7 +113,7 @@ export const defaultYou: YouInflated = {
 export const getYou = (
     object: ListObjectType | null | undefined
 ): YouInflated => {
-    // Initialize fields to false (except isUpvoted, where false means downvoted)
+    // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const defaultPermissions = { ...defaultYou };
     if (!object) return defaultPermissions;
     // If a star, view, or vote, use the "to" object
@@ -127,11 +127,11 @@ export const getYou = (
     for (const key in defaultPermissions) {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false) defaultPermissions[key] = field;
+        if (field === true || field === false || typeof field === 'string') defaultPermissions[key] = field;
         // If not, check if the field is in the root.you object
         else {
             const field = valueFromDot(object, `root.you.${key}`);
-            if (field === true || field === false) defaultPermissions[key] = field;
+            if (field === true || field === false || typeof field === 'string') defaultPermissions[key] = field;
         }
     }
     return defaultPermissions;

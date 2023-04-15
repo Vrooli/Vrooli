@@ -1,6 +1,6 @@
 import { Routine, RoutineYou } from "@shared/consts";
-import { rel } from '../utils';
 import { GqlPartial } from "../types";
+import { rel } from '../utils';
 
 export const routineYou: GqlPartial<RoutineYou> = {
     __typename: 'RoutineYou',
@@ -10,10 +10,10 @@ export const routineYou: GqlPartial<RoutineYou> = {
         canBookmark: true,
         canUpdate: true,
         canRead: true,
-        canVote: true,
+        canReact: true,
         isBookmarked: true,
-        isUpvoted: true,
         isViewed: true,
+        reaction: true,
     },
     full: {},
     list: {},

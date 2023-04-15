@@ -1,5 +1,5 @@
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
+import { ReactionFor, RunProject, RunRoutine, RunStatus } from '@shared/consts';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 import { isOfType } from '@shared/utils';
@@ -61,7 +61,7 @@ export function ObjectListItem<T extends ListObjectType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const { canComment, canUpdate, canVote, canBookmark, isBookmarked, isUpvoted } = useMemo(() => getYou(data), [data]);
+    const { canComment, canUpdate, canReact, canBookmark, isBookmarked, reaction } = useMemo(() => getYou(data), [data]);
     const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
 
@@ -146,18 +146,18 @@ export function ObjectListItem<T extends ListObjectType>({
             case 'Standard':
                 return (
                     <VoteButton
-                        disabled={!canVote}
+                        disabled={!canReact}
+                        emoji={reaction}
                         objectId={object?.id ?? ''}
-                        voteFor={object?.__typename as VoteFor}
-                        isUpvoted={isUpvoted}
+                        voteFor={object?.__typename as ReactionFor}
                         score={score}
-                        onChange={(isUpvoted: boolean | null, score: number) => { }}
+                        onChange={(newEmoji: string | null, newScore: number) => { }}
                     />
                 )
             default:
                 return null;
         }
-    }, [isMobile, object, profileColors, canVote, isUpvoted, score]);
+    }, [isMobile, object, profileColors, canReact, reaction, score]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -216,12 +216,12 @@ export function ObjectListItem<T extends ListObjectType>({
                     'StandardVersion') && (
                         <VoteButton
                             direction='row'
-                            disabled={!canVote}
+                            disabled={!canReact}
+                            emoji={reaction}
                             objectId={object?.id ?? ''}
-                            voteFor={object?.__typename as VoteFor}
-                            isUpvoted={isUpvoted}
+                            voteFor={object?.__typename as ReactionFor}
                             score={score}
-                            onChange={(isUpvoted: boolean | null, score: number) => { }}
+                            onChange={(newEmoji: string | null, newScore: number) => { }}
                         />
                     )}
                 {bookmarkFor && <BookmarkButton
@@ -242,7 +242,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, isUpvoted, score, canBookmark, isBookmarked, canComment]);
+    }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
     /**
      * Run list items may get a progress bar

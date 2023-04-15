@@ -79,10 +79,10 @@ query smartContracts($input: SmartContractSearchInput!) {
                 canTransfer
                 canUpdate
                 canRead
-                canVote
+                canReact
                 isBookmarked
-                isUpvoted
                 isViewed
+                reaction
             }
         }
     }

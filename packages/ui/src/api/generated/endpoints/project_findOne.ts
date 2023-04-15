@@ -340,10 +340,10 @@ query project($input: FindByIdOrHandleInput!) {
         canTransfer
         canUpdate
         canRead
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
         isViewed
+        reaction
     }
   }
 }`;

@@ -43,10 +43,10 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
                 canBookmark
                 canUpdate
                 canRead
-                canVote
+                canReact
                 hasCompleted
                 isBookmarked
-                isUpvoted
+                reaction
             }
         }
         user {

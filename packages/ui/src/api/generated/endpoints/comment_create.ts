@@ -103,9 +103,9 @@ mutation commentCreate($input: CommentCreateInput!) {
         canReply
         canReport
         canUpdate
-        canVote
+        canReact
         isBookmarked
-        isUpvoted
+        reaction
     }
   }
 }`;
