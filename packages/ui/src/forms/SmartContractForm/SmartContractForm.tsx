@@ -60,9 +60,7 @@ export const transformSmartContractValues = (values: SmartContractVersionShape, 
 
 export const validateSmartContractValues = async (values: SmartContractVersionShape, existing?: SmartContractVersionShape) => {
     const transformedValues = transformSmartContractValues(values, existing);
-    const validationSchema = existing === undefined
-        ? smartContractVersionValidation.create({})
-        : smartContractVersionValidation.update({});
+    const validationSchema = smartContractVersionValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

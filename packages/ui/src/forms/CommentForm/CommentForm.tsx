@@ -42,9 +42,7 @@ export const transformCommentValues = (values: CommentShape, existing?: CommentS
 
 export const validateCommentValues = async (values: CommentShape, existing?: CommentShape) => {
     const transformedValues = transformCommentValues(values, existing);
-    const validationSchema = existing === undefined
-        ? commentValidation.create({})
-        : commentValidation.update({});
+    const validationSchema = commentValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

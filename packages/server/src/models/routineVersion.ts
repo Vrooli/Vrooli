@@ -172,14 +172,14 @@ export const RoutineVersionModel: ModelLogic<{
                 const dataWeightMap = dataWeights.reduce((acc, curr) => {
                     acc[curr.id] = curr;
                     return acc;
-                });
+                }, {});
                 return dataWeightMap;
             },
             create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
-                    simplicity: rest.preMap[__typename][data.id].simplicity,
-                    complexity: rest.preMap[__typename][data.id].complexity,
+                    simplicity: rest.preMap[__typename][data.id]?.simplicity ?? 0,
+                    complexity: rest.preMap[__typename][data.id]?.complexity ?? 0,
                     apiCallData: noNull(data.apiCallData),
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: noNull(data.isPrivate),
@@ -201,8 +201,8 @@ export const RoutineVersionModel: ModelLogic<{
                 }
             },
             update: async ({ data, ...rest }) => ({
-                simplicity: rest.preMap[__typename][data.id].simplicity,
-                complexity: rest.preMap[__typename][data.id].complexity,
+                simplicity: rest.preMap[__typename][data.id]?.simplicity ?? 0,
+                complexity: rest.preMap[__typename][data.id]?.complexity ?? 0,
                 apiCallData: noNull(data.apiCallData),
                 isAutomatable: noNull(data.isAutomatable),
                 isPrivate: noNull(data.isPrivate),

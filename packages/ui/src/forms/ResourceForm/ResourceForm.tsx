@@ -52,9 +52,7 @@ export function transformResourceValues(values: ResourceShape, existing?: Resour
 
 export const validateResourceValues = async (values: ResourceShape, existing?: ResourceShape) => {
     const transformedValues = transformResourceValues(values, existing);
-    const validationSchema = existing === undefined
-        ? resourceValidation.create({})
-        : resourceValidation.update({});
+    const validationSchema = resourceValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

@@ -33,7 +33,7 @@ export const routineVersionValidation: YupModel = {
         ['root', ['Connect', 'Create'], 'one', 'req', routineValidation, ['versions']],
         ['apiVersion', ['Connect'], 'one', 'opt'],
         ['smartContractVersion', ['Connect'], 'one', 'opt'],
-        ['resourceList', ['Create'], 'one', 'req', resourceListValidation],
+        ['resourceList', ['Create'], 'one', 'opt', resourceListValidation],
         ['nodes', ['Create'], 'many', 'req', nodeValidation],
         ['nodeLinks', ['Create'], 'many', 'req', nodeLinkValidation],
         ['inputs', ['Create'], 'many', 'req', routineVersionInputValidation],

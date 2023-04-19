@@ -63,9 +63,7 @@ export const transformApiValues = (values: ApiVersionShape, existing?: ApiVersio
 
 export const validateApiValues = async (values: ApiVersionShape, existing?: ApiVersionShape) => {
     const transformedValues = transformApiValues(values, existing);
-    const validationSchema = existing === undefined
-        ? apiVersionValidation.create({})
-        : apiVersionValidation.update({});
+    const validationSchema = apiVersionValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

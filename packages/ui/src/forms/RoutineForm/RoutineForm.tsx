@@ -80,9 +80,7 @@ export const transformRoutineValues = (values: RoutineVersionShape, existing?: R
 
 export const validateRoutineValues = async (values: RoutineVersionShape, existing?: RoutineVersionShape) => {
     const transformedValues = transformRoutineValues(values, existing);
-    const validationSchema = existing === undefined
-        ? routineVersionValidation.create({})
-        : routineVersionValidation.update({});
+    const validationSchema = routineVersionValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }
@@ -120,7 +118,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
         validationSchema: routineVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
-    console.log('props.errors', props.errors, props.errors);
+    console.log('valuesssssss', values, transformRoutineValues(values), validateAndGetYupErrors(routineVersionValidation.create({}), transformRoutineValues(values)))
 
     const [idField] = useField<string>('id');
     const [nodesField, , nodesHelpers] = useField<NodeShape[]>('nodes');

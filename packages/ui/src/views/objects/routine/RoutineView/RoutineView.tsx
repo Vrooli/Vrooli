@@ -191,6 +191,8 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
+    console.log('formik values', formik.values)
+
     return (
         <>
             <TopBar
@@ -264,12 +266,12 @@ export const RoutineView = ({
                         zIndex={zIndex}
                     />}
                     {/* Box with description and instructions */}
-                    <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    {((description?.length > 0) || instructions?.length > 0) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                         {/* Description */}
                         <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                         {/* Instructions */}
                         <TextCollapse title="Instructions" text={instructions} loading={isLoading} loadingLines={4} />
-                    </Stack>
+                    </Stack>}
                     {/* Box with inputs, if this is a single-step routine */}
                     {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
                         <ContentCollapse

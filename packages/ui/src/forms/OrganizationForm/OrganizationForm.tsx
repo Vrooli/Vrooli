@@ -47,9 +47,7 @@ export const transformOrganizationValues = (values: OrganizationShape, existing?
 
 export const validateOrganizationValues = async (values: OrganizationShape, existing?: OrganizationShape) => {
     const transformedValues = transformOrganizationValues(values, existing);
-    const validationSchema = existing === undefined
-        ? organizationValidation.create({})
-        : organizationValidation.update({});
+    const validationSchema = organizationValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

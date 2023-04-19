@@ -46,9 +46,7 @@ export function transformQuestionValues(values: QuestionShape, existing?: Questi
 
 export const validateQuestionValues = async (values: QuestionShape, existing?: QuestionShape) => {
     const transformedValues = transformQuestionValues(values, existing);
-    const validationSchema = existing === undefined
-        ? questionValidation.create({})
-        : questionValidation.update({});
+    const validationSchema = questionValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

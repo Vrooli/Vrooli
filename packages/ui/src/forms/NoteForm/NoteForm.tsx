@@ -55,9 +55,7 @@ export function transformNoteValues(values: NoteVersionShape, existing?: NoteVer
 
 export const validateNoteValues = async (values: NoteVersionShape, existing?: NoteVersionShape) => {
     const transformedValues = transformNoteValues(values, existing);
-    const validationSchema = existing === undefined
-        ? noteVersionValidation.create({})
-        : noteVersionValidation.update({});
+    const validationSchema = noteVersionValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

@@ -53,9 +53,7 @@ export const transformNodeEndValues = (values: NodeWithEndShape, existing?: Node
 
 export const validateNodeEndValues = async (values: NodeWithEndShape, existing?: NodeWithEndShape) => {
     const transformedValues = transformNodeEndValues(values, existing);
-    const validationSchema = existing === undefined
-        ? nodeValidation.create({})
-        : nodeValidation.update({});
+    const validationSchema = nodeValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

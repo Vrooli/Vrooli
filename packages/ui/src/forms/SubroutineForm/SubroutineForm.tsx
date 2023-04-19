@@ -62,9 +62,7 @@ export const transformSubroutineValues = (values: NodeRoutineListItemShape, exis
 
 export const validateSubroutineValues = async (values: NodeRoutineListItemShape, existing?: NodeRoutineListItemShape) => {
     const transformedValues = transformSubroutineValues(values, existing);
-    const validationSchema = existing === undefined
-        ? nodeRoutineListItemValidation.create({})
-        : nodeRoutineListItemValidation.update({});
+    const validationSchema = nodeRoutineListItemValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

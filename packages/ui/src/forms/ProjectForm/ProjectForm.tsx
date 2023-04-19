@@ -72,9 +72,7 @@ export const transformProjectValues = (values: ProjectVersionShape, existing?: P
 
 export const validateProjectValues = async (values: ProjectVersionShape, existing?: ProjectVersionShape) => {
     const transformedValues = transformProjectValues(values, existing);
-    const validationSchema = existing === undefined
-        ? projectVersionValidation.create({})
-        : projectVersionValidation.update({});
+    const validationSchema = projectVersionValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

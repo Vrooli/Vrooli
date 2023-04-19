@@ -47,9 +47,7 @@ export function transformReminderValues(values: ReminderShape, existing?: Remind
 
 export const validateReminderValues = async (values: ReminderShape, existing?: ReminderShape) => {
     const transformedValues = transformReminderValues(values, existing);
-    const validationSchema = existing === undefined
-        ? reminderValidation.create({})
-        : reminderValidation.update({});
+    const validationSchema = reminderValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }

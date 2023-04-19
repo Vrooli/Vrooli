@@ -71,9 +71,7 @@ export const transformStandardValues = (values: StandardVersionShape, existing?:
 
 export const validateStandardValues = async (values: StandardVersionShape, existing?: StandardVersionShape) => {
     const transformedValues = transformStandardValues(values, existing);
-    const validationSchema = existing === undefined
-        ? standardVersionValidation.create({})
-        : standardVersionValidation.update({});
+    const validationSchema = standardVersionValidation[existing === undefined ? 'create' : 'update']({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
 }
