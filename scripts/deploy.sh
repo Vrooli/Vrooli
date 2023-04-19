@@ -13,7 +13,6 @@
 # Arguments (all optional):
 # -v: Version number to use (e.g. "1.0.0")
 # -n: Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
-# -l: Project location (e.g. "/root/Vrooli")
 # -h: Show this help message
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
