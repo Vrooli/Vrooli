@@ -1,6 +1,6 @@
 [
     <p align="center">
-        <img alt="Vrooli logo with motto" src="./docs/assets/readme-display.png" width="500px"/>
+        <img alt="Vrooli logo with motto" src="./assets/readme-display.png" width="500px"/>
     </p>
 ][website]
 &nbsp;&nbsp;
@@ -10,7 +10,7 @@
 [![Discord](https://img.shields.io/discord/880439923876974643?&style=for-the-badge)][discord]
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
-# [<img align="top" alt="YouTube" width="50px" src="./docs/assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
+# [<img align="top" alt="YouTube" width="50px" src="./assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
 
 Vrooli is a decentralized, collaborative automation platform designed to minimize the time between the inception of an idea and its development into a fully-functional product. It combines core components like interfaces, APIs, smart contracts, data, standards, and containerization into interoperable building blocks called routines. These routines can be combined together without any coding experience, making it easy for anyone to create and customize them for rapid prototyping, reusable productivity workflows, and the automation of complex tasks. 
 
@@ -163,10 +163,10 @@ To achieve this grand vision, we must think from first principles. What properti
 [<img align="left" alt="GraphQL" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" style="padding-right:10px;" />](https://graphql.org/)
 [<img align="left" alt="typeScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" style="padding-right:10px;" />](https://www.typescriptlang.org/)
 [<img align="left" alt="Node.js" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" style="padding-right:10px;" />](https://nodejs.org/)
-[<img align="left" alt="PostgreSQL" width="26px" src="./docs/assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/)
-[<img align="left" alt="Docker" width="26px" src="./docs/assets/docker.svg" style="padding-right:10px;" />](https://www.docker.com/)
+[<img align="left" alt="PostgreSQL" width="26px" src="./assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/)
+[<img align="left" alt="Docker" width="26px" src="./assets/docker.svg" style="padding-right:10px;" />](https://www.docker.com/)
 [<img align="left" alt="Visual Studio Code" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" style="padding-right:10px;" />](https://code.visualstudio.com/)
-[<img align="left" alt="GitHub" width="26px" src="./docs/assets/github.svg" style="padding-right:10px;" />](https://github.com/)
+[<img align="left" alt="GitHub" width="26px" src="./assets/github.svg" style="padding-right:10px;" />](https://github.com/)
 
 <br>
 <br>
@@ -197,13 +197,13 @@ Vrooli's vision is bright, but a lot of work needs to be done to get there. Plea
 
 If you'd like to work with me on this project, or create your own proposal for a feature on the roadmap, don't hesitate to reach out! My contact links can be found [here](https://matthalloran.info).
 
-### [<img align="center" alt="Website" width="36px" src="./docs/assets/vrooli.png" style="padding-left:5px;padding-right:2px" />][start] [**Let's change the world together!🕊**][start]
+### [<img align="center" alt="Website" width="36px" src="./assets/vrooli.png" style="padding-left:5px;padding-right:2px" />][start] [**Let's change the world together!🕊**][start]
 
 [website]: https://vrooli.com
 [start]: https://vrooli.com/start
 [personal-site]: https://matthalloran.info
 [setup-guide]: https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start
-[directory-structure]: ./docs/DirectoryStructure.md
+[directory-structure]: ./docs/setup/understand-the-design/directory-structure.md
 [discord]: https://discord.com/invite/VyrDFzbmmF
 [twitter]: https://twitter.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
 [youtube]: https://www.youtube.com/@vrooli

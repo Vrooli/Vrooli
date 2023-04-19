@@ -1,4 +1,4 @@
-# Run this file by typing: docker-compose up -f docker-compose-prod.yml -d
+# Run this file by typing: docker-compose -f docker-compose-prod.yml up -d
 version: "3.9"
 services:
   ui:

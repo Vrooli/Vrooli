@@ -1,3 +1,13 @@
+---
+layout: default
+title:  "Database Design"
+date:   2023-04-18 18:25:57 -0400
+categories: setup understand design database
+permalink: /setup/design/database/
+parent: Understand the Design
+nav_order: 2
+---
+
 # Database Design
 Prisma can sometimes delete comments in the schema.prisma file, so this document provides information about the database design.
 
