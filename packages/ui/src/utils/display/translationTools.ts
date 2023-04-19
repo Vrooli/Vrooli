@@ -741,6 +741,25 @@ export const getFormikErrorsWithTranslations = (
 }
 
 /**
+ * Combines normal errors object with translation errors object. 
+ * Filter out any normal errors that start with "translations".
+ * @param errors The normal errors object
+ * @param translationErrors The translation errors object
+ * @returns The combined errors object
+ */
+export const combineErrorsWithTranslations = (
+    errors: { [key: string]: any },
+    translationErrors: { [key: string]: any }
+): { [key: string]: any } => {
+    // Combine errors objects
+    const combinedErrors = { ...errors, ...translationErrors };
+    // Filter out any errors that start with "translations"
+    const filteredErrors = Object.fromEntries(Object.entries(combinedErrors).filter(([key]) => !key.startsWith('translations')));
+    // Return filtered errors
+    return filteredErrors;
+}
+
+/**
  * Adds a new, empty translation object (all fields '') to a formik translation field
  */
 export const addEmptyTranslation = (

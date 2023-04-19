@@ -14,7 +14,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { OrganizationFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -79,7 +79,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['bio', 'name'],
-        validationSchema: organizationTranslationValidation.update({}),
+        validationSchema: organizationTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     const [fieldIsOpen] = useField('isOpenToNewMembers');
@@ -156,10 +156,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                 </Stack>
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

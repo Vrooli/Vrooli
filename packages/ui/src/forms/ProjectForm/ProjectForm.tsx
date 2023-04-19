@@ -15,7 +15,7 @@ import { ProjectFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -106,7 +106,7 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
-        validationSchema: projectVersionTranslationValidation.update({}),
+        validationSchema: projectVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     // For now, we'll only deal with one directory listing
@@ -177,10 +177,7 @@ export const ProjectForm = forwardRef<any, ProjectFormProps>(({
                 </Stack>
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

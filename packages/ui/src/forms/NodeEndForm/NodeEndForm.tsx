@@ -10,7 +10,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { NodeEndFormProps, NodeWithEndShape } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -82,7 +82,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
-        validationSchema: isCreate ? nodeTranslationValidation.create({}) : nodeTranslationValidation.update({}),
+        validationSchema: nodeTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     const [wasSuccessfulField] = useField<boolean>('end.wasSuccessful');
@@ -144,10 +144,7 @@ export const NodeEndForm = forwardRef<any, NodeEndFormProps>(({
             </BaseForm>
             <GridSubmitButtons
                 display={display}
-                errors={{
-                    ...props.errors,
-                    ...translationErrors,
-                }}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
                 loading={props.isSubmitting}
                 onCancel={onCancel}

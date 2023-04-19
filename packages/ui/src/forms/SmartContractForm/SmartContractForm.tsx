@@ -11,7 +11,7 @@ import { SmartContractFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -94,7 +94,7 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'jsonVariable', 'name'],
-        validationSchema: smartContractVersionTranslationValidation.update({}),
+        validationSchema: smartContractVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     return (
@@ -130,10 +130,7 @@ export const SmartContractForm = forwardRef<any, SmartContractFormProps>(({
                 />
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

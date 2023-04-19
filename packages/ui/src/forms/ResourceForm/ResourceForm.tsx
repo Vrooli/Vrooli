@@ -14,7 +14,7 @@ import { ResourceFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -84,7 +84,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['bio'],
-        validationSchema: userTranslationValidation.update({}),
+        validationSchema: userTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     return (
@@ -143,10 +143,7 @@ export const ResourceForm = forwardRef<any, ResourceFormProps>(({
             </BaseForm>
             <GridSubmitButtons
                 display={display}
-                errors={{
-                    ...props.errors,
-                    ...translationErrors,
-                }}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
                 loading={props.isSubmitting}
                 onCancel={onCancel}

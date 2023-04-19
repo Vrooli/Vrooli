@@ -61,7 +61,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
             name: item.name ?? '' as string,
         },
         enableReinitialize: true,
-        validationSchema: isInput ? routineVersionInputValidation.create({}) : routineVersionOutputValidation.create({}),
+        validationSchema: (isInput ? routineVersionInputValidation : routineVersionOutputValidation).create({}),
         onSubmit: (values) => {
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {

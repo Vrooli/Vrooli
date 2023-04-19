@@ -138,10 +138,7 @@ export const SettingsProfileForm = ({
             </Grid>
             <GridSubmitButtons
                 display={display}
-                errors={{
-                    ...props.errors,
-                    ...translationErrors,
-                }}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={false}
                 loading={props.isSubmitting}
                 onCancel={onCancel}

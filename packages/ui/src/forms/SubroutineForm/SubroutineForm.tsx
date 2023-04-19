@@ -24,7 +24,7 @@ import { routineInitialValues } from "forms/RoutineForm/RoutineForm";
 import { SubroutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -97,7 +97,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'instructions', 'name'],
-        validationSchema: routineVersionTranslationValidation.update({}),
+        validationSchema: routineVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     const [indexField] = useField<number>('index');
@@ -309,10 +309,7 @@ export const SubroutineForm = forwardRef<any, SubroutineFormProps>(({
                 </Grid>
                 {canUpdate && <GridSubmitButtons
                     display="dialog"
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

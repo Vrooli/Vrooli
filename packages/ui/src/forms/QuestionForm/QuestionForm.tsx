@@ -12,7 +12,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { QuestionFormProps } from "forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { validateAndGetYupErrors } from "utils/shape/general";
@@ -79,7 +79,7 @@ export const QuestionForm = forwardRef<any, QuestionFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'name'],
-        validationSchema: questionTranslationValidation.update({}),
+        validationSchema: questionTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     return (
@@ -139,10 +139,7 @@ export const QuestionForm = forwardRef<any, QuestionFormProps>(({
                 </Stack>
                 <GridSubmitButtons
                     display={display}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}

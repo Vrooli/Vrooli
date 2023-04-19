@@ -21,7 +21,7 @@ import { RoutineFormProps } from "forms/types";
 import { forwardRef, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
@@ -57,6 +57,7 @@ export const routineInitialValues = (
         isPrivate: false,
         owner: { __typename: 'User', id: getCurrentUser(session)!.id! },
         parent: null,
+        permissions: JSON.stringify({}),
         tags: [],
     },
     versionLabel: '1.0.0',
@@ -116,8 +117,10 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['description', 'instructions', 'name'],
-        validationSchema: routineVersionTranslationValidation.update({}),
+        validationSchema: routineVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
+
+    console.log('props.errors', props.errors, props.errors);
 
     const [idField] = useField<string>('id');
     const [nodesField, , nodesHelpers] = useField<NodeShape[]>('nodes');
@@ -347,10 +350,7 @@ export const RoutineForm = forwardRef<any, RoutineFormProps>(({
             </BaseForm>
             <GridSubmitButtons
                 display={display}
-                errors={{
-                    ...props.errors,
-                    ...translationErrors,
-                }}
+                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                 isCreate={isCreate}
                 loading={props.isSubmitting}
                 onCancel={onCancel}

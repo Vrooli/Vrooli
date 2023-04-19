@@ -7,7 +7,7 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
 import { SessionContext } from "utils/SessionContext";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
@@ -42,7 +42,7 @@ export const CommentDialog = ({
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         fields: ['text'],
-        validationSchema: isCreate ? commentTranslationValidation.create({}) : commentTranslationValidation.update({}),
+        validationSchema: commentTranslationValidation[isCreate ? 'create' : 'update']({}),
     });
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
@@ -98,10 +98,7 @@ export const CommentDialog = ({
                 )}
                 <GridSubmitButtons
                     display={"dialog"}
-                    errors={{
-                        ...props.errors,
-                        ...translationErrors,
-                    }}
+                    errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     isCreate={isCreate}
                     loading={props.isSubmitting}
                     onCancel={onCancel}
