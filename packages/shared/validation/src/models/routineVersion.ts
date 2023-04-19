@@ -31,8 +31,8 @@ export const routineVersionValidation: YupModel = {
         versionNotes: opt(versionNotes),
     }, [
         ['root', ['Connect', 'Create'], 'one', 'req', routineValidation, ['versions']],
-        ['apiVersion', ['Connect'], 'one', 'req'],
-        ['smartContractVersion', ['Connect'], 'one', 'req'],
+        ['apiVersion', ['Connect'], 'one', 'opt'],
+        ['smartContractVersion', ['Connect'], 'one', 'opt'],
         ['resourceList', ['Create'], 'one', 'req', resourceListValidation],
         ['nodes', ['Create'], 'many', 'req', nodeValidation],
         ['nodeLinks', ['Create'], 'many', 'req', nodeLinkValidation],
@@ -52,8 +52,8 @@ export const routineVersionValidation: YupModel = {
         versionLabel: opt(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
     }, [
-        ['apiVersion', ['Connect', 'Disconnect'], 'one', 'req'],
-        ['smartContractVersion', ['Connect', 'Disconnect'], 'one', 'req'],
+        ['apiVersion', ['Connect', 'Disconnect'], 'one', 'opt'],
+        ['smartContractVersion', ['Connect', 'Disconnect'], 'one', 'opt'],
         ['resourceList', ['Create', 'Update'], 'one', 'req', resourceListValidation],
         ['nodes', ['Create', 'Update', 'Delete'], 'many', 'req', nodeValidation],
         ['nodeLinks', ['Create', 'Update', 'Delete'], 'many', 'req', nodeLinkValidation],

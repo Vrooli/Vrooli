@@ -1,5 +1,15 @@
-* [docs](./docs) - Stores additional guides, besides this one.
-    * [assets](./docs/assets) - Data displayed in docs 
+---
+layout: default
+title:  "Directory Structure"
+date:   2023-04-18 18:25:57 -0400
+categories: setup understand design directory structure
+permalink: /setup/design/directory-structure/
+parent: Understand the Design
+nav_order: 1
+---
+
+* [assets](./assets) - Data displayed in docs 
+* [docs](./docs) - Data for documentation site, hosted at vrooli.com/docs
 * [packages](./packages) - Core website code, in a monorepo setup
     * [server](./packages/server) - The "behind the scenes" code
         * [src](./packages/server/src)
