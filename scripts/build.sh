@@ -123,6 +123,7 @@ echo "VITE_PORT_SERVER=${PORT_SERVER}" >>.env
 echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
 echo "VITE_SITE_IP=${SITE_IP}" >>.env
 echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
+echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>.env
 # Set trap to remove .env file on exit
 trap "rm ${HERE}/../packages/ui/.env" EXIT
 
@@ -186,6 +187,16 @@ else
     mkdir dist/.well-known
     cd ${HERE}/../packages/ui/dist/.well-known
     echo "[{\"relation\": [\"delegate_permission/common.handle_all_urls\"],\"target\": {\"namespace\": \"android_app\",\"package_name\": \"com.vrooli.twa\",\"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]}}]" >assetlinks.json
+    cd ../..
+fi
+
+# Create ads.txt file for Google AdSense
+if [ -z "${GOOGLE_ADSENSE_PUBLISHER_ID}" ]; then
+    error "GOOGLE_ADSENSE_PUBLISHER_ID is not set. Not creating dist/ads.txt file for Google AdSense."
+else
+    info "Creating dist/ads.txt file for Google AdSense..."
+    cd ${HERE}/../packages/ui/dist
+    echo "google.com, ${GOOGLE_ADSENSE_PUBLISHER_ID}, DIRECT, f08c47fec0942fa0" >ads.txt
     cd ../..
 fi
 
