@@ -31,7 +31,7 @@ twitter_username: VrooliOfficial
 github_username: Vrooli
 
 # Build settings
-theme: minima
+theme: just-the-docs
 plugins:
   - jekyll-feed
 # Exclude from processing.

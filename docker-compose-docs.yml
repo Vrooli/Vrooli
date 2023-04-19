@@ -4,14 +4,19 @@ version: '3'
 
 services:
   site:
-    image: jekyll/jekyll:4.0
+    build:
+      context: ./docs
+      dockerfile: Dockerfile
     container_name: docs
     command: jekyll serve --livereload --verbose
+    user: root
     ports:
       - 4000:4000
     volumes:
-      - ./docs:/srv/jekyll
+      - ./docs:/srv/jekyll:z
       - jekyll-cache:/srv/jekyll/.jekyll-cache
+      - gems:/usr/local/bundle
 
 volumes:
   jekyll-cache:
+  gems:
