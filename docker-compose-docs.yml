@@ -1,0 +1,17 @@
+# This sets up the documentation site. Deployment is handled by GitHub.
+# Run this file by typing: docker-compose -f docker-compose-docs.yml up -d
+version: '3'
+
+services:
+  site:
+    image: jekyll/jekyll:4.0
+    container_name: docs
+    command: jekyll serve --livereload --verbose
+    ports:
+      - 4000:4000
+    volumes:
+      - ./my-docs:/srv/jekyll
+      - jekyll-cache:/srv/jekyll/.jekyll-cache # Add this line to create a separate volume for the cache
+
+volumes:
+  jekyll-cache: # Define the jekyll-cache volume here
