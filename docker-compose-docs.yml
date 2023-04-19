@@ -14,6 +14,7 @@ services:
       - 4000:4000
     volumes:
       - ./docs:/srv/jekyll:z
+      - ./assets:/srv/jekyll/assets:z
       - jekyll-cache:/srv/jekyll/.jekyll-cache
       - gems:/usr/local/bundle
 

@@ -1,8 +1,10 @@
 ---
-layout: post
+layout: default
 title:  "Database Migrations"
 date:   2023-04-18 18:25:57 -0400
 categories: upgrades database migrations
+permalink: /upgrades/database-migrations/
+nav_order: 2
 ---
 
 # Database Migrations

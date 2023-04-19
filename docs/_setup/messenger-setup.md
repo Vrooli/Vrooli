@@ -1,8 +1,10 @@
 ---
-layout: post
+layout: default
 title:  "Messenger Setup"
 date:   2023-04-18 18:25:57 -0400
 categories: setup messenger email sms push notifications
+permalink: /setup/messenger-setup/
+nav_order: 3
 ---
 
 Last update: 2022/11/5

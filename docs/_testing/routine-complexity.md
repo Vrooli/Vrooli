@@ -1,8 +1,10 @@
 ---
-layout: post
+layout: default
 title:  "Routine Complexity"
 date:   2023-04-18 18:25:57 -0400
 categories: testing routine complexity simplicity
+permalink: /testing/routine-complexity/
+nav_order: 2
 ---
 
 # Routine Complexity

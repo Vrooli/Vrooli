@@ -29,6 +29,47 @@ baseurl: "/docs" # the subpath of your site, e.g. /blog
 url: "https://vrooli.com" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: VrooliOfficial
 github_username: Vrooli
+logo: /assets/logo.png
+favicon_ico: /assets/favicon.ico
+
+aux_links:
+  "vrooli.com": https://vrooli.com"
+  "GitHub": "https://github.com/Vrooli"
+
+collections:
+  about:
+    permalink: "/:collection/:path"
+    output: true
+  valyxa:
+    permalink: "/:collection/:path"
+    output: true
+  api-reference:
+    permalink: "/:collection/:path"
+    output: true
+  setup:
+    permalink: "/:collection/:path"
+    output: true
+  testing:
+    permalink: "/:collection/:path"
+    output: true
+  upgrades:
+    permalink: "/:collection/:path"
+    output: true
+
+just_the_docs:
+  collections:
+    about:
+      name: About
+    valyxa:
+      name: Valyxa
+    api-reference:
+      name: API Reference
+    setup:
+      name: Setup
+    testing:
+      name: Testing
+    upgrades:
+      name: Upgrades
 
 # Build settings
 theme: just-the-docs

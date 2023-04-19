@@ -1,8 +1,11 @@
 ---
-layout: post
+layout: default
 title:  "Database Design"
 date:   2023-04-18 18:25:57 -0400
 categories: setup understand design database
+permalink: /setup/design/database/
+parent: Understand the Design
+nav_order: 2
 ---
 
 # Database Design
