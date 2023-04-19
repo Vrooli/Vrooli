@@ -1,3 +1,10 @@
+---
+layout: post
+title:  "Database Design"
+date:   2023-04-18 18:25:57 -0400
+categories: setup understand design database
+---
+
 # Database Design
 Prisma can sometimes delete comments in the schema.prisma file, so this document provides information about the database design.
 

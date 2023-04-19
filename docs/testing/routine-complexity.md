@@ -1,3 +1,10 @@
+---
+layout: post
+title:  "Routine Complexity"
+date:   2023-04-18 18:25:57 -0400
+categories: testing routine complexity simplicity
+---
+
 # Routine Complexity
 
 The difficulty of a routine is useful to know. Not only does it make the process of finding routines you're willing to run easier, but it also quantifies how accessible a routine is. The less complicated a routine can be made, the better it will be at streamlining workflows. To measure this, we've identified three strategies:

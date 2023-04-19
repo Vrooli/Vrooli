@@ -10,8 +10,8 @@ services:
     ports:
       - 4000:4000
     volumes:
-      - ./my-docs:/srv/jekyll
-      - jekyll-cache:/srv/jekyll/.jekyll-cache # Add this line to create a separate volume for the cache
+      - ./docs:/srv/jekyll
+      - jekyll-cache:/srv/jekyll/.jekyll-cache
 
 volumes:
-  jekyll-cache: # Define the jekyll-cache volume here
+  jekyll-cache:
