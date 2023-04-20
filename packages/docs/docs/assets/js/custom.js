@@ -20,24 +20,18 @@ function updateCardBorderColor() {
 document.addEventListener("DOMContentLoaded", function () {
     updateCardBorderColor();
 
-    var themeToggle = document.querySelector(".md-palette-toggle");
-    if (themeToggle) {
-        themeToggle.addEventListener("click", function () {
-            setTimeout(updateCardBorderColor, 100);
+    // Watch for changes in the data-md-color-scheme attribute
+    var body = document.getElementsByTagName('body')[0];
+    var observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+            if (mutation.attributeName === 'data-md-color-scheme') {
+                updateCardBorderColor();
+            }
         });
-    }
-});
-
-if (window.matchMedia) {
-    var mediaQueryList = window.matchMedia('print');
-    mediaQueryList.addListener(function (mql) {
-        if (mql.matches) {
-            updateCardBorderColor();
-        } else {
-            updateCardBorderColor();
-        }
     });
-}
 
-window.onbeforeprint = updateCardBorderColor;
-window.onafterprint = updateCardBorderColor;
+    observer.observe(body, {
+        attributes: true,
+        attributeFilter: ['data-md-color-scheme']
+    });
+});

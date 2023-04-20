@@ -130,7 +130,9 @@ services:
       timeout: 5s
       retries: 5
   docs:
-    image: squidfunk/mkdocs-material
+    build:
+      context: ./packages/docs
+      dockerfile: Dockerfile
     container_name: docs
     volumes:
       - ./packages/docs:/docs

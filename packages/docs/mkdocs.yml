@@ -65,7 +65,9 @@ plugins:
   - search
   - social
   - offline
+  - macros
 extra:
+  repo_code: "https://github.com/Vrooli/Vrooli/tree/master"
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/Vrooli/Vrooli
