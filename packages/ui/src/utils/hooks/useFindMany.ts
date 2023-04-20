@@ -11,6 +11,7 @@ import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { SessionContext } from "utils/SessionContext";
 import { useDisplayApolloError } from "./useDisplayApolloError";
+import { useStableObject } from "./useStableObject";
 
 type UseFindManyProps = {
     canSearch: boolean;
@@ -51,16 +52,19 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
+    const stableResolve = useStableObject(resolve);
+    const stableWhere = useStableObject(where);
+
     const [params, setParams] = useState<Partial<Partial<SearchParams> & { where: any }>>({});
     useEffect(() => {
         const fetchParams = async () => {
             const newParams = searchTypeToParams[searchType];
             if (!newParams) return;
             const resolvedParams = await newParams();
-            setParams({ ...resolvedParams, where });
+            setParams({ ...resolvedParams, where: stableWhere });
         };
         fetchParams();
-    }, [searchType, where]);
+    }, [searchType, stableWhere]);
 
     const [sortBy, setSortBy] = useState<string>(params?.defaultSortBy ?? '');
     const [searchString, setSearchString] = useState<string>('');
@@ -162,11 +166,11 @@ export const useFindMany = <DataType extends Record<string, any>>({
         } else {
             setHasMore(false);
         }
-    }, [canSearch, pageData]);
+    }, [canSearch, getPageData, pageData]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
-        const parsedData = parseData(pageData, resolve);
+        const parsedData = parseData(pageData, stableResolve);
         console.log('got parsed data', parsedData)
         if (!parsedData) {
             setAllData([]);
@@ -177,7 +181,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         } else {
             setAllData(parsedData);
         }
-    }, [pageData, resolve]);
+    }, [pageData, stableResolve]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         console.log('LISTTOAUTOCOMPLETE allData', allData)

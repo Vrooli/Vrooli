@@ -266,7 +266,7 @@ export const RoutineView = ({
                         zIndex={zIndex}
                     />}
                     {/* Box with description and instructions */}
-                    {((description?.length > 0) || instructions?.length > 0) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    {(!!description || !!instructions) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                         {/* Description */}
                         <TextCollapse title="Description" text={description} loading={isLoading} loadingLines={2} />
                         {/* Instructions */}
