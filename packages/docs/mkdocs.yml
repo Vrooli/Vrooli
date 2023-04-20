@@ -83,3 +83,5 @@ repo_name: Vrooli
 repo_url: https://github.com/Vrooli/Vrooli
 extra_css:
   - assets/css/custom.css
+extra_javascript:
+  - assets/js/custom.js

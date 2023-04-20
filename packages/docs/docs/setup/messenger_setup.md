@@ -1,13 +1,5 @@
----
-layout: default
-title:  "Messenger Setup"
-date:   2023-04-18 18:25:57 -0400
-categories: setup messenger email sms push notifications
-permalink: /setup/messenger-setup/
-nav_order: 3
----
-
-Last update: 2022/11/5
+# Messenger Setup
+*Last update: 2022/11/5*
 
 Bringing users back to you application is an important part of the modern user experience. This guide will show you how to add email, sms, and push notification support to your application.
 

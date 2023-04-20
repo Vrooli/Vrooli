@@ -1,12 +1,3 @@
----
-layout: default
-title:  "Database Migrations"
-date:   2023-04-18 18:25:57 -0400
-categories: upgrades database migrations
-permalink: /upgrades/database-migrations/
-nav_order: 2
----
-
 # Database Migrations
 Database migrations require an interactive terminal, which means they cannot be a part of the docker-compose setup process. 
 

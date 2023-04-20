@@ -6,44 +6,44 @@ In these docs, we cover the following topics:
 <div class="card-container">
 
   <div class="card">
-    <a href="about/overview.md">
+    <a href="about/overview.html">
       <h3>About</h3>
-      <p>Learn about who, what, and why of Vrooli</p>
+      <p>The who, what, and why of Vrooli</p>
     </a>
   </div>
 
   <div class="card">
-    <a href="valyxa/introduction.md">
+    <a href="valyxa/introduction.html">
       <h3>Valyxa</h3>
-      <p>Our AI assistant</p>
+      <p>Our powerful AI assistant</p>
     </a>
   </div>
 
   <div class="card">
-    <a href="api_reference/overview.md">
+    <a href="api_reference/overview.html">
       <h3>Api</h3>
-      <p>Some text</p>
+      <p>How it works, getting started, and more</p>
     </a>
   </div>
 
   <div class="card">
-    <a href="setup/getting_started.md">
+    <a href="setup/getting_started.html">
       <h3>Setup</h3>
-      <p>Some text</p>
+      <p>Learn how to develop Vrooli</p>
     </a>
   </div>
 
   <div class="card">
-    <a href="testing/overview.md">
+    <a href="testing/overview.html">
       <h3>Testing</h3>
-      <p>Some text</p>
+      <p>How we test performance</p>
     </a>
   </div>
 
   <div class="card">
-    <a href="upgrades/overview.md">
+    <a href="upgrades/overview.html">
       <h3>Upgrading</h3>
-      <p>Some text</p>
+      <p>How Vrooli is updated</p>
     </a>
   </div>
 

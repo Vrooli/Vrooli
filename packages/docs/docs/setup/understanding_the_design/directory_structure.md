@@ -1,12 +1,5 @@
----
-layout: default
-title:  "Directory Structure"
-date:   2023-04-18 18:25:57 -0400
-categories: setup understand design directory structure
-permalink: /setup/design/directory-structure/
-parent: Understand the Design
-nav_order: 1
----
+# Directory Structure
+This is a high-level overview of the directory structure of the Vrooli codebase. For more information on a specific directory. Check out each directory yourself to get a better understanding of what's in there.
 
 * [assets](./assets) - Data displayed in docs 
 * [docs](./docs) - Data for documentation site, hosted at vrooli.com/docs
