@@ -81,3 +81,5 @@ extra:
       name: Email us
 repo_name: Vrooli
 repo_url: https://github.com/Vrooli/Vrooli
+extra_css:
+  - assets/css/custom.css
