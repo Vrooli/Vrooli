@@ -3,7 +3,7 @@ import { ParseSearchParamsResult } from "@shared/route";
 import { exists } from "@shared/utils";
 import { useCustomLazyQuery } from "api";
 import { DocumentNode } from "graphql";
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -45,6 +45,13 @@ export function useObjectFromUrl<
     // Get URL params
     const urlParams = useMemo(() => parseSingleItemUrl(), []);
 
+    // This is sometimes defined inline, so we need to use a ref 
+    // to prevent infinite loops
+    const onInvalidUrlParamsRef = useRef(onInvalidUrlParams);
+    useEffect(() => {
+        onInvalidUrlParamsRef.current = onInvalidUrlParams;
+    }, [onInvalidUrlParams]);
+
     // Fetch data
     const [getData, { data, error, loading: isLoading }] = useCustomLazyQuery<TData, TVariables>(query, { errorPolicy: 'all' } as any);
     const [object, setObject] = useState<TData | null | undefined>(null);
@@ -58,9 +65,9 @@ export function useObjectFromUrl<
         else if (exists(urlParams.idRoot)) getData({ variables: { idRoot: urlParams.idRoot } as any })
         else if (exists(idFallback)) getData({ variables: { id: idFallback } as any })
         // If no valid identifier found, show error or call onInvalidUrlParams
-        else if (exists(onInvalidUrlParams)) onInvalidUrlParams(urlParams);
+        else if (exists(onInvalidUrlParamsRef.current)) onInvalidUrlParamsRef.current(urlParams);
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: 'Error' });
-    }, [getData, idFallback, onInvalidUrlParams, urlParams]);
+    }, [getData, idFallback, urlParams]);
     useEffect(() => {
         setObject(data ?? partialData as any);
     }, [data, partialData]);
