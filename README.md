@@ -203,7 +203,7 @@ If you'd like to work with me on this project, or create your own proposal for a
 [start]: https://vrooli.com/start
 [personal-site]: https://matthalloran.info
 [setup-guide]: https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start
-[directory-structure]: ./docs/setup/understand-the-design/directory-structure.md
+[directory-structure]: https://docs.vrooli.com/setup/design/database/
 [discord]: https://discord.com/invite/VyrDFzbmmF
 [twitter]: https://twitter.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
 [youtube]: https://www.youtube.com/@vrooli
