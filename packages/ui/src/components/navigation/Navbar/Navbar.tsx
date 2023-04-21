@@ -1,12 +1,12 @@
 import { AppBar, Box, Stack, useTheme } from '@mui/material';
 import { BUSINESS_NAME, LINKS } from '@shared/consts';
-import { useLocation } from '@shared/route';
 import { Header } from 'components/text/Header/Header';
 import { forwardRef, useCallback, useEffect, useMemo } from 'react';
 import { noSelect } from 'styles';
 import { useDimensions } from 'utils/hooks/useDimensions';
 import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { useLocation } from 'utils/route';
 import { HideOnScroll } from '../HideOnScroll/HideOnScroll';
 import { NavbarLogo } from '../NavbarLogo/NavbarLogo';
 import { NavList } from '../NavList/NavList';

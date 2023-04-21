@@ -8,12 +8,12 @@ import {
 } from '@mui/material';
 import { LINKS, SOCIALS } from '@shared/consts';
 import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
-import { openLink, useLocation } from '@shared/route';
 import { CopyrightBreadcrumbs } from 'components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { noSelect } from 'styles';
+import { openLink, useLocation } from 'utils/route';
 import { ContactInfoProps } from '../types';
 
 type NavActionListData = [string, string, string, SvgComponent]

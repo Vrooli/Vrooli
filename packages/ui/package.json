@@ -1,9 +1,10 @@
 {
-    "name": "app",
+    "name": "@local/ui",
     "author": "Vrooli",
     "license": "GPL-3.0",
     "version": "1.9.0",
-    "main": "index.ts",
+    "main": "dist/index.ts",
+    "typings": "src/types.d.ts",
     "type": "module",
     "private": true,
     "dependencies": {
@@ -15,7 +16,6 @@
         "@mui/styles": "^5.12.0",
         "@shared/consts": "*",
         "@shared/icons": "*",
-        "@shared/route": "*",
         "@shared/translations": "*",
         "@shared/utils": "*",
         "@shared/uuid": "*",
@@ -45,6 +45,7 @@
         "react-window": "^1.8.6",
         "schema-to-yup": "^1.11.11",
         "typescript": "4.9.5",
+        "vite-plugin-ssr": "^0.4.115",
         "web-vitals": "^2.1.0",
         "workbox-background-sync": "^6.3.0",
         "workbox-broadcast-update": "^6.3.0",
@@ -61,8 +62,6 @@
     },
     "scripts": {
         "build": "tsc && vite build && node workbox-build.js",
-        "start-development": "vite",
-        "start-production": "serve --config serve.json",
         "analyze": "source-map-explorer dist/assets/*",
         "graphql-generate": "graphql-codegen --config codegen.yml",
         "lint": "eslint src"

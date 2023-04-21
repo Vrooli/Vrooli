@@ -1,10 +1,10 @@
-import { logger } from "../../events";
 import webpush from 'web-push';
+import { logger } from "../../events";
 import { PushPayload, PushSubscription } from "./queue";
 
 webpush.setVapidDetails(
     `mailto:${process.env.LETSENCRYPT_EMAIL}`,
-    process.env.VAPID_PUBLIC_KEY ?? '',
+    process.env.VITE_VAPID_PUBLIC_KEY ?? '',
     process.env.VAPID_PRIVATE_KEY ?? ''
 );
 

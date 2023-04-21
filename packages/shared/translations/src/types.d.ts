@@ -5,8 +5,8 @@ import error from './locales/en/error.json'
 import notify from './locales/en/notify.json'
 // import validate from './locales/en/validate.json'
 
-declare module '@shared/route';
-export * from '.';
+declare module '@shared/translations';
+export * from '.'
 
 declare module "i18next" {
     interface CustomTypeOptions {

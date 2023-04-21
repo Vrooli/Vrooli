@@ -6,7 +6,6 @@ import {
 } from '@mui/material';
 import { CSSProperties } from '@mui/styles';
 import { EmailRequestPasswordChangeInput, LINKS, Success } from '@shared/consts';
-import { useLocation } from '@shared/route';
 import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { authEmailRequestPasswordChange } from 'api/generated/endpoints/auth_emailRequestPasswordChange';
 import { useCustomMutation } from 'api/hooks';
@@ -17,6 +16,7 @@ import { BaseForm } from 'forms/BaseForm/BaseForm';
 import { useTranslation } from 'react-i18next';
 import { clickSize } from 'styles';
 import { Forms } from 'utils/consts';
+import { useLocation } from 'utils/route';
 import { formNavLink, formPaper, formSubmit } from '../../styles';
 import { ForgotPasswordFormProps } from '../../types';
 

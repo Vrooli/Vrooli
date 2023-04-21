@@ -12,7 +12,6 @@ import {
 } from '@mui/material';
 import { EmailLogInInput, LINKS, Session } from '@shared/consts';
 import { EmailIcon, WalletIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
 import { useCustomMutation } from 'api/hooks';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
@@ -30,6 +29,7 @@ import { Forms } from 'utils/consts';
 import { useReactSearch } from 'utils/hooks/useReactSearch';
 import { PubSub } from 'utils/pubsub';
 import { setupPush } from 'utils/push';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { StartViewProps } from '../types';
 

@@ -4,6 +4,9 @@ import { AwardCategory, GqlModelType, NodeLink, RoutineVersion, Schedule, Sessio
 import { CommonKey } from '@shared/translations';
 import { RoutineStepType } from "utils/consts";
 
+declare module '@local/ui';
+export * from '.';
+
 export type CalendarEvent = {
     __typename: 'CalendarEvent',
     id: string;

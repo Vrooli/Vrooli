@@ -1,8 +1,8 @@
 import { LINKS } from '@shared/consts';
-import { Redirect, useLocation } from '@shared/route';
 import { PageContainer } from 'components/containers/PageContainer/PageContainer';
 import { useContext } from 'react';
 import { PubSub } from 'utils/pubsub';
+import { Redirect, useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { PageProps } from '../../views/wrapper/types';
 

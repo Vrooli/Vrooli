@@ -3,7 +3,6 @@ import {
     Grid
 } from '@mui/material';
 import { EmailResetPasswordInput, LINKS, Session } from '@shared/consts';
-import { parseSearchParams, useLocation } from '@shared/route';
 import { uuidValidate } from '@shared/uuid';
 import { emailResetPasswordSchema } from '@shared/validation';
 import { authEmailResetPassword } from 'api/generated/endpoints/auth_emailResetPassword';
@@ -17,6 +16,7 @@ import { ResetPasswordFormProps } from 'forms/types';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PubSub } from 'utils/pubsub';
+import { parseSearchParams, useLocation } from 'utils/route';
 import { formPaper, formSubmit } from '../../styles';
 
 export const ResetPasswordForm = ({

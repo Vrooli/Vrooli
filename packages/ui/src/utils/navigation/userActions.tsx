@@ -7,10 +7,10 @@ import {
 } from '@mui/material';
 import { LINKS, Session } from '@shared/consts';
 import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from '@shared/icons';
-import { openLink, SetLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import i18next from 'i18next';
 import { checkIfLoggedIn } from 'utils/authentication/session';
+import { openLink, SetLocation } from 'utils/route';
 
 export enum ACTION_TAGS {
     Home = 'Home',

@@ -1,8 +1,8 @@
 import { LINKS } from "@shared/consts";
-import { getLastUrlPart } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { adaHandleRegex } from "@shared/validation";
 import { PubSub } from "utils/pubsub";
+import { getLastUrlPart } from "utils/route";
 
 /**
  * Converts a string to a BigInt
@@ -86,11 +86,11 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
     // root ID or handle defined. To check, we must see if any part of the url 
     // contains the name of a versioned object
     const objectsWithVersions = [
-        LINKS.Api, 
-        LINKS.Note, 
-        LINKS.Project, 
-        LINKS.Routine, 
-        LINKS.SmartContract, 
+        LINKS.Api,
+        LINKS.Note,
+        LINKS.Project,
+        LINKS.Routine,
+        LINKS.SmartContract,
         LINKS.Standard
     ].map(link => link.split('/').pop());
     const allUrlParts = window.location.pathname.split('/');

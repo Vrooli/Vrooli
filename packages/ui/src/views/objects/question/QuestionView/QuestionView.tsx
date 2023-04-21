@@ -1,7 +1,6 @@
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkFor, FindByIdInput, Question } from "@shared/consts";
 import { EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { questionFindOne } from "api/generated/endpoints/question_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -15,6 +14,7 @@ import { placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useLocation } from 'utils/route';
 import { SessionContext } from "utils/SessionContext";
 import { QuestionViewProps } from "../types";
 

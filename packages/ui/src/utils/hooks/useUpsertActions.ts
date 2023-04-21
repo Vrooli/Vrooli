@@ -1,9 +1,9 @@
 import { LINKS } from "@shared/consts";
-import { useLocation } from "@shared/route";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { useLocation } from "utils/route";
 import { ViewDisplayType } from "views/types";
 
 /**

@@ -1,8 +1,7 @@
-import locationHook, { HookNavigationOptions, LocationHook, Path } from "./useLocation";
+import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
-import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, useRef, useLayoutEffect, useContext, useCallback, ReactElement, ReactNode, useEffect, Suspense } from "react";
 import { parseSearchParams } from "./searchParams";
-import { SetLocation } from "@shared/route";
+import locationHook, { HookNavigationOptions, LocationHook, Path, SetLocation } from "./useLocation";
 
 export type ExtractRouteOptionalParam<PathType extends Path> =
     PathType extends `${infer Param}?`
@@ -139,9 +138,9 @@ export const Route = ({ path, match, component, children }: RouteProps) => {
         const lastCurrentPath = sessionStorage.getItem("currentPath");
         const lastCurrentSearchParams = sessionStorage.getItem("currentSearchParams");
         // Store current data in sessionStorage if last data didn't exist
-        if(!lastCurrentPath) sessionStorage.setItem("currentPath", location.pathname);
+        if (!lastCurrentPath) sessionStorage.setItem("currentPath", window.location.pathname);
         if (!lastCurrentSearchParams) sessionStorage.setItem("currentSearchParams", JSON.stringify(parseSearchParams()));
-    } , [path]);
+    }, [path]);
 
     // `props.match` is present - Route is controlled by the Switch
     const [matches, params] = match || useRouteMatch;

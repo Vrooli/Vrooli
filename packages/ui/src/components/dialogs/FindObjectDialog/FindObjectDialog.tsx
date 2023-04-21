@@ -1,7 +1,6 @@
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { FindByIdInput } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon, VisibleIcon } from "@shared/icons";
-import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "@shared/route";
 import { useCustomLazyQuery } from "api";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -17,6 +16,7 @@ import { lazily } from "react-lazily";
 import { AutocompleteOption } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { getObjectUrl } from "utils/navigation/openObject";
+import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "utils/route";
 import { SearchPageTabOption, SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { UpsertProps } from "views/objects/types";

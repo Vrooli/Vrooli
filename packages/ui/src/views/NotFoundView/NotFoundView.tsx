@@ -1,8 +1,8 @@
 import { Box, Button } from '@mui/material';
 import { LINKS } from '@shared/consts';
-import { Link } from '@shared/route';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'utils/route';
 
 export const NotFoundView = () => {
     const { t } = useTranslation();

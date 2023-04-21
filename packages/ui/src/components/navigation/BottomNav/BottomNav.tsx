@@ -1,8 +1,8 @@
 import { BottomNavigation, useTheme } from '@mui/material';
-import { useLocation } from '@shared/route';
 import { useContext } from 'react';
 import { useKeyboardOpen } from 'utils/hooks/useKeyboardOpen';
 import { actionsToBottomNav, getUserActions } from 'utils/navigation/userActions';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 
 export const BottomNav = () => {

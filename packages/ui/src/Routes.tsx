@@ -1,6 +1,5 @@
 import { Box } from '@mui/material';
 import { LINKS } from '@shared/consts';
-import { Route, RouteProps, Switch } from '@shared/route';
 import { FullPageSpinner } from 'components/FullPageSpinner/FullPageSpinner';
 import { NavbarProps } from 'components/navigation/types';
 import { ScrollToTop } from 'components/ScrollToTop';
@@ -8,6 +7,7 @@ import { ForgotPasswordForm, ResetPasswordForm } from 'forms/auth';
 import { lazily } from 'react-lazily';
 import { PageProps } from 'views/wrapper/types';
 import { Page } from './components/Page/Page';
+import { Route, RouteProps, Switch } from './utils/route';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {

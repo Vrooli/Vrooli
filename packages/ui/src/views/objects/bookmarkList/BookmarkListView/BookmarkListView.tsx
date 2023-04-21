@@ -1,7 +1,6 @@
 import { Box, TextField, useTheme } from "@mui/material";
 import { BookmarkList, FindByIdInput } from "@shared/consts";
 import { AddIcon, EditIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { bookmarkListFindOne } from "api/generated/endpoints/bookmarkList_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -10,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectAction } from "utils/actions/objectActions";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useLocation } from 'utils/route';
 import { BookmarkListViewProps } from "../types";
 
 export const BookmarkListView = ({

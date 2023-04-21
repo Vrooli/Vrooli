@@ -9,7 +9,6 @@ import {
 } from '@mui/material';
 import { CSSProperties } from '@mui/styles';
 import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session } from '@shared/consts';
-import { useLocation } from '@shared/route';
 import { emailSignUpFormValidation } from '@shared/validation';
 import { authEmailSignUp } from 'api/generated/endpoints/auth_emailSignUp';
 import { useCustomMutation } from 'api/hooks';
@@ -23,6 +22,7 @@ import { clickSize } from 'styles';
 import { Forms } from 'utils/consts';
 import { PubSub } from 'utils/pubsub';
 import { setupPush } from 'utils/push';
+import { useLocation } from 'utils/route';
 import { formNavLink, formPaper, formSubmit } from '../../styles';
 import { SignUpFormProps } from '../../types';
 

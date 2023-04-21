@@ -2,10 +2,10 @@ import {
     Breadcrumbs,
     Link
 } from '@mui/material';
-import { BreadcrumbsBaseProps } from '../types';
 import { useMemo } from 'react';
-import { openLink, useLocation } from '@shared/route';
 import { noSelect } from 'styles';
+import { openLink, useLocation } from 'utils/route';
+import { BreadcrumbsBaseProps } from '../types';
 
 export const BreadcrumbsBase = ({
     paths,

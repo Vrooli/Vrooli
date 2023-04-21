@@ -1,7 +1,6 @@
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
 import { LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
-import { openLink, useLocation } from '@shared/route';
 import { PopupMenu } from 'components/buttons/PopupMenu/PopupMenu';
 import { AccountMenu } from 'components/dialogs/AccountMenu/AccountMenu';
 import React, { useCallback, useContext, useMemo, useState } from 'react';
@@ -9,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { checkIfLoggedIn, getCurrentUser } from 'utils/authentication/session';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils/navigation/userActions';
+import { openLink, useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { ContactInfo } from '../ContactInfo/ContactInfo';
 

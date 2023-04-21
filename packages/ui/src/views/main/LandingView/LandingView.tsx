@@ -2,7 +2,6 @@ import { Box, BoxProps, Grid, IconButton, Stack, Tooltip, Typography } from "@mu
 import { CSSProperties } from "@mui/styles";
 import { LINKS, SOCIALS, WHITE_PAPER_URL } from "@shared/consts";
 import { ArticleIcon, DiscordIcon, GitHubIcon, PlayIcon, TwitterIcon } from "@shared/icons";
-import { openLink, useLocation } from "@shared/route";
 import Earth from 'assets/img/Earth.svg';
 import RelaxingCouch from 'assets/img/relaxing-couch.jpg';
 import RobotsCollab from 'assets/img/robots-collab.jpg';
@@ -14,6 +13,7 @@ import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { greenNeonText, iconButtonProps, slideImageContainer, slideText, slideTitle, textPop } from "styles";
+import { openLink, useLocation } from "utils/route";
 import { LandingViewProps } from "../types";
 
 interface GlossyContainerProps extends BoxProps {

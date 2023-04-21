@@ -4,7 +4,6 @@ import {
     Link, TextField, Typography
 } from '@mui/material';
 import { EmailLogInInput, LINKS, Session } from '@shared/consts';
-import { parseSearchParams, useLocation } from '@shared/route';
 import { emailLogInFormValidation } from '@shared/validation';
 import { authEmailLogIn } from 'api/generated/endpoints/auth_emailLogIn';
 import { useCustomMutation } from 'api/hooks';
@@ -18,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { clickSize } from 'styles';
 import { Forms } from 'utils/consts';
 import { PubSub } from 'utils/pubsub';
+import { parseSearchParams, useLocation } from 'utils/route';
 import { formNavLink, formPaper, formSubmit } from '../../styles';
 import { LogInFormProps } from '../../types';
 

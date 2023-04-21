@@ -1,6 +1,5 @@
 import { DialogContent, useTheme } from '@mui/material';
 import { LINKS, PopularInput, PopularResult } from '@shared/consts';
-import { useLocation } from '@shared/route';
 import { uuidValidate } from '@shared/uuid';
 import { feedPopular } from 'api/generated/endpoints/feed_popular';
 import { useCustomLazyQuery } from 'api/hooks';
@@ -16,6 +15,7 @@ import { useDisplayApolloError } from 'utils/hooks/useDisplayApolloError';
 import { getObjectUrl } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { PubSub } from 'utils/pubsub';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 
 /**

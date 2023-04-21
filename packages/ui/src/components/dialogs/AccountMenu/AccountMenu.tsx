@@ -14,7 +14,6 @@ import {
 import { Stack } from '@mui/system';
 import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
 import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogOutIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { userValidation } from '@shared/validation';
 import { authLogOut } from 'api/generated/endpoints/auth_logOut';
 import { authSwitchCurrentAccount } from 'api/generated/endpoints/auth_switchCurrentAccount';
@@ -35,6 +34,7 @@ import { getCurrentUser, guestSession } from 'utils/authentication/session';
 import { useIsLeftHanded } from 'utils/hooks/useIsLeftHanded';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { PubSub } from 'utils/pubsub';
+import { useLocation } from 'utils/route';
 import { HistoryPageTabOption } from 'utils/search/objectToSearch';
 import { SessionContext } from 'utils/SessionContext';
 import { shapeProfile } from 'utils/shape/models/profile';

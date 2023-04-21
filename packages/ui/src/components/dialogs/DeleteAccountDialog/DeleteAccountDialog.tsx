@@ -10,7 +10,6 @@ import {
 } from '@mui/material';
 import { LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { DeleteIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
 import { useCustomMutation } from 'api';
 import { userDeleteOne } from 'api/generated/endpoints/user_deleteOne';
@@ -21,6 +20,7 @@ import { useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from 'utils/authentication/session';
 import { PubSub } from 'utils/pubsub';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { LargeDialog } from '../LargeDialog/LargeDialog';

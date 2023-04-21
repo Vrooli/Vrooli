@@ -293,6 +293,7 @@
     "NameOptional": "Name (optional)",
     "Navigate": "Navigate",
     "New": "New",
+    "NewVersionAvailable": "New version available! The site will now update. Press \"Cancel\" if you need to save any unsaved data.",
     "No": "No",
     "None": "None",
     "NoSuggestions": "No suggestions",

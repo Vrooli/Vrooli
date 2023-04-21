@@ -1,7 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkFor, FindByIdOrHandleInput, LINKS, ResourceList, User, VisibilityType } from "@shared/consts";
 import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
-import { getLastUrlPart, useLocation } from "@shared/route";
 import { uuidValidate } from '@shared/uuid';
 import { useCustomLazyQuery } from "api";
 import { userFindOne } from "api/generated/endpoints/user_findOne";
@@ -25,6 +24,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { PubSub } from "utils/pubsub";
+import { getLastUrlPart, useLocation } from "utils/route";
 import { SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { UserViewProps } from "../types";

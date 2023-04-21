@@ -1,5 +1,4 @@
 import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor } from "@shared/consts";
-import { SetLocation } from "@shared/route";
 import { exists, setDotNotationValue } from "@shared/utils";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { NavigableObject } from "types";
@@ -7,6 +6,7 @@ import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/a
 import { getDisplay, getYou, getYouDot, ListObjectType } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { SetLocation } from "utils/route";
 import { SessionContext } from "utils/SessionContext";
 import { useBookmarker } from "./useBookmarker";
 import { useCopier } from "./useCopier";

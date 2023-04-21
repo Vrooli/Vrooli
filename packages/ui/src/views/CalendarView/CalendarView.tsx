@@ -1,7 +1,6 @@
 import { useTheme } from '@mui/material';
 import { Schedule, ScheduleSearchResult } from '@shared/consts';
 import { AddIcon, FocusModeIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SvgProps } from '@shared/icons';
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { calculateOccurrences } from '@shared/utils';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
@@ -23,6 +22,7 @@ import { getUserLanguages, getUserLocale, loadLocale } from 'utils/display/trans
 import { useDimensions } from 'utils/hooks/useDimensions';
 import { useFindMany } from 'utils/hooks/useFindMany';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
+import { addSearchParams, parseSearchParams, useLocation } from 'utils/route';
 import { CalendarPageTabOption } from 'utils/search/objectToSearch';
 import { SessionContext } from 'utils/SessionContext';
 import { CalendarViewProps } from 'views/types';

@@ -1,6 +1,5 @@
 import { Stack, Tooltip, useTheme } from '@mui/material';
 import { OrganizationIcon, UserIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { exists } from '@shared/utils';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
@@ -15,6 +14,7 @@ import { getCurrentUser } from 'utils/authentication/session';
 import { firstString } from 'utils/display/stringTools';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { openObject } from 'utils/navigation/openObject';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { OwnerShape } from 'utils/shape/models/types';
 import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';

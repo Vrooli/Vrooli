@@ -1,6 +1,5 @@
 import { useTheme } from "@mui/material";
 import { FindVersionInput, NoteVersion } from "@shared/consts";
-import { useLocation } from '@shared/route';
 import { noteVersionFindOne } from "api/generated/endpoints/noteVersion_findOne";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
@@ -11,6 +10,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useLocation } from 'utils/route';
 import { SessionContext } from "utils/SessionContext";
 import { NoteViewProps } from "../types";
 

@@ -11,7 +11,7 @@ export const safeOrigins = (): Array<string | RegExp> => {
             /^http:\/\/localhost(?::[0-9]+)?$/,
             /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
             'https://studio.apollographql.com',
-            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
+            new RegExp(`^http(s)?:\/\/${process.env.VITE_SITE_IP}(?::[0-9]+)?$`),
         )
     }
     else {
@@ -21,7 +21,7 @@ export const safeOrigins = (): Array<string | RegExp> => {
             origins.push(new RegExp(`^http(s)?:\/\/${domain}$`));
         }
         origins.push(
-            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
+            new RegExp(`^http(s)?:\/\/${process.env.VITE_SITE_IP}(?::[0-9]+)?$`),
         )
     }
     return origins;

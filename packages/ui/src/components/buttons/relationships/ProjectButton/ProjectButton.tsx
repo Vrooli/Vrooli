@@ -1,6 +1,5 @@
 import { Stack, Tooltip, useTheme } from '@mui/material';
 import { ProjectIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { exists } from '@shared/utils';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { FindObjectDialog } from 'components/dialogs/FindObjectDialog/FindObjectDialog';
@@ -12,6 +11,7 @@ import { useCallback, useContext, useMemo, useState } from 'react';
 import { firstString } from 'utils/display/stringTools';
 import { getTranslation, getUserLanguages } from 'utils/display/translationTools';
 import { openObject } from 'utils/navigation/openObject';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { commonButtonProps, commonIconProps, commonLabelProps } from '../styles';
 import { ProjectButtonProps } from '../types';

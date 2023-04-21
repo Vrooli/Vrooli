@@ -1,7 +1,6 @@
 import { useQuery } from '@apollo/client';
 import { Stack } from '@mui/material';
 import { FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, NoteVersion, Reminder, ResourceList } from '@shared/consts';
-import { useLocation } from '@shared/route';
 import { calculateOccurrences } from '@shared/utils';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { feedHome } from 'api/generated/endpoints/feed_home';
@@ -27,6 +26,7 @@ import { useReactSearch } from 'utils/hooks/useReactSearch';
 import { openObject } from 'utils/navigation/openObject';
 import { actionsItems, shortcuts } from 'utils/navigation/quickActions';
 import { PubSub } from 'utils/pubsub';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { NoteUpsert } from 'views/objects/note';
 import { DashboardViewProps } from '../types';

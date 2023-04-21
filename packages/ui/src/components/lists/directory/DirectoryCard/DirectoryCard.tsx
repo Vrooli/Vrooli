@@ -6,7 +6,6 @@ import {
     useTheme
 } from '@mui/material';
 import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { ColorIconButton } from 'components/buttons/ColorIconButton/ColorIconButton';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +14,7 @@ import { getDisplay } from 'utils/display/listTools';
 import { getUserLanguages } from 'utils/display/translationTools';
 import usePress from 'utils/hooks/usePress';
 import { getObjectUrl } from 'utils/navigation/openObject';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { DirectoryCardProps } from '../types';
 

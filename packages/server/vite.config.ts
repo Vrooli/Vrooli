@@ -6,10 +6,6 @@ import { defineConfig } from 'vite'
 export default defineConfig({
     plugins: [react()],
     assetsInclude: ['**/*.md'],
-    server: {
-        host: true,
-        port: 3000,
-    },
     resolve: {
         alias: [
             // Set up absolute imports for each top-level folder and file in the src directory
@@ -33,7 +29,13 @@ export default defineConfig({
         ]
     },
     build: {
-        // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
+        target: 'es2019',
+        outDir: 'dist',
         sourcemap: false,
-    }
+        ssr: 'src/renderer.tsx',
+        ssrManifest: true,
+        rollupOptions: {
+            external: ['react', 'react-dom', 'react-router-dom'],
+        },
+    },
 })

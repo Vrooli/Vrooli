@@ -1,7 +1,6 @@
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ReactionFor, RunProject, RunRoutine, RunStatus } from '@shared/consts';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { isOfType } from '@shared/utils';
 import { uuid } from '@shared/uuid';
 import { BookmarkButton } from 'components/buttons/BookmarkButton/BookmarkButton';
@@ -19,6 +18,7 @@ import { useObjectActions } from 'utils/hooks/useObjectActions';
 import usePress from 'utils/hooks/usePress';
 import { useWindowSize } from 'utils/hooks/useWindowSize';
 import { getObjectEditUrl, getObjectUrl } from 'utils/navigation/openObject';
+import { useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { RoleList } from '../RoleList/RoleList';
 import { smallHorizontalScrollbar } from '../styles';

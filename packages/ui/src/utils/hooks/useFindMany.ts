@@ -1,5 +1,4 @@
 import { TimeFrame } from "@shared/consts";
-import { addSearchParams, parseSearchParams, useLocation } from "@shared/route";
 import { exists } from "@shared/utils";
 import { useCustomLazyQuery } from "api";
 import { SearchQueryVariablesInput } from "components/lists/types";
@@ -7,6 +6,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { AutocompleteOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { addSearchParams, parseSearchParams, useLocation } from "utils/route";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
 import { SessionContext } from "utils/SessionContext";

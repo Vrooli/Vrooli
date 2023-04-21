@@ -2,7 +2,6 @@
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { ResourceUsedFor } from '@shared/consts';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
-import { openLink, useLocation } from '@shared/route';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { TextLoading } from 'components/lists/TextLoading/TextLoading';
 import { useCallback, useContext, useMemo } from 'react';
@@ -15,6 +14,7 @@ import { getUserLanguages } from 'utils/display/translationTools';
 import usePress from 'utils/hooks/usePress';
 import { getResourceUrl } from 'utils/navigation/openObject';
 import { PubSub } from 'utils/pubsub';
+import { openLink, useLocation } from 'utils/route';
 import { SessionContext } from 'utils/SessionContext';
 import { ResourceListItemProps } from '../types';
 

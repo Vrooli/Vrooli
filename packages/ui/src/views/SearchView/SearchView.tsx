@@ -1,7 +1,6 @@
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { GqlModelType, LINKS } from "@shared/consts";
 import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgProps, UserIcon } from "@shared/icons";
-import { addSearchParams, parseSearchParams, useLocation } from '@shared/route';
 import { CommonKey } from "@shared/translations";
 import { ShareSiteDialog } from "components/dialogs/ShareSiteDialog/ShareSiteDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -14,6 +13,7 @@ import { centeredDiv } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { addSearchParams, parseSearchParams, useLocation } from 'utils/route';
 import { SearchPageTabOption, SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { SearchViewProps } from "../types";

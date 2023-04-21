@@ -1,4 +1,4 @@
-import { SetLocation } from "@shared/route";
+import { SetLocation } from "./useLocation";
 
 type Primitive = string | number | boolean;
 export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };

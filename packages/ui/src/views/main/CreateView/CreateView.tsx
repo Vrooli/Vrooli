@@ -1,6 +1,5 @@
 import { LINKS } from '@shared/consts';
 import { ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, SvgComponent } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { CommonKey } from '@shared/translations';
 import { PageContainer } from 'components/containers/PageContainer/PageContainer';
 import { CardGrid } from 'components/lists/CardGrid/CardGrid';
@@ -8,6 +7,7 @@ import { TIDCard } from 'components/lists/TIDCard/TIDCard';
 import { TopBar } from 'components/navigation/TopBar/TopBar';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'utils/route';
 import { CreateViewProps } from '../types';
 
 type CreateType = 'Api' | 'Note' | 'Organization' | 'Project' | 'Question' | 'Reminder' | 'Routine' | 'SmartContract' | 'Standard';

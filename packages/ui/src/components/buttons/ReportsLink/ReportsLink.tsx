@@ -1,8 +1,8 @@
 import { IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { ReportIcon } from "@shared/icons";
-import { useLocation } from "@shared/route";
 import { useCallback, useMemo } from "react";
 import { getObjectSlug, getObjectUrlBase } from "utils/navigation/openObject";
+import { useLocation } from "utils/route";
 import { ReportsLinkProps } from "../types";
 
 /**
@@ -17,8 +17,8 @@ export const ReportsLink = ({
 
     // We set href and onClick so users can open in new tab, while also supporting single-page app navigation
     const link = useMemo<string>(() => object ? `${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}` : '', [object]);
-    const onClick = useCallback((e: any) => { 
-        setLocation(link); 
+    const onClick = useCallback((e: any) => {
+        setLocation(link);
         // Prevent default so we don't use href
         e.preventDefault();
     }, [link, setLocation]);

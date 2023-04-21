@@ -1,7 +1,6 @@
 import { Box, Palette, Stack, useTheme } from "@mui/material";
 import { CommentFor, FindVersionInput, StandardVersion } from "@shared/consts";
 import { EditIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { standardVersionFindOne } from "api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -22,6 +21,7 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useLocation } from 'utils/route';
 import { SessionContext } from "utils/SessionContext";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";

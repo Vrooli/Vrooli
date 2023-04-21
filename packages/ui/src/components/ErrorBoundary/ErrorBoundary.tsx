@@ -1,7 +1,7 @@
 import { Button, Stack, Typography } from "@mui/material";
 import { HomeIcon, RefreshIcon } from "@shared/icons";
-import { stringifySearchParams } from "@shared/route";
 import { Component } from "react";
+import { stringifySearchParams } from "utils/route";
 import { ErrorBoundaryProps } from "../../views/types";
 
 interface ErrorBoundaryState {

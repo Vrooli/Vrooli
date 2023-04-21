@@ -1,7 +1,6 @@
 import { Box, Button, Stack, useTheme } from "@mui/material";
 import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { profileEmailUpdateValidation } from "@shared/validation";
 import { authLogOut } from "api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "api/generated/endpoints/user_profileEmailUpdate";
@@ -19,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { useProfileQuery } from "utils/hooks/useProfileQuery";
 import { PubSub } from "utils/pubsub";
+import { useLocation } from 'utils/route';
 import { SessionContext } from "utils/SessionContext";
 import { SettingsAuthenticationViewProps } from "../types";
 

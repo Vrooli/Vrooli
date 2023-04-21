@@ -1,7 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkFor, FindByIdOrHandleInput, LINKS, Organization, ResourceList, VisibilityType } from "@shared/consts";
 import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgProps, UserIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { uuidValidate } from '@shared/uuid';
 import { organizationFindOne } from "api/generated/endpoints/organization_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -22,6 +21,7 @@ import { placeholderColor, toSearchListData } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useLocation } from 'utils/route';
 import { SearchType } from "utils/search/objectToSearch";
 import { SessionContext } from "utils/SessionContext";
 import { OrganizationViewProps } from "../types";

@@ -1,9 +1,9 @@
 import { Box, ListItemText, Stack, useTheme } from '@mui/material';
 import { CommentIcon } from '@shared/icons';
-import { useLocation } from '@shared/route';
 import { useCallback, useMemo } from 'react';
 import { multiLineEllipsis } from 'styles';
 import { getObjectUrl } from 'utils/navigation/openObject';
+import { useLocation } from 'utils/route';
 import { CommentsButtonProps } from '../types';
 
 export const CommentsButton = ({

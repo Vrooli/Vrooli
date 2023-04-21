@@ -1,7 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkFor, FindVersionInput, ProjectVersion } from "@shared/consts";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { projectVersionFindOne } from "api/generated/endpoints/projectVersion_findOne";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -14,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useLocation } from 'utils/route';
 import { SessionContext } from "utils/SessionContext";
 import { ProjectViewProps } from "../types";
 

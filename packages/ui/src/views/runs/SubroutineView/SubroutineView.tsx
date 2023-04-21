@@ -1,7 +1,6 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentFor, ResourceList, RoutineVersion, Tag } from "@shared/consts";
 import { SuccessIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { exists } from "@shared/utils";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -24,6 +23,7 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { PubSub } from "utils/pubsub";
+import { useLocation } from 'utils/route';
 import { formikToRunInputs, runInputsToFormik } from "utils/runUtils";
 import { SessionContext } from "utils/SessionContext";
 import { standardVersionToFieldData } from "utils/shape/general";

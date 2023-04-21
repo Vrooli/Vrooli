@@ -14,27 +14,29 @@ import { schema } from './endpoints';
 import { logger } from './events/logger';
 import { context, depthLimit } from './middleware';
 import { initializeRedis } from './redisConn';
+import render from './renderer';
 import { initSitemapCronJob } from './schedules';
 import { initCountsCronJobs } from './schedules/counts';
 import { initEventsCronJobs } from './schedules/events';
 import { initModerationCronJobs } from './schedules/moderate';
 import { initExpirePremiumCronJob } from './schedules/premium/base';
 import { initStatsCronJobs } from './schedules/stats';
+import { isBot } from './utils';
 import { setupDatabase } from './utils/setupDatabase';
 
 const debug = process.env.NODE_ENV === 'development';
 
 const SERVER_URL = process.env.VITE_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
-    Boolean(process.env.SERVER_URL) ?
-        process.env.SERVER_URL :
-        `http://${process.env.SITE_IP}:5329/api`;
+    Boolean(process.env.VITE_SERVER_URL) ?
+        process.env.VITE_SERVER_URL :
+        `http://${process.env.VITE_SITE_IP}:5329/api`;
 
 const main = async () => {
     logger.info('Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['PROJECT_DIR', 'VITE_SERVER_LOCATION', 'LETSENCRYPT_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
+    const requiredEnvs = ['PROJECT_DIR', 'VITE_SERVER_LOCATION', 'LETSENCRYPT_EMAIL', 'VITE_VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         console.log('checking env', env, process.env[env])
         if (!process.env[env]) {
@@ -417,6 +419,41 @@ const main = async () => {
     //     path: `/api/v2`,
     //     cors: false
     // });
+
+    // Set up open graph data and UI rendering
+    app.get('*', (req, res) => {
+        const html = render(req);
+        const isRequestFromBot = isBot(req.headers['user-agent'] || '');
+
+        let openGraphTags = '';
+        if (isRequestFromBot) {
+            // Generate your Open Graph meta tags based on the requested page
+            openGraphTags = `
+            <meta property="og:title" content="Your Page Title" />
+            <meta property="og:description" content="Your Page Description" />
+            <meta property="og:image" content="Your Page Image URL" />
+            <meta property="og:url" content="Your Page URL" />
+          `;
+        }
+
+        res.send(`
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Your App Title</title>
+              ${openGraphTags}
+            </head>
+            <body>
+              <div id="root">${html}</div>
+              <script src="/@vite/client"></script>
+              <script src="/src/main.tsx"></script>
+            </body>
+          </html>
+        `);
+    });
+
     // Start Express server
     app.listen(5329);
 

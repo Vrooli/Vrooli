@@ -1,7 +1,6 @@
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { FindByIdInput, Reminder } from "@shared/consts";
 import { EllipsisIcon, HelpIcon } from "@shared/icons";
-import { useLocation } from '@shared/route';
 import { reminderFindOne } from "api/generated/endpoints/reminder_findOne";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -9,6 +8,7 @@ import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { placeholderColor } from "utils/display/listTools";
 import { useObjectActions } from "utils/hooks/useObjectActions";
 import { useObjectFromUrl } from "utils/hooks/useObjectFromUrl";
+import { useLocation } from 'utils/route';
 import { ReminderViewProps } from "../types";
 
 export const ReminderView = ({
