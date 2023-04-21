@@ -1,9 +1,9 @@
 import { Session } from "@shared/consts";
 import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
 import { getReactionScore } from "@shared/utils";
-import { ListMenuItemData } from "components/dialogs/types";
-import { checkIfLoggedIn } from "utils/authentication/session";
-import { getYou, ListObjectType } from "utils/display/listTools";
+import { ListMenuItemData } from "../../components/dialogs/types";
+import { checkIfLoggedIn } from "../authentication/session";
+import { getYou, ListObjectType } from "../display/listTools";
 
 /**
  * All available actions an object can possibly have

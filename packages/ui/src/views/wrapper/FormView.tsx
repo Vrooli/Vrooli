@@ -1,6 +1,6 @@
 import { Box, Container, useTheme } from '@mui/material';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { ViewDisplayType } from 'views/types';
+import { TopBar } from '../../components/navigation/TopBar/TopBar';
+import { ViewDisplayType } from '../types';
 
 interface Props {
     display?: ViewDisplayType;

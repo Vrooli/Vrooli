@@ -1,6 +1,6 @@
 import { QuestionAnswerSortBy } from "@shared/consts";
-import { questionAnswerFindMany } from "api/generated/endpoints/questionAnswer_findMany";
 import { FormSchema } from "forms/types";
+import { questionAnswerFindMany } from "../../api/generated/endpoints/questionAnswer_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

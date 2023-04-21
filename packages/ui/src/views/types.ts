@@ -1,6 +1,5 @@
 import { RoutineVersion } from "@shared/consts";
 import React from "react";
-import { ViewProps } from "./objects/types";
 
 /**
  * Views can be displayed as full pages or as dialogs
@@ -9,6 +8,22 @@ export type ViewDisplayType = 'dialog' | 'page';
 
 export type BaseViewProps = {
     display?: ViewDisplayType;
+}
+
+export interface ViewProps<T> extends BaseViewProps {
+    /**
+     * Any data about the object which is already known, 
+     * such as its name. Can be displayed while fetching the full object
+     */
+    partialData?: Partial<T>;
+    zIndex?: number;
+}
+
+export interface UpsertProps<T> extends BaseViewProps {
+    isCreate: boolean;
+    onCancel?: () => any;
+    onCompleted?: (data: T) => any;
+    zIndex?: number;
 }
 
 export interface AboutViewProps extends BaseViewProps { }

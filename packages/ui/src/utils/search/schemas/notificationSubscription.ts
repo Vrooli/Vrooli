@@ -1,6 +1,6 @@
 import { NotificationSubscriptionSortBy } from "@shared/consts";
-import { notificationSubscriptionFindMany } from "api/generated/endpoints/notificationSubscription_findMany";
 import { FormSchema } from "forms/types";
+import { notificationSubscriptionFindMany } from "../../api/generated/endpoints/notificationSubscription_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

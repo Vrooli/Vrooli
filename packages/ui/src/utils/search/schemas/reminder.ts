@@ -1,6 +1,6 @@
 import { ReminderSortBy } from "@shared/consts";
-import { reminderFindMany } from "api/generated/endpoints/reminder_findMany";
 import { FormSchema } from "forms/types";
+import { reminderFindMany } from "../../api/generated/endpoints/reminder_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

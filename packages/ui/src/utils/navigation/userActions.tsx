@@ -9,8 +9,8 @@ import { LINKS, Session } from '@shared/consts';
 import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from '@shared/icons';
 import { CommonKey } from '@shared/translations';
 import i18next from 'i18next';
-import { checkIfLoggedIn } from 'utils/authentication/session';
 import { openLink, SetLocation } from 'utils/route';
+import { checkIfLoggedIn } from '../authentication/session';
 
 export enum ACTION_TAGS {
     Home = 'Home',

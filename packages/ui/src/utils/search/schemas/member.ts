@@ -1,6 +1,6 @@
 import { MemberSortBy } from "@shared/consts";
-import { memberFindMany } from "api/generated/endpoints/member_findMany";
 import { FormSchema } from "forms/types";
+import { memberFindMany } from "../../api/generated/endpoints/member_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

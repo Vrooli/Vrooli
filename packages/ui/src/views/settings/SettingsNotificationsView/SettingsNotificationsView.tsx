@@ -1,16 +1,16 @@
 import { useQuery } from "@apollo/client";
 import { Stack } from "@mui/material";
 import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
-import { mutationWrapper } from "api";
-import { notificationSettings } from "api/generated/endpoints/notification_settings";
-import { notificationSettingsUpdate } from "api/generated/endpoints/notification_settingsUpdate";
-import { useCustomMutation } from "api/hooks";
-import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from "formik";
 import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
 import { Wrap } from "types";
-import { useDisplayApolloError } from "utils/hooks/useDisplayApolloError";
+import { mutationWrapper } from "../../../api";
+import { notificationSettings } from "../../../api/generated/endpoints/notification_settings";
+import { notificationSettingsUpdate } from "../../../api/generated/endpoints/notification_settingsUpdate";
+import { useCustomMutation } from "../../../api/hooks";
+import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
+import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
+import { useDisplayApolloError } from "../../../utils/hooks/useDisplayApolloError";
 import { SettingsNotificationsViewProps } from "../types";
 
 export const SettingsNotificationsView = ({

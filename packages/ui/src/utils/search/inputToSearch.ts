@@ -1,5 +1,5 @@
 import { InputType, Tag } from '@shared/consts';
-import { FormSchema } from 'forms/types';
+import { FormSchema } from '../../forms/types';
 
 /**
  * Converts a radio button value (which can only be a string) to its underlying search URL value

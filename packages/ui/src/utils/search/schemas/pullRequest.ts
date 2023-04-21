@@ -1,6 +1,6 @@
 import { PullRequestSortBy } from "@shared/consts";
-import { pullRequestFindMany } from "api/generated/endpoints/pullRequest_findMany";
 import { FormSchema } from "forms/types";
+import { pullRequestFindMany } from "../../api/generated/endpoints/pullRequest_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

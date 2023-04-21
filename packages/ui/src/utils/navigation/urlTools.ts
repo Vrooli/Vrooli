@@ -1,8 +1,8 @@
 import { LINKS } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
 import { adaHandleRegex } from "@shared/validation";
-import { PubSub } from "utils/pubsub";
-import { getLastUrlPart } from "utils/route";
+import { PubSub } from "../pubsub";
+import { getLastUrlPart } from "../route";
 
 /**
  * Converts a string to a BigInt

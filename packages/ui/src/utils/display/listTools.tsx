@@ -1,11 +1,11 @@
 import { BookmarkFor, DotNotation, GqlModelType } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
 import { exists, isOfType } from "@shared/utils";
-import { ObjectListItem } from "components/lists/ObjectListItem/ObjectListItem";
-import { SearchListGenerator } from "components/lists/types";
 import { AutocompleteOption, NavigableObject } from "types";
-import { SearchType } from "utils/search/objectToSearch";
-import { valueFromDot } from "utils/shape/general";
+import { ObjectListItem } from "../../components/lists/ObjectListItem/ObjectListItem";
+import { SearchListGenerator } from "../../components/lists/types";
+import { SearchType } from "../search/objectToSearch";
+import { valueFromDot } from "../shape/general";
 import { displayDate, firstString } from "./stringTools";
 import { getTranslation, getUserLanguages } from "./translationTools";
 

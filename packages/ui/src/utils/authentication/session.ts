@@ -1,7 +1,7 @@
 import { ActiveFocusMode, FocusMode, Session, SessionUser } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
-import { getCookieActiveFocusMode, getCookieAllFocusModes, getCookieLanguage } from "utils/cookies";
-import { getUserLanguages } from "utils/display/translationTools";
+import { getCookieActiveFocusMode, getCookieAllFocusModes, getCookieLanguage } from "../cookies";
+import { getUserLanguages } from "../display/translationTools";
 
 /**
  * Session object that indicates no user is logged in

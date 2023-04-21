@@ -1,6 +1,6 @@
 import { RunRoutineInputSortBy } from "@shared/consts";
-import { runRoutineInputFindMany } from "api/generated/endpoints/runRoutineInput_findMany";
 import { FormSchema } from "forms/types";
+import { runRoutineInputFindMany } from "../../api/generated/endpoints/runRoutineInput_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

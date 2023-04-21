@@ -1,6 +1,6 @@
 import { ReactionSortBy } from "@shared/consts";
-import { reactionFindMany } from "api/generated/endpoints/reaction_findMany";
 import { FormSchema } from "forms/types";
+import { reactionFindMany } from "../../api/generated/endpoints/reaction_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

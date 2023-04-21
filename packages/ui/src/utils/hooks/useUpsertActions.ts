@@ -1,10 +1,10 @@
 import { LINKS } from "@shared/consts";
-import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
-import { getObjectUrl } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { useLocation } from "utils/route";
-import { ViewDisplayType } from "views/types";
+import { ObjectDialogAction } from "../../components/dialogs/types";
+import { ViewDisplayType } from "../../views/types";
+import { getObjectUrl } from "../navigation/openObject";
+import { PubSub } from "../pubsub";
+import { useLocation } from "../route";
 
 /**
  * Creates logic for handling cancel, create, and update actions when 

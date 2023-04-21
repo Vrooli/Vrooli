@@ -1,10 +1,10 @@
 import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "@shared/icons";
-import MattProfilePic from 'assets/img/profile-matt.jpg';
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { slideTitle, textPop } from "styles";
-import { openLink, useLocation } from "utils/route";
-import { AboutViewProps } from "views/types";
+import MattProfilePic from '../../assets/img/profile-matt.jpg';
+import { TopBar } from "../../components/navigation/TopBar/TopBar";
+import { openLink, useLocation } from "../../utils/route";
+import { AboutViewProps } from "../../views/types";
 
 type MemberData = {
     fullName: string;

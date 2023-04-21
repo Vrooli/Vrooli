@@ -4,7 +4,6 @@ import { ActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput
 import { getActiveFocusMode } from '@shared/utils';
 import i18next from 'i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Routes } from 'Routes';
 import { authValidateSession } from './api/generated/endpoints/auth_validateSession';
 import { focusModeSetActive } from './api/generated/endpoints/focusMode_setActive';
 import { useCustomMutation } from './api/hooks';
@@ -20,6 +19,7 @@ import { CommandPalette } from './components/navigation/CommandPalette/CommandPa
 import { FindInPage } from './components/navigation/FindInPage/FindInPage';
 import { Footer } from './components/navigation/Footer/Footer';
 import { PullToRefresh } from './components/PullToRefresh/PullToRefresh';
+import { Routes } from './Routes';
 import { getCurrentUser, getSiteLanguage, guestSession } from './utils/authentication/session';
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from './utils/cookies';
 import { getDeviceInfo } from './utils/display/device';

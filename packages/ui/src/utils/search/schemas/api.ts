@@ -1,6 +1,6 @@
 import { ApiSortBy } from "@shared/consts";
-import { apiFindMany } from "api/generated/endpoints/api_findMany";
 import { FormSchema } from "forms/types";
+import { apiFindMany } from "../../api/generated/endpoints/api_findMany";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 

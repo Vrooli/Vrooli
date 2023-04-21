@@ -2,14 +2,14 @@ import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, Bookma
 import { exists } from "@shared/utils";
 import { uuid } from "@shared/uuid";
 import { mutationWrapper, useCustomLazyQuery, useCustomMutation } from "api";
-import { bookmarkCreate } from "api/generated/endpoints/bookmark_create";
-import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCallback, useContext, useEffect, useMemo } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { bookmarkCreate } from "../../api/generated/endpoints/bookmark_create";
+import { bookmarkFindMany } from "../../api/generated/endpoints/bookmark_findMany";
+import { deleteOneOrManyDeleteOne } from "../../api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { ObjectActionComplete } from "../actions/objectActions";
+import { getCurrentUser } from "../authentication/session";
+import { PubSub } from "../pubsub";
+import { SessionContext } from "../SessionContext";
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;

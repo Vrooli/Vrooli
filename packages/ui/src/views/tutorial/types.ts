@@ -1,3 +1,3 @@
-import { BaseViewProps } from "views/types";
+import { BaseViewProps } from "../types";
 
-export interface TutorialViewProps extends BaseViewProps {};
+export interface TutorialViewProps extends BaseViewProps { };

@@ -2,8 +2,8 @@ import { FilterOptionsState } from '@mui/material';
 import { Session } from "@shared/consts";
 import { CommonKey } from '@shared/translations';
 import i18next from 'i18next';
-import { getSiteLanguage } from 'utils/authentication/session';
-import { normalizeText, removeEmojis, removePunctuation } from 'utils/display/documentTools';
+import { getSiteLanguage } from '../authentication/session';
+import { normalizeText, removeEmojis, removePunctuation } from '../display/documentTools';
 
 /**
  * A search item before it is translated into the user's language.

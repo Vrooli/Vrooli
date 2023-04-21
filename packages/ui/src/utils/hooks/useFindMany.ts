@@ -1,15 +1,15 @@
 import { TimeFrame } from "@shared/consts";
 import { exists } from "@shared/utils";
-import { useCustomLazyQuery } from "api";
-import { SearchQueryVariablesInput } from "components/lists/types";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AutocompleteOption } from "types";
-import { listToAutocomplete } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { addSearchParams, parseSearchParams, useLocation } from "utils/route";
-import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
-import { SearchParams } from "utils/search/schemas/base";
-import { SessionContext } from "utils/SessionContext";
+import { useCustomLazyQuery } from "../../api";
+import { SearchQueryVariablesInput } from "../../components/lists/types";
+import { listToAutocomplete } from "../display/listTools";
+import { getUserLanguages } from "../display/translationTools";
+import { addSearchParams, parseSearchParams, useLocation } from "../route";
+import { SearchType, searchTypeToParams } from "../search/objectToSearch";
+import { SearchParams } from "../search/schemas/base";
+import { SessionContext } from "../SessionContext";
 import { useDisplayApolloError } from "./useDisplayApolloError";
 import { useStableObject } from "./useStableObject";
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getCookieIsLeftHanded } from "utils/cookies";
-import { PubSub } from "utils/pubsub";
+import { getCookieIsLeftHanded } from "../cookies";
+import { PubSub } from "../pubsub";
 
 /**
  * Tracks if the site should display in left-handed mode.

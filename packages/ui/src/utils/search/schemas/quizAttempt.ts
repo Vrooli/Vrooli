@@ -1,6 +1,6 @@
 import { QuizAttemptSortBy } from "@shared/consts";
-import { quizAttemptFindMany } from "api/generated/endpoints/quizAttempt_findMany";
 import { FormSchema } from "forms/types";
+import { quizAttemptFindMany } from "../../api/generated/endpoints/quizAttempt_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

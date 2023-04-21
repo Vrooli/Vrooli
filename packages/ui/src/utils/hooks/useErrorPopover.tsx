@@ -1,7 +1,7 @@
 import { exists, uppercaseFirstLetter } from '@shared/utils';
-import { PopoverWithArrow } from 'components/dialogs/PopoverWithArrow/PopoverWithArrow';
 import Markdown from 'markdown-to-jsx';
 import { useCallback, useMemo, useState } from 'react';
+import { PopoverWithArrow } from '../../components/dialogs/PopoverWithArrow/PopoverWithArrow';
 
 interface UsePopoverMenuOptions {
     errors: Record<string, string | string[] | null | undefined> | null | undefined;

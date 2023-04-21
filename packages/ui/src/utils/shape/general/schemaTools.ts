@@ -1,5 +1,5 @@
 import { StandardVersion } from "@shared/consts";
-import { FieldData } from "forms/types";
+import { FieldData } from "../../../forms/types";
 
 export interface StandardVersionToFieldDataProps {
     description?: StandardVersion['translations'][0]['description'];

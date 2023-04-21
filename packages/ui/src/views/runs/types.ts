@@ -1,7 +1,6 @@
 import { Node, ProjectVersion, RoutineVersion, RunRoutine } from "@shared/consts";
 import { DecisionStep } from "types";
-import { ViewProps } from "views/objects/types";
-import { BaseViewProps } from "views/types";
+import { BaseViewProps, ViewProps } from "../types";
 
 export interface DecisionViewProps extends BaseViewProps {
     data: DecisionStep;

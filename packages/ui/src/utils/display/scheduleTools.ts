@@ -1,6 +1,6 @@
 import { FocusMode, Session } from "@shared/consts";
 import { calculateOccurrences } from "@shared/utils";
-import { getCurrentUser } from "utils/authentication/session";
+import { getCurrentUser } from "../authentication/session";
 
 /**
  * Finds all focus modes which are occuring right now

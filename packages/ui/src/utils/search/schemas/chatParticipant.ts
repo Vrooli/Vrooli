@@ -1,6 +1,6 @@
 import { ChatParticipantSortBy } from "@shared/consts";
-import { chatParticipantFindMany } from "api/generated/endpoints/chatParticipant_findMany";
 import { FormSchema } from "forms/types";
+import { chatParticipantFindMany } from "../../api/generated/endpoints/chatParticipant_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

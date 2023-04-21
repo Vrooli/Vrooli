@@ -1,10 +1,10 @@
 import { ReactInput, ReactionFor, Success } from "@shared/consts";
 import { exists, getReactionScore } from "@shared/utils";
-import { mutationWrapper, useCustomMutation } from "api";
-import { reactionReact } from "api/generated/endpoints/reaction_react";
 import { useCallback } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
-import { PubSub } from "utils/pubsub";
+import { mutationWrapper, useCustomMutation } from "../../api";
+import { reactionReact } from "../../api/generated/endpoints/reaction_react";
+import { ObjectActionComplete } from "../actions/objectActions";
+import { PubSub } from "../pubsub";
 
 type UseVoterProps = {
     objectId: string | null | undefined;

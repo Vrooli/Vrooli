@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PubSub } from 'utils/pubsub';
+import { PubSub } from '../pubsub';
 
 /**
  * A hook for converting speech to a transcript
@@ -55,7 +55,7 @@ export const useSpeech = () => {
                 console.error('Speech recognition error detected: ', event.error);
                 // If error is not-allowed, then show a message to the user
                 if (event.error === 'not-allowed') {
-                    PubSub.get().publishSnack({ messageKey: 'MicrophonePermissionDenied', severity: 'Error' }); 
+                    PubSub.get().publishSnack({ messageKey: 'MicrophonePermissionDenied', severity: 'Error' });
                 }
             });
             setIsListening(true);

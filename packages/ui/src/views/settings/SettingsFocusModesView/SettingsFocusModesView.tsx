@@ -1,20 +1,20 @@
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, LINKS, MaxObjects, Success } from '@shared/consts';
 import { AddIcon, DeleteIcon, EditIcon } from "@shared/icons";
-import { mutationWrapper } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { FocusModeDialog } from "components/dialogs/FocusModeDialog/FocusModeDialog";
-import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { t } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { multiLineEllipsis } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { useLocation } from "utils/route";
-import { SessionContext } from "utils/SessionContext";
+import { mutationWrapper } from "../../../api";
+import { deleteOneOrManyDeleteOne } from "../../../api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { useCustomMutation } from "../../../api/hooks";
+import { ListContainer } from "../../../components/containers/ListContainer/ListContainer";
+import { FocusModeDialog } from "../../../components/dialogs/FocusModeDialog/FocusModeDialog";
+import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
+import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
+import { getCurrentUser } from "../../../utils/authentication/session";
+import { PubSub } from "../../../utils/pubsub";
+import { useLocation } from "../../../utils/route";
+import { SessionContext } from "../../../utils/SessionContext";
 import { SettingsFocusModesViewProps } from "../types";
 
 export const SettingsFocusModesView = ({

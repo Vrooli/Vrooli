@@ -1,4 +1,5 @@
-import { BaseViewProps } from "views/types";
+import { BaseViewProps } from "../../views/types";
+
 
 export interface CreateViewProps extends BaseViewProps { }
 

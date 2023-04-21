@@ -1,13 +1,13 @@
 import { BookmarkFilledIcon, RoutineActiveIcon, RoutineCompleteIcon, SvgProps, VisibleIcon } from '@shared/icons';
 import { CommonKey } from '@shared/translations';
-import { SearchList } from 'components/lists/SearchList/SearchList';
-import { TopBar } from 'components/navigation/TopBar/TopBar';
-import { PageTabs } from 'components/PageTabs/PageTabs';
-import { PageTab } from 'components/types';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { addSearchParams, parseSearchParams, useLocation } from 'utils/route';
-import { HistoryPageTabOption, SearchType } from 'utils/search/objectToSearch';
+import { SearchList } from '../../../components/lists/SearchList/SearchList';
+import { TopBar } from '../../../components/navigation/TopBar/TopBar';
+import { PageTabs } from '../../../components/PageTabs/PageTabs';
+import { PageTab } from '../../../components/types';
+import { addSearchParams, parseSearchParams, useLocation } from '../../../utils/route';
+import { HistoryPageTabOption, SearchType } from '../../../utils/search/objectToSearch';
 import { HistoryViewProps } from '../types';
 
 

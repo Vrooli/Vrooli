@@ -1,6 +1,6 @@
 import { BookmarkListSortBy } from "@shared/consts";
-import { bookmarkListFindMany } from "api/generated/endpoints/bookmarkList_findMany";
 import { FormSchema } from "forms/types";
+import { bookmarkListFindMany } from "../../api/generated/endpoints/bookmarkList_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

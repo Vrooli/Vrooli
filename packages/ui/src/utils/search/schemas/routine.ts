@@ -1,8 +1,8 @@
 import { RoutineSortBy } from "@shared/consts";
-import { routineFindMany } from "api/generated/endpoints/routine_findMany";
 import { FormSchema } from "forms/types";
+import { routineFindMany } from "../../api/generated/endpoints/routine_findMany";
 import { toParams } from "./base";
-import { hasCompleteVersionContainer, hasCompleteVersionFields, searchFormLayout, bookmarksContainer, bookmarksFields, tagsContainer, tagsFields, votesContainer, votesFields, languagesVersionContainer, languagesVersionFields } from "./common";
+import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const routineSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout('SearchRoutine'),

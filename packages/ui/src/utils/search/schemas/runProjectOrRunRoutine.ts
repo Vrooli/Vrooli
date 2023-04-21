@@ -1,6 +1,6 @@
 import { RunProjectOrRunRoutineSortBy } from "@shared/consts";
-import { runProjectOrRunRoutineFindMany } from "api/generated/endpoints/runProjectOrRunRoutine_findMany";
 import { FormSchema } from "forms/types";
+import { runProjectOrRunRoutineFindMany } from "../../api/generated/endpoints/runProjectOrRunRoutine_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

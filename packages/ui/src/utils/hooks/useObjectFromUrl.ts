@@ -1,12 +1,12 @@
 import { OperationVariables, TypedDocumentNode } from "@apollo/client";
 import { exists } from "@shared/utils";
-import { useCustomLazyQuery } from "api";
 import { DocumentNode } from "graphql";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { defaultYou, getYou, ListObjectType, YouInflated } from "utils/display/listTools";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
-import { PubSub } from "utils/pubsub";
-import { ParseSearchParamsResult } from "utils/route";
+import { useCustomLazyQuery } from "../../api";
+import { defaultYou, getYou, ListObjectType, YouInflated } from "../display/listTools";
+import { parseSingleItemUrl } from "../navigation/urlTools";
+import { PubSub } from "../pubsub";
+import { ParseSearchParamsResult } from "../route";
 import { useDisplayApolloError } from "./useDisplayApolloError";
 import { useStableObject } from "./useStableObject";
 

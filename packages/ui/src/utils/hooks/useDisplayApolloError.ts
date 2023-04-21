@@ -1,7 +1,7 @@
 import { ApolloError } from "@apollo/client";
-import { errorToMessage } from "api";
 import { useEffect } from "react";
-import { PubSub } from "utils/pubsub";
+import { errorToMessage } from "../../api";
+import { PubSub } from "../pubsub";
 
 /**
  * When an Apollo query or mutation throws an error, this function will display

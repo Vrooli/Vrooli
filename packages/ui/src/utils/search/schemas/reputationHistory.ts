@@ -1,6 +1,6 @@
 import { ReputationHistorySortBy } from "@shared/consts";
-import { reputationHistoryFindMany } from "api/generated/endpoints/reputationHistory_findMany";
 import { FormSchema } from "forms/types";
+import { reputationHistoryFindMany } from "../../api/generated/endpoints/reputationHistory_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

@@ -1,6 +1,6 @@
 import { exists } from '@shared/utils';
 import { ShapeModel } from 'types';
-import { hasObjectChanged } from 'utils/shape/general';
+import { hasObjectChanged } from '../../../shape/general';
 import { createRel } from './createRel';
 
 /**

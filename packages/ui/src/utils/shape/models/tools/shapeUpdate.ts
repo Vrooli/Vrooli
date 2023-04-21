@@ -1,4 +1,4 @@
-import { PubSub } from "utils/pubsub";
+import { PubSub } from "../../../pubsub";
 
 /**
  * Helper function for formatting an object for an update mutation

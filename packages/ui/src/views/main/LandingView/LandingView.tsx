@@ -6,14 +6,14 @@ import Earth from 'assets/img/Earth.svg';
 import RelaxingCouch from 'assets/img/relaxing-couch.jpg';
 import RobotsCollab from 'assets/img/robots-collab.jpg';
 import WomanTriumph from 'assets/img/woman-triumph.jpg';
-import { PulseButton } from "components/buttons/PulseButton/PulseButton";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SlideContainer, SlideContainerNeon, SlideContent, SlidePage } from "components/slides";
-import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { greenNeonText, iconButtonProps, slideImageContainer, slideText, slideTitle, textPop } from "styles";
-import { openLink, useLocation } from "utils/route";
+import { PulseButton } from "../../../components/buttons/PulseButton/PulseButton";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
+import { SlideContainer, SlideContainerNeon, SlideContent, SlidePage } from "../../../components/slides";
+import { TwinkleStars } from "../../../components/TwinkleStars/TwinkleStars";
+import { openLink, useLocation } from "../../../utils/route";
 import { LandingViewProps } from "../types";
 
 interface GlossyContainerProps extends BoxProps {

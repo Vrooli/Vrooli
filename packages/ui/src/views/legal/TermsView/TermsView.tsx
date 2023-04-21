@@ -1,14 +1,14 @@
 import { Box } from "@mui/material";
 import { LINKS } from "@shared/consts";
-import termsMarkdown from 'assets/policy/terms.md';
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { PageTab } from "components/types";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useMarkdown } from "utils/hooks/useMarkdown";
-import { useLocation } from "utils/route";
+import termsMarkdown from '../../../assets/policy/terms.md';
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
+import { PageTabs } from "../../../components/PageTabs/PageTabs";
+import { PageTab } from "../../../components/types";
+import { useMarkdown } from "../../../utils/hooks/useMarkdown";
+import { useLocation } from "../../../utils/route";
 import { TermsViewProps } from "../types";
 
 enum TabOptions {

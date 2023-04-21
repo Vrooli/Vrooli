@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { parseSearchParams } from "utils/route";
+import { parseSearchParams } from "../route";
 
 type Primitive = string | number | boolean;
 type UseReactSearchResults = { [x: string]: Primitive | Primitive[] | UseReactSearchResults };

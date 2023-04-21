@@ -4,8 +4,8 @@ import { uuid } from '@shared/uuid';
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from 'i18next';
 import { OptionalTranslation } from "types";
-import { getCurrentUser } from "utils/authentication/session";
 import { ObjectSchema, ValidationError } from 'yup';
+import { getCurrentUser } from "../authentication/session";
 
 export type TranslationObject = {
     id: string,

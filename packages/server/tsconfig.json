@@ -27,56 +27,6 @@
         "sourceMap": true,
         "strictNullChecks": true,
         "removeComments": true,
-        "paths": {
-            "api/*": [
-                "../ui/src/api/*"
-            ],
-            "assets/*": [
-                "../ui/src/assets/*"
-            ],
-            "components/*": [
-                "../ui/src/components/*"
-            ],
-            "forms/*": [
-                "../ui/src/forms/*"
-            ],
-            "tools/*": [
-                "../ui/src/tools/*"
-            ],
-            "utils/*": [
-                "../ui/src/utils/*"
-            ],
-            "views/*": [
-                "../ui/src/views/*"
-            ],
-            "Routes": [
-                "../ui/src/Routes"
-            ],
-            "serviceWorkerRegistration": [
-                "../ui/src/serviceWorkerRegistration"
-            ],
-            "styles/*": [
-                "../ui/src/styles/*"
-            ],
-            "@shared/consts/*": [
-                "../shared/consts/src/*"
-            ],
-            "@shared/icons/*": [
-                "../shared/icons/src/*"
-            ],
-            "@shared/translations/*": [
-                "../shared/translations/src/*"
-            ],
-            "@shared/utils/*": [
-                "../shared/utils/src/*"
-            ],
-            "@shared/uuid/*": [
-                "../shared/uuid/src/*"
-            ],
-            "@shared/validation/*": [
-                "../shared/validation/src/*"
-            ]
-        }
     },
     "include": [
         "src"

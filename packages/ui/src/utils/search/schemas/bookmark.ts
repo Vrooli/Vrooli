@@ -1,7 +1,7 @@
 import { BookmarkSortBy } from "@shared/consts";
-import { bookmarkFindMany } from "api/generated/endpoints/bookmark_findMany";
 import { FormSchema } from "forms/types";
 import i18next from "i18next";
+import { bookmarkFindMany } from "../../api/generated/endpoints/bookmark_findMany";
 import { toParams } from "./base";
 import { searchFormLayout, yesNoDontCare } from "./common";
 

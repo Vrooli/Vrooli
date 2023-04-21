@@ -4,10 +4,10 @@
  */
 import { ApolloError } from '@apollo/client';
 import { WalletComplete } from '@shared/consts';
-import { authWalletComplete } from 'api/generated/endpoints/auth_walletComplete';
-import { authWalletInit } from 'api/generated/endpoints/auth_walletInit';
-import { errorToCode, initializeApollo } from 'api/utils';
-import { PubSub } from 'utils/pubsub';
+import { authWalletComplete } from '../../api/generated/endpoints/auth_walletComplete';
+import { authWalletInit } from '../../api/generated/endpoints/auth_walletInit';
+import { errorToCode, initializeApollo } from '../../api/utils';
+import { PubSub } from '../pubsub';
 
 /**
  * Object returned from await window.cardano[providerKey].enable()

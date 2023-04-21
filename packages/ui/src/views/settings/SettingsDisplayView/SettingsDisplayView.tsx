@@ -2,19 +2,19 @@ import { Box, Button, Stack, useTheme } from "@mui/material";
 import { ProfileUpdateInput, User } from "@shared/consts";
 import { SearchIcon } from "@shared/icons";
 import { userValidation } from "@shared/validation";
-import { mutationWrapper, useCustomMutation } from "api";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from 'formik';
 import { SettingsDisplayForm } from "forms/settings";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getSiteLanguage } from "utils/authentication/session";
-import { useProfileQuery } from "utils/hooks/useProfileQuery";
-import { PubSub } from "utils/pubsub";
-import { clearSearchHistory } from "utils/search/clearSearchHistory";
-import { SessionContext } from "utils/SessionContext";
+import { mutationWrapper, useCustomMutation } from "../../../api";
+import { userProfileUpdate } from "../../../api/generated/endpoints/user_profileUpdate";
+import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
+import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
+import { getSiteLanguage } from "../../../utils/authentication/session";
+import { useProfileQuery } from "../../../utils/hooks/useProfileQuery";
+import { PubSub } from "../../../utils/pubsub";
+import { clearSearchHistory } from "../../../utils/search/clearSearchHistory";
+import { SessionContext } from "../../../utils/SessionContext";
 import { SettingsDisplayViewProps } from "../types";
 
 export const SettingsDisplayView = ({

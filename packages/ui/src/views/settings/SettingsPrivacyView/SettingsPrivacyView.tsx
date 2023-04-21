@@ -1,15 +1,15 @@
 import { Stack } from "@mui/material";
 import { ProfileUpdateInput, User } from '@shared/consts';
 import { userValidation } from "@shared/validation";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from 'api/utils';
-import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik } from 'formik';
 import { SettingsPrivacyForm } from "forms/settings";
-import { useProfileQuery } from "utils/hooks/useProfileQuery";
-import { PubSub } from "utils/pubsub";
+import { userProfileUpdate } from "../../../api/generated/endpoints/user_profileUpdate";
+import { useCustomMutation } from "../../../api/hooks";
+import { mutationWrapper } from "../../../api/utils';";
+import { SettingsList } from "../../../components/lists/SettingsList/SettingsList";
+import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
+import { useProfileQuery } from "../../../utils/hooks/useProfileQuery";
+import { PubSub } from "../../../utils/pubsub";
 import { SettingsPrivacyViewProps } from "../types";
 
 export const SettingsPrivacyView = ({

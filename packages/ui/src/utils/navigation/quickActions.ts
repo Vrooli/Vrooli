@@ -1,12 +1,12 @@
 import { LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
-import { userProfileUpdate } from "api/generated/endpoints/user_profileUpdate";
-import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption } from "types";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { clearSearchHistory } from "utils/search/clearSearchHistory";
-import { HistoryPageTabOption, SearchPageTabOption } from "utils/search/objectToSearch";
-import { PreSearchItem } from "utils/search/siteToSearch";
+import { userProfileUpdate } from "../../api/generated/endpoints/user_profileUpdate";
+import { documentNodeWrapper, errorToCode } from "../../api/utils";
+import { getCurrentUser } from "../authentication/session";
+import { PubSub } from "../pubsub";
+import { clearSearchHistory } from "../search/clearSearchHistory";
+import { HistoryPageTabOption, SearchPageTabOption } from "../search/objectToSearch";
+import { PreSearchItem } from "../search/siteToSearch";
 
 export interface ShortcutItem {
     label: string;

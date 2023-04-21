@@ -1,5 +1,5 @@
-import { Dimensions } from "components/graphs/types";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Dimensions } from "../../components/graphs/types";
 
 type UseDimensionsReturn = {
     dimensions: Dimensions;
