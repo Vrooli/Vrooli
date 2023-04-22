@@ -9,7 +9,7 @@ Below are the versions of Vrooli that are supported with security updates:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
+| 1.9.x   | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
