@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "ESNext",
         "module": "esnext",
         "baseUrl": "./src",
         "rootDir": "./src",
@@ -8,7 +8,7 @@
         "lib": [
             "dom",
             "dom.iterable",
-            "esnext"
+            "ESNext"
         ],
         "typeRoots": [
             "./node_modules/@types",

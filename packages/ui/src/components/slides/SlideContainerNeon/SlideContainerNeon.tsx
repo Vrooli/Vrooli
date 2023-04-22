@@ -1,6 +1,4 @@
 import { Box, keyframes } from "@mui/material";
-import Blob1 from "../../../assets/img/blob1.svg";
-import Blob2 from "../../../assets/img/blob2.svg";
 import Particles from "react-tsparticles";
 import { SlideContainer } from "../SlideContainer/SlideContainer";
 import { SlideContainerNeonProps } from "../types";
@@ -172,7 +170,7 @@ export const SlideContainerNeon = ({
             }}>
                 <Box
                     component="img"
-                    src={Blob1}
+                    src={"assets/img/blob1.svg"}
                     alt="Blob 1"
                     sx={{
                         width: "100%",
@@ -195,7 +193,7 @@ export const SlideContainerNeon = ({
             }}>
                 <Box
                     component="img"
-                    src={Blob2}
+                    src={"assets/img/blob2.svg"}
                     alt="Blob 2"
                     sx={{
                         width: "100%",

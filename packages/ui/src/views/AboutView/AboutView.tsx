@@ -1,8 +1,7 @@
 import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { GitHubIcon, OrganizationIcon, TwitterIcon, WebsiteIcon } from "@shared/icons";
-import { slideTitle, textPop } from "../../styles";
-import MattProfilePic from "../../assets/img/profile-matt.jpg";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
+import { slideTitle, textPop } from "../../styles";
 import { openLink, useLocation } from "../../utils/route";
 import { AboutViewProps } from "../../views/types";
 
@@ -52,7 +51,7 @@ const teamMembers: MemberData[] = [
     {
         fullName: "Matt Halloran",
         role: "Leader/developer",
-        photo: MattProfilePic,
+        photo: "assets/img/profile-matt.jpg",
         socials: {
             website: "https://matthalloran.info",
             twitter: "https://twitter.com/mdhalloran",

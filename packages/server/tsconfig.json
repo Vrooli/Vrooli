@@ -1,10 +1,10 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "ESNext",
         "rootDir": "./src",
         "outDir": "./dist",
         "lib": [
-            "es6"
+            "ESNext"
         ],
         "typeRoots": [
             "./src/types"

@@ -1,6 +1,5 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { BUSINESS_NAME } from "@shared/consts";
-import Logo from "../../../assets/img/Logo-128x128.png"; // Absolute path not working ever since switching to vite
 import { NavbarLogoProps } from "../types";
 
 
@@ -30,7 +29,7 @@ export const NavbarLogo = ({
             }}>
                 <Box
                     component="img"
-                    src={Logo}
+                    src={"assets/img/Logo-128x128.png"}
                     alt={`${BUSINESS_NAME} Logo`}
                     sx={{
                         verticalAlign: "middle",

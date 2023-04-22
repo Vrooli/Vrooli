@@ -1,12 +1,12 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "ESNext",
         "module": "commonjs",
         "baseUrl": "./src",
         "rootDir": "./src",
         "outDir": "./dist",
         "lib": [
-            "esnext"
+            "ESNext"
         ],
         "typeRoots": [
             "./src/types"
