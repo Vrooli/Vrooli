@@ -1,8 +1,8 @@
 import { BoxProps } from "@mui/material";
 import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from "@shared/consts";
 import { MouseEvent } from "react";
-import { BuildAction } from "utils/consts";
-import { NodeShape } from "utils/shape/models/node";
+import { BuildAction } from "../../../../utils/consts";
+import { NodeShape } from "../../../../utils/shape/models/node";
 
 /**
  * Props for all scalable objects

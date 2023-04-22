@@ -8,19 +8,19 @@ import {
 import { ResourceUsedFor } from "@shared/consts";
 import { DeleteIcon, EditIcon } from "@shared/icons";
 import { CommonKey } from "@shared/translations";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ColorIconButton } from "../../../../components/buttons/ColorIconButton/ColorIconButton";
 import { forwardRef, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { multiLineEllipsis, noSelect } from "styles";
-import { getResourceIcon } from "utils/display/getResourceIcon";
-import { getDisplay } from "utils/display/listTools";
-import { firstString } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import usePress from "utils/hooks/usePress";
-import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { openLink, useLocation } from "utils/route";
-import { SessionContext } from "utils/SessionContext";
+import { multiLineEllipsis, noSelect } from "../../../../styles";
+import { getResourceIcon } from "../../../../utils/display/getResourceIcon";
+import { getDisplay } from "../../../../utils/display/listTools";
+import { firstString } from "../../../../utils/display/stringTools";
+import { getUserLanguages } from "../../../../utils/display/translationTools";
+import usePress from "../../../../utils/hooks/usePress";
+import { getResourceType, getResourceUrl } from "../../../../utils/navigation/openObject";
+import { PubSub } from "../../../../utils/pubsub";
+import { openLink, useLocation } from "../../../../utils/route";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { ResourceCardProps } from "../types";
 
 export const ResourceCard = forwardRef<any, ResourceCardProps>(({

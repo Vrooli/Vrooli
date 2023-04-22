@@ -1,10 +1,10 @@
 import { NodeRoutineListItem } from "@shared/consts";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { SubroutineForm, subroutineInitialValues, validateSubroutineValues } from "forms/SubroutineForm/SubroutineForm";
+import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
+import { SubroutineForm, subroutineInitialValues, validateSubroutineValues } from "../../../forms/SubroutineForm/SubroutineForm";
 import { useContext, useMemo, useRef } from "react";
-import { getCurrentUser } from "utils/authentication/session";
-import { SessionContext } from "utils/SessionContext";
+import { getCurrentUser } from "../../../utils/authentication/session";
+import { SessionContext } from "../../../utils/SessionContext";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SubroutineInfoDialogProps } from "../types";
 

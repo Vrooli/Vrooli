@@ -1,6 +1,6 @@
 import { SxProps } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
-import { multiLineEllipsis, textShadow } from "styles";
+import { multiLineEllipsis, textShadow } from "../../../../styles";
 
 export const nodeLabel: SxProps = {
     ...multiLineEllipsis(3),

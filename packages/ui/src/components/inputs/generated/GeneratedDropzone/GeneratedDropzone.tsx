@@ -1,6 +1,6 @@
 import { Stack, Typography } from "@mui/material";
-import { Dropzone } from "components/inputs/Dropzone/Dropzone";
-import { DropzoneProps } from "forms/types";
+import { Dropzone } from "../../../../components/inputs/Dropzone/Dropzone";
+import { DropzoneProps } from "../../../../forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 

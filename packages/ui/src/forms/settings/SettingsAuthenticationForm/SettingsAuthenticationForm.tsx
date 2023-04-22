@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { PasswordTextField } from "../../../components/inputs/PasswordTextField/PasswordTextField";
+import { BaseForm } from "../../../forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { SettingsAuthenticationFormProps } from "../types";
 

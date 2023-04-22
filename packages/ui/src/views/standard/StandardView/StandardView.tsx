@@ -2,7 +2,7 @@ import { Box, Palette, Stack, useTheme } from "@mui/material";
 import { CommentFor, FindVersionInput, StandardVersion } from "@shared/consts";
 import { EditIcon } from "@shared/icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { standardVersionFindOne } from "../../../api/generated/endpoints/standardVersion_findOne";
 import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
 import { CommentContainer } from "../../../components/containers/CommentContainer/CommentContainer";

@@ -1,10 +1,10 @@
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { LargeDialog } from "../../../../components/dialogs/LargeDialog/LargeDialog";
+import { TopBar } from "../../../../components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { NodeEndForm, nodeEndInitialValues, validateNodeEndValues } from "forms/NodeEndForm/NodeEndForm";
+import { BaseFormRef } from "../../../../forms/BaseForm/BaseForm";
+import { NodeEndForm, nodeEndInitialValues, validateNodeEndValues } from "../../../../forms/NodeEndForm/NodeEndForm";
 import { useContext, useMemo, useRef } from "react";
-import { SessionContext } from "utils/SessionContext";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { NodeEndDialogProps } from "../types";
 
 const titleId = "end-node-dialog-title";

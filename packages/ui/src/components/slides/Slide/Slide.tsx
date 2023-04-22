@@ -1,5 +1,5 @@
-import { SlideContainer } from "components/slides/SlideContainer/SlideContainer";
-import { SlideContent } from "components/slides/SlideContent/SlideContent";
+import { SlideContainer } from "../../../components/slides/SlideContainer/SlideContainer";
+import { SlideContent } from "../../../components/slides/SlideContent/SlideContent";
 import { SlideProps } from "../types";
 
 export const Slide = ({

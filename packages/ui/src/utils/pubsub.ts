@@ -2,7 +2,7 @@
  * Simple pub/sub implementation, with typescript support. 
  * Uses a singleton instance to publish and subscribe to events.
  * example:
- *      import { PubSub } from "utils";
+ *      import { PubSub } from "../utils";
  *      PubSub.get().publishSnack({ messageKey: 'HelloWorld' });
  */
 import { ActiveFocusMode, Session } from "@shared/consts";

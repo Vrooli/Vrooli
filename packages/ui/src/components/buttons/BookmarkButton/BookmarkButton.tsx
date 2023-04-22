@@ -3,11 +3,11 @@ import { Bookmark, BookmarkFor } from "@shared/consts";
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from "@shared/icons";
 import { uuidValidate } from "@shared/uuid";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
-import { useBookmarker } from "utils/hooks/useBookmarker";
-import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { ObjectActionComplete } from "../../../utils/actions/objectActions";
+import { getCurrentUser } from "../../../utils/authentication/session";
+import { useBookmarker } from "../../../utils/hooks/useBookmarker";
+import { PubSub } from "../../../utils/pubsub";
+import { SessionContext } from "../../../utils/SessionContext";
 import { BookmarkButtonProps } from "../types";
 
 export const BookmarkButton = ({

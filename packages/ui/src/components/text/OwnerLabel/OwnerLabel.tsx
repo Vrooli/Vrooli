@@ -1,10 +1,10 @@
 import { Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
-import { firstString } from "utils/display/stringTools";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
-import { useLocation } from "utils/route";
-import { SessionContext } from "utils/SessionContext";
+import { firstString } from "../../../utils/display/stringTools";
+import { getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
+import { getObjectUrl } from "../../../utils/navigation/openObject";
+import { useLocation } from "../../../utils/route";
+import { SessionContext } from "../../../utils/SessionContext";
 import { OwnerLabelProps } from "../types";
 
 /**

@@ -2,10 +2,10 @@ import { FocusModeStopCondition, LINKS, MaxObjects } from "@shared/consts";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { useLocation } from "utils/route";
-import { SessionContext } from "utils/SessionContext";
+import { getCurrentUser, getFocusModeInfo } from "../../../utils/authentication/session";
+import { PubSub } from "../../../utils/pubsub";
+import { useLocation } from "../../../utils/route";
+import { SessionContext } from "../../../utils/SessionContext";
 import { Selector } from "../Selector/Selector";
 
 /**

@@ -1,12 +1,12 @@
 import { Stack } from "@mui/material";
 import { EmailIcon, PhoneIcon } from "@shared/icons";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
-import { PushList } from "components/lists/devices";
-import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
-import { Subheader } from "components/text/Subheader/Subheader";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { ListContainer } from "../../../components/containers/ListContainer/ListContainer";
+import { IntegerInput } from "../../../components/inputs/IntegerInput/IntegerInput";
+import { PushList } from "../../../components/lists/devices";
+import { SettingsToggleListItem } from "../../../components/lists/SettingsToggleListItem/SettingsToggleListItem";
+import { Subheader } from "../../../components/text/Subheader/Subheader";
+import { BaseForm } from "../../../forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { SettingsNotificationFormProps } from "../types";
 

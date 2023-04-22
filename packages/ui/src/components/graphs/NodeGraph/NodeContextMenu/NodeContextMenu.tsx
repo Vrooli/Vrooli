@@ -11,10 +11,10 @@ import {
     SvgComponent,
     UnlinkNodeIcon
 } from "@shared/icons";
-import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
-import { ListMenuItemData } from "components/dialogs/types";
+import { ListMenu } from "../../../../components/dialogs/ListMenu/ListMenu";
+import { ListMenuItemData } from "../../../../components/dialogs/types";
 import { useMemo } from "react";
-import { BuildAction } from "utils/consts";
+import { BuildAction } from "../../../../utils/consts";
 import { NodeContextMenuProps } from "../types";
 
 const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]?: [string, SvgComponent] } = {

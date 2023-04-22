@@ -5,8 +5,8 @@ import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from "@mu
 import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "@shared/icons";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
-import { noSelect } from "styles";
-import { Status } from "utils/consts";
+import { noSelect } from "../../../styles";
+import { Status } from "../../../utils/consts";
 import { StatusButtonProps } from "../types";
 
 /**

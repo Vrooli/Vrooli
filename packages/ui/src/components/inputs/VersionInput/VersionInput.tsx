@@ -1,10 +1,10 @@
 import { Stack, TextField, Tooltip, useTheme } from "@mui/material";
 import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "@shared/icons";
 import { calculateVersionsFromString, meetsMinVersion } from "@shared/validation";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
 import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { getMinimumVersion } from "utils/shape/general";
+import { getMinimumVersion } from "../../../utils/shape/general";
 import { VersionInputProps } from "../types";
 
 export const VersionInput = ({

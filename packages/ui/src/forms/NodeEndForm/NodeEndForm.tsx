@@ -3,18 +3,18 @@ import { NodeType, RoutineVersion, Session } from "@shared/consts";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { nodeTranslationValidation, nodeValidation } from "@shared/validation";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { EditableTextCollapse } from "../../components/containers/EditableTextCollapse/EditableTextCollapse";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { NodeEndFormProps, NodeWithEndShape } from "forms/types";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { NodeEndFormProps, NodeWithEndShape } from "../../forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { shapeNode } from "utils/shape/models/node";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { shapeNode } from "../../utils/shape/models/node";
 
 export const nodeEndInitialValues = (
     session: Session | undefined,

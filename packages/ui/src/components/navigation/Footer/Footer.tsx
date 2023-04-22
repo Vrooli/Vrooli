@@ -7,11 +7,11 @@ import {
 } from "@mui/material";
 import { LINKS, SOCIALS } from "@shared/consts";
 import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from "@shared/icons";
-import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
+import { CopyrightBreadcrumbs } from "../../../components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getDeviceInfo } from "utils/display/device";
-import { openLink, useLocation } from "utils/route";
+import { getDeviceInfo } from "../../../utils/display/device";
+import { openLink, useLocation } from "../../../utils/route";
 
 const contactLinks: [string, string, string, string, SvgComponent][] = [
     ["contact-twitter", "Find us on Twitter", SOCIALS.Twitter, "Twitter", TwitterIcon],

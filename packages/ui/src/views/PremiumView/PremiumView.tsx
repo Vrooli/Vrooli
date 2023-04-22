@@ -2,13 +2,13 @@ import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer,
 import { LINKS } from "@shared/consts";
 import { CompleteIcon } from "@shared/icons";
 import { loadStripe } from "@stripe/stripe-js";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { parseSearchParams, stringifySearchParams, useLocation } from "utils/route";
-import { SessionContext } from "utils/SessionContext";
+import { getCurrentUser } from "../../utils/authentication/session";
+import { PubSub } from "../../utils/pubsub";
+import { parseSearchParams, stringifySearchParams, useLocation } from "../../utils/route";
+import { SessionContext } from "../../utils/SessionContext";
 import { PremiumViewProps } from "../types";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);

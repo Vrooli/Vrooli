@@ -1,6 +1,6 @@
 import { NotificationSettingsUpdateInput, ProfileEmailUpdateInput, ProfileUpdateInput } from "@shared/consts";
 import { FormikProps } from "formik";
-import { ViewDisplayType } from "views/types";
+import { ViewDisplayType } from "../../views/types";
 
 export interface SettingsAuthenticationFormProps extends FormikProps<ProfileEmailUpdateInput> {
     display: ViewDisplayType;

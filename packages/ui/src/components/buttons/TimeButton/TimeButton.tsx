@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { TimeFrame } from "@shared/consts";
 import { HistoryIcon as TimeIcon } from "@shared/icons";
-import { TimeMenu } from "components/lists/TimeMenu/TimeMenu";
+import { TimeMenu } from "../../../components/lists/TimeMenu/TimeMenu";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { searchButtonStyle } from "../styles";

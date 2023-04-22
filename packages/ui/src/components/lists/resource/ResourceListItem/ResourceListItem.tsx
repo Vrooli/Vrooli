@@ -3,19 +3,19 @@ import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@m
 import { ResourceUsedFor } from "@shared/consts";
 import { DeleteIcon, EditIcon, OpenInNewIcon } from "@shared/icons";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
-import { TextLoading } from "components/lists/TextLoading/TextLoading";
+import { TextLoading } from "../../../../components/lists/TextLoading/TextLoading";
 import { useCallback, useContext, useMemo } from "react";
-import { multiLineEllipsis } from "styles";
-import { ResourceType } from "utils/consts";
-import { getResourceIcon } from "utils/display/getResourceIcon";
-import { getDisplay } from "utils/display/listTools";
-import { firstString } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import usePress from "utils/hooks/usePress";
-import { getResourceUrl } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { openLink, useLocation } from "utils/route";
-import { SessionContext } from "utils/SessionContext";
+import { multiLineEllipsis } from "../../../../styles";
+import { ResourceType } from "../../../../utils/consts";
+import { getResourceIcon } from "../../../../utils/display/getResourceIcon";
+import { getDisplay } from "../../../../utils/display/listTools";
+import { firstString } from "../../../../utils/display/stringTools";
+import { getUserLanguages } from "../../../../utils/display/translationTools";
+import usePress from "../../../../utils/hooks/usePress";
+import { getResourceUrl } from "../../../../utils/navigation/openObject";
+import { PubSub } from "../../../../utils/pubsub";
+import { openLink, useLocation } from "../../../../utils/route";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { ResourceListItemProps } from "../types";
 
 /**

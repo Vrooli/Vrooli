@@ -2,7 +2,7 @@ import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme }
 import { BookmarkFor, FindVersionInput, SmartContractVersion } from "@shared/consts";
 import { EditIcon, EllipsisIcon, SmartContractIcon } from "@shared/icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { smartContractVersionFindOne } from "../../../api/generated/endpoints/smartContractVersion_findOne";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink";

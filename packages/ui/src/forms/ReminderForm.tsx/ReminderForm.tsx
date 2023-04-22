@@ -3,17 +3,17 @@ import { Reminder, Session } from "@shared/consts";
 import { AddIcon, CloseIcon, DeleteIcon, DragIcon, ListNumberIcon } from "@shared/icons";
 import { DUMMY_ID } from "@shared/uuid";
 import { reminderValidation } from "@shared/validation";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { Subheader } from "../../components/text/Subheader/Subheader";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ReminderFormProps } from "forms/types";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { ReminderFormProps } from "../../forms/types";
 import { forwardRef, useCallback } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
+import { getCurrentUser } from "../../utils/authentication/session";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { ReminderShape, shapeReminder } from "../../utils/shape/models/reminder";
 
 export const reminderInitialValues = (
     session: Session | undefined,

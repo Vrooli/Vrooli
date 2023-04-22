@@ -1,11 +1,11 @@
 import { ProjectVersionDirectory } from "@shared/consts";
-import { ApiVersionShape } from "utils/shape/models/apiVersion";
-import { NoteVersionShape } from "utils/shape/models/noteVersion";
-import { OrganizationShape } from "utils/shape/models/organization";
-import { ProjectVersionShape } from "utils/shape/models/projectVersion";
-import { RoutineVersionShape } from "utils/shape/models/routineVersion";
-import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
-import { StandardVersionShape } from "utils/shape/models/standardVersion";
+import { ApiVersionShape } from "../../../utils/shape/models/apiVersion";
+import { NoteVersionShape } from "../../../utils/shape/models/noteVersion";
+import { OrganizationShape } from "../../../utils/shape/models/organization";
+import { ProjectVersionShape } from "../../../utils/shape/models/projectVersion";
+import { RoutineVersionShape } from "../../../utils/shape/models/routineVersion";
+import { SmartContractVersionShape } from "../../../utils/shape/models/smartContractVersion";
+import { StandardVersionShape } from "../../../utils/shape/models/standardVersion";
 
 export type DirectoryItem = ApiVersionShape |
     NoteVersionShape |

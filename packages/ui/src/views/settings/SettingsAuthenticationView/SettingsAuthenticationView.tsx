@@ -3,10 +3,10 @@ import { Email, LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User, Wall
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { profileEmailUpdateValidation } from "@shared/validation";
 import { Formik } from "formik";
-import { SettingsAuthenticationForm } from "forms/settings";
+import { SettingsAuthenticationForm } from "../../../forms/settings";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { authLogOut } from "../../../api/generated/endpoints/auth_logOut";
 import { userProfileEmailUpdate } from "../../../api/generated/endpoints/user_profileEmailUpdate";
 import { useCustomMutation } from "../../../api/hooks";

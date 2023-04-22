@@ -3,7 +3,7 @@ import { InputType } from "@shared/consts";
 import { CompleteIcon, RefreshIcon } from "@shared/icons";
 import { checkboxStandardInputForm, jsonStandardInputForm, markdownStandardInputForm, quantityBoxStandardInputForm, radioStandardInputForm, switchStandardInputForm, textFieldStandardInputForm } from "@shared/validation";
 import { Formik, useField } from "formik";
-import { FieldData } from "forms/types";
+import { FieldData } from "../../../../forms/types";
 import { t } from "i18next";
 import { useMemo } from "react";
 import { CheckboxStandardInput, DropzoneStandardInput, emptyCheckboxOption, emptyRadioOption, IntegerStandardInput, JsonStandardInput, MarkdownStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from "../";

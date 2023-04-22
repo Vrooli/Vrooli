@@ -3,12 +3,12 @@
 import { Box, Button } from "@mui/material";
 import { Count, DeleteManyInput, Resource } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
-import { ResourceDialog } from "components/dialogs/ResourceDialog/ResourceDialog";
+import { deleteOneOrManyDeleteOne } from "../../../../api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { useCustomMutation } from "../../../../api/hooks";
+import { mutationWrapper } from "../../../../api/utils";
+import { ResourceDialog } from "../../../../components/dialogs/ResourceDialog/ResourceDialog";
 import { useCallback, useMemo, useState } from "react";
-import { updateArray } from "utils/shape/general";
+import { updateArray } from "../../../../utils/shape/general";
 import { ResourceListItem } from "../ResourceListItem/ResourceListItem";
 import { ResourceListItemContextMenu } from "../ResourceListItemContextMenu/ResourceListItemContextMenu";
 import { ResourceListVerticalProps } from "../types";

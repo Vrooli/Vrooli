@@ -2,8 +2,8 @@ import { Stack, Typography, useTheme } from "@mui/material";
 import { DarkModeIcon, LightModeIcon } from "@shared/icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { PubSub } from "utils/pubsub";
+import { noSelect } from "../../../styles";
+import { PubSub } from "../../../utils/pubsub";
 import { ToggleSwitch } from "../ToggleSwitch/ToggleSwitch";
 
 export function ThemeSwitch() {

@@ -1,12 +1,12 @@
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { EditIcon as CustomIcon, LinkIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
+import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
+import { noSelect } from "../../../styles";
+import { getTranslation, getUserLanguages } from "../../../utils/display/translationTools";
+import { SessionContext } from "../../../utils/SessionContext";
 import { StandardVersionSelectSwitchProps } from "../types";
 
 const grey = {

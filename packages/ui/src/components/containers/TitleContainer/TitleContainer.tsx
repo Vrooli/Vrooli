@@ -1,8 +1,8 @@
 // Used to display popular/search results of a particular object type
 import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
 import { useTranslation } from "react-i18next";
-import { clickSize } from "styles";
+import { clickSize } from "../../../styles";
 import { TitleContainerProps } from "../types";
 
 export function TitleContainer({

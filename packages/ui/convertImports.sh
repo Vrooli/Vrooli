@@ -20,7 +20,7 @@ find src -type f \( -iname "*.ts" -o -iname "*.tsx" -o -iname "*.js" -o -iname "
         # Loop through the directories to match
         for dir in "${dirs[@]}"; do
             # Replace the absolute imports with relative imports
-            sed -i.bak -E "s~import (.*) from '\"$dir~import \1 from '\"$rel_import_prefix$dir~g" "$file"
+            sed -i.bak -E "s~import (.*) from \"${dir}(/[^\"\']*)?\"~import \1 from \"${rel_import_prefix}${dir}\2\"~g" "$file"
         done
 
         # Remove the backup file created by sed

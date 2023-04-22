@@ -4,21 +4,21 @@ import { CommonKey } from "@shared/translations";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { resourceValidation, userTranslationValidation } from "@shared/validation";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { LinkInput } from "components/inputs/LinkInput/LinkInput";
-import { Selector } from "components/inputs/Selector/Selector";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ResourceFormProps } from "forms/types";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput";
+import { LinkInput } from "../../components/inputs/LinkInput/LinkInput";
+import { Selector } from "../../components/inputs/Selector/Selector";
+import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { ResourceFormProps } from "../../forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getResourceIcon } from "utils/display/getResourceIcon";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { ResourceShape, shapeResource } from "utils/shape/models/resource";
+import { getResourceIcon } from "../../utils/display/getResourceIcon";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { ResourceShape, shapeResource } from "../../utils/shape/models/resource";
 
 export const resourceInitialValues = (
     session: Session | undefined,

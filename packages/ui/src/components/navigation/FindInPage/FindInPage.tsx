@@ -11,12 +11,12 @@ import {
 } from "@mui/material";
 import { Stack } from "@mui/system";
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { keyComboToString } from "utils/display/device";
-import { getTextNodes, normalizeText, removeHighlights, wrapMatches } from "utils/display/documentTools";
-import { PubSub } from "utils/pubsub";
+import { keyComboToString } from "../../../utils/display/device";
+import { getTextNodes, normalizeText, removeHighlights, wrapMatches } from "../../../utils/display/documentTools";
+import { PubSub } from "../../../utils/pubsub";
 
 const commonButtonSx = (palette: Palette) => ({
     borderRadius: "0",

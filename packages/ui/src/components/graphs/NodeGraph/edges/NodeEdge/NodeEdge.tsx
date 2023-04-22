@@ -1,6 +1,6 @@
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ColorIconButton } from "../../../../../components/buttons/ColorIconButton/ColorIconButton";
 import { useCallback, useMemo } from "react";
 import { calculateNodeSize } from "../../nodes";
 import { BaseEdge } from "../BaseEdge/BaseEdge";

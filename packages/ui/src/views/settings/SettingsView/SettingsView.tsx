@@ -1,12 +1,12 @@
 import { LINKS } from "@shared/consts";
 import { HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, VisibleIcon } from "@shared/icons";
-import { CardGrid } from "components/lists/CardGrid/CardGrid";
-import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Header } from "components/text/Header/Header";
+import { CardGrid } from "../../../components/lists/CardGrid/CardGrid";
+import { TIDCard } from "../../../components/lists/TIDCard/TIDCard";
+import { SettingsTopBar } from "../../../components/navigation/SettingsTopBar/SettingsTopBar";
+import { Header } from "../../../components/text/Header/Header";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { SettingsData, SettingsViewProps } from "../types";
 
 

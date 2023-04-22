@@ -10,9 +10,9 @@ import {
     Typography,
     useTheme
 } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { GridSubmitButtons } from "../../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { DialogTitle } from "../../../../components/dialogs/DialogTitle/DialogTitle";
+import { LargeDialog } from "../../../../components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoveNodeMenuProps } from "../types";

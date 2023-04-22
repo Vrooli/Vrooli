@@ -1,9 +1,9 @@
 // Converts JSON into a MUI form
 import { useTheme } from "@mui/material";
-import { GeneratedGrid } from "components/inputs/generated";
+import { GeneratedGrid } from "../../components/inputs/generated";
 import { useFormik } from "formik";
-import { generateDefaultProps, generateYupSchema } from "forms/generators";
-import { FieldData } from "forms/types";
+import { generateDefaultProps, generateYupSchema } from "../../forms/generators";
+import { FieldData } from "../../forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { BaseGeneratedFormProps } from "../types";
 

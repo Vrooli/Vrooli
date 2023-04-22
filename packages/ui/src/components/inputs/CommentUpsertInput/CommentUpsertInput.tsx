@@ -1,18 +1,18 @@
 import { useTheme } from "@mui/material";
 import { Comment, CommentCreateInput, CommentUpdateInput } from "@shared/consts";
 import { exists } from "@shared/utils";
-import { commentCreate } from "api/generated/endpoints/comment_create";
-import { commentUpdate } from "api/generated/endpoints/comment_update";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
-import { CommentDialog } from "components/dialogs/CommentDialog/CommentDialog";
+import { commentCreate } from "../../../api/generated/endpoints/comment_create";
+import { commentUpdate } from "../../../api/generated/endpoints/comment_update";
+import { useCustomMutation } from "../../../api/hooks";
+import { mutationWrapper } from "../../../api/utils";
+import { CommentDialog } from "../../../components/dialogs/CommentDialog/CommentDialog";
 import { Formik } from "formik";
-import { BaseFormRef } from "forms/BaseForm/BaseForm";
-import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "forms/CommentForm/CommentForm";
+import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
+import { CommentForm, commentInitialValues, transformCommentValues, validateCommentValues } from "../../../forms/CommentForm/CommentForm";
 import { useContext, useMemo, useRef } from "react";
-import { useUpsertActions } from "utils/hooks/useUpsertActions";
-import { useWindowSize } from "utils/hooks/useWindowSize";
-import { SessionContext } from "utils/SessionContext";
+import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
+import { useWindowSize } from "../../../utils/hooks/useWindowSize";
+import { SessionContext } from "../../../utils/SessionContext";
 import { CommentUpsertInputProps } from "../types";
 
 /**

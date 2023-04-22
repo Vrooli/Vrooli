@@ -1,7 +1,7 @@
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { CompleteIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { ColorIconButton } from "../../../../components/buttons/ColorIconButton/ColorIconButton";
+import { TextShrink } from "../../../../components/text/TextShrink/TextShrink";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { commonButtonProps, commonIconProps, commonLabelProps } from "../styles";

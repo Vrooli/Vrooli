@@ -1,15 +1,15 @@
 import { Box, Button, ListItem, Stack, TextField, useTheme } from "@mui/material";
 import { Schedule } from "@shared/consts";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "@shared/icons";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { ScheduleDialog } from "components/dialogs/ScheduleDialog/ScheduleDialog";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { ListContainer } from "../../components/containers/ListContainer/ListContainer";
+import { ScheduleDialog } from "../../components/dialogs/ScheduleDialog/ScheduleDialog";
+import { ResourceListHorizontalInput } from "../../components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { TagSelector } from "../../components/inputs/TagSelector/TagSelector";
+import { Subheader } from "../../components/text/Subheader/Subheader";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { FocusModeFormProps } from "forms/types";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { FocusModeFormProps } from "../../forms/types";
 import { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 

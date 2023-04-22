@@ -8,13 +8,13 @@ import {
 } from "@mui/material";
 import { DeleteOneInput, LINKS, Success } from "@shared/consts";
 import { DeleteIcon } from "@shared/icons";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { deleteOneOrManyDeleteOne } from "../../../api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { useCustomMutation } from "../../../api/hooks";
+import { mutationWrapper } from "../../../api/utils";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteDialogProps } from "../types";
 

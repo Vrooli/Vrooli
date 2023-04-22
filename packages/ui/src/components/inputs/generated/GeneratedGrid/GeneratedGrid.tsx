@@ -1,6 +1,6 @@
 import { Grid, GridSpacing, Stack } from "@mui/material";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { FieldData, GridContainer } from "forms/types";
+import { ContentCollapse } from "../../../../components/containers/ContentCollapse/ContentCollapse";
+import { FieldData, GridContainer } from "../../../../forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponent } from "../GeneratedInputComponent/GeneratedInputComponent";
 import { GeneratedGridProps } from "../types";

@@ -1,5 +1,5 @@
 import { InputType, ProjectOrOrganizationSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { projectOrOrganizationFindMany } from "../../../api/generated/endpoints/projectOrOrganization_findMany";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";

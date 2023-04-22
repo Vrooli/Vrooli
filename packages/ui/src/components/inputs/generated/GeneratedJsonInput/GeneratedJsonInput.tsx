@@ -1,5 +1,5 @@
-import { JsonInput } from "components/inputs/JsonInput/JsonInput";
-import { JsonProps } from "forms/types";
+import { JsonInput } from "../../../../components/inputs/JsonInput/JsonInput";
+import { JsonProps } from "../../../../forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 

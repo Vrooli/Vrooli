@@ -3,13 +3,13 @@
  */
 import { useTheme } from "@mui/material";
 import { DeleteOneInput, DeleteType, Reminder, Success } from "@shared/consts";
-import { mutationWrapper, useCustomMutation } from "api";
-import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany_deleteOne";
-import { TitleContainer } from "components/containers/TitleContainer/TitleContainer";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { mutationWrapper, useCustomMutation } from "../../../../api";
+import { deleteOneOrManyDeleteOne } from "../../../../api/generated/endpoints/deleteOneOrMany_deleteOne";
+import { TitleContainer } from "../../../../components/containers/TitleContainer/TitleContainer";
+import { LargeDialog } from "../../../../components/dialogs/LargeDialog/LargeDialog";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ReminderUpsert } from "views/objects/reminder";
+import { ReminderUpsert } from "../../../../views/objects/reminder";
 import { ReminderListItem } from "../ReminderListItem/ReminderListItem";
 import { ReminderListProps } from "../types";
 

@@ -1,5 +1,5 @@
 import { InputType } from "@shared/consts";
-import { FieldData } from "forms/types";
+import { FieldData } from "../../forms/types";
 import { CheckboxProps, DropzoneProps, IntegerInputProps, JsonProps, LanguageInputProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps, YupField } from "../types";
 
 /**

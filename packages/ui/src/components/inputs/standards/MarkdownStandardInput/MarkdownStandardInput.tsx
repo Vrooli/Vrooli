@@ -1,5 +1,5 @@
 import { Grid } from "@mui/material";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
+import { MarkdownInput } from "../../../../components/inputs/MarkdownInput/MarkdownInput";
 import { MarkdownStandardInputProps } from "../types";
 
 /**

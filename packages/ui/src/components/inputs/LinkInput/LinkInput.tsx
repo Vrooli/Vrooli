@@ -1,11 +1,11 @@
 import { Box, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { SearchIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
+import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog";
 import { Field, useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay } from "utils/display/listTools";
+import { getDisplay } from "../../../utils/display/listTools";
 import { LinkInputProps } from "../types";
 
 export const LinkInput = ({

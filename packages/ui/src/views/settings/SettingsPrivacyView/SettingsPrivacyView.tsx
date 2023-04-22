@@ -2,7 +2,7 @@ import { Stack } from "@mui/material";
 import { ProfileUpdateInput, User } from "@shared/consts";
 import { userValidation } from "@shared/validation";
 import { Formik } from "formik";
-import { SettingsPrivacyForm } from "forms/settings";
+import { SettingsPrivacyForm } from "../../../forms/settings";
 import { userProfileUpdate } from "../../../api/generated/endpoints/user_profileUpdate";
 import { useCustomMutation } from "../../../api/hooks";
 import { mutationWrapper } from "../../../api/utils';";

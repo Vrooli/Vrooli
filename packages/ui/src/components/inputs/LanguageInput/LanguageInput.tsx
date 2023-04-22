@@ -2,10 +2,10 @@
  * Handles the state management for adding/updating text in multiple languages.
  */
 import { Stack, Typography } from "@mui/material";
-import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { useCallback, useContext } from "react";
-import { getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
+import { getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools";
+import { SessionContext } from "../../../utils/SessionContext";
 import { LanguageInputProps } from "../types";
 
 export const LanguageInput = ({

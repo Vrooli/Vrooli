@@ -2,7 +2,7 @@ import { Tag } from "@shared/consts";
 import { exists } from "@shared/utils";
 import { useField } from "formik";
 import { useCallback } from "react";
-import { TagShape } from "utils/shape/models/tag";
+import { TagShape } from "../../../utils/shape/models/tag";
 import { TagSelectorBase } from "../TagSelectorBase/TagSelectorBase";
 import { TagSelectorProps } from "../types";
 

@@ -5,13 +5,13 @@ import { Button, Stack, useTheme } from "@mui/material";
 import { Comment, CommentThread as ThreadType } from "@shared/consts";
 import { CreateIcon } from "@shared/icons";
 import { uuidValidate } from "@shared/uuid";
-import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
-import { CommentUpsertInput } from "components/inputs/CommentUpsertInput/CommentUpsertInput";
-import { CommentThread } from "components/lists/comment";
+import { SearchButtons } from "../../../components/buttons/SearchButtons/SearchButtons";
+import { CommentUpsertInput } from "../../../components/inputs/CommentUpsertInput/CommentUpsertInput";
+import { CommentThread } from "../../../components/lists/comment";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useFindMany } from "utils/hooks/useFindMany";
-import { useWindowSize } from "utils/hooks/useWindowSize";
+import { useFindMany } from "../../../utils/hooks/useFindMany";
+import { useWindowSize } from "../../../utils/hooks/useWindowSize";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { CommentContainerProps } from "../types";
 

@@ -1,6 +1,6 @@
 import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from "@mui/material";
 import { useField } from "formik";
-import { RadioProps } from "forms/types";
+import { RadioProps } from "../../../../forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 

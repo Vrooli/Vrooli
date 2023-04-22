@@ -1,5 +1,5 @@
 import { PostSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { postFindMany } from "../../../api/generated/endpoints/post_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

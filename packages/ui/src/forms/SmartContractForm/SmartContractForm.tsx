@@ -3,19 +3,19 @@ import { Session, SmartContractVersion } from "@shared/consts";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { smartContractVersionTranslationValidation, smartContractVersionValidation } from "@shared/validation";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { SmartContractFormProps } from "forms/types";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput";
+import { VersionInput } from "../../components/inputs/VersionInput/VersionInput";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { SmartContractFormProps } from "../../forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { shapeSmartContractVersion, SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
+import { getCurrentUser } from "../../utils/authentication/session";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { shapeSmartContractVersion, SmartContractVersionShape } from "../../utils/shape/models/smartContractVersion";
 
 export const smartContractInitialValues = (
     session: Session | undefined,

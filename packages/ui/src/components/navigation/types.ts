@@ -1,5 +1,5 @@
 import { OptionalTranslation } from "types";
-import { ViewDisplayType } from "views/types";
+import { ViewDisplayType } from "../../views/types";
 
 export interface ContactInfoProps {
     sx?: { [key: string]: any };

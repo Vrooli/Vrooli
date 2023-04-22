@@ -5,18 +5,18 @@ import {
 import { EmailResetPasswordInput, LINKS, Session } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
 import { emailResetPasswordSchema } from "@shared/validation";
-import { authEmailResetPassword } from "api/generated/endpoints/auth_emailResetPassword";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
-import { PasswordTextField } from "components/inputs/PasswordTextField/PasswordTextField";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { authEmailResetPassword } from "../../../api/generated/endpoints/auth_emailResetPassword";
+import { useCustomMutation } from "../../../api/hooks";
+import { mutationWrapper } from "../../../api/utils";
+import { PasswordTextField } from "../../../components/inputs/PasswordTextField/PasswordTextField";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ResetPasswordFormProps } from "forms/types";
+import { BaseForm } from "../../../forms/BaseForm/BaseForm";
+import { ResetPasswordFormProps } from "../../../forms/types";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { PubSub } from "utils/pubsub";
-import { parseSearchParams, useLocation } from "utils/route";
+import { PubSub } from "../../../utils/pubsub";
+import { parseSearchParams, useLocation } from "../../../utils/route";
 import { formPaper, formSubmit } from "../../styles";
 
 export const ResetPasswordForm = ({

@@ -1,8 +1,8 @@
 import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from "@shared/icons";
-import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
-import { ListMenuItemData } from "components/dialogs/types";
-import { getTranslation } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
+import { ListMenu } from "../../../../components/dialogs/ListMenu/ListMenu";
+import { ListMenuItemData } from "../../../../components/dialogs/types";
+import { getTranslation } from "../../../../utils/display/translationTools";
+import { PubSub } from "../../../../utils/pubsub";
 import { ResourceListItemContextMenuProps } from "../types";
 
 export enum ResourceContextMenuOption {

@@ -3,8 +3,8 @@ import {
     Link
 } from "@mui/material";
 import { useMemo } from "react";
-import { noSelect } from "styles";
-import { openLink, useLocation } from "utils/route";
+import { noSelect } from "../../../styles";
+import { openLink, useLocation } from "../../../utils/route";
 import { BreadcrumbsBaseProps } from "../types";
 
 export const BreadcrumbsBase = ({

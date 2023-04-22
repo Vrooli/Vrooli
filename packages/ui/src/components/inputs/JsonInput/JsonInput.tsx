@@ -3,13 +3,13 @@
  */
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { InvisibleIcon, VisibleIcon } from "@shared/icons";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { StatusButton } from "components/buttons/StatusButton/StatusButton";
+import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
+import { StatusButton } from "../../../components/buttons/StatusButton/StatusButton";
 import { useField } from "formik";
 import Markdown from "markdown-to-jsx";
 import { useEffect, useMemo, useState } from "react";
-import { Status } from "utils/consts";
-import { isJson, jsonHelpText, jsonToMarkdown } from "utils/shape/general";
+import { Status } from "../../../utils/consts";
+import { isJson, jsonHelpText, jsonToMarkdown } from "../../../utils/shape/general";
 import { JsonInputProps } from "../types";
 
 export const JsonInput = ({

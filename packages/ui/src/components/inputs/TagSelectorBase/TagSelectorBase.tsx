@@ -1,13 +1,13 @@
 import { useQuery } from "@apollo/client";
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { BookmarkFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@shared/consts";
-import { tagFindMany } from "api/generated/endpoints/tag_findMany";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { tagFindMany } from "../../../api/generated/endpoints/tag_findMany";
+import { BookmarkButton } from "../../../components/buttons/BookmarkButton/BookmarkButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Wrap } from "types";
-import { PubSub } from "utils/pubsub";
-import { TagShape } from "utils/shape/models/tag";
+import { PubSub } from "../../../utils/pubsub";
+import { TagShape } from "../../../utils/shape/models/tag";
 import { TagSelectorBaseProps } from "../types";
 
 export const TagSelectorBase = ({

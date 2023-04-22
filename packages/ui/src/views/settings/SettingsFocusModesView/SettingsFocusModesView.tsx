@@ -3,7 +3,7 @@ import { DeleteOneInput, DeleteType, FocusMode, FocusModeStopCondition, LINKS, M
 import { AddIcon, DeleteIcon, EditIcon } from "@shared/icons";
 import { t } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { multiLineEllipsis } from "styles";
+import { multiLineEllipsis } from "../../../styles";
 import { mutationWrapper } from "../../../api";
 import { deleteOneOrManyDeleteOne } from "../../../api/generated/endpoints/deleteOneOrMany_deleteOne";
 import { useCustomMutation } from "../../../api/hooks";

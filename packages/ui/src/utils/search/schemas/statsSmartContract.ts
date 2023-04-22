@@ -1,5 +1,5 @@
 import { StatsSmartContractSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { statsSmartContractFindMany } from "../../../api/generated/endpoints/statsSmartContract_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

@@ -3,10 +3,10 @@ import { Success } from "@shared/consts";
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "@shared/icons";
 import { getReactionScore, removeModifiers } from "@shared/utils";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
-import { useVoter } from "utils/hooks/useVoter";
-import { SessionContext } from "utils/SessionContext";
+import { ObjectActionComplete } from "../../../utils/actions/objectActions";
+import { getCurrentUser } from "../../../utils/authentication/session";
+import { useVoter } from "../../../utils/hooks/useVoter";
+import { SessionContext } from "../../../utils/SessionContext";
 import { VoteButtonProps } from "../types";
 
 export const VoteButton = ({

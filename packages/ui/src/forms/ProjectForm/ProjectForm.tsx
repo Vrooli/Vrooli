@@ -3,23 +3,23 @@ import { ProjectVersion, Session } from "@shared/consts";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { projectVersionTranslationValidation, projectVersionValidation } from "@shared/validation";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
-import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { DirectoryListHorizontal } from "components/lists/directory";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput";
+import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
+import { VersionInput } from "../../components/inputs/VersionInput/VersionInput";
+import { DirectoryListHorizontal } from "../../components/lists/directory";
+import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ProjectFormProps } from "forms/types";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { ProjectFormProps } from "../../forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/projectVersion";
+import { getCurrentUser } from "../../utils/authentication/session";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { ProjectVersionShape, shapeProjectVersion } from "../../utils/shape/models/projectVersion";
 
 export const projectInitialValues = (
     session: Session | undefined,

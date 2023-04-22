@@ -1,18 +1,18 @@
 import { DialogProps, PopoverProps } from "@mui/material";
 import { ApiVersion, Comment, DeleteType, FocusMode, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, ReportFor, Resource, RoutineVersion, RunProject, RunRoutine, Schedule, SmartContractVersion, StandardVersion, User } from "@shared/consts";
 import { SvgComponent } from "@shared/icons";
-import { HelpButtonProps } from "components/buttons/types";
-import { StatsCompactPropsObject } from "components/text/types";
-import { BaseObjectFormProps } from "forms/types";
+import { HelpButtonProps } from "../../components/buttons/types";
+import { StatsCompactPropsObject } from "../../components/text/types";
+import { BaseObjectFormProps } from "../../forms/types";
 import { NavigableObject, RoutineStep } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { CookiePreferences } from "utils/cookies";
-import { ListObjectType } from "utils/display/listTools";
-import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
-import { SearchType } from "utils/search/objectToSearch";
-import { CommentShape } from "utils/shape/models/comment";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { ObjectAction } from "../../utils/actions/objectActions";
+import { CookiePreferences } from "../../utils/cookies";
+import { ListObjectType } from "../../utils/display/listTools";
+import { UseObjectActionsReturn } from "../../utils/hooks/useObjectActions";
+import { SearchType } from "../../utils/search/objectToSearch";
+import { CommentShape } from "../../utils/shape/models/comment";
+import { NodeShape } from "../../utils/shape/models/node";
+import { NodeLinkShape } from "../../utils/shape/models/nodeLink";
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;

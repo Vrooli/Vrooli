@@ -1,5 +1,5 @@
 import { InputType } from "@shared/consts";
-import { FieldData, FieldDataBase } from "forms/types";
+import { FieldData, FieldDataBase } from "../../../forms/types";
 
 /**
  * Handles all parts of creating a standard input, from props, to labels, to validation

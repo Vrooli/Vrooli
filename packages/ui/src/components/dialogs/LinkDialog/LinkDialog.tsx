@@ -12,12 +12,12 @@ import {
 } from "@mui/material";
 import { NodeType } from "@shared/consts";
 import { uuid } from "@shared/uuid";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTranslation } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { NodeShape } from "utils/shape/models/node";
+import { getTranslation } from "../../../utils/display/translationTools";
+import { PubSub } from "../../../utils/pubsub";
+import { NodeShape } from "../../../utils/shape/models/node";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { LinkDialogProps } from "../types";

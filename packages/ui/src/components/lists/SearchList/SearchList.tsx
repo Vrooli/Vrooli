@@ -3,16 +3,16 @@
  */
 import { Box, Button } from "@mui/material";
 import { PlusIcon } from "@shared/icons";
-import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { SiteSearchBar } from "components/inputs/search";
+import { SearchButtons } from "../../../components/buttons/SearchButtons/SearchButtons";
+import { ListContainer } from "../../../components/containers/ListContainer/ListContainer";
+import { SiteSearchBar } from "../../../components/inputs/search";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { NavigableObject } from "types";
-import { listToListItems } from "utils/display/listTools";
-import { useFindMany } from "utils/hooks/useFindMany";
-import { openObject } from "utils/navigation/openObject";
-import { useLocation } from "utils/route";
+import { listToListItems } from "../../../utils/display/listTools";
+import { useFindMany } from "../../../utils/hooks/useFindMany";
+import { openObject } from "../../../utils/navigation/openObject";
+import { useLocation } from "../../../utils/route";
 import { SearchListProps } from "../types";
 
 export function SearchList<DataType extends NavigableObject>({

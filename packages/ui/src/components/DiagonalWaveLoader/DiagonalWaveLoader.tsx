@@ -1,5 +1,5 @@
 import { Box, keyframes, styled } from "@mui/material";
-import { DiagonalWaveLoaderProps } from "components/types";
+import { DiagonalWaveLoaderProps } from "../../components/types";
 
 const fade = keyframes`
     0%, 40% {

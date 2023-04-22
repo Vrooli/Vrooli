@@ -1,9 +1,9 @@
 import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { CloseIcon, LargeCookieIcon } from "@shared/icons";
-import { CookieSettingsDialog } from "components/dialogs/CookieSettingsDialog/CookieSettingsDialog";
+import { CookieSettingsDialog } from "../../../../components/dialogs/CookieSettingsDialog/CookieSettingsDialog";
 import { useState } from "react";
-import { noSelect } from "styles";
-import { CookiePreferences, setCookiePreferences } from "utils/cookies";
+import { noSelect } from "../../../../styles";
+import { CookiePreferences, setCookiePreferences } from "../../../../utils/cookies";
 import { CookiesSnackProps } from "../types";
 
 /**

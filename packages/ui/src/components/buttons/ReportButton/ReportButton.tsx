@@ -1,6 +1,6 @@
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { ReportIcon } from "@shared/icons";
-import { ReportDialog } from "components/dialogs/ReportDialog/ReportDialog";
+import { ReportDialog } from "../../../components/dialogs/ReportDialog/ReportDialog";
 import { useCallback, useState } from "react";
 import { ReportButtonProps } from "../types";
 

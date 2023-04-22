@@ -1,6 +1,6 @@
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { ShareIcon } from "@shared/icons";
-import { ShareObjectDialog } from "components/dialogs/ShareObjectDialog/ShareObjectDialog";
+import { ShareObjectDialog } from "../../../components/dialogs/ShareObjectDialog/ShareObjectDialog";
 import { useCallback, useState } from "react";
 import { ShareButtonProps } from "../types";
 

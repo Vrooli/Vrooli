@@ -2,7 +2,7 @@ import { useQuery } from "@apollo/client";
 import { Stack } from "@mui/material";
 import { NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput } from "@shared/consts";
 import { Formik } from "formik";
-import { SettingsNotificationForm } from "forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
+import { SettingsNotificationForm } from "../../../forms/settings/SettingsNotificationsForm/SettingsNotificationsForm";
 import { Wrap } from "types";
 import { mutationWrapper } from "../../../api";
 import { notificationSettings } from "../../../api/generated/endpoints/notification_settings";

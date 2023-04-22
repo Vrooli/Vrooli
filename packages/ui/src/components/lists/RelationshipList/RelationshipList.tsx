@@ -1,9 +1,9 @@
 import { Stack, useTheme } from "@mui/material";
 import { Session } from "@shared/consts";
-import { IsCompleteButton, IsPrivateButton, OwnerButton, ParentButton, ProjectButton } from "components/buttons/relationships";
-import { noSelect } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { OwnerShape } from "utils/shape/models/types";
+import { IsCompleteButton, IsPrivateButton, OwnerButton, ParentButton, ProjectButton } from "../../../components/buttons/relationships";
+import { noSelect } from "../../../styles";
+import { getCurrentUser } from "../../../utils/authentication/session";
+import { OwnerShape } from "../../../utils/shape/models/types";
 import { RelationshipListProps } from "../types";
 
 /**

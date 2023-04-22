@@ -1,5 +1,5 @@
 import { ResourceList } from "@shared/consts";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceListHorizontal } from "../../../components/lists/resource";
 import { useField } from "formik";
 import { useCallback } from "react";
 import { ResourceListHorizontalInputProps } from "../types";

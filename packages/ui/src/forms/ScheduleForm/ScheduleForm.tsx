@@ -2,14 +2,14 @@ import { Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuI
 import { Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType } from "@shared/consts";
 import { AddIcon, CloseIcon, DeleteIcon } from "@shared/icons";
 import { uuid } from "@shared/uuid";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
-import { Selector } from "components/inputs/Selector/Selector";
-import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
-import { Subheader } from "components/text/Subheader/Subheader";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { IntegerInput } from "../../components/inputs/IntegerInput/IntegerInput";
+import { Selector } from "../../components/inputs/Selector/Selector";
+import { TimezoneSelector } from "../../components/inputs/TimezoneSelector/TimezoneSelector";
+import { Subheader } from "../../components/text/Subheader/Subheader";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ScheduleFormProps } from "forms/types";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { ScheduleFormProps } from "../../forms/types";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 

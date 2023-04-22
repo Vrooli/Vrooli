@@ -1,16 +1,16 @@
 import { TextField } from "@mui/material";
 import { Report, ReportFor, Session } from "@shared/consts";
 import { DUMMY_ID } from "@shared/uuid";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { Selector } from "components/inputs/Selector/Selector";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { SelectLanguageMenu } from "../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { Selector } from "../../components/inputs/Selector/Selector";
 import { Field, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { ReportFormProps } from "forms/types";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { ReportFormProps } from "../../forms/types";
 import { forwardRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ReportShape } from "utils/shape/models/report";
+import { getUserLanguages } from "../../utils/display/translationTools";
+import { ReportShape } from "../../utils/shape/models/report";
 
 enum ReportOptions {
     Inappropriate = 'Inappropriate',

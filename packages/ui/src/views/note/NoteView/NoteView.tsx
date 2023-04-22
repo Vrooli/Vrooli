@@ -1,7 +1,7 @@
 import { useTheme } from "@mui/material";
 import { FindVersionInput, NoteVersion } from "@shared/consts";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { noteVersionFindOne } from "../../../api/generated/endpoints/noteVersion_findOne";
 import { EllipsisActionButton } from "../../../components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { SideActionButtons } from "../../../components/buttons/SideActionButtons/SideActionButtons";

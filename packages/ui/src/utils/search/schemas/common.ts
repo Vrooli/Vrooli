@@ -1,6 +1,6 @@
 import { InputType } from "@shared/consts";
 import { CommonKey } from "@shared/translations";
-import { FieldData, FormSchema, GridContainer } from "forms/types";
+import { FieldData, FormSchema, GridContainer } from "../../../forms/types";
 import i18next from "i18next";
 
 export const searchFormLayout = (title: CommonKey): FormSchema["formLayout"] => ({

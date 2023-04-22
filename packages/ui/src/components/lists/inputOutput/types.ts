@@ -1,6 +1,6 @@
 import { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
-import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
-import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
+import { RoutineVersionInputShape } from "../../../utils/shape/models/routineVersionInput";
+import { RoutineVersionOutputShape } from "../../../utils/shape/models/routineVersionOutput";
 
 export interface InputOutputContainerProps {
     handleUpdate: (updatedList: (RoutineVersionInputShape | RoutineVersionOutputShape)[]) => void;

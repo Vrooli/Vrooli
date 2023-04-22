@@ -7,7 +7,7 @@ import {
     Menu,
     useTheme
 } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
 import { useMemo } from "react";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { ListMenuProps } from "../types";

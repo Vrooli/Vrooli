@@ -3,17 +3,17 @@
  */
 import { Box, Button, Grid, useTheme } from "@mui/material";
 import { CancelIcon, RefreshIcon, SearchIcon } from "@shared/icons";
-import { GridActionButtons } from "components/buttons/GridActionButtons/GridActionButtons";
-import { GeneratedGrid } from "components/inputs/generated";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { GridActionButtons } from "../../../components/buttons/GridActionButtons/GridActionButtons";
+import { GeneratedGrid } from "../../../components/inputs/generated";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
-import { generateDefaultProps, generateYupSchema } from "forms/generators";
-import { FieldData, FormSchema } from "forms/types";
+import { generateDefaultProps, generateYupSchema } from "../../../forms/generators";
+import { FieldData, FormSchema } from "../../../forms/types";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { parseSearchParams } from "utils/route";
-import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch";
-import { searchTypeToParams } from "utils/search/objectToSearch";
+import { parseSearchParams } from "../../../utils/route";
+import { convertFormikForSearch, convertSearchForFormik } from "../../../utils/search/inputToSearch";
+import { searchTypeToParams } from "../../../utils/search/objectToSearch";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { AdvancedSearchDialogProps } from "../types";
 

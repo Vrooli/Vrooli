@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
-import { StatsCompactPropsObject } from "components/text/types";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
+import { StatsCompact } from "../../../components/text/StatsCompact/StatsCompact";
+import { StatsCompactPropsObject } from "../../../components/text/types";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { StatsDialogProps } from "../types";
 

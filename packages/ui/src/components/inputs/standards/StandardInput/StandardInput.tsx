@@ -1,12 +1,12 @@
 import { Box, useTheme } from "@mui/material";
 import { BuildIcon, VisibleIcon } from "@shared/icons";
-import { GeneratedInputComponent } from "components/inputs/generated";
-import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
-import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
+import { GeneratedInputComponent } from "../../../../components/inputs/generated";
+import { SelectorBase } from "../../../../components/inputs/SelectorBase/SelectorBase";
+import { ToggleSwitch } from "../../../../components/inputs/ToggleSwitch/ToggleSwitch";
 import { useField } from "formik";
-import { FieldData } from "forms/types";
+import { FieldData } from "../../../../forms/types";
 import { useCallback, useState } from "react";
-import { InputTypeOption, InputTypeOptions } from "utils/consts";
+import { InputTypeOption, InputTypeOptions } from "../../../../utils/consts";
 import { BaseStandardInput } from "../BaseStandardInput/BaseStandardInput";
 import { StandardInputProps } from "../types";
 

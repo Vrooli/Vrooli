@@ -1,11 +1,11 @@
 import { TextField, Typography, useTheme } from "@mui/material";
 import { isOfType } from "@shared/utils";
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
+import { MarkdownInput } from "../../../components/inputs/MarkdownInput/MarkdownInput";
+import { TranslatedMarkdownInput } from "../../../components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedTextField } from "../../../components/inputs/TranslatedTextField/TranslatedTextField";
 import { Field, useField } from "formik";
 import Markdown from "markdown-to-jsx";
-import { linkColors } from "styles";
+import { linkColors } from "../../../styles";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { EditableTextCollapseProps, EditTextComponent, PropsByComponentType } from "../types";
 

@@ -7,16 +7,16 @@ import {
 import { CSSProperties } from "@mui/styles";
 import { EmailRequestPasswordChangeInput, LINKS, Success } from "@shared/consts";
 import { emailRequestPasswordChangeSchema } from "@shared/validation";
-import { authEmailRequestPasswordChange } from "api/generated/endpoints/auth_emailRequestPasswordChange";
-import { useCustomMutation } from "api/hooks";
-import { mutationWrapper } from "api/utils";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { authEmailRequestPasswordChange } from "../../../api/generated/endpoints/auth_emailRequestPasswordChange";
+import { useCustomMutation } from "../../../api/hooks";
+import { mutationWrapper } from "../../../api/utils";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm } from "../../../forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
-import { clickSize } from "styles";
-import { Forms } from "utils/consts";
-import { useLocation } from "utils/route";
+import { clickSize } from "../../../styles";
+import { Forms } from "../../../utils/consts";
+import { useLocation } from "../../../utils/route";
 import { formNavLink, formPaper, formSubmit } from "../../styles";
 import { ForgotPasswordFormProps } from "../../types";
 

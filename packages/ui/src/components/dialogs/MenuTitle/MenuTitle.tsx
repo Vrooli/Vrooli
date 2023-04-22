@@ -4,8 +4,8 @@ import {
     useTheme
 } from "@mui/material";
 import { CloseIcon } from "@shared/icons";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { noSelect } from "styles";
+import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
+import { noSelect } from "../../../styles";
 import { MenuTitleProps } from "../types";
 
 export const MenuTitle = ({

@@ -5,7 +5,7 @@ import { calculateOccurrences } from "@shared/utils";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { centeredDiv } from "styles";
+import { centeredDiv } from "../../../styles";
 import { AutocompleteOption, CalendarEvent, ShortcutOption, Wrap } from "types";
 import { feedHome } from "../../../api/generated/endpoints/feed_home";
 import { ListTitleContainer } from "../../../components/containers/ListTitleContainer/ListTitleContainer";

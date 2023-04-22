@@ -2,7 +2,7 @@ import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme }
 import { BookmarkFor, FindByIdInput, Question } from "@shared/consts";
 import { EditIcon, EllipsisIcon, HelpIcon } from "@shared/icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { questionFindOne } from "../../../api/generated/endpoints/question_findOne";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink";

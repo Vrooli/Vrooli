@@ -1,5 +1,5 @@
 import { LabelSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { labelFindMany } from "../../../api/generated/endpoints/label_findMany";
 import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout } from "./common";

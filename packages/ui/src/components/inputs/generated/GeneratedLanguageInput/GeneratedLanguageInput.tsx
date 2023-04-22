@@ -1,4 +1,4 @@
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { LanguageInput } from "../../../../components/inputs/LanguageInput/LanguageInput";
 import { useField } from "formik";
 import { GeneratedInputComponentProps } from "../types";
 

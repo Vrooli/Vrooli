@@ -3,7 +3,7 @@ import { ProfileUpdateInput, User } from "@shared/consts";
 import { DUMMY_ID } from "@shared/uuid";
 import { userValidation } from "@shared/validation";
 import { Formik } from "formik";
-import { SettingsProfileForm } from "forms/settings";
+import { SettingsProfileForm } from "../../../forms/settings";
 import { useContext } from "react";
 import { userProfileUpdate } from "../../../api/generated/endpoints/user_profileUpdate";
 import { useCustomMutation } from "../../../api/hooks";

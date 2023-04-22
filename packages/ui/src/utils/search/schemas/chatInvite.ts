@@ -1,5 +1,5 @@
 import { ChatInviteSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { chatInviteFindMany } from "../../../api/generated/endpoints/chatInvite_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

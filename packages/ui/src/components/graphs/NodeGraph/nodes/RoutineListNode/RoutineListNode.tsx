@@ -11,17 +11,17 @@ import {
 import { NodeRoutineListItem } from "@shared/consts";
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from "@shared/icons";
 import { name as nameValidation, reqErr } from "@shared/validation";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { EditableLabel } from "components/inputs/EditableLabel/EditableLabel";
+import { ColorIconButton } from "../../../../../components/buttons/ColorIconButton/ColorIconButton";
+import { EditableLabel } from "../../../../../components/inputs/EditableLabel/EditableLabel";
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { multiLineEllipsis, noSelect, textShadow } from "styles";
-import { BuildAction } from "utils/consts";
-import { firstString } from "utils/display/stringTools";
-import { getTranslation, updateTranslationFields } from "utils/display/translationTools";
-import { useDebounce } from "utils/hooks/useDebounce";
-import usePress from "utils/hooks/usePress";
-import { PubSub } from "utils/pubsub";
+import { multiLineEllipsis, noSelect, textShadow } from "../../../../../styles";
+import { BuildAction } from "../../../../../utils/consts";
+import { firstString } from "../../../../../utils/display/stringTools";
+import { getTranslation, updateTranslationFields } from "../../../../../utils/display/translationTools";
+import { useDebounce } from "../../../../../utils/hooks/useDebounce";
+import usePress from "../../../../../utils/hooks/usePress";
+import { PubSub } from "../../../../../utils/pubsub";
 import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import {

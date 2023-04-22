@@ -1,5 +1,5 @@
 import { Box, keyframes } from "@mui/material";
-import { TwinklingStarsProps } from "components/types";
+import { TwinklingStarsProps } from "../../components/types";
 import { useMemo } from "react";
 
 // Twinkle animation

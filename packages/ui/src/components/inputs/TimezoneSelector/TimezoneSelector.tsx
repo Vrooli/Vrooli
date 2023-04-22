@@ -1,6 +1,6 @@
 import { IconButton, ListItem, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { ArrowDropDownIcon, ArrowDropUpIcon } from "@shared/icons";
-import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
+import { MenuTitle } from "../../../components/dialogs/MenuTitle/MenuTitle";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";

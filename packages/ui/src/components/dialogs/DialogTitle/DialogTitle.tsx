@@ -5,9 +5,9 @@ import {
     useTheme
 } from "@mui/material";
 import { CloseIcon } from "@shared/icons";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
 import { forwardRef } from "react";
-import { noSelect } from "styles";
+import { noSelect } from "../../../styles";
 import { DialogTitleProps } from "../types";
 
 export const DialogTitle = forwardRef(({

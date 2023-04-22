@@ -1,6 +1,6 @@
 import { TextField } from "@mui/material";
 import { useField } from "formik";
-import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
+import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools";
 import { TranslatedTextFieldProps } from "../types";
 
 export const TranslatedTextField = ({

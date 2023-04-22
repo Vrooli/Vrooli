@@ -4,9 +4,9 @@
  */
 import { DialogContent, DialogContentText, IconButton, Stack, TextField } from "@mui/material";
 import { EditIcon } from "@shared/icons";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { useFormik } from "formik";
 import { useCallback, useEffect, useState } from "react";
 import * as yup from "yup";

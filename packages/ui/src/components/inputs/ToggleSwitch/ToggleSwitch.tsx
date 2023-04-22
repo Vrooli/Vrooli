@@ -1,7 +1,7 @@
 import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
 import { useCallback, useMemo } from "react";
-import { noSelect } from "styles";
+import { noSelect } from "../../../styles";
 import { ToggleSwitchProps } from "../types";
 
 const grey = {

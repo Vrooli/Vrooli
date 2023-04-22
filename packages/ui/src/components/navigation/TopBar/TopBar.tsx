@@ -1,6 +1,6 @@
-import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
+import { DialogTitle } from "../../../components/dialogs/DialogTitle/DialogTitle";
 import { forwardRef } from "react";
-import { getTranslatedTitleAndHelp } from "utils/display/translationTools";
+import { getTranslatedTitleAndHelp } from "../../../utils/display/translationTools";
 import { Navbar } from "../Navbar/Navbar";
 import { TopBarProps } from "../types";
 

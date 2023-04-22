@@ -1,5 +1,5 @@
 import { NotificationSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { notificationFindMany } from "../../../api/generated/endpoints/notification_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

@@ -1,5 +1,5 @@
 import { Box } from "@mui/material"
-import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader"
+import { DiagonalWaveLoader } from "../../components/DiagonalWaveLoader/DiagonalWaveLoader"
 
 export const FullPageSpinner = () => {
     return (

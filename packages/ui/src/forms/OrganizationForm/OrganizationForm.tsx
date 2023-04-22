@@ -3,22 +3,22 @@ import { Organization, Session } from "@shared/consts";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { organizationTranslationValidation, organizationValidation } from "@shared/validation";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput";
+import { ResourceListHorizontalInput } from "../../components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
+import { TagSelector } from "../../components/inputs/TagSelector/TagSelector";
+import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
+import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
 import { useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { OrganizationFormProps } from "forms/types";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { OrganizationFormProps } from "../../forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { OrganizationShape, shapeOrganization } from "utils/shape/models/organization";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { OrganizationShape, shapeOrganization } from "../../utils/shape/models/organization";
 
 export const organizationInitialValues = (
     session: Session | undefined,

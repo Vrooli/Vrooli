@@ -2,9 +2,9 @@ import { Box, List, ListItem, ListItemIcon, ListItemText, useTheme } from "@mui/
 import { LINKS } from "@shared/consts";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useWindowSize } from "utils/hooks/useWindowSize";
-import { useLocation } from "utils/route";
-import { accountSettingsData, displaySettingsData } from "views/settings";
+import { useWindowSize } from "../../../utils/hooks/useWindowSize";
+import { useLocation } from "../../../utils/route";
+import { accountSettingsData, displaySettingsData } from "../../../views/settings";
 
 export const SettingsList = () => {
     const { breakpoints, palette } = useTheme();

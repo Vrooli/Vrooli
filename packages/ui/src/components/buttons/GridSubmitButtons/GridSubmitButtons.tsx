@@ -6,7 +6,7 @@ import { CancelIcon, CreateIcon, SaveIcon } from "@shared/icons";
 import { exists } from "@shared/utils";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useErrorPopover } from "utils/hooks/useErrorPopover";
+import { useErrorPopover } from "../../../utils/hooks/useErrorPopover";
 import { GridActionButtons } from "../GridActionButtons/GridActionButtons";
 import { GridSubmitButtonsProps } from "../types";
 

@@ -1,5 +1,5 @@
 import { ScheduleSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { scheduleFindMany } from "../../../api/generated/endpoints/schedule_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

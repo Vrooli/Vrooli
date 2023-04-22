@@ -5,12 +5,12 @@ import {
     Button, Grid,
     Stack, Typography
 } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
+import { ToggleSwitch } from "../../../components/inputs/ToggleSwitch/ToggleSwitch";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { useFormik } from "formik";
 import { useTranslation } from "react-i18next";
-import { CookiePreferences, setCookiePreferences } from "utils/cookies";
+import { CookiePreferences, setCookiePreferences } from "../../../utils/cookies";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { CookieSettingsDialogProps } from "../types";
 

@@ -3,15 +3,15 @@
  */
 import { Box, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
-import { getDeviceInfo } from "utils/display/device";
-import usePress from "utils/hooks/usePress";
-import { getObjectUrl, ObjectType } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
+import { getDeviceInfo } from "../../../utils/display/device";
+import usePress from "../../../utils/hooks/usePress";
+import { getObjectUrl, ObjectType } from "../../../utils/navigation/openObject";
+import { PubSub } from "../../../utils/pubsub";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ShareObjectDialogProps } from "../types";
 

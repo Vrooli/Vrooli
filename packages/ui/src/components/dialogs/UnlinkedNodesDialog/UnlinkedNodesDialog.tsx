@@ -11,11 +11,11 @@ import {
 } from "@mui/material";
 import { Node, NodeEnd, NodeRoutineList, NodeType } from "@shared/consts";
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "@shared/icons";
-import { EndNode, RedirectNode, RoutineListNode } from "components/graphs/NodeGraph";
+import { EndNode, RedirectNode, RoutineListNode } from "../../../components/graphs/NodeGraph";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { getTranslation } from "utils/display/translationTools";
+import { noSelect } from "../../../styles";
+import { getTranslation } from "../../../utils/display/translationTools";
 import { UnlinkedNodesDialogProps } from "../types";
 
 export const UnlinkedNodesDialog = ({

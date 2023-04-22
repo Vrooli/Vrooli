@@ -1,6 +1,6 @@
 import { Box, keyframes } from "@mui/material";
-import Blob1 from "assets/img/blob1.svg";
-import Blob2 from "assets/img/blob2.svg";
+import Blob1 from "../../../assets/img/blob1.svg";
+import Blob2 from "../../../assets/img/blob2.svg";
 import Particles from "react-tsparticles";
 import { SlideContainer } from "../SlideContainer/SlideContainer";
 import { SlideContainerNeonProps } from "../types";

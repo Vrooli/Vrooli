@@ -8,9 +8,9 @@ import {
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { firstString } from "utils/display/stringTools";
-import { translateSnackMessage } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
+import { firstString } from "../../../utils/display/stringTools";
+import { translateSnackMessage } from "../../../utils/display/translationTools";
+import { PubSub } from "../../../utils/pubsub";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 
 interface StateButton {

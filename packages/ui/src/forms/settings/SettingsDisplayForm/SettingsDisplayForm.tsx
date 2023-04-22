@@ -1,12 +1,12 @@
 import { Stack } from "@mui/material";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
-import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
-import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
-import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
-import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
-import { Subheader } from "components/text/Subheader/Subheader";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { GridSubmitButtons } from "../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { FocusModeSelector } from "../../../components/inputs/FocusModeSelector/FocusModeSelector";
+import { LanguageSelector } from "../../../components/inputs/LanguageSelector/LanguageSelector";
+import { LeftHandedCheckbox } from "../../../components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
+import { TextSizeButtons } from "../../../components/inputs/TextSizeButtons/TextSizeButtons";
+import { ThemeSwitch } from "../../../components/inputs/ThemeSwitch/ThemeSwitch";
+import { Subheader } from "../../../components/text/Subheader/Subheader";
+import { BaseForm } from "../../../forms/BaseForm/BaseForm";
 import { useTranslation } from "react-i18next";
 import { SettingsDisplayFormProps } from "../types";
 

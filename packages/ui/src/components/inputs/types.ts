@@ -1,8 +1,8 @@
 import { BoxProps, SwitchProps, TextFieldProps } from "@mui/material";
 import { Comment, CommentFor, StandardVersion, Tag } from "@shared/consts";
 import { SvgComponent, SvgProps } from "@shared/icons";
-import { JSONVariable } from "forms/types";
-import { TagShape } from "utils/shape/models/tag";
+import { JSONVariable } from "../../forms/types";
+import { TagShape } from "../../utils/shape/models/tag";
 import { StringSchema } from "yup";
 
 export interface CommentUpsertInputProps {

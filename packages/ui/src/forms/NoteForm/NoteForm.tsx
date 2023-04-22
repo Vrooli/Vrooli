@@ -3,22 +3,22 @@ import { NoteVersion, Session } from "@shared/consts";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { noteVersionTranslationValidation, noteVersionValidation } from "@shared/validation";
-import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { SideActionButtons } from "components/buttons/SideActionButtons/SideActionButtons";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { NoteFormProps } from "forms/types";
+import { EllipsisActionButton } from "../../components/buttons/EllipsisActionButton/EllipsisActionButton";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { SideActionButtons } from "../../components/buttons/SideActionButtons/SideActionButtons";
+import { TranslatedMarkdownInput } from "../../components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { NoteFormProps } from "../../forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
-import { OwnerShape } from "utils/shape/models/types";
+import { getCurrentUser } from "../../utils/authentication/session";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { NoteVersionShape, shapeNoteVersion } from "../../utils/shape/models/noteVersion";
+import { OwnerShape } from "../../utils/shape/models/types";
 
 export const noteInitialValues = (
     session: Session | undefined,

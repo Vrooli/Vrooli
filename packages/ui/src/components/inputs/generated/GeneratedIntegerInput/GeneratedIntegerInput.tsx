@@ -1,5 +1,5 @@
-import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
-import { IntegerInputProps } from "forms/types";
+import { IntegerInput } from "../../../../components/inputs/IntegerInput/IntegerInput";
+import { IntegerInputProps } from "../../../../forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 

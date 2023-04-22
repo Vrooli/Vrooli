@@ -16,9 +16,9 @@ import {
 import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from "@shared/icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { RoutineStep } from "types";
-import { RoutineStepType } from "utils/consts";
-import { addSearchParams, useLocation } from "utils/route";
-import { locationArraysMatch, routineVersionHasSubroutines } from "utils/runUtils";
+import { RoutineStepType } from "../../../utils/consts";
+import { addSearchParams, useLocation } from "../../../utils/route";
+import { locationArraysMatch, routineVersionHasSubroutines } from "../../../utils/runUtils";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStepsDialogProps } from "../types";
 

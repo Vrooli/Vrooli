@@ -4,7 +4,7 @@ import { EditIcon, EllipsisIcon, HelpIcon, OrganizationIcon, ProjectIcon, SvgPro
 import { uuidValidate } from "@shared/uuid";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "utils/route";
+import { useLocation } from "../../../utils/route";
 import { organizationFindOne } from "../../../api/generated/endpoints/organization_findOne";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink";

@@ -1,5 +1,5 @@
 import { StatsStandardSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { statsStandardFindMany } from "../../../api/generated/endpoints/statsStandard_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

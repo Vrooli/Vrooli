@@ -1,5 +1,5 @@
-import { MarkdownInput } from "components/inputs/MarkdownInput/MarkdownInput";
-import { MarkdownProps } from "forms/types";
+import { MarkdownInput } from "../../../../components/inputs/MarkdownInput/MarkdownInput";
+import { MarkdownProps } from "../../../../forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 

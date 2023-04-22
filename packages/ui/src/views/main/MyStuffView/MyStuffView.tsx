@@ -7,7 +7,7 @@ import { AddIcon, ApiIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, Ro
 import { CommonKey } from "@shared/translations";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { centeredDiv } from "styles";
+import { centeredDiv } from "../../../styles";
 import { SearchList } from "../../../components/lists/SearchList/SearchList";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { PageTabs } from "../../../components/PageTabs/PageTabs";

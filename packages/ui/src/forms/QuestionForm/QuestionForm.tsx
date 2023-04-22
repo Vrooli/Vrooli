@@ -3,20 +3,20 @@ import { Question, Session } from "@shared/consts";
 import { orDefault } from "@shared/utils";
 import { DUMMY_ID } from "@shared/uuid";
 import { questionTranslationValidation, questionValidation } from "@shared/validation";
-import { GridSubmitButtons } from "components/buttons/GridSubmitButtons/GridSubmitButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedMarkdownInput } from "components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
-import { TranslatedTextField } from "components/inputs/TranslatedTextField/TranslatedTextField";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { QuestionFormProps } from "forms/types";
+import { GridSubmitButtons } from "../../components/buttons/GridSubmitButtons/GridSubmitButtons";
+import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput";
+import { TagSelector } from "../../components/inputs/TagSelector/TagSelector";
+import { TranslatedMarkdownInput } from "../../components/inputs/TranslatedMarkdownInput/TranslatedMarkdownInput";
+import { TranslatedTextField } from "../../components/inputs/TranslatedTextField/TranslatedTextField";
+import { BaseForm } from "../../forms/BaseForm/BaseForm";
+import { QuestionFormProps } from "../../forms/types";
 import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { useTranslatedFields } from "utils/hooks/useTranslatedFields";
-import { SessionContext } from "utils/SessionContext";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools";
+import { useTranslatedFields } from "../../utils/hooks/useTranslatedFields";
+import { SessionContext } from "../../utils/SessionContext";
+import { validateAndGetYupErrors } from "../../utils/shape/general";
+import { QuestionShape, shapeQuestion } from "../../utils/shape/models/question";
 
 export const questionInitialValues = (
     session: Session | undefined,

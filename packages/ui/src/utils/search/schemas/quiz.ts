@@ -1,5 +1,5 @@
 import { QuizSortBy } from "@shared/consts";
-import { FormSchema } from "forms/types";
+import { FormSchema } from "../../../forms/types";
 import { quizFindMany } from "../../../api/generated/endpoints/quiz_findMany";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";

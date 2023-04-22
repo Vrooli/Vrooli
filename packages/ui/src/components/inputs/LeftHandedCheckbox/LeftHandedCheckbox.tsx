@@ -1,9 +1,9 @@
 import { Checkbox, Stack, Typography } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { getCookieIsLeftHanded } from "utils/cookies";
-import { PubSub } from "utils/pubsub";
+import { noSelect } from "../../../styles";
+import { getCookieIsLeftHanded } from "../../../utils/cookies";
+import { PubSub } from "../../../utils/pubsub";
 
 /**
  * Updates the font size of the entire app

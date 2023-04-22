@@ -1,8 +1,8 @@
 import { IconButton, Tooltip, Typography } from "@mui/material";
 import { RedirectIcon } from "@shared/icons";
 import { CSSProperties, useCallback, useMemo, useState } from "react";
-import { noSelect } from "styles";
-import usePress from "utils/hooks/usePress";
+import { noSelect } from "../../../../../styles";
+import usePress from "../../../../../utils/hooks/usePress";
 import { calculateNodeSize, DraggableNode } from "../";
 import { NodeWidth } from "../..";
 import { nodeLabel } from "../styles";

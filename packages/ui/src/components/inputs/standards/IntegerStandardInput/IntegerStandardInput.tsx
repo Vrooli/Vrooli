@@ -1,5 +1,5 @@
 import { Grid } from "@mui/material";
-import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
+import { IntegerInput } from "../../../../components/inputs/IntegerInput/IntegerInput";
 import { useTranslation } from "react-i18next";
 import { IntegerStandardInputProps } from "../types";
 

@@ -4,9 +4,9 @@
  */
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { AddIcon, DeleteIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ColorIconButton } from "../../../../components/buttons/ColorIconButton/ColorIconButton";
 import { useField } from "formik";
-import { RadioProps } from "forms/types";
+import { RadioProps } from "../../../../forms/types";
 import { useCallback } from "react";
 import { RadioStandardInputProps } from "../types";
 

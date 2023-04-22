@@ -2,7 +2,7 @@
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { CompleteIcon, DeleteIcon } from "@shared/icons";
 import { useCallback } from "react";
-import { multiLineEllipsis } from "styles";
+import { multiLineEllipsis } from "../../../../../styles";
 import { EmailListItemProps } from "../types";
 
 const Status = {

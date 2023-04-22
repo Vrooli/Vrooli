@@ -1,5 +1,5 @@
 import { useField } from "formik";
-import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
+import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools";
 import { MarkdownInputBase } from "../MarkdownInputBase/MarkdownInputBase";
 import { TranslatedMarkdownInputProps } from "../types";
 

@@ -1,12 +1,12 @@
 import { CopyIcon, DeleteIcon, ShareIcon, SvgComponent } from "@shared/icons";
-import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
-import { ListMenuItemData } from "components/dialogs/types";
+import { ListMenu } from "../../../../components/dialogs/ListMenu/ListMenu";
+import { ListMenuItemData } from "../../../../components/dialogs/types";
 import { useContext } from "react";
-import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { SessionContext } from "utils/SessionContext";
+import { getDisplay } from "../../../../utils/display/listTools";
+import { getUserLanguages } from "../../../../utils/display/translationTools";
+import { getObjectUrl } from "../../../../utils/navigation/openObject";
+import { PubSub } from "../../../../utils/pubsub";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { DirectoryListItemContextMenuProps } from "../types";
 
 export enum DirectoryContextMenuOption {

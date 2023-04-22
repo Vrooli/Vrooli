@@ -1,8 +1,8 @@
 // Used to display popular/search results of a particular object type
 import { Checkbox, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { CompletionBar } from "components/lists/ObjectListItem/ObjectListItem";
+import { CompletionBar } from "../../../../components/lists/ObjectListItem/ObjectListItem";
 import { useCallback, useMemo } from "react";
-import { multiLineEllipsis } from "styles";
+import { multiLineEllipsis } from "../../../../styles";
 import { ReminderListItemProps } from "../types";
 
 /**

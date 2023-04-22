@@ -1,13 +1,13 @@
 import { ApiVersion, GqlModelType, NoteVersion, Organization, Project, ProjectVersion, Role, Routine, RoutineVersion, SmartContractVersion, StandardVersion, Tag, User } from "@shared/consts";
 import { SvgComponent } from "@shared/icons";
 import { CommonKey } from "@shared/translations";
-import { LineGraphProps } from "components/graphs/types";
+import { LineGraphProps } from "../../components/graphs/types";
 import { AwardDisplay, NavigableObject } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { ListObjectType } from "utils/display/listTools";
-import { UseObjectActionsReturn } from "utils/hooks/useObjectActions";
-import { ObjectType } from "utils/navigation/openObject";
-import { SearchType } from "utils/search/objectToSearch";
+import { ObjectAction } from "../../utils/actions/objectActions";
+import { ListObjectType } from "../../utils/display/listTools";
+import { UseObjectActionsReturn } from "../../utils/hooks/useObjectActions";
+import { ObjectType } from "../../utils/navigation/openObject";
+import { SearchType } from "../../utils/search/objectToSearch";
 
 export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {

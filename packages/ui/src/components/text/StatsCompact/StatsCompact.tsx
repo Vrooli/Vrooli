@@ -1,9 +1,9 @@
 import { Stack } from "@mui/material";
 import { ReactionFor } from "@shared/consts";
-import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { VoteButton } from "components/buttons/VoteButton/VoteButton";
+import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink";
+import { VoteButton } from "../../../components/buttons/VoteButton/VoteButton";
 import { useMemo } from "react";
-import { getCounts, getYou } from "utils/display/listTools";
+import { getCounts, getYou } from "../../../utils/display/listTools";
 import { StatsCompactProps, StatsCompactPropsObject } from "../types";
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
 

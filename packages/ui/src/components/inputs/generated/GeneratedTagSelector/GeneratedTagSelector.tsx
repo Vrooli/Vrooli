@@ -1,7 +1,7 @@
 import { Tag } from "@shared/consts";
-import { TagSelectorBase } from "components/inputs/TagSelectorBase/TagSelectorBase";
+import { TagSelectorBase } from "../../../../components/inputs/TagSelectorBase/TagSelectorBase";
 import { useField } from "formik";
-import { TagShape } from "utils/shape/models/tag";
+import { TagShape } from "../../../../utils/shape/models/tag";
 import { GeneratedInputComponentProps } from "../types";
 
 export const GeneratedTagSelector = ({

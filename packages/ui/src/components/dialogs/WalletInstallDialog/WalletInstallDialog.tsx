@@ -1,5 +1,5 @@
 import { DialogContent, ListItem, ListItemText } from "@mui/material";
-import { walletDownloadUrls } from "utils/authentication/walletIntegration";
+import { walletDownloadUrls } from "../../../utils/authentication/walletIntegration";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { WalletInstallDialogProps } from "../types";

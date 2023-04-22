@@ -3,7 +3,7 @@ import { ProfileUpdateInput, User } from "@shared/consts";
 import { SearchIcon } from "@shared/icons";
 import { userValidation } from "@shared/validation";
 import { Formik } from "formik";
-import { SettingsDisplayForm } from "forms/settings";
+import { SettingsDisplayForm } from "../../../forms/settings";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { mutationWrapper, useCustomMutation } from "../../../api";

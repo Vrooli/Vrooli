@@ -1,6 +1,6 @@
 import { Stack, Typography, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { noSelect } from "styles";
+import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
+import { noSelect } from "../../../styles";
 import { SubheaderProps } from "../types";
 
 export const Subheader = ({

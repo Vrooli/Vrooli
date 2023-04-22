@@ -1,14 +1,14 @@
 import { Stack, Tooltip, useTheme } from "@mui/material";
 import { AddIcon } from "@shared/icons";
 import { uuid } from "@shared/uuid";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { ColorIconButton } from "../../../../components/buttons/ColorIconButton/ColorIconButton";
+import { ContentCollapse } from "../../../../components/containers/ContentCollapse/ContentCollapse";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
-import { updateArray } from "utils/shape/general";
-import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
-import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
+import { updateArray } from "../../../../utils/shape/general";
+import { RoutineVersionInputShape } from "../../../../utils/shape/models/routineVersionInput";
+import { RoutineVersionOutputShape } from "../../../../utils/shape/models/routineVersionOutput";
 import { InputOutputListItem } from "../InputOutputListItem/InputOutputListItem";
 import { InputOutputContainerProps } from "../types";
 

@@ -3,12 +3,12 @@
  */
 import { DialogContent, List, ListItem, ListItemText } from "@mui/material";
 import { NodeLink } from "@shared/consts";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { ListMenuItemData } from "components/dialogs/types";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { LargeDialog } from "../../../../components/dialogs/LargeDialog/LargeDialog";
+import { ListMenuItemData } from "../../../../components/dialogs/types";
+import { TopBar } from "../../../../components/navigation/TopBar/TopBar";
 import { useCallback, useContext, useMemo } from "react";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { SessionContext } from "utils/SessionContext";
+import { getTranslation, getUserLanguages } from "../../../../utils/display/translationTools";
+import { SessionContext } from "../../../../utils/SessionContext";
 import { AddAfterLinkDialogProps } from "../types";
 
 const titleId = "add-after-link-dialog-title";

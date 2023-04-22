@@ -1,5 +1,5 @@
-import { Selector } from "components/inputs/Selector/Selector";
-import { SelectorProps } from "forms/types";
+import { Selector } from "../../../../components/inputs/Selector/Selector";
+import { SelectorProps } from "../../../../forms/types";
 import { useMemo } from "react";
 import { GeneratedInputComponentProps } from "../types";
 

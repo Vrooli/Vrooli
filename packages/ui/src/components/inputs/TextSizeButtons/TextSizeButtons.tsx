@@ -1,11 +1,11 @@
 import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BumpModerateIcon } from "@shared/icons";
-import { ColorIconButton } from "components/buttons/ColorIconButton/ColorIconButton";
+import { ColorIconButton } from "../../../components/buttons/ColorIconButton/ColorIconButton";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { getCookieFontSize } from "utils/cookies";
-import { PubSub } from "utils/pubsub";
+import { noSelect } from "../../../styles";
+import { getCookieFontSize } from "../../../utils/cookies";
+import { PubSub } from "../../../utils/pubsub";
 
 const smallestFontSize = 10;
 const largestFontSize = 20;
