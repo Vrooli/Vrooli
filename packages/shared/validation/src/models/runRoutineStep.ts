@@ -1,4 +1,4 @@
-import * as yup from 'yup';
+import * as yup from "yup";
 import { RunRoutineStepStatus } from "@shared/consts";
 import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 
@@ -13,8 +13,8 @@ export const runRoutineStepValidation: YupModel = {
         step: req(yup.array().of(intPositiveOrZero)),
         timeElapsed: opt(intPositiveOrZero),
     }, [
-        ['node', ['Connect'], 'one', 'opt'],
-        ['subroutineVersion', ['Connect'], 'one', 'opt'],
+        ["node", ["Connect"], "one", "opt"],
+        ["subroutineVersion", ["Connect"], "one", "opt"],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -22,4 +22,4 @@ export const runRoutineStepValidation: YupModel = {
         status: opt(runRoutineStepStatus),
         timeElapsed: opt(intPositiveOrZero),
     }, [], [], o),
-}
+};

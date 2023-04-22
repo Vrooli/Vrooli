@@ -1,5 +1,5 @@
-import * as yup from 'yup';
-import { rel, RelationshipType } from './rel';
+import * as yup from "yup";
+import { rel, RelationshipType } from "./rel";
 
 /**
  * Creates a yup object
@@ -10,7 +10,7 @@ import { rel, RelationshipType } from './rel';
  */
 export const yupObj = <T extends { [key: string]: yup.AnySchema }>(
     fields: T,
-    rels: [string, readonly RelationshipType[], 'one' | 'many', 'opt' | 'req', any?, (string | string[])?][],
+    rels: [string, readonly RelationshipType[], "one" | "many", "opt" | "req", any?, (string | string[])?][],
     excludePairs: [string, string][],
     omitRels: string | string[] | undefined,
 ) => {
@@ -18,7 +18,7 @@ export const yupObj = <T extends { [key: string]: yup.AnySchema }>(
     let relObjects: { [key: string]: yup.AnySchema } = {};
     rels.forEach((params) => {
         // Skip if the relationship is in the omitRels array
-        if (omitRels && (typeof omitRels === 'string' ? params[0] === omitRels : omitRels.includes(params[0]))) {
+        if (omitRels && (typeof omitRels === "string" ? params[0] === omitRels : omitRels.includes(params[0]))) {
             return;
         }
         relObjects = { ...relObjects, ...rel(...params) };
@@ -30,4 +30,4 @@ export const yupObj = <T extends { [key: string]: yup.AnySchema }>(
         ...relObjects,
     }, excludePairs);
     return obj;
-}
+};

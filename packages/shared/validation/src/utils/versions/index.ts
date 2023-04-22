@@ -1,3 +1,3 @@
-export * from './calculateVersionsFromString';
-export * from './meetsMinVersion';
-export * from './minVersionTest';
+export * from "./calculateVersionsFromString";
+export * from "./meetsMinVersion";
+export * from "./minVersionTest";

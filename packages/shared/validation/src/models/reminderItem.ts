@@ -1,7 +1,7 @@
-import * as yup from 'yup';
-import { description, id, minNumErr, name, opt, req, YupModel, yupObj } from '../utils';
+import * as yup from "yup";
+import { description, id, minNumErr, name, opt, req, YupModel, yupObj } from "../utils";
 
-const index = yup.number().integer().min(0, minNumErr)
+const index = yup.number().integer().min(0, minNumErr);
 
 export const reminderItemValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -18,4 +18,4 @@ export const reminderItemValidation: YupModel = {
         dueDate: opt(yup.date()),
         index: opt(index),
     }, [], [], o),
-}
+};

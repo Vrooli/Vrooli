@@ -1,15 +1,15 @@
-import { ResourceUsedFor } from '@shared/consts';
-import * as yup from 'yup';
-import { adaHandleRegex, addHttps, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from '../utils';
+import { ResourceUsedFor } from "@shared/consts";
+import * as yup from "yup";
+import { adaHandleRegex, addHttps, blankToUndefined, description, enumToYup, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
 
 // Link must match one of the regex above
 const link = yup.string().transform(blankToUndefined).transform(addHttps).max(1024, maxStrErr).test(
-    'link',
-    'Must be a URL, Cardano payment address, or ADA Handle',
+    "link",
+    "Must be a URL, Cardano payment address, or ADA Handle",
     (value: string | undefined) => {
-        return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value)) : true
-    }
-)
+        return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value)) : true;
+    },
+);
 const usedFor = enumToYup(ResourceUsedFor);
 
 export const resourceTranslationValidation: YupModel = transRel({
@@ -21,7 +21,7 @@ export const resourceTranslationValidation: YupModel = transRel({
         description: opt(description),
         name: opt(name),
     },
-})
+});
 
 export const resourceValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -30,8 +30,8 @@ export const resourceValidation: YupModel = {
         link: req(link),
         usedFor: opt(usedFor),
     }, [
-        ['list', ['Connect'], 'one', 'req'],
-        ['translations', ['Create'], 'many', 'opt', resourceTranslationValidation],
+        ["list", ["Connect"], "one", "req"],
+        ["translations", ["Create"], "many", "opt", resourceTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -39,7 +39,7 @@ export const resourceValidation: YupModel = {
         link: opt(link),
         usedFor: opt(usedFor),
     }, [
-        ['list', ['Connect'], 'one', 'req'],
-        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', resourceTranslationValidation],
+        ["list", ["Connect"], "one", "req"],
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", resourceTranslationValidation],
     ], [], o),
-}
+};

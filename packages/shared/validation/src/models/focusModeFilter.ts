@@ -1,6 +1,6 @@
-import { FocusModeFilterType } from '@shared/consts';
-import { enumToYup, id, req, YupModel, yupObj } from '../utils';
-import { tagValidation } from './tag';
+import { FocusModeFilterType } from "@shared/consts";
+import { enumToYup, id, req, YupModel, yupObj } from "../utils";
+import { tagValidation } from "./tag";
 
 const focusModeFilterType = enumToYup(FocusModeFilterType);
 
@@ -9,8 +9,8 @@ export const focusModeFilterValidation: YupModel<true, false> = {
         id: req(id),
         filterType: req(focusModeFilterType),
     }, [
-        ['focusMode', ['Connect'], 'one', 'req'],
-        ['tag', ['Create', 'Connect'], 'one', 'opt', tagValidation],
+        ["focusMode", ["Connect"], "one", "req"],
+        ["tag", ["Create", "Connect"], "one", "opt", tagValidation],
     ], [], o),
     // Can only create and delete
-}
+};

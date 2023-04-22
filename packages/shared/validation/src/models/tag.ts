@@ -1,4 +1,4 @@
-import { bool, description, opt, req, tag, transRel, YupModel, yupObj } from '../utils';
+import { bool, description, opt, req, tag, transRel, YupModel, yupObj } from "../utils";
 
 export const tagTranslationValidation: YupModel = transRel({
     create: {
@@ -7,19 +7,19 @@ export const tagTranslationValidation: YupModel = transRel({
     update: {
         description: opt(description),
     },
-})
+});
 
 export const tagValidation: YupModel = {
     create: ({ o }) => yupObj({
         anonymous: opt(bool),
         tag: req(tag),
     }, [
-        ['translations', ['Create'], 'many', 'opt', tagTranslationValidation],
+        ["translations", ["Create"], "many", "opt", tagTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         anonymous: opt(bool),
         tag: req(tag),
     }, [
-        ['translations', ['Delete', 'Create', 'Update'], 'many', 'opt', tagTranslationValidation],
+        ["translations", ["Delete", "Create", "Update"], "many", "opt", tagTranslationValidation],
     ], [], o),
-}
+};

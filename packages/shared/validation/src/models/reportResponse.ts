@@ -1,5 +1,5 @@
-import { ReportSuggestedAction } from '@shared/consts';
-import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from '../utils';
+import { ReportSuggestedAction } from "@shared/consts";
+import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from "../utils";
 
 const actionSuggested = enumToYup(ReportSuggestedAction);
 
@@ -10,7 +10,7 @@ export const reportResponseValidation: YupModel = {
         details: opt(details),
         language: opt(language),
     }, [
-        ['report', ['Connect'], 'one', 'req'],
+        ["report", ["Connect"], "one", "req"],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -18,4 +18,4 @@ export const reportResponseValidation: YupModel = {
         details: opt(details),
         language: opt(language),
     }, [], [], o),
-}
+};

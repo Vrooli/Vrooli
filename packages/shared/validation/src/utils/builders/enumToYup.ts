@@ -1,5 +1,5 @@
-import * as yup from 'yup';
-import { blankToUndefined } from './blankToUndefined';
+import * as yup from "yup";
+import { blankToUndefined } from "./blankToUndefined";
 
 /**
  * Converts a TypeScript enum to a yup oneOf array

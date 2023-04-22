@@ -1,5 +1,5 @@
-import * as yup from 'yup';
-import { opt } from './opt';
+import * as yup from "yup";
+import { opt } from "./opt";
 
 
 /**
@@ -7,4 +7,4 @@ import { opt } from './opt';
  */
 export const optArr = <T extends yup.AnySchema>(field: T) => {
     return yup.array().of(opt(field));
-}
+};

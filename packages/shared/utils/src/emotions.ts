@@ -1,9 +1,9 @@
-import { exists } from './exists';
+import { exists } from "./exists";
 
 // Reactions that increase the score of the object
-const PositiveReactions = ['👍', '👏', '🎉', '🥳', '😊', '😃', '😄', '😁', '😇', '❤️', '🥰', '💖', '😍', '🚀', '👀', '🔥', '🎊', '🙌', '👌', '👊', '💯', '🤘', '🤙', '🤟', '🤝'];
+const PositiveReactions = ["👍", "👏", "🎉", "🥳", "😊", "😃", "😄", "😁", "😇", "❤️", "🥰", "💖", "😍", "🚀", "👀", "🔥", "🎊", "🙌", "👌", "👊", "💯", "🤘", "🤙", "🤟", "🤝"];
 // Reactions that decrease the score of the object
-const NegativeReactions = ['👎', '😕', '😡', '😠', '🤬', '😞', '😟', '😨', '🤮', '🤢', '🤧', '🤒', '🤕', '🤡', '🤥', '🤦', '🙅‍♂️'];
+const NegativeReactions = ["👎", "😕", "😡", "😠", "🤬", "😞", "😟", "😨", "🤮", "🤢", "🤧", "🤒", "🤕", "🤡", "🤥", "🤦", "🙅‍♂️"];
 
 /**
  * Removes skin tone and other modifiers from an emoji reaction. 
@@ -11,7 +11,7 @@ const NegativeReactions = ['👎', '😕', '😡', '😠', '🤬', '😞', '😟
  * @string reaction The emoji reaction to remove modifiers from
  */
 export function removeModifiers(reaction: string): string {
-    return reaction.replace(/[\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}\u{20E3}]/gu, '');
+    return reaction.replace(/[\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}\u{20E3}]/gu, "");
 }
 
 /**

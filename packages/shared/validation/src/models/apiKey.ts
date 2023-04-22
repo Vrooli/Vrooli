@@ -1,4 +1,4 @@
-import * as yup from 'yup';
+import * as yup from "yup";
 import { bool, id, opt, req, YupModel, yupObj } from "../utils";
 
 const creditsUsedBeforeLimit = yup.number().integer().min(0).max(1000000);
@@ -17,4 +17,4 @@ export const apiKeyValidation: YupModel = {
         stopAtLimit: opt(bool),
         absoluteMax: opt(absoluteMax),
     }, [], [], o),
-}
+};

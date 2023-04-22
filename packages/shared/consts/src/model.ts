@@ -11,19 +11,19 @@
  * are set using Yup validation checks.
  */
 export enum InputType {
-    Checkbox = 'Checkbox',
-    Dropzone = 'Dropzone',
-    JSON = 'JSON',
-    IntegerInput = 'IntegerInput',
-    LanguageInput = 'LanguageInput',
-    Markdown = 'Markdown',
-    Prompt = 'Prompt',
-    Radio = 'Radio',
-    Selector = 'Selector',
-    Slider = 'Slider',
-    Switch = 'Switch',
-    TagSelector = 'TagSelector',
-    TextField = 'TextField',
+    Checkbox = "Checkbox",
+    Dropzone = "Dropzone",
+    JSON = "JSON",
+    IntegerInput = "IntegerInput",
+    LanguageInput = "LanguageInput",
+    Markdown = "Markdown",
+    Prompt = "Prompt",
+    Radio = "Radio",
+    Selector = "Selector",
+    Slider = "Slider",
+    Switch = "Switch",
+    TagSelector = "TagSelector",
+    TextField = "TextField",
 }
 
 export enum ViewFor {

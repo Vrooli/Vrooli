@@ -1,4 +1,4 @@
-import { ValueOf } from '.';
+import { ValueOf } from ".";
 
 // The length of a user session
 export const COOKIE = {

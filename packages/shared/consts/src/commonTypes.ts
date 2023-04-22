@@ -5,9 +5,9 @@ type DottablePaths<T, P extends Prev[number] = 5> = [] | ([P] extends [never] ? 
     T extends object ? {
         [K in ExtractDottable<keyof T>]: [K, ...DottablePaths<T[K], Prev[P]>]
     }[ExtractDottable<keyof T>] : never);
-type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-type BadChars = '~' | '`' | '!' | '@' | '#' | '%' | '^' | '&' | '*' | '(' | ')' | '-' | '+'
-    | '=' | '{' | '}' | ';' | ':' | '\'' | '"' | '<' | '>' | ',' | '.' | '/' | '?'
+type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+type BadChars = "~" | "`" | "!" | "@" | "#" | "%" | "^" | "&" | "*" | "(" | ")" | "-" | "+"
+    | "=" | "{" | "}" | ";" | ":" | "'" | "\"" | "<" | ">" | "," | "." | "/" | "?"
 type ExtractDottable<K extends PropertyKey> =
     K extends string ? string extends K ? never :
     K extends `${Digit}${infer _}` | `${infer _}${BadChars}${infer _}` ? never :

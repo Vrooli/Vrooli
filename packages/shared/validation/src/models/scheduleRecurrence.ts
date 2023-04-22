@@ -1,5 +1,5 @@
 import { ScheduleRecurrenceType } from "@shared/consts";
-import * as yup from 'yup';
+import * as yup from "yup";
 import { endDate, enumToYup, id, intPositiveOrOne, maxNumErr, minNumErr, opt, req, YupModel, yupObj } from "../utils";
 import { scheduleValidation } from "./schedule";
 
@@ -16,7 +16,7 @@ export const scheduleRecurrenceValidation: YupModel = {
         dayOfMonth: opt(dayOfMonth),
         endDate: opt(endDate),
     }, [
-        ['schedule', ['Connect'], 'one', 'req', scheduleValidation],
+        ["schedule", ["Connect"], "one", "req", scheduleValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -26,4 +26,4 @@ export const scheduleRecurrenceValidation: YupModel = {
         dayOfMonth: opt(dayOfMonth),
         endDate: opt(endDate),
     }, [], [], o),
-}
+};

@@ -1,9 +1,9 @@
-import { id, maxStrErr, minStrErr, req, opt, YupModel, nodeOperation, yupObj } from '../utils';
-import * as yup from 'yup';
-import { nodeLoopWhileValidation } from './nodeLoopWhile';
+import { id, maxStrErr, minStrErr, req, opt, YupModel, nodeOperation, yupObj } from "../utils";
+import * as yup from "yup";
+import { nodeLoopWhileValidation } from "./nodeLoopWhile";
 
-const loops = yup.number().integer().min(0, minStrErr).max(100, maxStrErr)
-const maxLoops = yup.number().integer().min(1, minStrErr).max(100, maxStrErr)
+const loops = yup.number().integer().min(0, minStrErr).max(100, maxStrErr);
+const maxLoops = yup.number().integer().min(1, minStrErr).max(100, maxStrErr);
 
 export const nodeLoopValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -12,7 +12,7 @@ export const nodeLoopValidation: YupModel = {
         maxLoops: opt(maxLoops),
         operation: opt(nodeOperation),
     }, [
-        ['whiles', ['Create'], 'many', 'req', nodeLoopWhileValidation],
+        ["whiles", ["Create"], "many", "req", nodeLoopWhileValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -20,6 +20,6 @@ export const nodeLoopValidation: YupModel = {
         maxLoops: opt(maxLoops),
         operation: opt(nodeOperation),
     }, [
-        ['whiles', ['Create', 'Update', 'Delete'], 'many', 'req', nodeLoopWhileValidation],
+        ["whiles", ["Create", "Update", "Delete"], "many", "req", nodeLoopWhileValidation],
     ], [], o),
-}
+};

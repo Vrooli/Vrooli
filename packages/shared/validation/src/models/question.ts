@@ -11,8 +11,8 @@ export const questionTranslationValidation: YupModel = transRel({
     update: {
         description: opt(description),
         name: opt(name),
-    }
-})
+    },
+});
 
 export const questionValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -21,14 +21,14 @@ export const questionValidation: YupModel = {
         referencing: opt(referencing),
         forObjectType: req(forObjectType),
     }, [
-        ['forObject', ['Connect'], 'one', 'opt'],
-        ['translations', ['Create'], 'many', 'opt', questionTranslationValidation],
+        ["forObject", ["Connect"], "one", "opt"],
+        ["translations", ["Create"], "many", "opt", questionTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
     }, [
-        ['acceptedAnswer', ['Connect'], 'one', 'opt'],
-        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', questionTranslationValidation],
+        ["acceptedAnswer", ["Connect"], "one", "opt"],
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", questionTranslationValidation],
     ], [], o),
-}
+};

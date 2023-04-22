@@ -8,10 +8,10 @@
  * @returns Major, moderate, and minor versions
  */
 export const calculateVersionsFromString = (version: string): { major: number, moderate: number, minor: number } => {
-    const [major, moderate, minor] = version.split('.').map(v => parseInt(v));
+    const [major, moderate, minor] = version.split(".").map(v => parseInt(v));
     return {
         major: major || 0,
         moderate: moderate || 0,
-        minor: minor || 0
-    }
-}
+        minor: minor || 0,
+    };
+};

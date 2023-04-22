@@ -1,5 +1,5 @@
-import { description, id, name, req, opt, YupModel, transRel, intPositiveOrOne, yupObj, bool } from '../utils';
-import { quizQuestionValidation } from './quizQuestion';
+import { description, id, name, req, opt, YupModel, transRel, intPositiveOrOne, yupObj, bool } from "../utils";
+import { quizQuestionValidation } from "./quizQuestion";
 
 export const quizTranslationValidation: YupModel = transRel({
     create: {
@@ -9,8 +9,8 @@ export const quizTranslationValidation: YupModel = transRel({
     update: {
         description: opt(description),
         name: opt(name),
-    }
-})
+    },
+});
 
 export const quizValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -21,11 +21,11 @@ export const quizValidation: YupModel = {
         timeLimit: opt(intPositiveOrOne),
         pointsToPass: opt(intPositiveOrOne),
     }, [
-        ['routine', ['Connect'], 'one', 'opt'],
-        ['project', ['Connect'], 'one', 'opt'],
-        ['quizQuestions', ['Create'], 'many', 'opt', quizQuestionValidation],
-        ['translations', ['Create'], 'many', 'opt', quizTranslationValidation],
-    ], [['projectConnect', 'routineConnect']], o),
+        ["routine", ["Connect"], "one", "opt"],
+        ["project", ["Connect"], "one", "opt"],
+        ["quizQuestions", ["Create"], "many", "opt", quizQuestionValidation],
+        ["translations", ["Create"], "many", "opt", quizTranslationValidation],
+    ], [["projectConnect", "routineConnect"]], o),
     update: ({ o }) => yupObj({
         id: req(id),
         maxAttempts: opt(intPositiveOrOne),
@@ -34,9 +34,9 @@ export const quizValidation: YupModel = {
         timeLimit: opt(intPositiveOrOne),
         pointsToPass: opt(intPositiveOrOne),
     }, [
-        ['routine', ['Connect', 'Disconnect'], 'one', 'opt'],
-        ['project', ['Connect', 'Disconnect'], 'one', 'opt'],
-        ['quizQuestions', ['Create', 'Update', 'Delete'], 'many', 'opt', quizQuestionValidation],
-        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', quizTranslationValidation],
+        ["routine", ["Connect", "Disconnect"], "one", "opt"],
+        ["project", ["Connect", "Disconnect"], "one", "opt"],
+        ["quizQuestions", ["Create", "Update", "Delete"], "many", "opt", quizQuestionValidation],
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", quizTranslationValidation],
     ], [], o),
-}
+};

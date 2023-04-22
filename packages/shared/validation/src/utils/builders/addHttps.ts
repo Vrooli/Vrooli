@@ -1,4 +1,4 @@
-import { adaHandleRegex, urlRegex, walletAddressRegex } from '../regex';
+import { adaHandleRegex, urlRegex, walletAddressRegex } from "../regex";
 
 /**
  * Adds https:// to the beginning of the URL if it doesn't start with http:// or https://, 
@@ -8,9 +8,9 @@ import { adaHandleRegex, urlRegex, walletAddressRegex } from '../regex';
  */
 export const addHttps = (value: string | undefined) => {
     if (
-        typeof value === 'string' &&
-        !value.startsWith('http://') &&
-        !value.startsWith('https://') &&
+        typeof value === "string" &&
+        !value.startsWith("http://") &&
+        !value.startsWith("https://") &&
         !walletAddressRegex.test(value) &&
         !adaHandleRegex.test(value) &&
         urlRegex.test(`https://${value}`)

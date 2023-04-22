@@ -9,8 +9,8 @@ export const routineVersionInputTranslationValidation: YupModel = transRel({
     update: {
         description: opt(description),
         helpText: opt(instructions),
-    }
-})
+    },
+});
 
 export const routineVersionInputValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -19,9 +19,9 @@ export const routineVersionInputValidation: YupModel = {
         isRequired: opt(bool),
         name: opt(name),
     }, [
-        ['routineVersion', ['Connect'], 'one', 'req'],
-        ['standardVersion', ['Connect', 'Create'], 'one', 'req', standardVersionValidation],
-        ['translations', ['Create'], 'many', 'opt', routineVersionInputTranslationValidation],
+        ["routineVersion", ["Connect"], "one", "req"],
+        ["standardVersion", ["Connect", "Create"], "one", "req", standardVersionValidation],
+        ["translations", ["Create"], "many", "opt", routineVersionInputTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -29,7 +29,7 @@ export const routineVersionInputValidation: YupModel = {
         isRequired: opt(bool),
         name: opt(name),
     }, [
-        ['standardVersion', ['Connect', 'Create', 'Disconnect'], 'one', 'req', standardVersionValidation],
-        ['translations', ['Create'], 'many', 'opt', routineVersionInputTranslationValidation],
+        ["standardVersion", ["Connect", "Create", "Disconnect"], "one", "req", standardVersionValidation],
+        ["translations", ["Create"], "many", "opt", routineVersionInputTranslationValidation],
     ], [], o),
-}
+};

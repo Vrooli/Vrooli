@@ -18,4 +18,4 @@ export const meetsMinVersion = (version: string, minimumVersion: string): boolea
     if (major1 === major2 && moderate1 === moderate2 && minor1 < minor2) return false;
     // Otherwise, return true
     return true;
-}
+};

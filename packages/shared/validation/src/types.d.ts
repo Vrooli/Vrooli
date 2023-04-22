@@ -1,2 +1,2 @@
-declare module '@shared/validation';
-export * from '.';
+declare module "@shared/validation";
+export * from ".";

@@ -3,7 +3,7 @@
  */
 export function orDefault<T>(
     existingItems: Array<T> | null | undefined,
-    defaultItems: Array<T>
+    defaultItems: Array<T>,
 ): Array<T> {
     return existingItems && existingItems.length
         ? existingItems

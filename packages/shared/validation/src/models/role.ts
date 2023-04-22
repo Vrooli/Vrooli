@@ -1,4 +1,4 @@
-import { description, id, name, opt, permissions, req, transRel, YupModel, yupObj } from '../utils';
+import { description, id, name, opt, permissions, req, transRel, YupModel, yupObj } from "../utils";
 
 export const roleTranslationValidation: YupModel = transRel({
     create: {
@@ -7,7 +7,7 @@ export const roleTranslationValidation: YupModel = transRel({
     update: {
         description: opt(description),
     },
-})
+});
 
 export const roleValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -15,16 +15,16 @@ export const roleValidation: YupModel = {
         name: req(name),
         permissions: opt(permissions),
     }, [
-        ['members', ['Connect'], 'many', 'opt'],
-        ['organization', ['Connect'], 'one', 'req'],
-        ['translations', ['Create'], 'many', 'opt', roleTranslationValidation],
+        ["members", ["Connect"], "many", "opt"],
+        ["organization", ["Connect"], "one", "req"],
+        ["translations", ["Create"], "many", "opt", roleTranslationValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         name: req(name),
         permissions: opt(permissions),
     }, [
-        ['members', ['Connect', 'Disconnect'], 'many', 'opt'],
-        ['translations', ['Create', 'Update', 'Delete'], 'many', 'opt', roleTranslationValidation],
+        ["members", ["Connect", "Disconnect"], "many", "opt"],
+        ["translations", ["Create", "Update", "Delete"], "many", "opt", roleTranslationValidation],
     ], [], o),
-}
+};

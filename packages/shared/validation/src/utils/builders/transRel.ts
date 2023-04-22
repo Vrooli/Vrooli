@@ -1,9 +1,9 @@
-import * as yup from 'yup';
-import { req } from './req';
-import { opt } from './opt';
-import { id, language } from '../commonFields';
+import * as yup from "yup";
+import { req } from "./req";
+import { opt } from "./opt";
+import { id, language } from "../commonFields";
 import { YupModel } from "../../utils/types";
-import { yupObj } from './yupObj';
+import { yupObj } from "./yupObj";
 
 /**
  * Builds a YupModel for a translation object. 
@@ -21,11 +21,11 @@ export const transRel = (partialYupModel: ({
     create: ({ o }) => yupObj({
         id: req(id),
         language: req(language),
-        ...partialYupModel.create
+        ...partialYupModel.create,
     }, [], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         language: opt(language),
-        ...partialYupModel.update
+        ...partialYupModel.update,
     }, [], [], o),
-})
+});

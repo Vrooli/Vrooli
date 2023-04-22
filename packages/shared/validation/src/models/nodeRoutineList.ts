@@ -1,5 +1,5 @@
-import { bool, id, req, opt, YupModel, yupObj } from '../utils';
-import { nodeRoutineListItemValidation } from './nodeRoutineListItem';
+import { bool, id, req, opt, YupModel, yupObj } from "../utils";
+import { nodeRoutineListItemValidation } from "./nodeRoutineListItem";
 
 export const nodeRoutineListValidation: YupModel = {
     create: ({ o }) => yupObj({
@@ -7,13 +7,13 @@ export const nodeRoutineListValidation: YupModel = {
         isOrdered: opt(bool),
         isOptional: opt(bool),
     }, [
-        ['items', ['Create'], 'many', 'opt', nodeRoutineListItemValidation],
+        ["items", ["Create"], "many", "opt", nodeRoutineListItemValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
         isOrdered: opt(bool),
         isOptional: opt(bool),
     }, [
-        ['items', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeRoutineListItemValidation],
+        ["items", ["Create", "Update", "Delete"], "many", "opt", nodeRoutineListItemValidation],
     ], [], o),
-}
+};

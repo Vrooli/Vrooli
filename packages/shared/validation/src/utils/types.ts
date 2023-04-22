@@ -1,4 +1,4 @@
-import * as yup from 'yup';
+import * as yup from "yup";
 
 export type YupModel<
     HasCreate extends boolean = true,

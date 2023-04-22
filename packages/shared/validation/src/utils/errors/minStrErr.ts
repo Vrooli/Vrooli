@@ -1,4 +1,4 @@
-import { MessageParams } from 'yup/lib/types';
+import { MessageParams } from "yup/lib/types";
 
 /**
  * Error message for min string length
@@ -10,4 +10,4 @@ export const minStrErr = (params: { min: number } & MessageParams) => {
     } else {
         return `${amountUnder} characters under the limit`;
     }
-}
+};

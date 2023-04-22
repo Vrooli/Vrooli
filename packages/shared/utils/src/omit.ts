@@ -6,7 +6,7 @@
  */
 export function omit(obj: any, keysToOmit: string[]): any {
     // Make a shallow copy of the original object
-    let result = { ...obj };
+    const result = { ...obj };
     // Loop through each key in the keysToOmit array
     for (const key of keysToOmit) {
       // Split the key using dot notation to extract nested keys

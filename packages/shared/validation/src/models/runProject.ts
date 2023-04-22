@@ -14,10 +14,10 @@ export const runProjectValidation: YupModel = {
         status: req(runStatus),
         name: req(name),
     }, [
-        ['organization', ['Connect'], 'one', 'opt'],
-        ['projectVersion', ['Connect'], 'one', 'req'],
-        ['schedule', ['Create'], 'one', 'opt', scheduleValidation],
-        ['steps', ['Create'], 'many', 'opt', runProjectStepValidation],
+        ["organization", ["Connect"], "one", "opt"],
+        ["projectVersion", ["Connect"], "one", "req"],
+        ["schedule", ["Create"], "one", "opt", scheduleValidation],
+        ["steps", ["Create"], "many", "opt", runProjectStepValidation],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -27,7 +27,7 @@ export const runProjectValidation: YupModel = {
         isStarted: opt(bool),
         timeElapsed: opt(intPositiveOrZero),
     }, [
-        ['schedule', ['Create', 'Update'], 'one', 'opt', scheduleValidation],
-        ['steps', ['Create', 'Update', 'Delete'], 'many', 'opt', runProjectStepValidation],
+        ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
+        ["steps", ["Create", "Update", "Delete"], "many", "opt", runProjectStepValidation],
     ], [], o),
-}
+};

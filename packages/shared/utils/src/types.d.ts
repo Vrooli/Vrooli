@@ -1,2 +1,2 @@
-declare module '@shared/utils';
-export * from '.';
+declare module "@shared/utils";
+export * from ".";

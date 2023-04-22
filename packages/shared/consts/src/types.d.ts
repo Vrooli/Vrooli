@@ -1,2 +1,2 @@
-declare module '@shared/consts';
-export * from '.';
+declare module "@shared/consts";
+export * from ".";

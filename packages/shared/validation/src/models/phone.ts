@@ -5,4 +5,4 @@ export const phoneValidation: YupModel<true, false> = {
         phoneNumber: req(phoneNumber),
     }, [], [], o),
     // Can't update an phone. Push notifications & other phone-related settings are updated elsewhere
-}
+};

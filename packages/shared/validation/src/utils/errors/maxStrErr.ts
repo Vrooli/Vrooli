@@ -1,4 +1,4 @@
-import { MessageParams } from 'yup/lib/types';
+import { MessageParams } from "yup/lib/types";
 
 /**
  * Error message for max string length
@@ -10,4 +10,4 @@ export const maxStrErr = (params: { max: number } & MessageParams) => {
     } else {
         return `${amountOver} characters over the limit`;
     }
-}
+};

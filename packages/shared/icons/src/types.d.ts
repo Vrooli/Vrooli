@@ -1,5 +1,5 @@
-declare module '@shared/icons';
-export * from '.';
+declare module "@shared/icons";
+export * from ".";
 
 export interface SvgProps {
     fill?: string;

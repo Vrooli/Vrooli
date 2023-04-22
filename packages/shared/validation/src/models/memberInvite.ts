@@ -7,8 +7,8 @@ export const memberInviteValidation: YupModel = {
         willBeAdmin: opt(bool),
         willHavePermissions: opt(permissions),
     }, [
-        ['user', ['Connect'], 'one', 'req'],
-        ['organization', ['Connect'], 'one', 'req'],
+        ["user", ["Connect"], "one", "req"],
+        ["organization", ["Connect"], "one", "req"],
     ], [], o),
     update: ({ o }) => yupObj({
         id: req(id),
@@ -16,4 +16,4 @@ export const memberInviteValidation: YupModel = {
         willBeAdmin: opt(bool),
         willHavePermissions: opt(permissions),
     }, [], [], o),
-}
+};
