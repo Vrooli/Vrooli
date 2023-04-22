@@ -21,7 +21,6 @@
         "noEmit": true,
         "noImplicitAny": false,
         "jsx": "react-jsx",
-        "baseUrl": "./src",
     },
     "include": [
         "src",

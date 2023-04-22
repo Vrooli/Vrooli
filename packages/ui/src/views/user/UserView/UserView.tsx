@@ -142,7 +142,7 @@ export const UserView = ({
             label: t(tab.searchType, { count: 2, defaultValue: tab.searchType }),
             value: tab.tabType,
         }));
-    }, [permissions.canUpdate, resources, t]);
+    }, [palette.secondary.dark, permissions.canUpdate, resources, t]);
     const [currTab, setCurrTab] = useState<PageTab<TabOptions>>(tabs[0]);
     const handleTabChange = useCallback((_: unknown, value: PageTab<TabOptions>) => setCurrTab(value), []);
 
