@@ -23,4 +23,4 @@ export const removeValuesUsingDot = async (obj: Record<string | number | symbol,
         if (!exists(currentObject) || !exists(currentObject[currentKey])) return;
         delete currentObject[currentKey];
     });
-}
+};

@@ -28,7 +28,7 @@ const {
 } = lazily(() => import("./views/settings"));
 const {
     PrivacyPolicyView,
-    TermsView
+    TermsView,
 } = lazily(() => import("./views/legal"));
 const { TutorialView } = lazily(() => import("./views/tutorial"));
 const { WelcomeView } = lazily(() => import("./views/WelcomeView/WelcomeView"));
@@ -69,7 +69,7 @@ const Fallback = <Box>
     }} />
     {/* Loading spinner */}
     <FullPageSpinner />
-</Box>
+</Box>;
 
 /**
  * Wrapper to define Navbar within each route. This allows us to 
@@ -83,8 +83,8 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
                 {props.children}
             </Page>
         </Route>
-    )
-}
+    );
+};
 
 /**
  * Style for pages that don't use left/right padding
@@ -92,7 +92,7 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
 const noSidePadding = {
     paddingLeft: 0,
     paddingRight: 0,
-}
+};
 
 export const Routes = (props: { sessionChecked: boolean }) => {
     return (
@@ -358,4 +358,4 @@ export const Routes = (props: { sessionChecked: boolean }) => {
             </Switch>
         </>
     );
-}
+};

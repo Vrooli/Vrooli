@@ -8,6 +8,6 @@ export const pullRequestSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchPullRequest"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const pullRequestSearchParams = () => toParams(pullRequestSearchSchema(), pullRequestFindMany, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc)
+export const pullRequestSearchParams = () => toParams(pullRequestSearchSchema(), pullRequestFindMany, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc);

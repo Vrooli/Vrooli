@@ -21,7 +21,7 @@ export const apiVersionSearchSchema = (): FormSchema => ({
         ...bookmarksRootFields(),
         ...languagesFields(),
         ...tagsRootFields(),
-    ]
-})
+    ],
+});
 
 export const apiVersionSearchParams = () => toParams(apiVersionSearchSchema(), apiVersionFindMany, ApiVersionSortBy, ApiVersionSortBy.DateCreatedDesc);

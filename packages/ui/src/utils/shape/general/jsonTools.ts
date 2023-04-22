@@ -33,14 +33,14 @@ provide details about those parts of the JSON. Variables follow the format of &l
 - **Optional fields**: Fields that are not required can be marked as optional. Optional fields must start with a question mark (e.g. ?field_name).  
 - **Additional fields**: If an object contains arbitrary fields, add a field with brackets (e.g. [variable]).  
 - **Data types**: Data types are specified by reserved words (e.g. &lt;string&gt;, &lt;number | boolean&gt;, &lt;any&gt;, etc.), variable names (e.g. &lt;variable_name&gt;), standard IDs (e.g. &lt;decdf6c8-4230-4777-b8e3-799df2503c42&gt;), or simply entered as normal JSON.
-`
+`;
 
 /**
  * Determines if input is an object, and not a Date or Array
  * @param obj - object to check
  * @returns true if object, false otherwise
  */
-const isActualObject = (obj: any): boolean => !Array.isArray(obj) && isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]'
+const isActualObject = (obj: any): boolean => !Array.isArray(obj) && isObject(obj) && Object.prototype.toString.call(obj) !== "[object Date]";
 
 /**
  * Checks if a string can be parsed as JSON.
@@ -50,7 +50,7 @@ const isActualObject = (obj: any): boolean => !Array.isArray(obj) && isObject(ob
 export const isJson = (value: { [x: string]: any } | string | null | undefined): boolean => {
     try {
         // If already a JSON object, return true
-        if (typeof value === 'object') return true;
+        if (typeof value === "object") return true;
         value && JSON.parse(value);
         return true;
     } catch (e) {
@@ -74,7 +74,7 @@ export const compareJSONHelper = (fieldName: string, path: string[], format: obj
         if (!Array.isArray(data)) return [{
             fieldName,
             path,
-            message: `Expected array, got ${typeof data}`
+            message: `Expected array, got ${typeof data}`,
         }];
         // Recursively compare each element in the array to the first element in the format array. 
         // This is because the format array can only have one element. If you need to set more 
@@ -88,17 +88,17 @@ export const compareJSONHelper = (fieldName: string, path: string[], format: obj
         if (!isActualObject(data)) return [{
             fieldName,
             path,
-            message: `Expected object, got ${typeof data}`
+            message: `Expected object, got ${typeof data}`,
         }];
         // Recursively compare each key in the object to the format object.
         //TODO
     }
     // Check if format is a variable (i.e. wrapped in <>. May also have ? at the beginning)
-    else if (typeof format === 'string' && ((format as string).startsWith('<') || (format as string).startsWith('?<')) && (format as string).endsWith('>')) {
+    else if (typeof format === "string" && ((format as string).startsWith("<") || (format as string).startsWith("?<")) && (format as string).endsWith(">")) {
         //TODO
     }
     // Check if format is a catch-all (i.e. wrapped in [])
-    else if (typeof format === 'string' && (format as string).startsWith('[') && (format as string).endsWith(']')) {
+    else if (typeof format === "string" && (format as string).startsWith("[") && (format as string).endsWith("]")) {
         //TODO
     }
     // Format must be primitive
@@ -107,10 +107,10 @@ export const compareJSONHelper = (fieldName: string, path: string[], format: obj
         if (Array.isArray(data) || isActualObject(data)) return [{
             fieldName,
             path,
-            message: `Expected ${format}, got ${typeof data}`
+            message: `Expected ${format}, got ${typeof data}`,
         }];
     }
-}
+};
 
 /**
  * Compares a JSON format string to a JSON object and returns a list of differences. 
@@ -151,24 +151,24 @@ export const compareJSONToFormat = (format: string, data: any): JSONValidationRe
     try {
         formatJSON = JSON.parse(format);
         dataJSON = JSON.parse(data);
-        const errors = compareJSONHelper('$root', [], formatJSON, dataJSON);
+        const errors = compareJSONHelper("$root", [], formatJSON, dataJSON);
         return {
             isValid: errors.length === 0,
-            errors
+            errors,
         };
     }
     catch (error) {
-        console.error('Error parsing JSON format or data', error);
+        console.error("Error parsing JSON format or data", error);
         return {
             isValid: false,
             errors: [{
-                fieldName: '$root',
+                fieldName: "$root",
                 path: [],
-                message: 'Failed to parse JSON format or data'
-            }]
-        }
+                message: "Failed to parse JSON format or data",
+            }],
+        };
     }
-}
+};
 
 type Position = { start: number; end: number };
 type VariablePosition = { field: Position; value: Position };
@@ -197,7 +197,7 @@ export const findVariablePositions = (variable: string, format: { [x: string]: a
         const currChar = formatString[index];
         const lastChar = formatString[index - 1];
         // If current and last char are "\", then the next character is escaped and should be ignored
-        if (currChar !== '\\' && lastChar !== '\\') {
+        if (currChar !== "\\" && lastChar !== "\\") {
             // If variableStart has not been found, then check if we are at the start of the next variable instance
             if (keyStartIndex === -1) {
                 // If the rest of the formatString is long enough to contain the variable substring, 
@@ -209,20 +209,20 @@ export const findVariablePositions = (variable: string, format: { [x: string]: a
             // If variableStart has been found, check for the start of the value
             else if (index === keyStartIndex + keySubstring.length) {
                 // If the current character is not a quote or an open bracket, then the value is invalid
-                if (currChar !== '"' && currChar !== '{') {
+                if (currChar !== "\"" && currChar !== "{") {
                     keyStartIndex = -1;
                     valueStartIndex = -1;
                 }
                 // Otherwise, set up the startIndex, bracket counter and inQuotes flag
                 valueStartIndex = index;
-                openBracketCounter = Number(currChar === '{');
-                inQuotes = currChar === '"';
+                openBracketCounter = Number(currChar === "{");
+                inQuotes = currChar === "\"";
             }
             // If variableStart has been found, check if we are at the end
             else if (index > keyStartIndex + keySubstring.length) {
-                openBracketCounter += Number(currChar === '{');
-                openBracketCounter -= Number(currChar === '}');
-                if (currChar === '"') inQuotes = !inQuotes;
+                openBracketCounter += Number(currChar === "{");
+                openBracketCounter -= Number(currChar === "}");
+                if (currChar === "\"") inQuotes = !inQuotes;
                 // If the bracket counter is 0, and we are not in quotes, then we are at the end of the variable
                 if (openBracketCounter === 0 && !inQuotes) {
                     // Add the variable to the array
@@ -242,7 +242,7 @@ export const findVariablePositions = (variable: string, format: { [x: string]: a
         index++;
     }
     return variablePositions;
-}
+};
 
 /**
  * Converts a JSON string to a pretty-printed JSON markdown string.
@@ -251,12 +251,12 @@ export const findVariablePositions = (variable: string, format: { [x: string]: a
  */
 export const jsonToMarkdown = (value: { [x: string]: any } | string | null): string | null => {
     try {
-        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        const parsed = typeof value === "string" ? JSON.parse(value) : value;
         return value ? `\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\`` : null;
     } catch (e) {
         return null;
     }
-}
+};
 
 /**
  * Converts a JSON object to a pretty-printed JSON string. This includes adding 
@@ -266,12 +266,12 @@ export const jsonToMarkdown = (value: { [x: string]: any } | string | null): str
  */
 export const jsonToString = (value: { [x: string]: any } | string | null | undefined): string | null => {
     try {
-        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        const parsed = typeof value === "string" ? JSON.parse(value) : value;
         return value ? JSON.stringify(parsed, null, 2) : null;
     } catch (e) {
         return null;
     }
-}
+};
 
 /**
  * Simple check to determine if two JSON objects are equal. 
@@ -281,16 +281,16 @@ export const jsonToString = (value: { [x: string]: any } | string | null | undef
  */
 export const isEqualJSON = (
     a: { [x: string]: any } | string | null | undefined,
-    b: { [x: string]: any } | string | null | undefined
+    b: { [x: string]: any } | string | null | undefined,
 ): boolean => {
     try {
-        const parsedA = typeof a === 'string' ? JSON.parse(a) : a;
-        const parsedB = typeof b === 'string' ? JSON.parse(b) : b;
+        const parsedA = typeof a === "string" ? JSON.parse(a) : a;
+        const parsedB = typeof b === "string" ? JSON.parse(b) : b;
         return JSON.stringify(parsedA) === JSON.stringify(parsedB);
     } catch (e) {
         return false;
     }
-}
+};
 
 /**
  * Stringifies an object, only if it is not already stringified.
@@ -298,8 +298,8 @@ export const isEqualJSON = (
  * @returns The stringified object.
  */
 export const safeStringify = (value: any): string => {
-    if (typeof value === 'string' && value.length > 1 && value[0] === '{' && value[value.length - 1] === '}') {
+    if (typeof value === "string" && value.length > 1 && value[0] === "{" && value[value.length - 1] === "}") {
         return value;
     }
     return JSON.stringify(value);
-}
+};

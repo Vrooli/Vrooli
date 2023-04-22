@@ -65,25 +65,25 @@ export const StatsView = ({
     // Period time frame. Defaults to past 24 hours.
     const [period, setPeriod] = useState<{ after: Date, before: Date }>({
         after: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        before: new Date()
+        before: new Date(),
     });
     // Menu for picking date range.
     const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
     const handleDateRangeOpen = (event: any) => setCustomRangeAnchorEl(event.currentTarget);
     const handleDateRangeClose = () => {
-        setCustomRangeAnchorEl(null)
+        setCustomRangeAnchorEl(null);
     };
     const handleDateRangeSubmit = useCallback((newAfter?: Date | undefined, newBefore?: Date | undefined) => {
         setPeriod({
             after: newAfter || period.after,
             before: newBefore || period.before,
-        })
+        });
         handleDateRangeClose();
     }, [period.after, period.before]);
 
     // Handle tabs
     const tabs = useMemo<PageTab<typeof TabOptions[number]>[]>(() => {
-        let tabs = TabOptions;
+        const tabs = TabOptions;
         // Return tabs shaped for the tab component
         return tabs.map((tab, i) => ({
             index: i,
@@ -149,7 +149,7 @@ export const StatsView = ({
                         title={title}
                     />
                 </Box>
-            )
+            );
         })
     ), [t, visual]);
 
@@ -192,8 +192,8 @@ export const StatsView = ({
                 titleKey="Overview"
                 sxs={{
                     root: {
-                        marginBottom: 4
-                    }
+                        marginBottom: 4,
+                    },
                 }}
             >
                 <Grid container spacing={2}>
@@ -206,7 +206,7 @@ export const StatsView = ({
                                 <Card sx={{
                                     background: palette.primary.light,
                                     color: palette.primary.contrastText,
-                                    height: "100%"
+                                    height: "100%",
                                 }}>
                                     <CardContent>
                                         <Typography variant="h6" textAlign="center" gutterBottom>
@@ -232,5 +232,5 @@ export const StatsView = ({
                 </CardGrid>
             </ContentCollapse>
         </>
-    )
+    );
 };

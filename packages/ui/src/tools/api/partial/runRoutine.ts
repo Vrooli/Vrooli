@@ -11,7 +11,7 @@ export const runRoutineYou: GqlPartial<RunRoutineYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const runRoutine: GqlPartial<RunRoutine> = {
     __typename: "RunRoutine",
@@ -43,4 +43,4 @@ export const runRoutine: GqlPartial<RunRoutine> = {
         steps: async () => rel((await import("./runRoutineStep")).runRoutineStep, "list"),
     },
     list: {},
-}
+};

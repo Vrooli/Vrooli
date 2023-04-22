@@ -39,7 +39,7 @@ export const RunPickerMenu = ({
     useEffect(() => {
         if (!runnableObject) return;
         const searchParams = parseSearchParams();
-        if (!searchParams.run || typeof searchParams.run !== "string") return
+        if (!searchParams.run || typeof searchParams.run !== "string") return;
         const runId = base36ToUuid(searchParams.run);
         const run = (runnableObject.you?.runs as (RunRoutine | RunProject)[])?.find((run: RunProject | RunRoutine) => run.id === runId);
         if (run) {
@@ -71,7 +71,7 @@ export const RunPickerMenu = ({
                     handleClose();
                 },
                 errorMessage: () => ({ key: "FailedToCreateRun" }),
-            })
+            });
         }
         else {
             mutationWrapper<RunRoutine, RunRoutineCreateInput>({
@@ -89,11 +89,11 @@ export const RunPickerMenu = ({
                     handleClose();
                 },
                 errorMessage: () => ({ key: "FailedToCreateRun" }),
-            })
+            });
         }
     }, [handleClose, onAdd, onSelect, runnableObject, createRunProject, createRunRoutine, session]);
 
-    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne)
+    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
@@ -104,8 +104,8 @@ export const RunPickerMenu = ({
                 onDelete(run);
             },
             errorMessage: () => ({ key: "RunDeleteFailed", variables: { runName: displayDate(run.startedAt) } }),
-        })
-    }, [deleteOne, onDelete])
+        });
+    }, [deleteOne, onDelete]);
 
     useEffect(() => {
         if (!open) return;
@@ -140,9 +140,9 @@ export const RunPickerMenu = ({
                 messageKey: "RunDeleteConfirm",
                 messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
                 buttons: [
-                    { labelKey: "Yes", onClick: () => { deleteRun(run) } },
+                    { labelKey: "Yes", onClick: () => { deleteRun(run); } },
                     { labelKey: "Cancel", onClick: () => { } },
-                ]
+                ],
             });
         } else {
             deleteRun(run);
@@ -160,7 +160,7 @@ export const RunPickerMenu = ({
                     </IconButton>
                 </Tooltip>
             </ListItem>
-        )
+        );
     }), [runOptions, palette.background.textPrimary, onSelect, handleClose, handleDelete]);
 
     return (
@@ -182,11 +182,11 @@ export const RunPickerMenu = ({
             onClose={handleClose}
             sx={{
                 "& .MuiMenu-paper": {
-                    background: palette.background.default
+                    background: palette.background.default,
                 },
                 "& .MuiMenu-list": {
                     paddingTop: "0",
-                }
+                },
             }}
         >
             <MenuTitle
@@ -210,4 +210,4 @@ export const RunPickerMenu = ({
             >New Run</Button>
         </Menu>
     );
-}
+};

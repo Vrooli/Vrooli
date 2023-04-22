@@ -40,7 +40,7 @@ export const NodeColumn = ({
         nodes.forEach(node => {
             if (node.rowIndex === undefined || node.rowIndex === null) return;
             nodesWithGaps[node.rowIndex as number] = node;
-        })
+        });
         // Now that we have a complete array, create a list of nodes
         return nodesWithGaps.map((node: NodeShape | null, index) => {
             // If a placeholder, return a placeholder node
@@ -50,7 +50,7 @@ export const NodeColumn = ({
                         width: `${calculateNodeSize(100, scale)}px`,
                         height: `${calculateNodeSize(350, scale)}px`,
                     }} />
-                )
+                );
             }
             // Otherwise, return correct node
             // Common node props
@@ -64,7 +64,7 @@ export const NodeColumn = ({
                 isEditing,
                 canDrag: isEditing,
                 zIndex,
-            }
+            };
             // Determine node to display based on nodeType
             switch (node.nodeType) {
                 case NodeType.End:
@@ -74,12 +74,12 @@ export const NodeColumn = ({
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}
                         node={node as Node & { end: NodeEnd }}
-                    />
+                    />;
                 case NodeType.Redirect:
                     return <RedirectNode
                         {...nodeProps}
                         node={node}
-                    />
+                    />;
                 case NodeType.RoutineList:
                     return (<RoutineListNode
                         {...nodeProps}
@@ -89,17 +89,17 @@ export const NodeColumn = ({
                         linksIn={links.filter(l => l.to.id === node.id)}
                         linksOut={links.filter(l => l.from.id === node.id)}
                         node={node as Node & { routineList: NodeRoutineList }}
-                    />)
+                    />);
                 case NodeType.Start:
                     return <StartNode
                         {...nodeProps}
                         linksOut={links.filter(l => l.from.id === node.id)}
                         node={node}
-                    />
+                    />;
                 default:
                     return null;
             }
-        })
+        });
     }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, nodes, scale, zIndex]);
 
     return (
@@ -122,5 +122,5 @@ export const NodeColumn = ({
         >
             {nodeList}
         </Stack>
-    )
-}
+    );
+};

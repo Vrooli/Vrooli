@@ -40,4 +40,4 @@ export const statsSite: GqlPartial<StatsSite> = {
         verifiedEmailsCreated: true,
         verifiedWalletsCreated: true,
     },
-}
+};

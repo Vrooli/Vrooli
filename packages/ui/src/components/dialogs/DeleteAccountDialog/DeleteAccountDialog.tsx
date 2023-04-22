@@ -6,7 +6,7 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { LINKS, Success, UserDeleteInput } from "@shared/consts";
 import { DeleteIcon } from "@shared/icons";
@@ -49,14 +49,14 @@ export const DeleteAccountDialog = ({
         <LargeDialog
             id="delete-account-dialog"
             isOpen={isOpen}
-            onClose={() => { handleClose(false) }}
+            onClose={() => { handleClose(false); }}
             titleId={titleId}
             zIndex={zIndex}
         >
             <DialogTitle
                 id={titleId}
                 title={`Delete "${name}"`}
-                onClose={() => { handleClose(false) }}
+                onClose={() => { handleClose(false); }}
             />
             <Formik
                 enableReinitialize={true}
@@ -81,8 +81,8 @@ export const DeleteAccountDialog = ({
                         errorMessage: () => ({ key: "AccountDeleteFail" }),
                         onError: () => {
                             handleClose(false);
-                        }
-                    })
+                        },
+                    });
                 }}
                 validationSchema={validationSchema}
             >
@@ -116,11 +116,11 @@ export const DeleteAccountDialog = ({
                             disabled={formik.isSubmitting || !formik.isValid}
                             startIcon={<DeleteIcon />}
                             color="secondary"
-                            onClick={() => { formik.submitForm() }}
+                            onClick={() => { formik.submitForm(); }}
                         >{t("Delete")}</Button>
                     </Stack>
                 </DialogContent>}
             </Formik>
         </LargeDialog>
-    )
-}
+    );
+};

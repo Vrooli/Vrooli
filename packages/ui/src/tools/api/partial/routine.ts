@@ -17,7 +17,7 @@ export const routineYou: GqlPartial<RoutineYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const routine: GqlPartial<Routine> = {
     __typename: "Routine",
@@ -39,7 +39,7 @@ export const routine: GqlPartial<Routine> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         permissions: true,
         questionsCount: true,
@@ -62,5 +62,5 @@ export const routine: GqlPartial<Routine> = {
         id: true,
         isInternal: true,
         isPrivate: true,
-    }
-}
+    },
+};

@@ -12,7 +12,7 @@ export const organizationTranslation: GqlPartial<OrganizationTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const organizationYou: GqlPartial<OrganizationYou> = {
     __typename: "OrganizationYou",
@@ -31,11 +31,11 @@ export const organizationYou: GqlPartial<OrganizationYou> = {
             updated_at: true,
             isAdmin: true,
             permissions: true,
-        }
+        },
     },
     full: {},
     list: {},
-}
+};
 
 export const organization: GqlPartial<Organization> = {
     __typename: "Organization",
@@ -65,5 +65,5 @@ export const organization: GqlPartial<Organization> = {
         id: true,
         handle: true,
         you: () => rel(organizationYou, "full"),
-    }
-}
+    },
+};

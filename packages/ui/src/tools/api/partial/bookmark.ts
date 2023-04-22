@@ -40,13 +40,13 @@ export const bookmark: GqlPartial<Bookmark> = {
                 Standard: 12,
                 Tag: 13,
                 User: 14,
-            }
-        }
+            },
+        },
     },
     full: {
         __define: {
             0: async () => rel((await import("./bookmarkList")).bookmarkList, "common", { omit: "bookmarks" }),
         },
         list: { __use: 0 },
-    }
-}
+    },
+};

@@ -39,24 +39,24 @@ export const FocusModeDialog = ({
     const transformValues = useCallback((values: FocusModeShape) => {
         return isCreate
             ? shapeFocusMode.create(values)
-            : shapeFocusMode.update(partialData as any, values)
+            : shapeFocusMode.update(partialData as any, values);
 
     }, [isCreate, partialData]);
 
     const validateFormValues = useCallback(
         async (values: FocusModeShape) => {
-            console.log("validating a", values, focusModeValidation.create({}))
+            console.log("validating a", values, focusModeValidation.create({}));
             const transformedValues = transformValues(values);
-            console.log("validating b", transformedValues)
+            console.log("validating b", transformedValues);
             const validationSchema = isCreate
                 ? focusModeValidation.create({})
                 : focusModeValidation.update({});
-            console.log("validating c", validationSchema)
+            console.log("validating c", validationSchema);
             const result = await validateAndGetYupErrors(validationSchema, transformedValues);
-            console.log("validating d", result)
+            console.log("validating d", result);
             return result;
         },
-        [isCreate, transformValues]
+        [isCreate, transformValues],
     );
 
     return (
@@ -100,7 +100,7 @@ export const FocusModeDialog = ({
                             isCreate ? onCreated(data) : onUpdated(data);
                             helpers.resetForm();
                             onClose();
-                        }
+                        };
                         console.log("yeeeet", values, shapeFocusMode.create(values));
                         // If index is negative, create
                         const isCreating = isCreate;
@@ -114,8 +114,8 @@ export const FocusModeDialog = ({
                             successMessage: () => ({ key: isCreating ? "FocusModeCreated" : "FocusModeUpdated" }),
                             successCondition: (data) => data !== null,
                             onSuccess,
-                            onError: () => { helpers.setSubmitting(false) },
-                        })
+                            onError: () => { helpers.setSubmitting(false); },
+                        });
                     }}
                     validate={async (values) => await validateFormValues(values)}
                 >
@@ -132,5 +132,5 @@ export const FocusModeDialog = ({
                 </Formik>
             </LargeDialog>
         </>
-    )
-}
+    );
+};

@@ -21,7 +21,7 @@ export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptio
     const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
     const openPopover = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         ev.preventDefault();
-        setErrorAnchorEl(ev.currentTarget ?? ev.target)
+        setErrorAnchorEl(ev.currentTarget ?? ev.target);
     }, []);
     const closePopover = useCallback(() => {
         setErrorAnchorEl(null);
@@ -61,8 +61,8 @@ export const useErrorPopover = ({ errors, onSetSubmitting }: UsePopoverMenuOptio
                         "& ul": {
                             paddingInlineStart: "20px",
                             margin: "8px",
-                        }
-                    }
+                        },
+                    },
                 }}
             >
                 <Markdown>{errorMessage}</Markdown>

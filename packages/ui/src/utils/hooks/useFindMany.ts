@@ -122,7 +122,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
                 before: timeFrame.before?.toISOString(),
             } : undefined,
             ...params.where,
-            ...advancedSearchParams
+            ...advancedSearchParams,
         } as any),
         errorPolicy: "all",
     });
@@ -132,16 +132,16 @@ export const useFindMany = <DataType extends Record<string, any>>({
         // TODO Check if we just navigated back to this page from an object page. If so, use results stored in sessionStorage. Also TODO for storing results in sessionStorage
         const lastPath = sessionStorage.getItem("lastPath");
         const lastSearchParams = sessionStorage.getItem("lastSearchParams");
-        console.log("lastPath", lastPath)
-        console.log("lastSearchParams", lastSearchParams)
-        return []
+        console.log("lastPath", lastPath);
+        console.log("lastSearchParams", lastSearchParams);
+        return [];
     });
 
     // Track if there is more data to fetch
     const [hasMore, setHasMore] = useState<boolean>(true);
     // Reset hasMore when search params change
     useEffect(() => {
-        console.log("resetting hasMore")
+        console.log("resetting hasMore");
         setHasMore(true);
     }, [advancedSearchParams, searchString, sortBy, timeFrame]);
 
@@ -171,7 +171,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
         const parsedData = parseData(pageData, stableResolve);
-        console.log("got parsed data", parsedData)
+        console.log("got parsed data", parsedData);
         if (!parsedData) {
             setAllData([]);
             return;
@@ -184,7 +184,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     }, [pageData, stableResolve]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        console.log("LISTTOAUTOCOMPLETE allData", allData)
+        console.log("LISTTOAUTOCOMPLETE allData", allData);
         return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
             return b.bookmarks - a.bookmarks; //TODO not all objects have bookmarks
         });
@@ -210,5 +210,5 @@ export const useFindMany = <DataType extends Record<string, any>>({
         sortBy,
         sortByOptions: params?.sortByOptions,
         timeFrame,
-    }
-}
+    };
+};

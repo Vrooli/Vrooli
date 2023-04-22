@@ -15,6 +15,6 @@ export const shapeRunRoutineInput: ShapeModel<RunRoutineInputShape, RunRoutineIn
         ...createRel(d, "runRoutine", ["Connect"], "one"),
     }),
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "data")
-    }, a)
-}
+        ...updatePrims(o, u, "id", "data"),
+    }, a),
+};

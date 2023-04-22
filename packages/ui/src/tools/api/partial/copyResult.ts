@@ -20,8 +20,8 @@ export const copyResult: GqlPartial<CopyResult> = {
         projectVersion: { __use: 3 },
         routineVersion: { __use: 4 },
         smartContractVersion: { __use: 5 },
-        standardVersion: { __use: 6 }
+        standardVersion: { __use: 6 },
     },
     full: {},
     list: {},
-}
+};

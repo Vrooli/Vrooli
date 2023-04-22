@@ -5,7 +5,7 @@ import {
     Grid,
     Link, TextField,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { BUSINESS_NAME, EmailSignUpInput, LINKS, Session } from "@shared/consts";
@@ -53,7 +53,7 @@ export const SignUpForm = ({
                     name: "",
                     email: "",
                     password: "",
-                    confirmPassword: ""
+                    confirmPassword: "",
                 }}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Session, EmailSignUpInput>({
@@ -64,7 +64,7 @@ export const SignUpForm = ({
                             theme: theme.palette.mode ?? "light",
                         },
                         onSuccess: (data) => {
-                            PubSub.get().publishSession(data)
+                            PubSub.get().publishSession(data);
                             PubSub.get().publishAlertDialog({
                                 messageKey: "WelcomeVerifyEmail",
                                 messageVariables: { appName: BUSINESS_NAME },
@@ -73,8 +73,8 @@ export const SignUpForm = ({
                                         setLocation(LINKS.Welcome);
                                         // Set up push notifications
                                         setupPush();
-                                    }
-                                }]
+                                    },
+                                }],
                             });
                         },
                         onError: (response) => {
@@ -83,13 +83,13 @@ export const SignUpForm = ({
                                     messageKey: "EmailInUseWrongPassword",
                                     buttons: [
                                         { labelKey: "Yes", onClick: () => onFormChange(Forms.ForgotPassword) },
-                                        { labelKey: "No" }
-                                    ]
+                                        { labelKey: "No" },
+                                    ],
                                 });
                             }
                             helpers.setSubmitting(false);
-                        }
-                    })
+                        },
+                    });
                 }}
                 validationSchema={emailSignUpFormValidation}
             >
@@ -192,4 +192,4 @@ export const SignUpForm = ({
             </Formik>
         </>
     );
-}
+};

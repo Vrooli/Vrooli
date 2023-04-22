@@ -45,7 +45,7 @@ export const EndNode = ({
         return {
             innerCircleSize: nodeSize / 2,
             outerCircleSize: nodeSize,
-        }
+        };
     }, [scale]);
 
     const labelObject = useMemo(() => labelVisible && outerCircleSize > 75 ? (
@@ -55,7 +55,7 @@ export const EndNode = ({
                 ...noSelect,
                 ...nodeLabel,
                 pointerEvents: "none",
-                fontSize: `min(${outerCircleSize / 5}px, 2em)`
+                fontSize: `min(${outerCircleSize / 5}px, 2em)`,
             } as CSSProperties}
         >
             {label}
@@ -81,7 +81,7 @@ export const EndNode = ({
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked or not editing
         if (!canDrag || !isLinked || !isEditing) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [canDrag, isLinked, isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const pressEvents = usePress({
@@ -98,7 +98,7 @@ export const EndNode = ({
                 anchorEl={contextAnchor}
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode]}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option, node.id) }}
+                handleSelect={(option) => { handleAction(option, node.id); }}
                 zIndex={zIndex + 1}
             />
             {/* Normal-click menu */}
@@ -158,5 +158,5 @@ export const EndNode = ({
                 </Tooltip>
             </DraggableNode>
         </>
-    )
-}
+    );
+};

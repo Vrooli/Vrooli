@@ -40,5 +40,5 @@ export const TimeButton = ({
                 </Box>
             </Tooltip>
         </>
-    )
-}
+    );
+};

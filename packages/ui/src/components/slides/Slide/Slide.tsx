@@ -14,4 +14,4 @@ export const Slide = ({
             </SlideContent>
         </SlideContainer>
     );
-}
+};

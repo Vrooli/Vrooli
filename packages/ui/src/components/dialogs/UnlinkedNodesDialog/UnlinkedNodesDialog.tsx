@@ -7,7 +7,7 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { Node, NodeEnd, NodeRoutineList, NodeType } from "@shared/consts";
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "@shared/icons";
@@ -44,7 +44,7 @@ export const UnlinkedNodesDialog = ({
             labelVisible: false,
             scale: -0.5,
             zIndex,
-        }
+        };
         // Determine node to display based on nodeType
         switch (node.nodeType) {
             case NodeType.End:
@@ -54,12 +54,12 @@ export const UnlinkedNodesDialog = ({
                     language={language}
                     linksIn={[]}
                     node={node as Node & { end: NodeEnd }}
-                />
+                />;
             case NodeType.Redirect:
                 return <RedirectNode
                     {...nodeProps}
                     node={node as any}//as NodeRedirect}
-                />
+                />;
             case NodeType.RoutineList:
                 return <RoutineListNode
                     {...nodeProps}
@@ -70,11 +70,11 @@ export const UnlinkedNodesDialog = ({
                     linksIn={[]}
                     linksOut={[]}
                     node={node as Node & { routineList: NodeRoutineList }}
-                />
+                />;
             default:
                 return null;
         }
-    }, [language, zIndex])
+    }, [language, zIndex]);
 
     return (
         <Tooltip title={t("NodeUnlinked", { count: 2 })}>
@@ -108,7 +108,7 @@ export const UnlinkedNodesDialog = ({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    width: "100%"
+                    width: "100%",
                 }}>
                     <UnlinkedNodesIcon fill={palette.secondary.contrastText} />
                     <Typography variant="h6" sx={{ ...noSelect, marginLeft: "8px" }}>{open ? (t("Unlinked") + " ") : ""}({nodes.length})</Typography>
@@ -147,4 +147,4 @@ export const UnlinkedNodesDialog = ({
             </Box>
         </Tooltip>
     );
-}
+};

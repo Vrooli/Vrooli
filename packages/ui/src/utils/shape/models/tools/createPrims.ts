@@ -17,4 +17,4 @@ export const createPrims = <T, K extends keyof T>(
     // If "id" is defined in fields, make sure it's not DUMMY_ID
     if (!fields.includes("id" as K)) return prims;
     return { ...prims, id: prims.id === DUMMY_ID ? uuid() : prims.id };
-}
+};

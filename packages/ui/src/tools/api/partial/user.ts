@@ -11,7 +11,7 @@ export const userTranslation: GqlPartial<UserTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const userYou: GqlPartial<UserYou> = {
     __typename: "UserYou",
@@ -24,7 +24,7 @@ export const userYou: GqlPartial<UserYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const user: GqlPartial<User> = {
     __typename: "User",
@@ -47,8 +47,8 @@ export const user: GqlPartial<User> = {
         id: true,
         name: true,
         handle: true,
-    }
-}
+    },
+};
 
 export const profile: GqlPartial<User> = {
     __typename: "User",
@@ -88,4 +88,4 @@ export const profile: GqlPartial<User> = {
     },
     full: {},
     list: {},
-}
+};

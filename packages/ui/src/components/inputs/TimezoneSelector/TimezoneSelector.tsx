@@ -109,7 +109,7 @@ export const TimezoneSelector = ({
                         overscanCount={5}
                     >
                         {({ index, style }) => {
-                            const { timezone, formattedOffset } = timezoneData[index]
+                            const { timezone, formattedOffset } = timezoneData[index];
 
                             return (
                                 <ListItem

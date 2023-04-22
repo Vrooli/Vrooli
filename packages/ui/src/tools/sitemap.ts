@@ -50,7 +50,7 @@ const getRouteMap = async (): Promise<{ [x: string]: string }> => {
         console.error(error);
         return {};
     }
-}
+};
 
 /**
  * Reads and parses file containing routes. Finds sitemap data and generates a sitemap.xml file
@@ -61,7 +61,7 @@ const main = async () => {
 
     const routesLocation = new URL("../Routes.tsx", import.meta.url);
     const componentName = "NavRoute"; // Name can change if using a wrapper component. This is typically "Route"
-    console.info(`Checking for ${componentName} in ${routesLocation}...`)
+    console.info(`Checking for ${componentName} in ${routesLocation}...`);
     try {
         // Read Routes.tsx as a string, since loading it as a module from ts-node 
         // is a massive pain
@@ -102,7 +102,7 @@ const main = async () => {
         console.info("Parsed sitemap data from routes: ", entries);
         // Generate sitemap.xml
         const sitemap = generateSitemap("https://vrooli.com", { main: entries });
-        console.info("Generated sitemap: ", sitemap)
+        console.info("Generated sitemap: ", sitemap);
         // Check if sitemap save directory exists
         const sitemapDir = new URL("../../public/sitemaps", import.meta.url);
         if (!fs.existsSync(sitemapDir)) {
@@ -118,6 +118,6 @@ const main = async () => {
     } catch (error) {
         console.error(error);
     }
-}
+};
 
 main();

@@ -14,4 +14,4 @@ export * from "./SubroutineNode/SubroutineNode";
  */
 export const calculateNodeSize = (initialSize: number, scale: number, doubleEvery: number = 1): number => {
     return initialSize * Math.pow(2, scale / doubleEvery);
-}
+};

@@ -8,6 +8,6 @@ export const reminderSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchReminder"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const reminderSearchParams = () => toParams(reminderSearchSchema(), reminderFindMany, ReminderSortBy, ReminderSortBy.DueDateAsc);

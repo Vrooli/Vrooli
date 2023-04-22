@@ -16,4 +16,4 @@ export const statsOrganization: GqlPartial<StatsOrganization> = {
         smartContracts: true,
         standards: true,
     },
-}
+};

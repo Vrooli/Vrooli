@@ -8,7 +8,7 @@ export const GeneratedLanguageInput = ({
     index,
     zIndex,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering language input');
+    console.log("rendering language input");
     const [field, , helpers] = useField(fieldData.fieldName);
 
     const addLanguage = (lang: string) => {
@@ -17,10 +17,10 @@ export const GeneratedLanguageInput = ({
     const deleteLanguage = (lang: string) => {
         const newLanguages = [...field.value.filter(l => l !== lang)];
         helpers.setValue(newLanguages);
-    }
+    };
     return (
         <LanguageInput
-            currentLanguage={field.value.length > 0 ? field.value[0] : ''} //TOOD
+            currentLanguage={field.value.length > 0 ? field.value[0] : ""} //TOOD
             disabled={disabled}
             handleAdd={addLanguage}
             handleDelete={deleteLanguage}
@@ -28,5 +28,5 @@ export const GeneratedLanguageInput = ({
             languages={field.value}
             zIndex={zIndex}
         />
-    )
-}
+    );
+};

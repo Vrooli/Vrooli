@@ -30,7 +30,7 @@ export const TagSelectorBase = ({
     const clearText = useCallback(() => { setInputValue(""); }, []);
     const onChange = useCallback((change: any) => {
         // Remove invalid characters (i.e. ',' or ';')
-        setInputValue(change.target.value.replace(/[,;]/g, ""))
+        setInputValue(change.target.value.replace(/[,;]/g, ""));
     }, []);
     const onKeyDown = useCallback((event: any) => {
         let tagLabel;
@@ -40,7 +40,7 @@ export const TagSelectorBase = ({
         }
         // Check if the user pressed enter
         else if (event.code === "enter" && event.target.value) {
-            tagLabel = inputValue + event.key
+            tagLabel = inputValue + event.key;
         }
         else return;
         // Remove invalid characters (i.e. ',' or ';')
@@ -101,10 +101,10 @@ export const TagSelectorBase = ({
                 searchString: inputValue,
                 sortBy: TagSortBy.BookmarksDesc,
                 take: 25,
-            }
-        }
+            },
+        },
     });
-    useEffect(() => { refetchAutocomplete() }, [inputValue, refetchAutocomplete]);
+    useEffect(() => { refetchAutocomplete(); }, [inputValue, refetchAutocomplete]);
 
     /**
      * Store queried tags in the tag ref
@@ -165,7 +165,7 @@ export const TagSelectorBase = ({
                             color: "white",
                         }}
                     />
-                )
+                ),
                 )}
             renderOption={(props, option: TagShape | Tag) => (
                 <MenuItem
@@ -195,5 +195,5 @@ export const TagSelectorBase = ({
                 />
             )}
         />
-    )
-}
+    );
+};

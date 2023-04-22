@@ -32,7 +32,7 @@ export const DecisionView = ({
             const node = nodes.find(n => n.id === link.to.id);
             let color = palette.primary.dark;
             if (node?.nodeType === NodeType.End) {
-                color = node.end?.wasSuccessful === false ? "#7c262a" : "#387e30"
+                color = node.end?.wasSuccessful === false ? "#7c262a" : "#387e30";
             }
             return { node, link, color } as Decision;
         });
@@ -101,9 +101,9 @@ export const DecisionView = ({
                             </Stack>
                             <OpenInNewIcon fill="white" />
                         </ListItemButton>
-                    </ListItem>)
+                    </ListItem>);
                 })}
             </Stack>
         </>
-    )
-}
+    );
+};

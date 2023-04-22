@@ -15,4 +15,4 @@ export const award: GqlPartial<Award> = {
     },
     full: {},
     list: {},
-}
+};

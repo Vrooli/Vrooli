@@ -22,5 +22,5 @@ export const sessionUser: GqlPartial<SessionUser> = {
         smartContractsCount: true,
         standardsCount: true,
         theme: true,
-    }
-}
+    },
+};

@@ -24,10 +24,10 @@ export const runRoutineSearchSchema = (): FormSchema => ({
                     { label: "Failed", value: RunStatus.Failed },
                     { label: "Cancelled", value: RunStatus.Cancelled },
                     { label: "Don't Care", value: "undefined" },
-                ]
-            }
+                ],
+            },
         },
-    ]
-})
+    ],
+});
 
 export const runRoutineSearchParams = () => toParams(runRoutineSearchSchema(), runRoutineFindMany, RunRoutineSortBy, RunRoutineSortBy.DateStartedAsc);

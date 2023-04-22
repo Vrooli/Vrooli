@@ -8,6 +8,6 @@ export const memberSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchMember"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const memberSearchParams = () => toParams(memberSearchSchema(), memberFindMany, MemberSortBy, MemberSortBy.DateCreatedDesc);

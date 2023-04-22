@@ -12,7 +12,7 @@ export const nodeTranslation: GqlPartial<NodeTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 
 export const node: GqlPartial<Node> = {
@@ -32,4 +32,4 @@ export const node: GqlPartial<Node> = {
     },
     full: {},
     list: {},
-}
+};

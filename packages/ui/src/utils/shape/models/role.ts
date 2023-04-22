@@ -15,8 +15,8 @@ export type RoleShape = Pick<Role, "id" | "name" | "permissions"> & {
 
 export const shapeRoleTranslation: ShapeModel<RoleTranslationShape, RoleTranslationCreateInput, RoleTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description"))
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description")),
+};
 
 export const shapeRole: ShapeModel<RoleShape, RoleCreateInput, RoleUpdateInput> = {
     create: (d) => ({
@@ -29,5 +29,5 @@ export const shapeRole: ShapeModel<RoleShape, RoleCreateInput, RoleUpdateInput> 
         ...updatePrims(o, u, "id", "name", "permissions"),
         ...updateRel(o, u, "members", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeRoleTranslation),
-    })
-}
+    }),
+};

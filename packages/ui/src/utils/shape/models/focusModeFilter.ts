@@ -14,5 +14,5 @@ export const shapeFocusModeFilter: ShapeModel<FocusModeFilterShape, FocusModeFil
         ...createPrims(d, "id", "filterType"),
         ...createRel(d, "focusMode", ["Connect"], "one"),
         ...createRel(d, "tag", ["Create", "Connect"], "one", shapeTag),
-    })
-}
+    }),
+};

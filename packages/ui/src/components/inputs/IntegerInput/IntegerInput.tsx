@@ -8,7 +8,7 @@ import { IntegerInputProps } from "../types";
 const buttonProps = {
     minWidth: 30,
     width: "20%",
-}
+};
 
 // Time for a button press to become a hold
 const HOLD_DELAY = 750;
@@ -41,10 +41,10 @@ export const IntegerInput = ({
         speed: 1,
         timeout: null,
         value: field.value,
-    })
+    });
     useEffect(() => {
-        holdRefs.current.value = field.value
-    }, [field.value])
+        holdRefs.current.value = field.value;
+    }, [field.value]);
 
     const updateValue = useCallback((quantity) => {
         if (quantity > max) quantity = max;
@@ -65,13 +65,13 @@ export const IntegerInput = ({
     }, [updateValue]);
 
     const handleMinusDown = useCallback(() => {
-        updateValue(holdRefs.current.value * 1 - step)
+        updateValue(holdRefs.current.value * 1 - step);
         holdRefs.current.which = false;
         holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
     }, [startHold, step, updateValue]);
 
     const handlePlusDown = useCallback(() => {
-        updateValue(holdRefs.current.value * 1 + step)
+        updateValue(holdRefs.current.value * 1 + step);
         holdRefs.current.which = true;
         holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
     }, [startHold, step, updateValue]);
@@ -80,7 +80,7 @@ export const IntegerInput = ({
         if (holdRefs.current.timeout) clearTimeout(holdRefs.current.timeout);
         holdRefs.current.which = null;
         holdRefs.current.speed = 1;
-    }
+    };
 
     return (
         <Tooltip title={tooltip}>
@@ -113,13 +113,13 @@ export const IntegerInput = ({
                     display: "grid",
                     "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
                         display: "none",
-                    }
+                    },
                 }} error={meta.touched && !!meta.error}>
                     <InputLabel
                         htmlFor={`quantity-box-${name}`}
                         sx={{
                             color: palette.background.textSecondary,
-                            paddingTop: "10px"
+                            paddingTop: "10px",
                         }}
                     >{label}</InputLabel>
                     <Input
@@ -162,4 +162,4 @@ export const IntegerInput = ({
             </Box>
         </Tooltip>
     );
-}
+};

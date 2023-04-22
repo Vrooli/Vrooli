@@ -19,7 +19,7 @@ export const standardSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const standardSearchParams = () => toParams(standardSearchSchema(), standardFindMany, StandardSortBy, StandardSortBy.ScoreDesc);

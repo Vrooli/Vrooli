@@ -18,8 +18,8 @@ export type NoteVersionShape = Pick<NoteVersion, "id" | "isPrivate" | "versionLa
 
 export const shapeNoteVersionTranslation: ShapeModel<NoteVersionTranslationShape, NoteVersionTranslationCreateInput, NoteVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name", "text"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name", "text"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name", "text"), a),
+};
 
 export const shapeNoteVersion: ShapeModel<NoteVersionShape, NoteVersionCreateInput, NoteVersionUpdateInput> = {
     create: (d) => ({
@@ -33,5 +33,5 @@ export const shapeNoteVersion: ShapeModel<NoteVersionShape, NoteVersionCreateInp
         ...updateRel(o, u, "directoryListings", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "root", ["Update"], "one", shapeNote),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeNoteVersionTranslation),
-    }, a)
-}
+    }, a),
+};

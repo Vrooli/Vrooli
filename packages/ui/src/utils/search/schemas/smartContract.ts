@@ -19,7 +19,7 @@ export const smartContractSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const smartContractSearchParams = () => toParams(smartContractSearchSchema(), smartContractFindMany, SmartContractSortBy, SmartContractSortBy.ScoreDesc);

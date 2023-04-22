@@ -15,8 +15,8 @@ export type CommentShape = Pick<Comment, "id"> & {
 
 export const shapeCommentTranslation: ShapeModel<CommentTranslationShape, CommentTranslationCreateInput, CommentTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "text"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "text"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "text"), a),
+};
 
 export const shapeComment: ShapeModel<CommentShape, CommentCreateInput, CommentUpdateInput> = {
     create: (d) => ({
@@ -28,5 +28,5 @@ export const shapeComment: ShapeModel<CommentShape, CommentCreateInput, CommentU
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeCommentTranslation),
-    }, a)
-}
+    }, a),
+};

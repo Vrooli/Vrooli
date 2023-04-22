@@ -10,4 +10,4 @@ export const HideOnScroll = ({
             {children}
         </Slide>
     );
-}
+};

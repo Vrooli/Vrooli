@@ -54,7 +54,7 @@ export const yupFields = (schema: YupField, recurseBase = ""): string[] => {
     if (schema.type === "object") {
         const required: string[] = [];
         for (const [key, value] of Object.entries(schema.fields)) {
-            console.log("object required recurse", key, prepend, value)
+            console.log("object required recurse", key, prepend, value);
             required.push(...yupFields(value, prepend + key));
         }
         return required;
@@ -69,7 +69,7 @@ export const yupFields = (schema: YupField, recurseBase = ""): string[] => {
         console.log("in else", recurseBase, isRequired);
         return isRequired ? [recurseBase] : [recurseBase + "?"];
     }
-}
+};
 
 // TODO haven't checked if this works, so it probably does not
 /**
@@ -99,7 +99,7 @@ export const yupObjectContainsRequiredFields = (object: { [key: string]: any }, 
         }
     }
     return true;
-}
+};
 
 /**
  * Finds all top-level fields in object that are part of the yup schema.
@@ -121,11 +121,11 @@ export const grabValidTopLevelFields = (object: { [key: string]: any }, fields: 
         if (object[field] !== undefined) returnObject[field] = object[field];
     }
     return returnObject;
-}
+};
 
 export const isYupValidationError = (error: any): error is ValidationError => {
     return error.name === "ValidationError";
-}
+};
 
 /**
  * Validate a schema against a values object and return an object with the
@@ -135,7 +135,7 @@ export const isYupValidationError = (error: any): error is ValidationError => {
  */
 export const validateAndGetYupErrors = async (
     schema: ObjectSchema<any>,
-    values: any
+    values: any,
 ): Promise<{} | Record<string, string>> => {
     try {
         await schema.validate(values);

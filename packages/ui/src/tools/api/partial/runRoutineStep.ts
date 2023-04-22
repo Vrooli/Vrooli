@@ -18,4 +18,4 @@ export const runRoutineStep: GqlPartial<RunRoutineStep> = {
     },
     full: {},
     list: {},
-}
+};

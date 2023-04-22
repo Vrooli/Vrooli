@@ -26,7 +26,7 @@ export const AdvancedSearchButton = ({
             return;
         }
         // Open advanced search dialog, if needed
-        if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
+        if (typeof searchParams.advanced === "boolean") setAdvancedSearchDialogOpen(searchParams.advanced);
         // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
         const { advanced, search, sort, time, ...otherParams } = searchParams;
         // Find valid advanced search params
@@ -37,9 +37,9 @@ export const AdvancedSearchButton = ({
     }, [advancedSearchSchema?.fields, setAdvancedSearchParams]);
 
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
-    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
+    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true); }, []);
     const handleAdvancedSearchDialogClose = useCallback(() => {
-        setAdvancedSearchDialogOpen(false)
+        setAdvancedSearchDialogOpen(false);
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
         // Remove 0 values
@@ -65,7 +65,7 @@ export const AdvancedSearchButton = ({
                 searchType={searchType}
                 zIndex={zIndex + 1}
             />
-            {advancedSearchParams && <Tooltip title={t(`SeeAllSearchSettings`)} placement="top">
+            {advancedSearchParams && <Tooltip title={t("SeeAllSearchSettings")} placement="top">
                 <Box
                     onClick={handleAdvancedSearchDialogOpen}
                     sx={searchButtonStyle(palette)}
@@ -77,5 +77,5 @@ export const AdvancedSearchButton = ({
                 </Box>
             </Tooltip>}
         </>
-    )
-}
+    );
+};

@@ -27,7 +27,7 @@ export const NoteUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<NoteVersion, FindVersionInput>(noteVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => noteInitialValues(session, existing), [existing, session]);
@@ -56,9 +56,9 @@ export const NoteUpsert = ({
                     mutationWrapper<NoteVersion, NoteVersionCreateInput | NoteVersionUpdateInput>({
                         mutation,
                         input: transformNoteValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateNoteValues(values, existing)}
             >
@@ -75,5 +75,5 @@ export const NoteUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

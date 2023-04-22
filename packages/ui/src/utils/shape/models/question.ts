@@ -18,8 +18,8 @@ export type QuestionShape = Pick<Question, "id" | "isPrivate"> & {
 
 export const shapeQuestionTranslation: ShapeModel<QuestionTranslationShape, QuestionTranslationCreateInput, QuestionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name"), a),
+};
 
 export const shapeQuestion: ShapeModel<QuestionShape, QuestionCreateInput, QuestionUpdateInput> = {
     create: (d) => ({
@@ -34,5 +34,5 @@ export const shapeQuestion: ShapeModel<QuestionShape, QuestionCreateInput, Quest
         ...updateRel(o, u, "acceptedAnswer", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeQuestionTranslation),
-    }, a)
-}
+    }, a),
+};

@@ -12,7 +12,7 @@ export const quizTranslation: GqlPartial<QuizTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const quizYou: GqlPartial<QuizYou> = {
     __typename: "QuizYou",
@@ -28,7 +28,7 @@ export const quizYou: GqlPartial<QuizYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const quiz: GqlPartial<Quiz> = {
     __typename: "Quiz",
@@ -52,5 +52,5 @@ export const quiz: GqlPartial<Quiz> = {
     },
     list: {
         translations: () => rel(quizTranslation, "list"),
-    }
-}
+    },
+};

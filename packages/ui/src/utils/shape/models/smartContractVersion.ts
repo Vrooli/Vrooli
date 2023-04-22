@@ -20,8 +20,8 @@ export type SmartContractVersionShape = Pick<SmartContractVersion, "id" | "conte
 
 export const shapeSmartContractVersionTranslation: ShapeModel<SmartContractVersionTranslationShape, SmartContractVersionTranslationCreateInput, SmartContractVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name", "jsonVariable"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name", "jsonVariable"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "language", "description", "name", "jsonVariable"), a),
+};
 
 export const shapeSmartContractVersion: ShapeModel<SmartContractVersionShape, SmartContractVersionCreateInput, SmartContractVersionUpdateInput> = {
     create: (d) => ({
@@ -37,5 +37,5 @@ export const shapeSmartContractVersion: ShapeModel<SmartContractVersionShape, Sm
         ...updateRel(o, u, "root", ["Update"], "one", shapeSmartContract),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeSmartContractVersionTranslation),
-    }, a)
-}
+    }, a),
+};

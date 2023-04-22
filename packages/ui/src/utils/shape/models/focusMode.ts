@@ -32,5 +32,5 @@ export const shapeFocusMode: ShapeModel<FocusModeShape, FocusModeCreateInput, Fo
         ...updateRel(o, u, "labels", ["Create", "Connect", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "filters", ["Create", "Delete"], "many", shapeFocusModeFilter),
         ...updateRel(o, u, "schedule", ["Create", "Update"], "one", shapeSchedule),
-    }, a)
-}
+    }, a),
+};

@@ -31,8 +31,8 @@ export const view: GqlPartial<View> = {
                 Routine: 7,
                 SmartContract: 8,
                 Standard: 9,
-                User: 10
-            }
-        }
-    }
-}
+                User: 10,
+            },
+        },
+    },
+};

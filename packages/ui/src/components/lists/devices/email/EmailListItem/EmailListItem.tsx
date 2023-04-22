@@ -8,7 +8,7 @@ import { EmailListItemProps } from "../types";
 const Status = {
     NotVerified: "#a71c2d", // Red
     Verified: "#19972b", // Green
-}
+};
 
 export function EmailListItem({
     handleDelete,
@@ -74,5 +74,5 @@ export function EmailListItem({
                 </Tooltip>
             </Stack>
         </ListItem>
-    )
+    );
 }

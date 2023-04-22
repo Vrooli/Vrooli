@@ -49,5 +49,5 @@ export const ReportsButton = ({
                 sx={{ ...multiLineEllipsis(1), pointerEvents: "none" }}
             />
         </Stack>
-    )
-}
+    );
+};

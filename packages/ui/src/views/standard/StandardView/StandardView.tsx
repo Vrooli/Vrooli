@@ -36,7 +36,7 @@ const containerProps = (palette: Palette) => ({
     marginTop: 4,
     marginBottom: 4,
     padding: 2,
-})
+});
 
 export const StandardView = ({
     display = "page",
@@ -111,7 +111,7 @@ export const StandardView = ({
                     // Accounts for BottomNav
                     marginBottom: {
                         xs: "calc(56px + 16px + env(safe-area-inset-bottom))",
-                        md: "calc(16px + env(safe-area-inset-bottom))"
+                        md: "calc(16px + env(safe-area-inset-bottom))",
                     },
                     marginLeft: "calc(16px + env(safe-area-inset-left))",
                     marginRight: "calc(16px + env(safe-area-inset-right))",
@@ -119,7 +119,7 @@ export const StandardView = ({
                 }}>
                     {/* Edit button */}
                     {permissions.canUpdate ? (
-                        <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                        <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                             <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                         </ColorIconButton>
                     ) : null}
@@ -207,5 +207,5 @@ export const StandardView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

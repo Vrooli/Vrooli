@@ -42,7 +42,7 @@ const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
             <AddIcon fill='white' />
         </ColorIconButton>
     </Tooltip>
-)
+);
 
 export const InputOutputContainer = ({
     handleUpdate,
@@ -89,7 +89,7 @@ export const InputOutputContainer = ({
         newIsOpenArray[Math.min(index + 1, sortedList.length)] = true;
         setIsOpenArray(newIsOpenArray);
         const newList = [...sortedList];
-        let newItemFormatted: RoutineVersionInputShape | RoutineVersionOutputShape = {
+        const newItemFormatted: RoutineVersionInputShape | RoutineVersionOutputShape = {
             ...newItem,
             id: uuid(),
             name: newItem.name || t(`${isInput ? "Input" : "Output"}NameDefault`, { number: sortedList.length + 1 }),
@@ -97,7 +97,7 @@ export const InputOutputContainer = ({
             translations: newItem.translations ? newItem.translations : [{
                 id: uuid(),
                 language,
-                description: ""
+                description: "",
             }] as any,
         };
         if (isInput && (newItem as RoutineVersionInputShape).isRequired !== true && (newItem as RoutineVersionInputShape).isRequired !== false) (newItemFormatted as RoutineVersionInputShape).isRequired = true;
@@ -137,7 +137,7 @@ export const InputOutputContainer = ({
                     sxs={{
                         titleContainer: {
                             display: "flex",
-                            justifyContent: "center"
+                            justifyContent: "center",
                         },
                         root: {
                             background: palette.primary.dark,
@@ -146,7 +146,7 @@ export const InputOutputContainer = ({
                             borderRadius: 2,
                             padding: 0,
                             overflow: "overlay",
-                        }
+                        },
                     }}
                 >
                     <Droppable droppableId="inputOutputItems">
@@ -200,5 +200,5 @@ export const InputOutputContainer = ({
                 </ContentCollapse>
             </DragDropContext>
         </>
-    )
-}
+    );
+};

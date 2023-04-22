@@ -16,17 +16,17 @@ const STATUS_COLOR = {
     [Status.Incomplete]: "#a0b121", // Yellow
     [Status.Invalid]: "#ff6a6a", // Red
     [Status.Valid]: "#00d51e", // Green
-}
+};
 const STATUS_LABEL = {
     [Status.Incomplete]: "Incomplete",
     [Status.Invalid]: "Invalid",
     [Status.Valid]: "Valid",
-}
+};
 const STATUS_ICON = {
     [Status.Incomplete]: RoutineIncompleteIcon,
     [Status.Invalid]: RoutineInvalidIcon,
     [Status.Valid]: RoutineValidIcon,
-}
+};
 
 export const StatusButton = ({
     status,
@@ -55,7 +55,7 @@ export const StatusButton = ({
     const open = Boolean(anchorEl);
     const openMenu = useCallback((event: any) => {
         if (!anchorEl) setAnchorEl(event.currentTarget);
-    }, [anchorEl])
+    }, [anchorEl]);
     const closeMenu = () => {
         setAnchorEl(null);
     };
@@ -90,7 +90,7 @@ export const StatusButton = ({
                         color: "white",
                         padding: "4px",
                         borderRadius: "16px",
-                        ...(sx ?? {})
+                        ...(sx ?? {}),
                     }}>
                     <StatusIcon fill='white' />
                     <Typography
@@ -123,11 +123,11 @@ export const StatusButton = ({
                     },
                     "& .MuiMenu-list": {
                         padding: 0,
-                    }
+                    },
                 }}
             >
                 {menu}
             </Menu>
         </>
-    )
-}
+    );
+};

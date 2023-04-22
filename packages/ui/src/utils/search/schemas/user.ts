@@ -13,7 +13,7 @@ export const userSearchSchema = (): FormSchema => ({
     fields: [
         ...bookmarksFields(),
         ...languagesFields(),
-    ]
-})
+    ],
+});
 
-export const userSearchParams = () => toParams(userSearchSchema(), userFindMany, UserSortBy, UserSortBy.BookmarksDesc)
+export const userSearchParams = () => toParams(userSearchSchema(), userFindMany, UserSortBy, UserSortBy.BookmarksDesc);

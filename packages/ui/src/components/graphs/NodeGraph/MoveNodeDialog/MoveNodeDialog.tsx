@@ -8,7 +8,7 @@ import {
     Stack,
     TextField,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { GridSubmitButtons } from "../../../../components/buttons/GridSubmitButtons/GridSubmitButtons";
 import { DialogTitle } from "../../../../components/dialogs/DialogTitle/DialogTitle";
@@ -92,7 +92,7 @@ export const MoveNodeMenu = ({
         if (toColumnIndex === fromColumnIndex && toRowIndex === fromRowIndex) {
             onClose();
         }
-        onClose({ columnIndex: toColumnIndex, rowIndex: toRowIndex })
+        onClose({ columnIndex: toColumnIndex, rowIndex: toRowIndex });
     }, [toColumnIndex, fromColumnIndex, toRowIndex, fromRowIndex, onClose]);
 
     const closeDialog = useCallback(() => { onClose(); }, [onClose]);
@@ -178,7 +178,7 @@ export const MoveNodeMenu = ({
         <LargeDialog
             id="move-node-dialog"
             isOpen={isOpen}
-            onClose={() => { handleClose() }}
+            onClose={() => { handleClose(); }}
             titleId={titleId}
             zIndex={zIndex}
         >
@@ -201,5 +201,5 @@ export const MoveNodeMenu = ({
                 </Grid>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

@@ -89,5 +89,5 @@ export const CommentConnector = ({
             </IconButton>
             {profileImage}
         </Stack>
-    )
-}
+    );
+};

@@ -11,7 +11,7 @@ export const questionAnswerTranslation: GqlPartial<QuestionAnswerTranslation> = 
     },
     full: {},
     list: {},
-}
+};
 
 export const questionAnswer: GqlPartial<QuestionAnswer> = {
     __typename: "QuestionAnswer",
@@ -32,5 +32,5 @@ export const questionAnswer: GqlPartial<QuestionAnswer> = {
     },
     list: {
         translations: () => rel(questionAnswerTranslation, "list"),
-    }
-}
+    },
+};

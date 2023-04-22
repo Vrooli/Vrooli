@@ -43,4 +43,4 @@ export const partialToStringHelper = async (
         }
     }
     return result;
-}
+};

@@ -16,7 +16,7 @@ export const nodeLabel: SxProps = {
 } as CSSProperties;
 
 export const routineNodeCheckboxLabel: SxProps = {
-    marginLeft: "0"
+    marginLeft: "0",
 };
 
 export const routineNodeCheckboxOption: SxProps = {

@@ -12,7 +12,7 @@ export const resourceTranslation: GqlPartial<ResourceTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const resource: GqlPartial<Resource> = {
     __typename: "Resource",
@@ -25,4 +25,4 @@ export const resource: GqlPartial<Resource> = {
     },
     full: {},
     list: {},
-}
+};

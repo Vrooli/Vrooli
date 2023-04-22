@@ -66,11 +66,11 @@ export const DirectoryListHorizontal = ({
 
     // Add item dialog
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
+    const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); }, []);
 
     const onAdd = useCallback((item: DirectoryItem) => {
-        console.log("directoryyy onAdd", item)
+        console.log("directoryyy onAdd", item);
         if (!directory) return;
         // Dont add duplicates
         if (list.some(r => r.id === item.id)) {
@@ -87,7 +87,7 @@ export const DirectoryListHorizontal = ({
                 childRoutineVersions: item.__typename === "RoutineVersion" ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions as any[],
                 childSmartContractVersions: item.__typename === "SmartContractVersion" ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions as any[],
                 childStandardVersions: item.__typename === "StandardVersion" ? [...directory.childStandardVersions, item] : directory.childStandardVersions as any[],
-            })
+            });
             handleUpdate({
                 ...directory,
                 childApiVersions: item.__typename === "ApiVersion" ? [...directory.childApiVersions, item] : directory.childApiVersions as any[],
@@ -124,7 +124,7 @@ export const DirectoryListHorizontal = ({
                         });
                     }
                 },
-            })
+            });
         }
         else if (handleUpdate) {
             handleUpdate({
@@ -210,5 +210,5 @@ export const DirectoryListHorizontal = ({
                 </Tooltip> : null) as any}
             </CardGrid>
         </>
-    )
-}
+    );
+};

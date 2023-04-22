@@ -13,7 +13,7 @@ export const GeneratedCheckbox = ({
     const [field, meta] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as CheckboxProps, [fieldData.props]);
 
-    console.log('rendering checkbox');
+    console.log("rendering checkbox");
 
     return (
         <FormControl
@@ -34,7 +34,7 @@ export const GeneratedCheckbox = ({
                             control={
                                 <Checkbox
                                     checked={(Array.isArray(field.value?.[fieldData.fieldName]) && field.value[fieldData.fieldName].length > index) ? field.value[fieldData.fieldName][index] === props.options[index] : false}
-                                    onChange={(event) => { field.onChange(updateArray(field.value[fieldData.fieldName], index, !props.options[index])) }}
+                                    onChange={(event) => { field.onChange(updateArray(field.value[fieldData.fieldName], index, !props.options[index])); }}
                                     name={`${fieldData.fieldName}-${index}`}
                                     id={`${fieldData.fieldName}-${index}`}
                                     value={props.options[index]}
@@ -47,5 +47,5 @@ export const GeneratedCheckbox = ({
             </FormGroup>
             {meta.touched && !!meta.error && <FormHelperText>{meta.error}</FormHelperText>}
         </FormControl>
-    )
-}
+    );
+};

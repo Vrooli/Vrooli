@@ -15,8 +15,8 @@ export type ResourceShape = Pick<Resource, "id" | "index" | "link" | "usedFor"> 
 
 export const shapeResourceTranslation: ShapeModel<ResourceTranslationShape, ResourceTranslationCreateInput, ResourceTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name"))
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name")),
+};
 
 export const shapeResource: ShapeModel<ResourceShape, ResourceCreateInput, ResourceUpdateInput> = {
     create: (d) => ({
@@ -32,5 +32,5 @@ export const shapeResource: ShapeModel<ResourceShape, ResourceCreateInput, Resou
         ...updatePrims(o, u, "id", "index", "usedFor"),
         ...updateRel(o, u, "list", ["Connect"], "one"),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeResourceTranslation),
-    })
-}
+    }),
+};

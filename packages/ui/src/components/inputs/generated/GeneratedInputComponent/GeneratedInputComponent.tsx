@@ -31,10 +31,10 @@ const typeMap: { [key in InputType]: (props: GeneratedInputComponentProps) => JS
     [InputType.Switch]: GeneratedSwitch,
     [InputType.TagSelector]: GeneratedTagSelector,
     [InputType.TextField]: GeneratedTextField,
-}
+};
 
 export const GeneratedInputComponent = (props: GeneratedInputComponentProps) => {
-    console.log('rendering input component', props.fieldData.type);
+    console.log("rendering input component", props.fieldData.type);
     const InputComponent = useMemo(() => typeMap[props.fieldData.type], [props.fieldData.type]);
-    return <InputComponent {...props} />
-}
+    return <InputComponent {...props} />;
+};

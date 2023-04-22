@@ -38,10 +38,10 @@ export const SettingsAuthenticationView = ({
         mutationWrapper<Session, LogOutInput>({
             mutation: logOut,
             input: { id },
-            onSuccess: (data) => { PubSub.get().publishSession(data) },
+            onSuccess: (data) => { PubSub.get().publishSession(data); },
             // If error, log out anyway
-            onError: () => { PubSub.get().publishSession(guestSession) },
-        })
+            onError: () => { PubSub.get().publishSession(guestSession); },
+        });
         PubSub.get().publishSession(guestSession);
         setLocation(LINKS.Home);
     }, [logOut, session, setLocation]);
@@ -128,9 +128,9 @@ export const SettingsAuthenticationView = ({
                                     currentPassword: values.currentPassword,
                                     newPassword: values.newPassword,
                                 },
-                                onSuccess: (data) => { onProfileUpdate(data) },
-                                onError: () => { helpers.setSubmitting(false) },
-                            })
+                                onSuccess: (data) => { onProfileUpdate(data); },
+                                onError: () => { helpers.setSubmitting(false); },
+                            });
                         }}
                         validationSchema={profileEmailUpdateValidation.update({})}
                     >
@@ -172,5 +172,5 @@ export const SettingsAuthenticationView = ({
                 </Box>
             </Stack>
         </>
-    )
-}
+    );
+};

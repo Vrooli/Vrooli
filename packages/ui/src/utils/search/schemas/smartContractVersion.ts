@@ -21,7 +21,7 @@ export const smartContractVersionSearchSchema = (): FormSchema => ({
         ...bookmarksRootFields(),
         ...languagesFields(),
         ...tagsRootFields(),
-    ]
-})
+    ],
+});
 
 export const smartContractVersionSearchParams = () => toParams(smartContractVersionSearchSchema(), smartContractVersionFindMany, SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc);

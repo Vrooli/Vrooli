@@ -8,7 +8,7 @@ import {
     Stack,
     TextField,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { NodeType } from "@shared/consts";
 import { uuid } from "@shared/uuid";
@@ -77,7 +77,7 @@ export const LinkDialog = ({
             routineVersion: { id: routineVersion.id },
             to: { id: toNode.id },
             whens: [], //TODO
-        })
+        });
         setFromNode(null);
         setToNode(null);
     }, [fromNode, toNode, handleClose, routineVersion.id]);
@@ -161,7 +161,7 @@ export const LinkDialog = ({
                 value={toNode}
                 sx={{
                     minWidth: 200,
-                    maxWidth: 350
+                    maxWidth: 350,
                 }}
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
@@ -220,5 +220,5 @@ export const LinkDialog = ({
                 </Grid>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

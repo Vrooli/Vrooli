@@ -8,6 +8,6 @@ export const statsOrganizationSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchStatsOrganization"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const statsOrganizationSearchParams = () => toParams(statsOrganizationSearchSchema(), statsOrganizationFindMany, StatsOrganizationSortBy, StatsOrganizationSortBy.PeriodStartAsc);

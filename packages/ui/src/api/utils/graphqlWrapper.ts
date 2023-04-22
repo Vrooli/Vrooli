@@ -67,7 +67,7 @@ const wrapInput = (input: Record<string, any> | undefined): InputType | undefine
     if (!exists(input)) return undefined;
     if (Object.keys(input).length === 1 && input.hasOwnProperty("input")) return input as InputType;
     return { input } as InputType;
-}
+};
 
 
 /**
@@ -82,7 +82,7 @@ export const graphqlWrapperHelper = <Output extends object>({
     errorMessage,
     showDefaultErrorSnack = true,
     onError,
-    spinnerDelay = 1000
+    spinnerDelay = 1000,
 }: GraphqlWrapperHelperProps<Output>) => {
     // Helper function to handle errors
     const handleError = (data?: Output | ApolloError | undefined) => {
@@ -103,7 +103,7 @@ export const graphqlWrapperHelper = <Output extends object>({
         if (typeof onError === "function") {
             onError((isApolloError ? data : { message: "Unknown error occurred" }) as ApolloError);
         }
-    }
+    };
     // Start loading spinner
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
     // Call function
@@ -127,7 +127,7 @@ export const graphqlWrapperHelper = <Output extends object>({
             if (successMessage) PubSub.get().publishSnack({
                 messageKey: successMessage(data).key,
                 messageVariables: successMessage(data).variables,
-                severity: "Success"
+                severity: "Success",
             });
             if (spinnerDelay) PubSub.get().publishLoading(false);
             if (onSuccess && typeof onSuccess === "function") onSuccess(data);
@@ -136,8 +136,8 @@ export const graphqlWrapperHelper = <Output extends object>({
         }
     }).catch((response: ApolloError) => {
         handleError(response);
-    })
-}
+    });
+};
 
 /**
  * Calls a useMutation or useLazyQuery function and handles response and catch, using the DocumentNode. 
@@ -154,9 +154,9 @@ export const documentNodeWrapper = <Output extends object, Input extends Record<
         call: () => isMutation ?
             client.mutate({ mutation: node, variables: wrapInput(rest.input) }) :
             client.query({ query: node, variables: wrapInput(rest.input) }),
-        ...rest
+        ...rest,
     });
-}
+};
 
 /**
  * Wraps a useMutation function and handles response and catch
@@ -165,9 +165,9 @@ export const mutationWrapper = <Output extends object, Input extends Record<stri
     const { mutation, ...rest } = props;
     return graphqlWrapperHelper({
         call: () => mutation({ variables: wrapInput(rest.input) }),
-        ...rest
+        ...rest,
     });
-}
+};
 
 /**
  * Wraps a useLazyQuery function and handles response and catch
@@ -176,6 +176,6 @@ export const queryWrapper = <Output extends object, Input extends Record<string,
     const { query, ...rest } = props;
     return graphqlWrapperHelper({
         call: () => query({ variables: wrapInput(rest.input) }),
-        ...rest
+        ...rest,
     });
-}
+};

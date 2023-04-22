@@ -66,7 +66,7 @@ export const PremiumView = ({
                             // Redirect to home page
                             onClick: () => setLocation(LINKS.Home),
                         }],
-                    })
+                    });
                     PubSub.get().publishCelebration();
                     break;
                 case "canceled":
@@ -111,7 +111,7 @@ export const PremiumView = ({
                     userId,
                     variant,
                 }),
-            })
+            });
             const session = await response.json();
             const result = await stripe.redirectToCheckout({
                 sessionId: session.id,
@@ -131,7 +131,7 @@ export const PremiumView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: "Premium"
+                    titleKey: "Premium",
                 }}
             />
             <Stack direction="column" spacing={4} mt={2} mb={2} justifyContent="center" alignItems="center">
@@ -185,12 +185,12 @@ export const PremiumView = ({
                     <Button
                         disabled={hasPremium}
                         fullWidth
-                        onClick={() => { startCheckout("yearly") }}
+                        onClick={() => { startCheckout("yearly"); }}
                     >$149.99/year</Button>
                     <Button
                         disabled={hasPremium}
                         fullWidth
-                        onClick={() => { startCheckout("monthly") }}
+                        onClick={() => { startCheckout("monthly"); }}
                     >$14.99/month</Button>
                     {hasPremium && (
                         // TODO need way to change from monthly to yearly and vice versa
@@ -200,15 +200,15 @@ export const PremiumView = ({
                     )}
                     <Button
                         fullWidth
-                        onClick={() => { startCheckout("donation") }}
+                        onClick={() => { startCheckout("donation"); }}
                     >One-time donation (no premium)</Button>
                 </Stack>}
                 {/* If not logged in, button to log in first */}
                 {!userId && <Button
                     fullWidth
-                    onClick={() => { setLocation(`${LINKS.Start}${stringifySearchParams({ redirect: LINKS.Premium })}`) }}
+                    onClick={() => { setLocation(`${LINKS.Start}${stringifySearchParams({ redirect: LINKS.Premium })}`); }}
                 >Log in to upgrade</Button>}
             </Stack>
         </>
-    )
-}
+    );
+};

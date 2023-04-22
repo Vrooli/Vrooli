@@ -4,7 +4,7 @@
 import {
     Stack,
     Tooltip,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "@shared/icons";
 import { ColorIconButton } from "../../../../components/buttons/ColorIconButton/ColorIconButton";
@@ -98,5 +98,5 @@ export const GraphActions = ({
                 zIndex={zIndex + 3}
             />}
         </Stack>
-    )
-}
+    );
+};

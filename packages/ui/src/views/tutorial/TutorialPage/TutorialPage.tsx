@@ -103,7 +103,7 @@ export const TutorialView = ({
                         transition: "0.3s ease-in-out",
                         "&:hover": {
                             transform: p === page ? "none" : "scale(1.2)",
-                        }
+                        },
                     }} onClick={() => goToPage(p)} />
                 ))}
                 {/* Next arrow if available. If not, complete arrow */}
@@ -114,5 +114,5 @@ export const TutorialView = ({
                 </IconButton>}
             </Stack>
         </>
-    )
-}
+    );
+};

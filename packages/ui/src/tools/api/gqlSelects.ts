@@ -14,7 +14,7 @@ const fragmentsFolder = `${outputFolder}/fragments`;
 const endpointsFolder = `${outputFolder}/endpoints`;
 for (const folder of [outputFolder, fragmentsFolder, endpointsFolder]) {
     if (!fs.existsSync(folder)) {
-        console.info(`Creating folder: ${folder}`)
+        console.info(`Creating folder: ${folder}`);
         fs.mkdirSync(folder);
     }
 }
@@ -54,7 +54,7 @@ for (const [name, fragment] of Object.entries(allFragments)) {
     const outputPath = `${outputFolder}/fragments/${name}.ts`;
     console.log(`generating fragment ${name}...`);
     // Write to file
-    fs.writeFileSync(outputPath, `export const ${name} = \`${fragment}\`;`);
+    fs.writeFileSync(outputPath, `export const ${name} = \`${fragment}\`;\n`);
 }
 
 console.info("Finished generating graphql-tag strings for endpoints🚀");

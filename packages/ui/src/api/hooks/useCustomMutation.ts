@@ -31,7 +31,7 @@ export function useCustomMutation<
                 variableDefinitions: [],
                 directives: [],
                 selectionSet: { kind: "SelectionSet", selections: [] },
-            }]
+            }],
         } as DocumentNode),
         {
             ...options,

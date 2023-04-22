@@ -64,7 +64,7 @@ export function CommentContainer({
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(isMobile);
     // Show add comment input if on desktop. For mobile, we'll show a button
-    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)) }, [forceAddCommentOpen, isMobile]);
+    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)); }, [forceAddCommentOpen, isMobile]);
     const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
     const handleAddCommentClose = useCallback(() => {
         setIsAddCommentOpen(false);

@@ -26,13 +26,13 @@ const headerMarkdowns = {
     [Headers.H4]: "#### ",
     [Headers.H5]: "##### ",
     [Headers.H6]: "###### ",
-}
+};
 
 const dropDownButtonProps = ({
     borderRadius: 0,
     width: "48px",
     height: "48px",
-})
+});
 
 /**
  * Determines start index of the current line.
@@ -43,7 +43,7 @@ const dropDownButtonProps = ({
 const getLineStart = (text: string, selectionStart: number) => {
     if (selectionStart < 0 || selectionStart > text.length) return 0;
     return text.substring(0, selectionStart).lastIndexOf("\n") + 1;
-}
+};
 
 /**
  * Determines end index of the current line.
@@ -54,7 +54,7 @@ const getLineStart = (text: string, selectionStart: number) => {
 const getLineEnd = (text: string, selectionStart: number) => {
     if (selectionStart < 0 || selectionStart > text.length) return text.length;
     return text.substring(selectionStart).indexOf("\n") + selectionStart;
-}
+};
 
 /**
  * Determines line the specified index is on.
@@ -67,7 +67,7 @@ const getLineAtIndex = (text: string, index: number): [string, number, number] =
     const end = getLineEnd(text, index);
     const line = text.substring(start, end);
     return [line, start, end];
-}
+};
 
 /**
  * Determines all lines the cursor or highlighted text is on
@@ -80,8 +80,8 @@ const getLinesAtRange = (text: string, start: number, end: number): [string[], n
     const lineStart = getLineStart(text, start);
     const lineEnd = getLineEnd(text, end);
     const lines = text.substring(lineStart, lineEnd).split("\n");
-    return [lines, lineStart, lineEnd]
-}
+    return [lines, lineStart, lineEnd];
+};
 
 /**
  * Replaces selected text with new text.
@@ -93,7 +93,7 @@ const getLinesAtRange = (text: string, start: number, end: number): [string[], n
  */
 const replaceText = (text: string, newText: string, start: number, end: number): string => {
     return text.substring(0, start) + newText + text.substring(end);
-}
+};
 
 /**
  * Uses element ID to get selectionStart, selectionEnd, and element.
@@ -104,7 +104,7 @@ const getSelection = (id: string): { selectionStart: number, selectionEnd: numbe
     const textArea = document.getElementById(id);
     if (!textArea || !(textArea instanceof HTMLTextAreaElement)) throw new Error(`Element not found: ${id}`);
     return { selectionStart: textArea.selectionStart, selectionEnd: textArea.selectionEnd, textArea };
-}
+};
 
 export const MarkdownInputBase = ({
     autoFocus = false,
@@ -178,13 +178,13 @@ export const MarkdownInputBase = ({
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
     const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
-    const openHeaderSelect = (event: any) => { setHeaderAnchorEl(event.currentTarget) };
-    const closeHeader = () => { setHeaderAnchorEl(null) };
+    const openHeaderSelect = (event: any) => { setHeaderAnchorEl(event.currentTarget); };
+    const closeHeader = () => { setHeaderAnchorEl(null); };
     const headerSelectOpen = Boolean(headerAnchorEl);
 
     const [listAnchorEl, setListAnchorEl] = useState<HTMLElement | null>(null);
-    const openListSelect = (event: any) => { setListAnchorEl(event.currentTarget) };
-    const closeList = () => { setListAnchorEl(null) };
+    const openListSelect = (event: any) => { setListAnchorEl(event.currentTarget); };
+    const closeList = () => { setListAnchorEl(null); };
     const listSelectOpen = Boolean(listAnchorEl);
 
     const insertHeader = useCallback((header: Headers) => {
@@ -224,9 +224,9 @@ export const MarkdownInputBase = ({
         handleChange(textArea.value);
     }, [handleChange, name]);
 
-    const strikethrough = useCallback(() => { padSelection("~~", "~~") }, [padSelection]);
-    const bold = useCallback(() => { padSelection("**", "**") }, [padSelection]);
-    const italic = useCallback(() => { padSelection("*", "*") }, [padSelection]);
+    const strikethrough = useCallback(() => { padSelection("~~", "~~"); }, [padSelection]);
+    const bold = useCallback(() => { padSelection("**", "**"); }, [padSelection]);
+    const italic = useCallback(() => { padSelection("*", "*"); }, [padSelection]);
 
     const insertLink = useCallback(() => {
         // Find the current selection
@@ -243,7 +243,7 @@ export const MarkdownInputBase = ({
 
     const insertBulletList = useCallback(() => {
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
-        const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? [])
+        const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? []);
         const newValue = replaceText(textArea.value, lines.map(line => `* ${line}`).join("\n"), linesStart, linesEnd);
         textArea.value = newValue;
         handleChange(newValue);
@@ -252,14 +252,14 @@ export const MarkdownInputBase = ({
 
     const insertNumberList = useCallback(() => {
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${name}`);
-        const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? [])
+        const [lines, linesStart, linesEnd] = (getLinesAtRange(textArea.value, selectionStart, selectionEnd) ?? []);
         const newValue = replaceText(textArea.value, lines.map((line, i) => `${i + 1}. ${line}`).join("\n"), linesStart, linesEnd);
         textArea.value = newValue;
         handleChange(newValue);
         closeList();
     }, [handleChange, name]);
 
-    const togglePreview = useCallback(() => { setIsPreviewOn(on => !on) }, []);
+    const togglePreview = useCallback(() => { setIsPreviewOn(on => !on); }, []);
 
     // Mousedown prevents the textArea from removing its highlight when one 
     // of the buttons is clicked
@@ -271,7 +271,7 @@ export const MarkdownInputBase = ({
         const targetId = e.target.id;
         // If the target is not the textArea, and the selection is not empty, then prevent default
         if (targetId !== `markdown-input-${name}` && selectionStart !== selectionEnd) {
-            e.preventDefault()
+            e.preventDefault();
             e.stopPropagation();
         }
         // e.preventDefault() 
@@ -294,7 +294,7 @@ export const MarkdownInputBase = ({
                 if (isBullet) {
                     e.preventDefault();
                     const { textArea } = getSelection(`markdown-input-${name}`);
-                    textArea.value = replaceText(value, "\n* ", selectionStart, selectionEnd)
+                    textArea.value = replaceText(value, "\n* ", selectionStart, selectionEnd);
                     handleChange(textArea.value);
                 }
                 else if (isNumber) {
@@ -354,19 +354,19 @@ export const MarkdownInputBase = ({
             // CTRL + Y or CTRL + SHIFT + Z = redo
             else if (e.ctrlKey && (e.key === "y" || e.key === "Z")) {
                 e.preventDefault();
-                redo()
+                redo();
             }
             // CTRL + Z = undo
             else if (e.ctrlKey && e.key === "z") {
                 e.preventDefault();
-                undo()
+                undo();
             }
             // ALT + 6 - Toggle preview
             else if (e.altKey && e.key === "6") {
                 e.preventDefault();
                 togglePreview();
             }
-        }
+        };
         const textarea = document.getElementById(`markdown-input-${name}`);
         if (!textarea) return;
         // Add listener for key press
@@ -386,7 +386,7 @@ export const MarkdownInputBase = ({
                 background: palette.primary.light,
                 color: palette.primary.contrastText,
                 borderRadius: "0.5rem 0.5rem 0 0",
-                ...(sxs?.bar ?? {})
+                ...(sxs?.bar ?? {}),
             }}>
                 {/* To the left is a stack for inserting titles, italics/bold, lists, and links */}
                 <Stack
@@ -596,7 +596,7 @@ export const MarkdownInputBase = ({
                             rows={minRows}
                             value={internalValue}
                             onBlur={onBlur}
-                            onChange={(e) => { handleChange(e.target.value) }}
+                            onChange={(e) => { handleChange(e.target.value); }}
                             tabIndex={tabIndex}
                             style={{
                                 padding: "16.5px 14px",
@@ -625,4 +625,4 @@ export const MarkdownInputBase = ({
             }
         </Stack>
     );
-}
+};

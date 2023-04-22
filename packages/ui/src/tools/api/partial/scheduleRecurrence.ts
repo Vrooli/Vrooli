@@ -18,5 +18,5 @@ export const scheduleRecurrence: GqlPartial<ScheduleRecurrence> = {
     },
     list: {
         schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "recurrences" }),
-    }
-}
+    },
+};

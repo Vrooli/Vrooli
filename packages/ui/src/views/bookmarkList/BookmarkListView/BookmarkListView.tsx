@@ -62,7 +62,7 @@ export const BookmarkListView = ({
             <>
                 <SideActionButtons display={display} zIndex={zIndex + 1}>
                     {/* Edit button */}
-                    <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                    <ColorIconButton aria-label="Edit list" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                     {/* Add button */}
@@ -82,5 +82,5 @@ export const BookmarkListView = ({
                 </Box>
             </>
         </>
-    )
-}
+    );
+};

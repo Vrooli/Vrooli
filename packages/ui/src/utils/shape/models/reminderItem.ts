@@ -14,5 +14,5 @@ export const shapeReminderItem: ShapeModel<ReminderItemShape, ReminderItemCreate
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "name", "description", "dueDate", "index"),
-    }, a)
-}
+    }, a),
+};

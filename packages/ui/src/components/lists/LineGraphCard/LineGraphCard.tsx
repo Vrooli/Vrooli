@@ -2,7 +2,7 @@ import {
     Card,
     CardContent,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { LineGraph } from "../../../components/graphs/LineGraph/LineGraph";
 import { useDimensions } from "../../../utils/hooks/useDimensions";
@@ -50,4 +50,4 @@ export const LineGraphCard = ({
             </CardContent>
         </Card>
     );
-}
+};

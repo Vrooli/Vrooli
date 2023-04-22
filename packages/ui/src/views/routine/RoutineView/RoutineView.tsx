@@ -45,7 +45,7 @@ import { TagShape } from "../../../utils/shape/models/tag";
 import { RoutineViewProps } from "../types";
 
 const statsHelpText =
-    "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future."
+    "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -55,7 +55,7 @@ const containerProps = (palette: Palette) => ({
     marginTop: 4,
     marginBottom: 4,
     padding: 2,
-})
+});
 
 export const RoutineView = ({
     display = "page",
@@ -94,11 +94,11 @@ export const RoutineView = ({
 
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
     const viewGraph = useCallback(() => {
-        setSearchParams(setLocation, { build: true })
+        setSearchParams(setLocation, { build: true });
         setIsBuildOpen(true);
     }, [setLocation]);
     const stopBuild = useCallback(() => {
-        setIsBuildOpen(false)
+        setIsBuildOpen(false);
     }, []);
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
@@ -168,9 +168,9 @@ export const RoutineView = ({
             successMessage: () => ({ key: "RoutineCompleted" }),
             onSuccess: () => {
                 PubSub.get().publishCelebration();
-                setLocation(LINKS.Home)
+                setLocation(LINKS.Home);
             },
-        })
+        });
     }, [formik.values, existing, runComplete, setLocation, name]);
 
     /**
@@ -191,7 +191,7 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
-    console.log("formik values", formik.values)
+    console.log("formik values", formik.values);
 
     return (
         <>
@@ -356,7 +356,7 @@ export const RoutineView = ({
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit) }} >
+                    <ColorIconButton aria-label="edit-routine" background={palette.secondary.main} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}
@@ -372,5 +372,5 @@ export const RoutineView = ({
                 /> : null}
             </SideActionButtons>
         </>
-    )
-}
+    );
+};

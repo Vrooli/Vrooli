@@ -12,7 +12,7 @@ export const pullRequestYou: GqlPartial<PullRequestYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const pullRequestTranslation: GqlPartial<PullRequestTranslation> = {
     __typename: "PullRequestTranslation",
@@ -23,7 +23,7 @@ export const pullRequestTranslation: GqlPartial<PullRequestTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const pullRequest: GqlPartial<PullRequest> = {
     __typename: "PullRequest",
@@ -56,7 +56,7 @@ export const pullRequest: GqlPartial<PullRequest> = {
                 RoutineVersion: 7,
                 SmartContractVersion: 9,
                 StandardVersion: 11,
-            }
+            },
         },
         to: {
             __union: {
@@ -66,7 +66,7 @@ export const pullRequest: GqlPartial<PullRequest> = {
                 Routine: 6,
                 SmartContract: 8,
                 Standard: 10,
-            }
+            },
         },
         createdBy: async () => rel((await import("./user")).user, "nav"),
         you: () => rel(pullRequestYou, "full"),
@@ -83,5 +83,5 @@ export const pullRequest: GqlPartial<PullRequest> = {
         updated_at: true,
         mergedOrRejectedAt: true,
         status: true,
-    }
-}
+    },
+};

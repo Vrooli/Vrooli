@@ -8,6 +8,6 @@ export const roleSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchRole"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const roleSearchParams = () => toParams(roleSearchSchema(), roleFindMany, RoleSortBy, RoleSortBy.DateCreatedDesc)
+export const roleSearchParams = () => toParams(roleSearchSchema(), roleFindMany, RoleSortBy, RoleSortBy.DateCreatedDesc);

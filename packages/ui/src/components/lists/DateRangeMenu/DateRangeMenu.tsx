@@ -12,7 +12,7 @@ export const DateRangeMenu = ({
     onClose,
     onSubmit,
     range,
-    strictIntervalRange
+    strictIntervalRange,
 }: DateRangeMenuProps) => {
     const { t } = useTranslation();
 
@@ -20,9 +20,9 @@ export const DateRangeMenu = ({
 
     // Internal state for range.after and range.before
     const [after, setAfter] = useState<Date | undefined>(range?.after ?? minDate);
-    const [before, setBefore] = useState<Date | undefined>(range?.before ?? maxDate)
-    const handleAfterChange = useCallback((date: Date | null) => { setAfter(date ?? minDate) }, [minDate]);
-    const handleBeforeChange = useCallback((date: Date | null) => { setBefore(date ?? maxDate) }, [maxDate]);
+    const [before, setBefore] = useState<Date | undefined>(range?.before ?? maxDate);
+    const handleAfterChange = useCallback((date: Date | null) => { setAfter(date ?? minDate); }, [minDate]);
+    const handleBeforeChange = useCallback((date: Date | null) => { setBefore(date ?? maxDate); }, [maxDate]);
 
     useEffect(() => {
         setAfter(range?.after ?? minDate);
@@ -111,9 +111,9 @@ export const DateRangeMenu = ({
                 <Button
                     type="submit"
                     fullWidth
-                    onClick={() => { onSubmit(after, before); onClose() }}
+                    onClick={() => { onSubmit(after, before); onClose(); }}
                 >{t("Ok")}</Button>
             </Stack>
         </Popover>
-    )
-}
+    );
+};

@@ -49,7 +49,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
         console.error("Could not parse search params", error);
         return {};
     }
-}
+};
 
 /**
  * Converts object to url search params. 
@@ -64,7 +64,7 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
     const filteredKeys = keys.filter(key => params[key] !== null && params[key] !== undefined);
     const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + "=" + encodeURIComponent(JSON.stringify(params[key]))).join("&");
     return "?" + encodedParams;
-}
+};
 
 /**
  * Adds values to the current search params, without removing any existing values. 

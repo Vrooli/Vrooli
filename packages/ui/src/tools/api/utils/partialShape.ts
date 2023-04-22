@@ -12,7 +12,7 @@ import { unlazy, unlazyDeep } from "./unlazy";
  */
 const addFragments = <T extends { __typename: string }>(
     fragmentsByShape: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } | undefined,
-    define: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } | undefined
+    define: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } | undefined,
 ): { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } => {
     // Initialize object to store the combined fragments
     let result: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = { ...fragmentsByShape } ?? {};
@@ -34,7 +34,7 @@ const addFragments = <T extends { __typename: string }>(
         }
     }
     return result;
-}
+};
 
 /**
  * Recursively shapes a gql selection object to remove duplicate fragments and lazy fields.
@@ -45,7 +45,7 @@ const addFragments = <T extends { __typename: string }>(
  */
 export const partialShape = async <T extends { __typename: string }>(
     selection: MaybeLazyAsync<DeepPartialBooleanWithFragments<NonMaybe<T>>>,
-    lastDefine: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {}
+    lastDefine: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {},
 ): Promise<DeepPartialBooleanWithFragments<NonMaybe<T>>> => {
     // Initialize result
     const result: DeepPartialBooleanWithFragments<NonMaybe<T>> = {};
@@ -152,4 +152,4 @@ export const partialShape = async <T extends { __typename: string }>(
     if (Object.keys(uniqueFragments).length > 0) result.__define = uniqueFragments;
     // Return the combined object
     return result;
-}
+};

@@ -37,7 +37,7 @@ export const SettingsList = () => {
                 </ListItemIcon>
                 <ListItemText primary={t(title, { count: 2 })} />
             </ListItem>
-        ))
+        ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
 
     const [displayListOpen, setDisplayListOpen] = useState(false);
@@ -60,7 +60,7 @@ export const SettingsList = () => {
                 </ListItemIcon>
                 <ListItemText primary={t(title, { count: 2 })} />
             </ListItem>
-        ))
+        ));
     }, [onSelect, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, t]);
 
 
@@ -89,5 +89,5 @@ export const SettingsList = () => {
                 </List>
             </List>
         </Box>
-    )
-}
+    );
+};

@@ -9,7 +9,7 @@ export const GeneratedTagSelector = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering tag selector');
+    console.log("rendering tag selector");
 
     const [field, , helpers] = useField<(Tag | TagShape)[]>(fieldData.fieldName);
 
@@ -20,4 +20,4 @@ export const GeneratedTagSelector = ({
             tags={field.value}
         />
     );
-}
+};

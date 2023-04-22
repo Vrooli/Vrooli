@@ -12,7 +12,7 @@ export const nodeLinkWhenTranslation: GqlPartial<NodeLinkWhenTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const nodeLinkWhen: GqlPartial<NodeLinkWhen> = {
     __typename: "NodeLinkWhen",
@@ -23,4 +23,4 @@ export const nodeLinkWhen: GqlPartial<NodeLinkWhen> = {
     },
     full: {},
     list: {},
-}
+};

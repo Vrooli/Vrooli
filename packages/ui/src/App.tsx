@@ -36,7 +36,7 @@ const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
     typography: {
         fontSize,
     },
-})
+});
 
 /**
  * Sets "isLeftHanded" property on theme
@@ -44,7 +44,7 @@ const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
 const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
     ...theme,
     isLeftHanded,
-})
+});
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -59,7 +59,7 @@ const findThemeWithoutSession = (): Theme => {
     const theme = getCookieTheme(windowPrefersDark ? "dark" : "light");
     // Return theme object
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
-}
+};
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -104,7 +104,7 @@ const useStyles = makeStyles(() => ({
         // Ensure popovers are displayed above everything else
         ".MuiPopover-root": {
             zIndex: 20000,
-        }
+        },
     },
 }));
 
@@ -218,7 +218,7 @@ export function App() {
                      @@      @@                        
                      @@      @@                        
                        @@@@@@  
-        `)
+        `);
     }, []);
 
     useEffect(() => {
@@ -230,7 +230,7 @@ export function App() {
         if (!theme) theme = findThemeWithoutSession();
         // Update theme state, meta tags, and local storage
         setThemeAndMeta(theme);
-    }, [session, setThemeAndMeta])
+    }, [session, setThemeAndMeta]);
 
     // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
@@ -283,7 +283,7 @@ export function App() {
                 //TODO store in local storage. validateSession will only return full data for the current user.
                 //Other logged in users will not have their full data returned (will be in shape SessionUserToken
                 //instead of SessionUser). Not sure if this is a problem yet.
-                setSession(data)
+                setSession(data);
             },
             showDefaultErrorSnack: false,
             onError: (error: any) => {
@@ -305,17 +305,17 @@ export function App() {
                 }
                 // If not logged in as guest and failed to log in as user, set guest session
                 if (!data) {
-                    setSession(guestSession)
+                    setSession(guestSession);
                 }
             },
-        })
-    }, [validateSession])
-    console.log("CURRENT SESSION", session)
+        });
+    }, [validateSession]);
+    console.log("CURRENT SESSION", session);
 
     useEffect(() => {
         checkSession();
         // Handle loading spinner, which can have a delay
-        let loadingSub = PubSub.get().subscribeLoading((data) => {
+        const loadingSub = PubSub.get().subscribeLoading((data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
                 timeoutRef.current = setTimeout(() => setIsLoading(true), Math.abs(data as number));
@@ -325,7 +325,7 @@ export function App() {
         });
         // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
         // can be passed in as a number
-        let celebrationSub = PubSub.get().subscribeCelebration((data) => {
+        const celebrationSub = PubSub.get().subscribeCelebration((data) => {
             // Start confetti immediately
             setIsCelebrating(true);
             // Determine duration
@@ -335,7 +335,7 @@ export function App() {
             setTimeout(() => setIsCelebrating(false), duration);
         });
         // Handle session updates
-        let sessionSub = PubSub.get().subscribeSession((session) => {
+        const sessionSub = PubSub.get().subscribeSession((session) => {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
@@ -351,12 +351,12 @@ export function App() {
             setCookieAllFocusModes(focusModes);
         });
         // Handle theme updates
-        let themeSub = PubSub.get().subscribeTheme((data) => {
-            const newTheme = themes[data] ?? themes.light
+        const themeSub = PubSub.get().subscribeTheme((data) => {
+            const newTheme = themes[data] ?? themes.light;
             setThemeAndMeta(newTheme);
         });
         // Handle focus mode updates
-        let focusModeSub = PubSub.get().subscribeFocusMode((data) => {
+        const focusModeSub = PubSub.get().subscribeFocusMode((data) => {
             setCookieActiveFocusMode(data);
             setSession((prevState) => {
                 if (!prevState) return prevState;
@@ -381,31 +381,31 @@ export function App() {
                     mutation: setActiveFocusMode,
                     input: { ...rest, id: data.mode.id },
                     successCondition: (data) => data !== null,
-                    onSuccess: () => { isSettingActiveFocusMode.current = false },
+                    onSuccess: () => { isSettingActiveFocusMode.current = false; },
                     onError: (error) => {
                         isSettingActiveFocusMode.current = false;
                         console.error("Failed to set active focus mode", error);
-                    }
-                })
+                    },
+                });
             }
         });
         // Handle font size updates
-        let fontSizeSub = PubSub.get().subscribeFontSize((data) => {
+        const fontSizeSub = PubSub.get().subscribeFontSize((data) => {
             setFontSize(data);
             setCookieFontSize(data);
         });
         // Handle language updates
-        let languageSub = PubSub.get().subscribeLanguage((data) => {
+        const languageSub = PubSub.get().subscribeLanguage((data) => {
             setLanguage(data);
             setCookieLanguage(data);
         });
         // Handle isLeftHanded updates
-        let isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
+        const isLeftHandedSub = PubSub.get().subscribeIsLeftHanded((data) => {
             setIsLeftHanded(data);
             setCookieIsLeftHanded(data);
         });
         // Handle welcome message
-        let welcomeSub = PubSub.get().subscribeWelcome(() => {
+        const welcomeSub = PubSub.get().subscribeWelcome(() => {
             setIsWelcomeDialogOpen(true);
         });
         // On unmount, unsubscribe from all PubSub topics
@@ -419,7 +419,7 @@ export function App() {
             PubSub.get().unsubscribe(languageSub);
             PubSub.get().unsubscribe(isLeftHandedSub);
             PubSub.get().unsubscribe(welcomeSub);
-        })
+        });
     }, [checkSession, setActiveFocusMode, setThemeAndMeta]);
 
     return (

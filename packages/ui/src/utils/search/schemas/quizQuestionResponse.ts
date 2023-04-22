@@ -8,6 +8,6 @@ export const quizQuestionResponseSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchQuizQuestionResponse"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const quizQuestionResponseSearchParams = () => toParams(quizQuestionResponseSearchSchema(), quizQuestionResponseFindMany, QuizQuestionResponseSortBy, QuizQuestionResponseSortBy.DateCreatedDesc)
+export const quizQuestionResponseSearchParams = () => toParams(quizQuestionResponseSearchSchema(), quizQuestionResponseFindMany, QuizQuestionResponseSortBy, QuizQuestionResponseSortBy.DateCreatedDesc);

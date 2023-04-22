@@ -17,7 +17,7 @@ export const noteYou: GqlPartial<NoteYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const note: GqlPartial<Note> = {
     __typename: "Note",
@@ -38,7 +38,7 @@ export const note: GqlPartial<Note> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         permissions: true,
         questionsCount: true,
@@ -59,5 +59,5 @@ export const note: GqlPartial<Note> = {
     nav: {
         id: true,
         isPrivate: true,
-    }
-}
+    },
+};

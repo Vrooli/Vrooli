@@ -14,17 +14,17 @@ import { ReportsViewProps } from "../types";
  * Maps object types to the correct id fields
  */
 const objectTypeToIdField = {
-    'Comment': 'commentId',
-    'Organization': 'organizationId',
-    'Project': 'projectId',
-    'Routine': 'routineId',
-    'Standard': 'standardId',
-    'Tag': 'tagId',
-    'User': 'userId',
-}
+    "Comment": "commentId",
+    "Organization": "organizationId",
+    "Project": "projectId",
+    "Routine": "routineId",
+    "Standard": "standardId",
+    "Tag": "tagId",
+    "User": "userId",
+};
 
 export const ReportsView = ({
-    display = 'page',
+    display = "page",
 }: ReportsViewProps): JSX.Element => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -32,12 +32,12 @@ export const ReportsView = ({
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
-    const { data } = useQuery<Wrap<ReportSearchResult, 'reports'>, Wrap<ReportSearchInput, 'input'>>(
+    const { data } = useQuery<Wrap<ReportSearchResult, "reports">, Wrap<ReportSearchInput, "input">>(
         reportFindMany,
         { variables: { input: { [(objectTypeToIdField as any)[objectType]]: id } } },
     );
     const reports = useMemo<Report[]>(() => {
-        if (!data) return []
+        if (!data) return [];
         return data.reports.edges.map(edge => edge.node);
     }, [data]);
 
@@ -47,8 +47,8 @@ export const ReportsView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Reports',
-                    helpKey: 'ReportsHelp',
+                    titleKey: "Reports",
+                    helpKey: "ReportsHelp",
                 }}
             />
             {reports.map((report, i) => {
@@ -64,13 +64,13 @@ export const ReportsView = ({
                     }}
                 >
                     <p style={{ margin: "0" }}>
-                        <b>{t('Reason')}:</b> {report.reason}
+                        <b>{t("Reason")}:</b> {report.reason}
                     </p>
                     <p style={{ margin: "1rem 0 0 0" }}>
-                        <b>{t('Details')}:</b>  {report.details}
+                        <b>{t("Details")}:</b>  {report.details}
                     </p>
-                </Box>
+                </Box>;
             })}
         </>
-    )
-}
+    );
+};

@@ -43,15 +43,15 @@ export const walletDownloadUrls: { [x: string]: [string, string] } = {
     "nami": ["Nami", "https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo"],
     "nufi": ["NuFi", "https://chrome.google.com/webstore/detail/nufi/gpnihlnnodeiiaakbikldcihojploeca"],
     // 'yoroi': 'https://chrome.google.com/webstore/detail/yoroi/ffnbelfdoeiohenkjibnmadjiehjhajb',
-}
+};
 
 /**
  * Maps network names to their ids
  */
 const Network = {
     Mainnet: 1,
-    Testnet: 0
-}
+    Testnet: 0,
+};
 
 /**
  * Checks is a wallet extension is installed
@@ -89,7 +89,7 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
         return !nextName && !exclude.includes(key);
     });
     return providers;
-}
+};
 
 /**
  * Connects to wallet provider
@@ -99,7 +99,7 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
 const connectWallet = async (key: string): Promise<any> => {
     if (!hasWalletExtension(key)) return false;
     return await window.cardano[key].enable();
-}
+};
 
 /**
  * Initiates handshake to verify wallet with backend.
@@ -111,13 +111,13 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
     const client = initializeApollo();
     const data = await client.mutate({
         mutation: authWalletInit,
-        variables: { input: { stakingAddress } }
+        variables: { input: { stakingAddress } },
     }).catch((error: ApolloError) => {
         PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error });
-    })
+    });
     PubSub.get().publishLoading(false);
     return data?.data?.walletInit;
-}
+};
 
 /**
  * Completes handshake to verify wallet with backend
@@ -130,13 +130,13 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
     const client = initializeApollo();
     const data = await client.mutate({
         mutation: authWalletComplete,
-        variables: { input: { stakingAddress, signedPayload } }
+        variables: { input: { stakingAddress, signedPayload } },
     }).catch((error: ApolloError) => {
         PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error });
-    })
+    });
     PubSub.get().publishLoading(false);
     return data?.data?.walletComplete;
-}
+};
 
 /**
  * Signs payload received from walletInit
@@ -153,7 +153,7 @@ const signPayload = async (key: string, walletActions: WalletActions, stakingAdd
         return await window.cardano.signData(stakingAddress, payload);
     // For all other providers, we use the new method
     return await walletActions.signData(stakingAddress, payload);
-}
+};
 
 /**
  * Establish trust between a user's wallet and the backend
@@ -189,4 +189,4 @@ export const validateWallet = async (key: string): Promise<WalletComplete | null
     } finally {
         return result;
     }
-}
+};

@@ -37,5 +37,5 @@ export const ObjectActionMenu = ({
                 zIndex={zIndex}
             />
         </>
-    )
-}
+    );
+};

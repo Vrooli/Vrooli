@@ -8,6 +8,6 @@ export const runProjectSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchRunProject"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const runProjectSearchParams = () => toParams(runProjectSearchSchema(), runProjectFindMany, RunProjectSortBy, RunProjectSortBy.DateStartedDesc);

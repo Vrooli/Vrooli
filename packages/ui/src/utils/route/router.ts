@@ -76,7 +76,7 @@ export const useLocation = (): [Path, SetLocation] => {
 export const useRoute = <
     T extends DefaultParams | undefined = undefined,
     RoutePath extends Path = Path>(
-        pattern: RoutePath
+        pattern: RoutePath,
     ):
     Match<T extends DefaultParams ? T : ExtractRouteParams<RoutePath>> => {
     const [path] = useLocation();
@@ -158,7 +158,7 @@ export const Link = (props: LinkProps) => {
     const navRef = useNavigate(props);
     const { base } = useRouter();
 
-    let { to, href = to, children, onClick } = props;
+    const { to, href = to, children, onClick } = props;
 
     const handleClick = useCallback(
         (event: any) => {
@@ -181,7 +181,7 @@ export const Link = (props: LinkProps) => {
         },
         // navRef is a ref so it never changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [onClick]
+        [onClick],
     );
 
     // wraps children in `a` if needed
@@ -207,8 +207,8 @@ const flattenChildren = (children: Array<any> | any): any => {
             ...children.map((c) =>
                 c && c.type === Fragment
                     ? flattenChildren(c.props.children)
-                    : flattenChildren(c)
-            )
+                    : flattenChildren(c),
+            ),
         )
         : [children];
 };

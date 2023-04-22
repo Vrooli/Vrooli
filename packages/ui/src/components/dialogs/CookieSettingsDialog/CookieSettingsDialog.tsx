@@ -3,7 +3,7 @@
  */
 import {
     Button, Grid,
-    Stack, Typography
+    Stack, Typography,
 } from "@mui/material";
 import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
 import { ToggleSwitch } from "../../../components/inputs/ToggleSwitch/ToggleSwitch";
@@ -29,8 +29,8 @@ export const CookieSettingsDialog = ({
         setCookiePreferences(preferences);
         // Close dialog
         handleClose(preferences);
-    }
-    const onCancel = () => { handleClose(); }
+    };
+    const onCancel = () => { handleClose(); };
 
     const formik = useFormik({
         initialValues: {
@@ -41,7 +41,7 @@ export const CookieSettingsDialog = ({
         },
         onSubmit: (values) => {
             setPreferences(values);
-        }
+        },
     });
 
     const handleAcceptAllCookies = () => {
@@ -52,7 +52,7 @@ export const CookieSettingsDialog = ({
             targeting: true,
         };
         setPreferences(preferences);
-    }
+    };
 
     return (
         <LargeDialog
@@ -171,5 +171,5 @@ export const CookieSettingsDialog = ({
                 </Grid>
             </form>
         </LargeDialog>
-    )
-}
+    );
+};

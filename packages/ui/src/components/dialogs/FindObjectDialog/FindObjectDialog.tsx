@@ -22,6 +22,7 @@ import { SearchParams } from "../../../utils/search/schemas/base";
 import { UpsertProps } from "../../../views/types";
 import { ShareSiteDialog } from "../ShareSiteDialog/ShareSiteDialog";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
+
 const { ApiUpsert } = lazily(() => import("../../../views/api/ApiUpsert/ApiUpsert"));
 const { NoteUpsert } = lazily(() => import("../../../views/note/NoteUpsert/NoteUpsert"));
 const { OrganizationUpsert } = lazily(() => import("../../../views/organization/OrganizationUpsert/OrganizationUpsert"));
@@ -104,7 +105,7 @@ const createMap: { [K in CreateViewTypes]: (props: UpsertProps<any>) => JSX.Elem
     Routine: RoutineUpsert,
     SmartContract: SmartContractUpsert,
     Standard: StandardUpsert,
-}
+};
 
 const searchTitleId = "search-vrooli-for-link-title";
 
@@ -149,14 +150,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             setCurrTab(tabs[index]);
         }
     }, [tabs]);
-    console.log("yeeeeet", currTab)
+    console.log("yeeeeet", currTab);
 
     const handleTabChange = useCallback((e: any, tab: PageTab<SearchPageTabOption>) => {
         e.preventDefault();
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // Dialog for creating new object
@@ -183,7 +184,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback((item?: ObjectType, versionId?: string) => {
-        console.log("onCloseeeeee", item)
+        console.log("onCloseeeeee", item);
         // Clear search params
         removeSearchParams(setLocation, [
             ...(advancedSearchSchema?.fields.map(f => f.fieldName) ?? []),
@@ -228,7 +229,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     // On tab change, update search params
     const { searchType, where } = useMemo<Pick<BaseParams, "searchType" | "where">>(() => {
-        console.log("yeet calculating search type", searchData, currTab, tabs)
+        console.log("yeet calculating search type", searchData, currTab, tabs);
         if (searchData) return searchData as any;
         if (currTab) return { searchType: tabParams.find(tab => tab.tabType === currTab.value)?.searchType ?? "All", where: {} };
         return { searchType: "All", where: {} };
@@ -336,7 +337,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    console.log("yeeeet searchType", searchType)
+    console.log("yeeeet searchType", searchType);
     return (
         <>
             {/* Invite user dialog (when you select 'User' as create type) */}
@@ -386,17 +387,17 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             <LargeDialog
                 id="resource-find-object-dialog"
                 isOpen={isOpen}
-                onClose={() => { handleCancel() }}
+                onClose={() => { handleCancel(); }}
                 titleId={searchTitleId}
                 zIndex={zIndex}
             >
                 <TopBar
                     display="dialog"
-                    onClose={() => { handleCancel() }}
+                    onClose={() => { handleCancel(); }}
                     titleData={{
                         hideOnDesktop: true,
                         titleKey: "SearchVrooli",
-                        helpKey: "FindObjectDialogHelp"
+                        helpKey: "FindObjectDialogHelp",
                     }}
                     below={tabs.length > 1 && Boolean(currTab) && <PageTabs
                         ariaLabel="search-tabs"
@@ -473,5 +474,5 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 </Box>
             </LargeDialog>
         </>
-    )
-}
+    );
+};

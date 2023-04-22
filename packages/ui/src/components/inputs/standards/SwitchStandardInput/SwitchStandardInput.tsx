@@ -27,4 +27,4 @@ export const SwitchStandardInput = ({
             )} label="Default checked" />
         </FormGroup>
     );
-}
+};

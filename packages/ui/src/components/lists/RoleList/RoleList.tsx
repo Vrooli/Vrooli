@@ -11,7 +11,7 @@ export const RoleList = ({
 
     const [chips, numTagsCutOff] = useMemo(() => {
         let charactersBeforeCutoff = maxCharacters;
-        let chipResult: JSX.Element[] = [];
+        const chipResult: JSX.Element[] = [];
         for (let i = 0; i < roles.length; i++) {
             const role = roles[i];
             if (role.name.length < charactersBeforeCutoff) {
@@ -25,7 +25,7 @@ export const RoleList = ({
                             backgroundColor: palette.mode === "light" ? "#1d7691" : "#016d97",
                             color: "white",
                             width: "fit-content",
-                        }} />
+                        }} />,
                 );
             }
         }
@@ -47,5 +47,5 @@ export const RoleList = ({
                 {numTagsCutOff > 0 && <Typography variant="body1">+{numTagsCutOff}</Typography>}
             </Stack>
         </Tooltip>
-    )
-}
+    );
+};

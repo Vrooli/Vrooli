@@ -28,8 +28,8 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
                     { label: "Project", value: "Project" },
                     { label: "Routine", value: "Routine" },
                     { label: "Don't Care", value: "undefined" },
-                ]
-            }
+                ],
+            },
         },
         ...hasCompleteVersionFields(),
         ...votesFields(),
@@ -38,7 +38,7 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
         ...complexityFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
-export const projectOrRoutineSearchParams = () => toParams(projectOrRoutineSearchSchema(), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc)
+export const projectOrRoutineSearchParams = () => toParams(projectOrRoutineSearchSchema(), projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.BookmarksDesc);

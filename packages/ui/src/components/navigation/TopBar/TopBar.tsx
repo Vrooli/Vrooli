@@ -24,7 +24,7 @@ export const TopBar = forwardRef(({
             title={title}
             onClose={onClose}
         />
-    )
+    );
     return (
         <Navbar
             ref={ref}
@@ -33,5 +33,5 @@ export const TopBar = forwardRef(({
             shouldHideTitle={titleData?.hideOnDesktop}
             title={title}
         />
-    )
-})
+    );
+});

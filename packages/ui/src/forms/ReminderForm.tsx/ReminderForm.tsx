@@ -18,7 +18,7 @@ import { ReminderShape, shapeReminder } from "../../utils/shape/models/reminder"
 export const reminderInitialValues = (
     session: Session | undefined,
     reminderListId: string | undefined,
-    existing?: Reminder | null | undefined
+    existing?: Reminder | null | undefined,
 ): ReminderShape => ({
     __typename: "Reminder" as const,
     id: DUMMY_ID,
@@ -33,7 +33,7 @@ export const reminderInitialValues = (
         // If there's no reminderListId, add additional fields to create a new reminderList
         ...(reminderListId === undefined && {
             focusMode: getCurrentUser(session)?.activeFocusMode?.mode,
-        })
+        }),
     },
     reminderItems: [],
     ...existing,
@@ -42,7 +42,7 @@ export const reminderInitialValues = (
 export function transformReminderValues(values: ReminderShape, existing?: ReminderShape) {
     return existing === undefined
         ? shapeReminder.create(values)
-        : shapeReminder.update(existing, values)
+        : shapeReminder.update(existing, values);
 }
 
 export const validateReminderValues = async (values: ReminderShape, existing?: ReminderShape) => {
@@ -50,7 +50,7 @@ export const validateReminderValues = async (values: ReminderShape, existing?: R
     const validationSchema = reminderValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const ReminderForm = forwardRef<any, ReminderFormProps>(({
     display,
@@ -155,7 +155,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                 endAdornment: (
                                     <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
                                         <input type="hidden" />
-                                        <IconButton edge="end" size="small" onClick={() => { clearDueDate() }}>
+                                        <IconButton edge="end" size="small" onClick={() => { clearDueDate(); }}>
                                             <CloseIcon fill={palette.background.textPrimary} />
                                         </IconButton>
                                     </InputAdornment>
@@ -215,7 +215,7 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                                                                         endAdornment: (
                                                                             <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
                                                                                 <input type="hidden" />
-                                                                                <IconButton edge="end" size="small" onClick={() => { clearDueDate(i) }}>
+                                                                                <IconButton edge="end" size="small" onClick={() => { clearDueDate(i); }}>
                                                                                     <CloseIcon fill={palette.background.textPrimary} />
                                                                                 </IconButton>
                                                                             </InputAdornment>
@@ -272,5 +272,5 @@ export const ReminderForm = forwardRef<any, ReminderFormProps>(({
                 onSubmit={props.handleSubmit}
             />
         </>
-    )
-})
+    );
+});

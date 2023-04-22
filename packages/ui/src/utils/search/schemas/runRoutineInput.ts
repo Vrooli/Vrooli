@@ -8,6 +8,6 @@ export const runRoutineInputSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchRunRoutineInput"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const runRoutineInputSearchParams = () => toParams(runRoutineInputSearchSchema(), runRoutineInputFindMany, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc);

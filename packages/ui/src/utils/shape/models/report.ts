@@ -18,5 +18,5 @@ export const shapeReport: ShapeModel<ReportShape, ReportCreateInput, ReportUpdat
     update: (o, u, a) => shapeUpdate(u, {
         reason: (u.otherReason ?? u.reason) !== o.reason ? (u.otherReason ?? u.reason) : undefined,
         ...updatePrims(o, u, "id", "details", "language"),
-    }, a)
-}
+    }, a),
+};

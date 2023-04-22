@@ -37,4 +37,4 @@ export const unionToString = async (
         result += `${" ".repeat(indent)}}\n`;
     }
     return result;
-}
+};

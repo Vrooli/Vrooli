@@ -11,7 +11,7 @@ export const reportYou: GqlPartial<ReportYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const report: GqlPartial<Report> = {
     __typename: "Report",
@@ -29,4 +29,4 @@ export const report: GqlPartial<Report> = {
         responses: async () => rel((await import("./reportResponse")).reportResponse, "full", { omit: "report" }),
     },
     list: {},
-}
+};

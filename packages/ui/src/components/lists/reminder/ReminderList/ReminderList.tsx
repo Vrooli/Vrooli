@@ -32,11 +32,11 @@ export const ReminderList = ({
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
+    const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
-        setIsDialogOpen(true)
+        setIsDialogOpen(true);
     }, []);
 
     const handleCreated = useCallback((reminder: Reminder) => {
@@ -75,7 +75,7 @@ export const ReminderList = ({
                 closeDialog();
             },
             errorMessage: () => ({ key: "FailedToDelete" }),
-        })
+        });
     }, [allReminders, deleteMutation, handleUpdate, loadingDelete]);
 
     return (
@@ -117,5 +117,5 @@ export const ReminderList = ({
                 ))}
             </TitleContainer>
         </>
-    )
-}
+    );
+};

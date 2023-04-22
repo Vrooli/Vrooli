@@ -14,10 +14,10 @@ export const SlideContainer = ({
                 position: "relative",
                 overflow: "hidden",
                 scrollSnapAlign: "start",
-                ...sx
+                ...sx,
             }}
         >
             {children}
         </Box>
     );
-}
+};

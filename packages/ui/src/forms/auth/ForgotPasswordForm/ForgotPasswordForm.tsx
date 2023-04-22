@@ -2,7 +2,7 @@ import {
     Button,
     Grid,
     Link, TextField,
-    Typography
+    Typography,
 } from "@mui/material";
 import { CSSProperties } from "@mui/styles";
 import { EmailRequestPasswordChangeInput, LINKS, Success } from "@shared/consts";
@@ -42,7 +42,7 @@ export const ForgotPasswordForm = ({
             />
             <Formik
                 initialValues={{
-                    email: ""
+                    email: "",
                 }}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Success, EmailRequestPasswordChangeInput>({
@@ -50,9 +50,9 @@ export const ForgotPasswordForm = ({
                         input: { ...values },
                         successCondition: (data) => data.success === true,
                         onSuccess: () => setLocation(LINKS.Home),
-                        onError: () => { helpers.setSubmitting(false) },
+                        onError: () => { helpers.setSubmitting(false); },
                         successMessage: () => ({ key: "RequestSentCheckEmail" }),
-                    })
+                    });
                 }}
                 validationSchema={emailRequestPasswordChangeSchema}
             >
@@ -115,4 +115,4 @@ export const ForgotPasswordForm = ({
             </Formik>
         </>
     );
-}
+};

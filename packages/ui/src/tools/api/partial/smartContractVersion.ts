@@ -14,7 +14,7 @@ export const smartContractVersionTranslation: GqlPartial<SmartContractVersionTra
     },
     full: {},
     list: {},
-}
+};
 
 export const smartContractVersion: GqlPartial<SmartContractVersion> = {
     __typename: "SmartContractVersion",
@@ -55,5 +55,5 @@ export const smartContractVersion: GqlPartial<SmartContractVersion> = {
         versionLabel: true,
         root: async () => rel((await import("./smartContract")).smartContract, "nav"),
         translations: () => rel(smartContractVersionTranslation, "list"),
-    }
-}
+    },
+};

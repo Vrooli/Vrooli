@@ -10,7 +10,7 @@ export const transferYou: GqlPartial<TransferYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const transfer: GqlPartial<Transfer> = {
     __typename: "Transfer",
@@ -38,10 +38,10 @@ export const transfer: GqlPartial<Transfer> = {
                 Routine: 3,
                 SmartContract: 4,
                 Standard: 5,
-            }
+            },
         },
         you: () => rel(transferYou, "full"),
     },
     full: {},
     list: {},
-}
+};

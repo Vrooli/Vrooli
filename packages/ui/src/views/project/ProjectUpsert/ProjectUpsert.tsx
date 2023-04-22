@@ -27,7 +27,7 @@ export const ProjectUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<ProjectVersion, FindVersionInput>(projectVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => projectInitialValues(session, existing), [existing, session]);
@@ -56,9 +56,9 @@ export const ProjectUpsert = ({
                     mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({
                         mutation,
                         input: transformProjectValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateProjectValues(values, existing)}
             >
@@ -75,5 +75,5 @@ export const ProjectUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

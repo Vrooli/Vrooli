@@ -8,6 +8,6 @@ export const chatMessageSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchChatMessage"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const chatMessageSearchParams = () => toParams(chatMessageSearchSchema(), chatMessageFindMany, ChatMessageSortBy, ChatMessageSortBy.DateUpdatedDesc)
+export const chatMessageSearchParams = () => toParams(chatMessageSearchSchema(), chatMessageFindMany, ChatMessageSortBy, ChatMessageSortBy.DateUpdatedDesc);

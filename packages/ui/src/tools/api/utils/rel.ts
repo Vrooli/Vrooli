@@ -4,6 +4,7 @@ import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
 import { findSelection } from "./findSelection";
 import { partialShape } from "./partialShape";
 import { removeValuesUsingDot } from "./removeValuesUsingDot";
+
 const { merge } = pkg;
 
 /**
@@ -19,9 +20,9 @@ export const rel = async <
 >(
     partial: Partial,
     selectionType: Selection,
-    exceptions?: { omit: OmitField | OmitField[] }
+    exceptions?: { omit: OmitField | OmitField[] },
 ): Promise<DeepPartialBooleanWithFragments<any>> => {
-    const hasExceptions = exists(exceptions) && exists(exceptions.omit)
+    const hasExceptions = exists(exceptions) && exists(exceptions.omit);
     // Find correct selection to use
     const actualSelectionType = findSelection(partial, selectionType);
     // Get selection data for the partial
@@ -41,4 +42,4 @@ export const rel = async <
         selectionData = merge(selectionData, commonData);
     }
     return { __typename: partial.__typename, __selectionType: actualSelectionType, ...selectionData } as any;
-}
+};

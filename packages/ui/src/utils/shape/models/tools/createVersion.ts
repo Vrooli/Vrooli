@@ -24,6 +24,6 @@ export const createVersion = <
         versionsCreate: [shape.create(preShaper({
             ...root.versionInfo,
             versionLabel: root.versionInfo.versionLabel ?? "0.0.1",
-        }))]
+        }))],
     } as any;
 };

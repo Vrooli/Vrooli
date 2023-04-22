@@ -26,15 +26,15 @@ export const FocusModeSelector = () => {
 
     const handleAddNewFocusMode = () => {
         // If you can add, open settings
-        if (canAdd) setLocation(LINKS.SettingsFocusModes)
+        if (canAdd) setLocation(LINKS.SettingsFocusModes);
         // If you can't add and don't have premium, open premium page
         else if (!hasPremium) {
             setLocation(LINKS.Premium);
-            PubSub.get().publishSnack({ message: 'Upgrade to increase limit', severity: 'Info' });
+            PubSub.get().publishSnack({ message: "Upgrade to increase limit", severity: "Info" });
         }
         // Otherwise, show error
-        else PubSub.get().publishSnack({ message: 'Max reached', severity: 'Error' });
-    }
+        else PubSub.get().publishSnack({ message: "Max reached", severity: "Error" });
+    };
 
     return (
         <>
@@ -51,13 +51,13 @@ export const FocusModeSelector = () => {
                     getOptionDescription={(r) => r.description}
                     fullWidth={true}
                     inputAriaLabel="Focus Mode"
-                    label={t('FocusMode', { count: 1, defaultValue: 'Focus Mode' })}
+                    label={t("FocusMode", { count: 1, defaultValue: "Focus Mode" })}
                     onChange={(newMode) => {
                         newMode && PubSub.get().publishFocusMode({
-                            __typename: 'ActiveFocusMode' as const,
+                            __typename: "ActiveFocusMode" as const,
                             mode: newMode,
                             stopCondition: FocusModeStopCondition.NextBegins,
-                        })
+                        });
                     }}
                     addOption={{
                         label: t("AddFocusMode"),
@@ -66,5 +66,5 @@ export const FocusModeSelector = () => {
                 />
             </Formik>
         </>
-    )
-}
+    );
+};

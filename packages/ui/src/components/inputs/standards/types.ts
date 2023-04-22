@@ -8,15 +8,15 @@ export interface BaseStandardInputProps {
     fieldName: string;
     inputType: InputType;
     isEditing: boolean;
-    label?: FieldDataBase['label'];
+    label?: FieldDataBase["label"];
     storageKey: string;
-    yup?: FieldData['yup'];
+    yup?: FieldData["yup"];
 }
 
 /**
  * Used for components that set the "prop" values of a standard input.
  */
-interface StandardInputCommonProps extends Omit<BaseStandardInputProps, 'inputType' | 'label' | 'storageKey' | 'yup'> { }
+interface StandardInputCommonProps extends Omit<BaseStandardInputProps, "inputType" | "label" | "storageKey" | "yup"> { }
 
 export interface CheckboxStandardInputProps extends StandardInputCommonProps { };
 

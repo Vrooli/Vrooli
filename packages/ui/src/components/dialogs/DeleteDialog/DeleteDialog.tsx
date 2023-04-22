@@ -4,7 +4,7 @@ import {
     Stack,
     TextField,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { DeleteOneInput, LINKS, Success } from "@shared/consts";
 import { DeleteIcon } from "@shared/icons";
@@ -52,8 +52,8 @@ export const DeleteDialog = ({
             errorMessage: () => ({ key: "FailedToDelete" }),
             onError: () => {
                 close(false);
-            }
-        })
+            },
+        });
     }, [close, deleteOne, objectId, objectName, objectType, setLocation]);
 
     return (
@@ -65,7 +65,7 @@ export const DeleteDialog = ({
         >
             <TopBar
                 display="dialog"
-                onClose={() => { close() }}
+                onClose={() => { close(); }}
                 titleData={{
                     titleKey: "Delete",
                 }}
@@ -93,5 +93,5 @@ export const DeleteDialog = ({
                 </Stack>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

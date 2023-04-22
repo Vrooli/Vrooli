@@ -3,7 +3,7 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { ApiIcon, DeleteIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "@shared/icons";
 import { ColorIconButton } from "../../../../components/buttons/ColorIconButton/ColorIconButton";
@@ -72,7 +72,7 @@ export const DirectoryCard = ({
         }
     }, [canUpdate]);
 
-    const handleHoverEnd = useCallback(() => { setShowIcons(false) }, []);
+    const handleHoverEnd = useCallback(() => { setShowIcons(false); }, []);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
@@ -151,5 +151,5 @@ export const DirectoryCard = ({
                 </Stack>
             </Box>
         </Tooltip>
-    )
-}
+    );
+};

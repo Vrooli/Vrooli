@@ -49,9 +49,9 @@ export enum ObjectActionComplete {
  */
 export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
-    console.log("action getavailableactions", session)
+    console.log("action getavailableactions", session);
     const isLoggedIn = checkIfLoggedIn(session);
-    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object)
+    const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object);
     let options: ObjectAction[] = [];
     // Check edit
     if (isLoggedIn && canUpdate) {
@@ -96,7 +96,7 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
         options = options.filter((action) => !exclude.includes(action));
     }
     return options;
-}
+};
 
 /**
  * Maps an ObjectAction to [label, Icon, iconColor, preview]
@@ -115,11 +115,11 @@ const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boo
     [ObjectAction.Stats]: ["Stats", StatsIcon, "default", true],
     [ObjectAction.VoteDown]: ["Downvote", DownvoteWideIcon, "default", false],
     [ObjectAction.VoteUp]: ["Upvote", UpvoteWideIcon, "default", false],
-})
+});
 
 export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<any>, "Icon" | "iconColor" | "label" | "preview" | "value">[] => {
     return actions.map((action) => {
         const [label, Icon, iconColor, preview] = allOptionsMap[action];
         return { label, Icon, iconColor, preview, value: action };
     });
-}
+};

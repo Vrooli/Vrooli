@@ -10,7 +10,7 @@ import { exists } from "@shared/utils";
  */
 export const fragmentsNeeded = (
     fragments: [string, string][],
-    partialTag: string
+    partialTag: string,
 ) => {
     const temp1 = fragments.map(([fragmentName]) => fragmentName);
     console.log("fragments needed start", temp1, temp1.length);
@@ -34,7 +34,7 @@ export const fragmentsNeeded = (
 
     const inPartial = fragments.filter(([fragmentName]) => partialTag.includes(fragmentName));
 
-    let allFragmentsUsed = new Set(inPartial.map(([fragmentName]) => fragmentName));
+    const allFragmentsUsed = new Set(inPartial.map(([fragmentName]) => fragmentName));
     console.log("fragments needed inPartial", Array.from(allFragmentsUsed), allFragmentsUsed.size);
 
     inPartial.forEach(([fragmentName]) => {
@@ -44,7 +44,7 @@ export const fragmentsNeeded = (
         });
     });
 
-    const temp2 = fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName)).map(([fragmentName]) => fragmentName)
+    const temp2 = fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName)).map(([fragmentName]) => fragmentName);
     console.log("fragments needed result", temp2, temp2.length);
     return fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName));
 };

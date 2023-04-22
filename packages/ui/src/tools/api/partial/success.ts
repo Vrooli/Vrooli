@@ -5,5 +5,5 @@ export const success: GqlPartial<Success> = {
     __typename: "Success",
     full: {
         success: true,
-    }
-}
+    },
+};

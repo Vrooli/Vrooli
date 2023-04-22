@@ -8,6 +8,6 @@ export const statsApiSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchStatsApi"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const statsApiSearchParams = () => toParams(statsApiSearchSchema(), statsApiFindMany, StatsApiSortBy, StatsApiSortBy.PeriodStartAsc);

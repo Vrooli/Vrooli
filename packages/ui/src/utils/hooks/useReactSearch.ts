@@ -25,6 +25,6 @@ export const useReactSearch = (pollInterval: number | null = 50) => {
             // Clean up interval when component unmounts
             return () => clearInterval(interval);
         }
-    }, [listenToSearch, pollInterval])
+    }, [listenToSearch, pollInterval]);
     return search;
 };

@@ -34,5 +34,5 @@ export function LeftHandedCheckbox() {
                 onChange={handleToggle}
             />
         </Stack>
-    )
+    );
 }

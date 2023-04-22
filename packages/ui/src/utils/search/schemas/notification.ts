@@ -8,6 +8,6 @@ export const notificationSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchNotification"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const notificationSearchParams = () => toParams(notificationSearchSchema(), notificationFindMany, NotificationSortBy, NotificationSortBy.DateCreatedDesc);

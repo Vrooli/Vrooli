@@ -13,7 +13,7 @@ export const bookmarkSearchSchema = (): FormSchema => ({
             description: i18next.t("ExcludeLinkedToTagHelp"),
             totalItems: 1,
             spacing: 2,
-        }
+        },
     ],
     fields: [
         {
@@ -21,7 +21,7 @@ export const bookmarkSearchSchema = (): FormSchema => ({
             label: i18next.t("ExcludeLinkedToTagLabel"),
             ...yesNoDontCare(),
         },
-    ]
-})
+    ],
+});
 
 export const bookmarkSearchParams = () => toParams(bookmarkSearchSchema(), bookmarkFindMany, BookmarkSortBy, BookmarkSortBy.DateUpdatedDesc);

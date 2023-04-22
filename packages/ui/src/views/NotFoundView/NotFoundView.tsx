@@ -34,4 +34,4 @@ export const NotFoundView = () => {
             </Box>
         </>
     );
-}
+};

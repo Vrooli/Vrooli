@@ -20,8 +20,8 @@ export function IsPrivateButton({
         const isPrivate = field?.value;
         return {
             Icon: isPrivate ? InvisibleIcon : VisibleIcon,
-            tooltip: isPrivate ? `Only you or your organization can see this${isEditing ? "" : ". Press to make public"}` : `Anyone can see this${isEditing ? "" : ". Press to make private"}`
-        }
+            tooltip: isPrivate ? `Only you or your organization can see this${isEditing ? "" : ". Press to make public"}` : `Anyone can see this${isEditing ? "" : ". Press to make private"}`,
+        };
     }, [field?.value, isEditing]);
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -49,5 +49,5 @@ export function IsPrivateButton({
                 </ColorIconButton>
             </Tooltip>
         </Stack>
-    )
+    );
 }

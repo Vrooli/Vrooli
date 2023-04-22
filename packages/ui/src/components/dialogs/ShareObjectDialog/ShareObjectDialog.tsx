@@ -23,12 +23,12 @@ const postTitle: { [key in ObjectType]?: string } = {
     "Routine": "Check out this routine on Vrooli",
     "Standard": "Check out this standard on Vrooli",
     "User": "Check out this user on Vrooli",
-}
+};
 
 const buttonProps = (palette: Palette) => ({
     height: "48px",
     width: "48px",
-})
+});
 
 const openLink = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
@@ -53,12 +53,12 @@ export const ShareObjectDialog = ({
     const copyLink = () => {
         navigator.clipboard.writeText(url);
         PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
-    }
+    };
 
     /**
      * Opens navigator share dialog (if supported)
      */
-    const shareNative = () => { navigator.share({ title, url }) }
+    const shareNative = () => { navigator.share({ title, url }); };
 
     /**
     * When QR code is long-pressed in standalone mode (i.e. app is downloaded), open copy/save photo dialog
@@ -78,7 +78,7 @@ export const ShareObjectDialog = ({
         a.download = "qr-code.png";
         a.click();
         URL.revokeObjectURL(url);
-    }
+    };
 
     const pressEvents = usePress({
         onLongPress: handleQRCodeLongPress,
@@ -171,5 +171,5 @@ export const ShareObjectDialog = ({
                 </Box>
             </Box>
         </LargeDialog>
-    )
-}
+    );
+};

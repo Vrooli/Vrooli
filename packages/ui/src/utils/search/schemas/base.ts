@@ -21,4 +21,4 @@ export const toParams = (
     defaultSortBy,
     query,
     sortByOptions,
-})
+});

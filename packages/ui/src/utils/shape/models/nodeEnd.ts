@@ -17,5 +17,5 @@ export const shapeNodeEnd: ShapeModel<NodeEndShape, NodeEndCreateInput, NodeEndU
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "wasSuccessful"),
         ...updateRel(o, u, "suggestedNextRoutineVersions", ["Connect", "Disconnect"], "many"),
-    }, a)
-}
+    }, a),
+};

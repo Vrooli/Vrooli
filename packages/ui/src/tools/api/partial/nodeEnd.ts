@@ -11,4 +11,4 @@ export const nodeEnd: GqlPartial<NodeEnd> = {
     },
     full: {},
     list: {},
-}
+};

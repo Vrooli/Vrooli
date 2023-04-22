@@ -20,4 +20,4 @@ export const unlazyDeep = async <T extends {}>(obj: T | (() => T) | (() => Promi
         }
     }
     return unlazyObj;
-}
+};

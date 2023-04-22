@@ -5,7 +5,7 @@ import {
     ListItemIcon,
     ListItemText,
     Menu,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
 import { useMemo } from "react";
@@ -51,8 +51,8 @@ export function ListMenu<T>({
                 {itemText}
                 {helpIcon}
             </ListItem>
-        )
-    }), [data, onClose, onSelect, palette.background.textSecondary])
+        );
+    }), [data, onClose, onSelect, palette.background.textSecondary]);
 
     return (
         <Menu
@@ -69,25 +69,25 @@ export function ListMenu<T>({
                 vertical: "top",
                 horizontal: "center",
             }}
-            onClose={(e) => { onClose() }}
+            onClose={(e) => { onClose(); }}
             sx={{
                 zIndex,
                 "& .MuiMenu-paper": {
-                    background: palette.background.default
+                    background: palette.background.default,
                 },
                 "& .MuiMenu-list": {
                     paddingTop: "0",
-                }
+                },
             }}
         >
             {title && <MenuTitle
                 ariaLabel={titleId}
                 title={title}
-                onClose={() => { onClose() }}
+                onClose={() => { onClose(); }}
             />}
             <List>
                 {items}
             </List>
         </Menu>
-    )
+    );
 }

@@ -12,7 +12,7 @@ export const routineVersionInputTranslation: GqlPartial<RoutineVersionInputTrans
     },
     full: {},
     list: {},
-}
+};
 
 export const routineVersionInput: GqlPartial<RoutineVersionInput> = {
     __typename: "RoutineVersionInput",
@@ -26,4 +26,4 @@ export const routineVersionInput: GqlPartial<RoutineVersionInput> = {
     },
     full: {},
     list: {},
-}
+};

@@ -15,5 +15,5 @@ export const scheduleException: GqlPartial<ScheduleException> = {
     },
     list: {
         schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "exceptions" }),
-    }
-}
+    },
+};

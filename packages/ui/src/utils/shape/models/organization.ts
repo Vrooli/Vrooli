@@ -22,8 +22,8 @@ export type OrganizationShape = Pick<Organization, "id" | "handle" | "isOpenToNe
 
 export const shapeOrganizationTranslation: ShapeModel<OrganizationTranslationShape, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "bio", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "bio", "name"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "bio", "name"), a),
+};
 
 export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreateInput, OrganizationUpdateInput> = {
     create: (d) => ({
@@ -42,5 +42,5 @@ export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreate
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeOrganizationTranslation),
         ...(u.membersDelete ? { membersDelete: u.membersDelete.map(m => m.id) } : {}),
-    }, a)
-}
+    }, a),
+};

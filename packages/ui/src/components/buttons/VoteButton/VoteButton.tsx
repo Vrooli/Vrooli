@@ -139,5 +139,5 @@ export const VoteButton = ({
                 <DownvoteIcon width="36px" height="36px" fill={downvoteColor} />
             </Box>
         </Stack>
-    )
-}
+    );
+};

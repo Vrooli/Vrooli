@@ -19,7 +19,7 @@ const commonTheme = createTheme({
         },
         MuiTextField: {
             defaultProps: {
-                variant: "outlined"
+                variant: "outlined",
             },
         },
     },
@@ -46,8 +46,8 @@ const lightTheme = createTheme({
             textPrimary: "#000000",
             textSecondary: "#6f6f6f",
         },
-    }
-})
+    },
+});
 
 // Dark theme
 const darkTheme = createTheme({
@@ -71,9 +71,9 @@ const darkTheme = createTheme({
             textSecondary: "#c3c3c3",
         },
     },
-})
+});
 
 export const themes = {
     "light": lightTheme,
-    "dark": darkTheme
-}
+    "dark": darkTheme,
+};

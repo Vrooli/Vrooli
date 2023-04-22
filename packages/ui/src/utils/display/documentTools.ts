@@ -15,7 +15,7 @@ export const removeHighlights = (highlightClass: string, element?: HTMLElement) 
         const textNode = document.createTextNode(text);
         parent.replaceChild(textNode, root);
     });
-}
+};
 
 /**
  * Finds all text nodes in the given element that are not hidden by another element on top of them.
@@ -37,7 +37,7 @@ export const getTextNodes = (element?: HTMLElement) => {
         node = walker.nextNode();
     }
     return textNodes;
-}
+};
 
 /**
  * Normalizes the given text by replacing diacritics with their base characters.
@@ -46,8 +46,8 @@ export const getTextNodes = (element?: HTMLElement) => {
  * @returns The normalized text.
  */
 export const normalizeText = (text: string) => {
-    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
 
 /**
  * Removes emojis from the given text.
@@ -55,8 +55,8 @@ export const normalizeText = (text: string) => {
  * @returns The text without emojis.
  */
 export const removeEmojis = (text: string) => {
-    return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
-}
+    return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, "");
+};
 
 /**
  * Removes punctuation from the given text.
@@ -64,8 +64,8 @@ export const removeEmojis = (text: string) => {
  * @returns The text without punctuation.
  */
 export const removePunctuation = (text: string) => {
-    return text.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '');
-}
+    return text.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
+};
 
 /**
  * Wraps matches in the given text node with a span element.
@@ -86,20 +86,20 @@ export const wrapMatches = (textNode: Text, searchRegex: RegExp, wrapperClass: s
     // Loop through all matches, to build an element that will replace the text node. 
     // This element will have the same text as the text node, but with the matching sections each 
     // wrapped in a span with a custom class
-    let newElement = document.createElement('span');
+    const newElement = document.createElement("span");
     newElement.className = wrapperClass;
     let lastIndex = 0;
     matches.forEach((match) => {
         // Get the index of the match
         const matchIndex = normalizedText.indexOf(match, lastIndex);
         // Get the text before the match
-        const textBeforeMatch = (textNode.textContent ?? '').slice(lastIndex, matchIndex);
+        const textBeforeMatch = (textNode.textContent ?? "").slice(lastIndex, matchIndex);
         // Create a text node for the text before the match
         const textBeforeMatchNode = document.createTextNode(textBeforeMatch);
         // Append the text node to the new element
         newElement.appendChild(textBeforeMatchNode);
         // Create a span for the match
-        const matchSpan = document.createElement('span');
+        const matchSpan = document.createElement("span");
         // Add the custom class to the span
         matchSpan.classList.add(spanClass);
         // Create a text node for the match
@@ -114,7 +114,7 @@ export const wrapMatches = (textNode: Text, searchRegex: RegExp, wrapperClass: s
         lastIndex = matchIndex + match.length;
     });
     // Get the text after the last match
-    const textAfterLastMatch = (textNode.textContent ?? '').slice(lastIndex);
+    const textAfterLastMatch = (textNode.textContent ?? "").slice(lastIndex);
     // Create a text node for the text after the last match
     const textAfterLastMatchNode = document.createTextNode(textAfterLastMatch);
     // Append the text node to the new element
@@ -122,4 +122,4 @@ export const wrapMatches = (textNode: Text, searchRegex: RegExp, wrapperClass: s
     // Replace the text node with the new element
     textNode.replaceWith(newElement);
     return highlightSpans;
-}
+};

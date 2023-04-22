@@ -28,7 +28,7 @@ export const RoutineUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<RoutineVersion, FindVersionInput>(routineVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);
@@ -57,9 +57,9 @@ export const RoutineUpsert = ({
                     mutationWrapper<RoutineVersion, RoutineVersionUpdateInput>({
                         mutation,
                         input: transformRoutineValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateRoutineValues(values, existing)}
             >
@@ -77,5 +77,5 @@ export const RoutineUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

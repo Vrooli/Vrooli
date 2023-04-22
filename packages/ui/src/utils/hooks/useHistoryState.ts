@@ -10,7 +10,7 @@ import { useState } from "react";
  */
 export function useHistoryState(
   key,
-  defaultTo
+  defaultTo,
 ) {
   const [state, rawSetState] = useState(() => {
     const value = window.history.state && window.history.state[key];
@@ -20,7 +20,7 @@ export function useHistoryState(
   function setState(value) {
     window.history.replaceState(
       { ...window.history.state, [key]: value },
-      document.title
+      document.title,
     );
     rawSetState(value);
   }

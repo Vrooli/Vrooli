@@ -29,14 +29,14 @@ export const updateVersion = <
             versionsCreate: [shape.create(preShaper({
                 ...updatedRoot.versionInfo,
                 versionLabel: updatedRoot.versionInfo.versionLabel ?? "0.0.1",
-            }, updatedRoot))]
+            }, updatedRoot))],
         } as any;
     } else {
         return {
             versionsUpdate: [shape.update(
                 preShaper(originalRoot.versionInfo!, originalRoot),
-                preShaper(updatedRoot.versionInfo, updatedRoot)
-            )]
+                preShaper(updatedRoot.versionInfo, updatedRoot),
+            )],
         } as any;
     }
 };

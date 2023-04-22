@@ -9,7 +9,7 @@ import {
     EditIcon,
     MoveNodeIcon,
     SvgComponent,
-    UnlinkNodeIcon
+    UnlinkNodeIcon,
 } from "@shared/icons";
 import { ListMenu } from "../../../../components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData } from "../../../../components/dialogs/types";
@@ -28,12 +28,12 @@ const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>
     UnlinkNode: ["Unlink node", UnlinkNodeIcon],
     EditSubroutine: ["Edit subroutine", EditIcon],
     DeleteSubroutine: ["Delete subroutine", DeleteIcon],
-}
+};
 
 const listOptions: ListMenuItemData<BuildAction>[] = Object.keys(allOptionsMap).map(o => ({
     label: allOptionsMap[o][0],
     value: o as BuildAction,
-    Icon: allOptionsMap[o][1]
+    Icon: allOptionsMap[o][1],
 }));
 
 // Custom context menu for nodes
@@ -56,5 +56,5 @@ export const NodeContextMenu = ({
             onClose={handleClose}
             zIndex={zIndex}
         />
-    )
-}
+    );
+};

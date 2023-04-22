@@ -26,13 +26,13 @@ const useStyles = makeStyles((theme: Theme) => ({
         background: "white",
         color: "black",
         border: "3px dashed gray",
-        borderRadius: "5px"
+        borderRadius: "5px",
     },
     thumbsContainer: {
         display: "flex",
         flexDirection: "row",
         flexWrap: "wrap",
-        marginTop: 16
+        marginTop: 16,
     },
     thumb: {
         display: "inline-flex",
@@ -43,17 +43,17 @@ const useStyles = makeStyles((theme: Theme) => ({
         width: 100,
         height: 100,
         padding: 4,
-        boxSizing: "border-box"
+        boxSizing: "border-box",
     },
     thumbInner: {
         display: "flex",
         minWidth: 0,
-        overflow: "hidden"
+        overflow: "hidden",
     },
     img: {
         display: "block",
         width: "auto",
-        height: "100%"
+        height: "100%",
     },
 }));
 
@@ -65,22 +65,22 @@ export const Dropzone = ({
     maxFiles = 100,
     uploadText = "Upload file(s)",
     cancelText = "Cancel upload",
-    disabled = false
+    disabled = false,
 }: DropzoneProps) => {
     const classes = useStyles();
     const [files, setFiles] = useState<any[]>([]);
     const { getRootProps, getInputProps } = useDropzone({
         accept: acceptedFileTypes,
-        maxFiles: maxFiles,
+        maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
                 PubSub.get().publishSnack({ messageKey: "FilesNotAccepted", severity: "Error" });
                 return;
             }
             setFiles(acceptedFiles.map(file => Object.assign(file, {
-                preview: URL.createObjectURL(file)
+                preview: URL.createObjectURL(file),
             })));
-        }
+        },
     });
 
     const upload = (e) => {
@@ -91,12 +91,12 @@ export const Dropzone = ({
         }
         onUpload(files);
         setFiles([]);
-    }
+    };
 
     const cancel = (e) => {
         e.stopPropagation();
         setFiles([]);
-    }
+    };
 
     const thumbs = files.map(file => (
         <div className={classes.thumb} key={file.name}>
@@ -135,4 +135,4 @@ export const Dropzone = ({
             </div>
         </section>
     );
-}
+};

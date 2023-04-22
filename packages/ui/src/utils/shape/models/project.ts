@@ -32,5 +32,5 @@ export const shapeProject: ShapeModel<ProjectShape, ProjectCreateInput, ProjectU
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateVersion(o, u, shapeProjectVersion, (v, i) => ({ ...v, root: { id: i.id } })),
-    }, a)
-}
+    }, a),
+};

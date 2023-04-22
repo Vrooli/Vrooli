@@ -21,4 +21,4 @@ export const statsProject: GqlPartial<StatsProject> = {
         runCompletionTimeAverage: true,
         runContextSwitchesAverage: true,
     },
-}
+};

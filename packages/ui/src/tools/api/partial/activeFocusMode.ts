@@ -8,5 +8,5 @@ export const activeFocusMode: GqlPartial<ActiveFocusMode> = {
         mode: async () => rel((await import("./focusMode")).focusMode, "full"),
         stopCondition: true,
         stopTime: true,
-    }
-}
+    },
+};

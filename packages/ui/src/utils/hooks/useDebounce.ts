@@ -16,7 +16,7 @@ export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
                 callback(value);
             }, delay);
         },
-        [callback, delay]
+        [callback, delay],
     );
 
     useEffect(() => {
@@ -28,4 +28,4 @@ export const useDebounce = <T>(callback: (value: T) => void, delay: number) => {
     }, []);
 
     return debouncedCallback;
-}
+};

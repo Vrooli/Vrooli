@@ -19,7 +19,7 @@ export const apiSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const apiSearchParams = () => toParams(apiSearchSchema(), apiFindMany, ApiSortBy, ApiSortBy.ScoreDesc);

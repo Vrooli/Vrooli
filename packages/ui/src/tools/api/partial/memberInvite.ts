@@ -10,7 +10,7 @@ export const memberInviteYou: GqlPartial<MemberInviteYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const memberInvite: GqlPartial<MemberInvite> = {
     __typename: "MemberInvite",
@@ -28,4 +28,4 @@ export const memberInvite: GqlPartial<MemberInvite> = {
     },
     full: {},
     list: {},
-}
+};

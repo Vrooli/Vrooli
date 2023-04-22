@@ -3,7 +3,7 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText, Tooltip,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { LINKS, SOCIALS } from "@shared/consts";
 import { DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from "@shared/icons";
@@ -17,7 +17,7 @@ const contactLinks: [string, string, string, string, SvgComponent][] = [
     ["contact-twitter", "Find us on Twitter", SOCIALS.Twitter, "Twitter", TwitterIcon],
     ["contact-discord", "Have a question or feedback? Post it on our Discord!", SOCIALS.Discord, "Join our Discord", DiscordIcon],
     ["contact-github", "Check out the source code, or contribute :)", SOCIALS.GitHub, "Source Code", GitHubIcon],
-]
+];
 
 const aboutUsLink = LINKS.About;
 const viewStatsLink = LINKS.Stats;
@@ -58,7 +58,7 @@ export const Footer = () => {
                         <ListItem
                             component="a"
                             href={aboutUsLink}
-                            onClick={(e) => { e.preventDefault(); openLink(setLocation, aboutUsLink) }}
+                            onClick={(e) => { e.preventDefault(); openLink(setLocation, aboutUsLink); }}
                             sx={{ padding: 2 }}
                         >
                             <ListItemIcon>
@@ -69,7 +69,7 @@ export const Footer = () => {
                         <ListItem
                             component="a"
                             href={viewStatsLink}
-                            onClick={(e) => { e.preventDefault(); openLink(setLocation, viewStatsLink) }}
+                            onClick={(e) => { e.preventDefault(); openLink(setLocation, viewStatsLink); }}
                             sx={{ padding: 2 }}
                         >
                             <ListItemIcon>
@@ -90,7 +90,7 @@ export const Footer = () => {
                                     aria-label={label}
                                     component="a"
                                     href={src}
-                                    onClick={(e) => { e.preventDefault(); openLink(setLocation, src) }}
+                                    onClick={(e) => { e.preventDefault(); openLink(setLocation, src); }}
                                     sx={{ padding: 2 }}
                                 >
                                     <ListItemIcon>
@@ -106,4 +106,4 @@ export const Footer = () => {
             <CopyrightBreadcrumbs sx={{ color: palette.primary.contrastText }} />
         </Box>
     );
-}
+};

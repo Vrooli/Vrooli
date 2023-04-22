@@ -18,4 +18,4 @@ export const clearSearchHistory = (session: Session) => {
         localStorage.removeItem(key);
     });
     PubSub.get().publishSnack({ messageKey: "SearchHistoryCleared", severity: "Success" });
-}
+};

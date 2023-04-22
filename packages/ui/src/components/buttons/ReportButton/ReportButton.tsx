@@ -30,5 +30,5 @@ export const ReportButton = ({
                 </IconButton>
             </Tooltip>
         </>
-    )
-}
+    );
+};

@@ -8,6 +8,6 @@ export const statsRoutineSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchStatsRoutine"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const statsRoutineSearchParams = () => toParams(statsRoutineSearchSchema(), statsRoutineFindMany, StatsRoutineSortBy, StatsRoutineSortBy.PeriodStartAsc);

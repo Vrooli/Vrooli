@@ -25,7 +25,7 @@ import { SessionContext } from "../../../utils/SessionContext";
  */
 const stripUrl = (url: string) => {
     // Split by '/' and remove empty strings
-    let urlParts = new URL(url).pathname.split("/").filter(Boolean);
+    const urlParts = new URL(url).pathname.split("/").filter(Boolean);
     // If last part is a UUID, or equal to "add" or "edit", remove it
     // For example, navigating from viewing the graph of an existing routine 
     // to creating a new multi-step routine (/routine/1234?build=true -> /routine/add?build=true) 
@@ -37,7 +37,7 @@ const stripUrl = (url: string) => {
         urlParts.pop();
     }
     return urlParts.join("/");
-}
+};
 
 const titleId = "command-palette-dialog-title";
 
@@ -50,24 +50,24 @@ export const CommandPalette = () => {
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [searchString, setSearchString] = useState<string>("");
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
 
     const [open, setOpen] = useState(false);
     const close = useCallback(() => setOpen(false), []);
 
     useEffect(() => {
-        let dialogSub = PubSub.get().subscribeCommandPalette(() => {
+        const dialogSub = PubSub.get().subscribeCommandPalette(() => {
             setOpen(o => !o);
             setSearchString("");
         });
-        return () => { PubSub.get().unsubscribe(dialogSub) };
-    }, [])
+        return () => { PubSub.get().unsubscribe(dialogSub); };
+    }, []);
 
     const [refetch, { data, loading, error }] = useCustomLazyQuery<PopularResult, PopularInput>(feedPopular, {
         variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
-        errorPolicy: "all"
+        errorPolicy: "all",
     });
-    useEffect(() => { open && refetch() }, [open, refetch, searchString]);
+    useEffect(() => { open && refetch(); }, [open, refetch, searchString]);
     useDisplayApolloError(error);
 
     const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map(({ label, labelArgs, value }) => ({
@@ -160,4 +160,4 @@ export const CommandPalette = () => {
             </DialogContent>
         </LargeDialog>
     );
-}
+};

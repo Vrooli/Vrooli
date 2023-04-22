@@ -18,5 +18,5 @@ export const shapeNodeRoutineList: ShapeModel<NodeRoutineListShape, NodeRoutineL
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isOptional", "isOrdered"),
         ...updateRel(o, u, "items", ["Create", "Update", "Delete"], "many", shapeNodeRoutineListItem),
-    }, a)
-}
+    }, a),
+};

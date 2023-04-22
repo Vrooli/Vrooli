@@ -7,7 +7,7 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { Routine } from "@shared/consts";
 import { CloseIcon } from "@shared/icons";
@@ -32,7 +32,7 @@ import { SubroutineNodeProps } from "../types";
 const shouldOpen = (id: string | null | undefined): boolean => {
     // Only collapse if clicked on name bar or name
     return Boolean(id && (id.startsWith("subroutine-name-")));
-}
+};
 
 export const SubroutineNode = ({
     data,
@@ -62,9 +62,9 @@ export const SubroutineNode = ({
     }, [data.id, handleAction]);
     const openSubroutine = useCallback((target: EventTarget) => {
         if (!shouldOpen(target.id)) return;
-        onAction(null, BuildAction.OpenSubroutine)
+        onAction(null, BuildAction.OpenSubroutine);
     }, [onAction]);
-    const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
+    const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine); }, [onAction]);
 
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
@@ -105,13 +105,13 @@ export const SubroutineNode = ({
                     stack: {
                         marginLeft: "auto",
                         marginRight: "auto",
-                    }
+                    },
                 }}
                 text={title}
                 validationSchema={nameValidation.required(reqErr)}
                 zIndex={zIndex}
             />
-        )
+        );
     }, [labelVisible, isEditing, handleLabelUpdate, title, zIndex, data.id]);
 
     // Right click context menu
@@ -121,9 +121,9 @@ export const SubroutineNode = ({
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not editing
         if (!isEditing) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [isEditing]);
-    const closeContext = useCallback(() => { setContextAnchor(null) }, []);
+    const closeContext = useCallback(() => { setContextAnchor(null); }, []);
     const pressEvents = usePress({
         onLongPress: openContext,
         onClick: openSubroutine,
@@ -141,14 +141,14 @@ export const SubroutineNode = ({
                         [BuildAction.OpenSubroutine, BuildAction.DeleteSubroutine]
                 }
                 handleClose={closeContext}
-                handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine) }}
+                handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine); }}
                 zIndex={zIndex + 1}
             />
             <Box
                 sx={{
                     boxShadow: 12,
                     minWidth: nodeSize,
-                    fontSize: fontSize,
+                    fontSize,
                     position: "relative",
                     display: "block",
                     marginBottom: "8px",
@@ -202,8 +202,8 @@ export const SubroutineNode = ({
                                     name='isOptionalCheckbox'
                                     color='secondary'
                                     checked={data?.isOptional}
-                                    onChange={(_e, checked) => { onOptionalChange(checked) }}
-                                    onTouchStart={() => { onOptionalChange(!data?.isOptional) }}
+                                    onChange={(_e, checked) => { onOptionalChange(checked); }}
+                                    onTouchStart={() => { onOptionalChange(!data?.isOptional); }}
                                     sx={{ ...routineNodeCheckboxOption }}
                                 />
                             }
@@ -214,5 +214,5 @@ export const SubroutineNode = ({
                 </Stack>
             </Box>
         </>
-    )
-}
+    );
+};

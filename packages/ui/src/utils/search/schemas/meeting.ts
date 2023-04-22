@@ -8,6 +8,6 @@ export const meetingSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchMeeting"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const meetingSearchParams = () => toParams(meetingSearchSchema(), meetingFindMany, MeetingSortBy, MeetingSortBy.EventStartDesc);

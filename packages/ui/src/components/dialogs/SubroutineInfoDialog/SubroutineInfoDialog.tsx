@@ -53,7 +53,7 @@ export const SubroutineInfoDialog = ({
                     // Check if subroutine index has changed
                     const originalIndex = subroutine.index;
                     // Update the subroutine
-                    handleUpdate(values as any)
+                    handleUpdate(values as any);
                     // If the index has changed, reorder the subroutine
                     originalIndex !== values.index && handleReorder(data.node.id, originalIndex, values.index);
                 }}
@@ -74,4 +74,4 @@ export const SubroutineInfoDialog = ({
             </Formik>
         </LargeDialog>
     );
-}
+};

@@ -24,7 +24,7 @@ export function ProjectButton({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const languages = useMemo(() => getUserLanguages(session), [session])
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [versionField, , versionHelpers] = useField("project");
     const [rootField, , rootHelpers] = useField("root.project");
@@ -71,12 +71,12 @@ export function ProjectButton({
         // If no project data, marked as unset
         if (!project) return {
             Icon: null,
-            tooltip: isEditing ? "" : "Press to assign to a project"
+            tooltip: isEditing ? "" : "Press to assign to a project",
         };
         const projectName = firstString(getTranslation(project as RelationshipItemProjectVersion, languages, true).name, "project");
         return {
             Icon: ProjectIcon,
-            tooltip: `Project: ${projectName}`
+            tooltip: `Project: ${projectName}`,
         };
     }, [isEditing, languages, rootField?.value, versionField?.value]);
 
@@ -111,5 +111,5 @@ export function ProjectButton({
                 </Tooltip>
             </Stack>
         </>
-    )
+    );
 }

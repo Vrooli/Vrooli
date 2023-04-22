@@ -5,7 +5,7 @@ import Particles from "react-tsparticles";
 import { SlideContainer } from "../SlideContainer/SlideContainer";
 import { SlideContainerNeonProps } from "../types";
 
-const blackRadial = "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)"
+const blackRadial = "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)";
 
 // Animation for blob1
 // Moves up and grows, then moves down to the right and shrinks.
@@ -67,7 +67,7 @@ export const SlideContainerNeon = ({
                 backgroundAttachment: "fixed",
                 color: "white",
                 scrollSnapAlign: "start",
-                ...sx
+                ...sx,
             }}
         >
             {/* Constellation */}
@@ -207,4 +207,4 @@ export const SlideContainerNeon = ({
             {children}
         </SlideContainer>
     );
-}
+};

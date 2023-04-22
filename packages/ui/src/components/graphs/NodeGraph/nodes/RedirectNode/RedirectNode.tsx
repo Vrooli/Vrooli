@@ -39,7 +39,7 @@ export const RedirectNode = ({
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked or editing
         if (!canDrag || !isLinked) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [canDrag, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const pressEvents = usePress({
@@ -58,7 +58,7 @@ export const RedirectNode = ({
                     sx={{
                         width: nodeSize,
                         height: nodeSize,
-                        fontSize: fontSize,
+                        fontSize,
                         position: "relative",
                         display: "block",
                         backgroundColor: "#6daf72",
@@ -87,5 +87,5 @@ export const RedirectNode = ({
                 </IconButton>
             </Tooltip>
         </DraggableNode>
-    )
-}
+    );
+};

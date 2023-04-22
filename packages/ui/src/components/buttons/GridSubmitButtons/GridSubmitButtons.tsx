@@ -59,5 +59,5 @@ export const GridSubmitButtons = ({
                 >{t("Cancel")}</Button>
             </Grid>
         </GridActionButtons>
-    )
-}
+    );
+};

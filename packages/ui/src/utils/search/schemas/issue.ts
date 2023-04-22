@@ -15,7 +15,7 @@ export const issueSearchSchema = (): FormSchema => ({
         ...votesFields(),
         ...bookmarksFields(),
         ...languagesFields(),
-    ]
-})
+    ],
+});
 
 export const issueSearchParams = () => toParams(issueSearchSchema(), issueFindMany, IssueSortBy, IssueSortBy.ScoreDesc);

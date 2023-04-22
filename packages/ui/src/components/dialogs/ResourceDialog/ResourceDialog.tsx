@@ -15,7 +15,7 @@ import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ResourceDialogProps } from "../types";
 
 const helpText =
-    "## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service"
+    "## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service";
 
 const titleId = "resource-dialog-title";
 
@@ -67,7 +67,7 @@ export const ResourceDialog = ({
                                 (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                                 helpers.resetForm();
                                 onClose();
-                            }
+                            };
                             console.log("yeeeet", index, values, shapeResource.create(values));
                             // If index is negative, create
                             const isCreating = index < 0;
@@ -81,8 +81,8 @@ export const ResourceDialog = ({
                                 successMessage: () => ({ key: isCreating ? "ResourceCreated" : "ResourceUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,
-                                onError: () => { helpers.setSubmitting(false) },
-                            })
+                                onError: () => { helpers.setSubmitting(false); },
+                            });
                         } else {
                             onCreated({
                                 ...values,
@@ -108,5 +108,5 @@ export const ResourceDialog = ({
                 </Formik>
             </LargeDialog>
         </>
-    )
-}
+    );
+};

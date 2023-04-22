@@ -8,7 +8,7 @@ export const GeneratedSelector = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering selector');
+    console.log("rendering selector");
     const props = useMemo(() => fieldData.props as SelectorProps<any>, [fieldData.props]);
 
     return (
@@ -26,4 +26,4 @@ export const GeneratedSelector = ({
             tabIndex={index}
         />
     );
-}
+};

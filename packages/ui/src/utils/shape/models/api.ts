@@ -32,5 +32,5 @@ export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateVersion(o, u, shapeApiVersion, (v, i) => ({ ...v, root: { id: i.id } })),
-    }, a)
-}
+    }, a),
+};

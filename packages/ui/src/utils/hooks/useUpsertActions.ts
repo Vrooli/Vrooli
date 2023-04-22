@@ -25,7 +25,7 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
     const hasPreviousPage = useMemo(() => Boolean(sessionStorage.getItem("lastPath")), []);
 
     const onAction = useCallback((action: ObjectDialogAction, item?: T) => {
-        console.log("useUpsertActions.onAction", action, item)
+        console.log("useUpsertActions.onAction", action, item);
         // URL of view page for the object
         const viewUrl = item ? getObjectUrl(item as any) : undefined;
         switch (action) {
@@ -41,7 +41,7 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
                         severity: "Success",
                         buttonKey: "CreateNew",
                         buttonClicked: () => { setLocation("add"); },
-                    })
+                    });
                 }
                 break;
             case ObjectDialogAction.Cancel:
@@ -64,7 +64,7 @@ export const useUpsertActions = <T extends { __typename: string, id: string }>(
         }
     }, [display, isCreate, setLocation, hasPreviousPage, onCompleted, onCancel]);
 
-    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction])
+    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
     const handleCompleted = useCallback((data: T) => {
         const action = isCreate ? ObjectDialogAction.Add : ObjectDialogAction.Save;
         onAction(action, data);

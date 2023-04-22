@@ -17,4 +17,4 @@ export const SlidePage = ({
             {children}
         </Box>
     );
-}
+};

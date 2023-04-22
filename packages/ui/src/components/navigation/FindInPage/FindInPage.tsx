@@ -7,7 +7,7 @@ import {
     TextField,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { Stack } from "@mui/system";
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "@shared/icons";
@@ -24,13 +24,13 @@ const commonButtonSx = (palette: Palette) => ({
     color: "inherit",
     width: "30px",
     height: "100%",
-})
+});
 
 const commonIconProps = (palette: Palette) => ({
     fill: palette.background.textPrimary,
     width: "20px",
     height: "20px",
-})
+});
 
 /**
  * Highlights all instances of the search term. Accomplishes this by doing the following: 
@@ -58,7 +58,7 @@ const highlightText = (
     // If text is empty, return
     if (searchString.trim().length === 0) return [];
     // Finds all text nodes in the document
-    let textNodes: Text[] = getTextNodes();
+    const textNodes: Text[] = getTextNodes();
     // Normalize the search term
     const normalizedSearchString = normalizeText(searchString);
     // Build the regex
@@ -71,7 +71,7 @@ const highlightText = (
     const regex = new RegExp(regexString, isCaseSensitive ? "g" : "gi");
     // Loop through all text nodes, and store highlights. 
     // These will be used for previous/next buttons
-    let highlightSpans: HTMLSpanElement[] = [];
+    const highlightSpans: HTMLSpanElement[] = [];
     textNodes.forEach((textNode) => {
         const spans = wrapMatches(textNode, regex, "search-highlight-wrap", "search-highlight");
         highlightSpans.push(...spans);
@@ -81,7 +81,7 @@ const highlightText = (
         highlightSpans[0].classList.add("search-highlight-current");
     }
     return highlightSpans;
-}
+};
 
 const FindInPage = () => {
     const { palette } = useTheme();
@@ -134,15 +134,15 @@ const FindInPage = () => {
     }), [results.length]);
 
     useEffect(() => {
-        let dialogSub = PubSub.get().subscribeFindInPage(() => {
+        const dialogSub = PubSub.get().subscribeFindInPage(() => {
             setOpen(o => {
                 // If turning off, reset search values (but keep case sensitive and other buttons the same)
                 if (o) { close(); }
                 return !o;
             });
         });
-        return () => { PubSub.get().unsubscribe(dialogSub) };
-    }, [close])
+        return () => { PubSub.get().unsubscribe(dialogSub); };
+    }, [close]);
 
     // Handle keyboard shortcuts
     useEffect(() => {
@@ -314,6 +314,6 @@ const FindInPage = () => {
             </DialogContent>
         </Dialog >
     );
-}
+};
 
 export { FindInPage };

@@ -12,4 +12,4 @@ export const versionYou: GqlPartial<VersionYou> = {
         canUse: true,
         canRead: true,
     },
-}
+};

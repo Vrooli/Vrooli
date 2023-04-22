@@ -8,6 +8,6 @@ export const viewSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchView"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const viewSearchParams = () => toParams(viewSearchSchema(), viewFindMany, ViewSortBy, ViewSortBy.LastViewedDesc)
+export const viewSearchParams = () => toParams(viewSearchSchema(), viewFindMany, ViewSortBy, ViewSortBy.LastViewedDesc);

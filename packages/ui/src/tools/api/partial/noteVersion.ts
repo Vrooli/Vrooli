@@ -14,7 +14,7 @@ export const noteVersionTranslation: GqlPartial<NoteVersionTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const noteVersion: GqlPartial<NoteVersion> = {
     __typename: "NoteVersion",
@@ -47,5 +47,5 @@ export const noteVersion: GqlPartial<NoteVersion> = {
         versionLabel: true,
         root: async () => rel((await import("./note")).note, "nav"),
         translations: () => rel(noteVersionTranslation, "list"),
-    }
-}
+    },
+};

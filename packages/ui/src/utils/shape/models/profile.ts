@@ -16,8 +16,8 @@ export type ProfileShape = Partial<Pick<User, "handle" | "isPrivate" | "isPrivat
 
 export const shapeProfileTranslation: ShapeModel<ProfileTranslationShape, UserTranslationCreateInput, UserTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "bio"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "bio"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "bio"), a),
+};
 
 export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = {
     update: (o, u, a) => shapeUpdate(u, {
@@ -46,4 +46,4 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
         ...updateRel(o, u, "focusModes", ["Create", "Update", "Delete"], "many", shapeFocusMode),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeProfileTranslation),
     }, a),
-}
+};

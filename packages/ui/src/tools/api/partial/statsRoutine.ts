@@ -13,4 +13,4 @@ export const statsRoutine: GqlPartial<StatsRoutine> = {
         runCompletionTimeAverage: true,
         runContextSwitchesAverage: true,
     },
-}
+};

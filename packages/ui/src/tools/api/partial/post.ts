@@ -12,7 +12,7 @@ export const postTranslation: GqlPartial<PostTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const post: GqlPartial<Post> = {
     __typename: "Post",
@@ -37,5 +37,5 @@ export const post: GqlPartial<Post> = {
     nav: {
         id: true,
         translations: () => rel(postTranslation, "list"),
-    }
-}
+    },
+};

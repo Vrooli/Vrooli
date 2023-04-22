@@ -22,7 +22,7 @@ export const Page = ({
         if (session?.isLoggedIn) return children;
         if (sessionChecked && location !== redirect) {
             PubSub.get().publishSnack({ messageKey: "PageRestricted", severity: "Error" });
-            return <Redirect to={redirect} />
+            return <Redirect to={redirect} />;
         }
         return null;
     }
@@ -32,5 +32,5 @@ export const Page = ({
         <PageContainer sx={sx}>
             {children}
         </PageContainer>
-    )
+    );
 };

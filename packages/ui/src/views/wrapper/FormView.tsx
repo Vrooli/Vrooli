@@ -39,7 +39,7 @@ export const FormView = ({
                 overflow: "hidden",
                 left: "50%",
                 transform: "translateX(-50%)",
-                marginBottom: "20px"
+                marginBottom: "20px",
             }}>
                 <Container>
                     {children}
@@ -47,4 +47,4 @@ export const FormView = ({
             </Box>
         </>
     );
-}
+};

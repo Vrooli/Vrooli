@@ -30,7 +30,7 @@ export const BookmarkButton = ({
     useEffect(() => setInternalIsBookmarked(isBookmarked ?? false), [isBookmarked]);
 
     const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
-        console.log("action complete", action, data)
+        console.log("action complete", action, data);
         switch (action) {
             // When a bookmark is created, we assign a list automatically. 
             // So we must show a snackbar to inform the user that the bookmark was created, 
@@ -41,7 +41,7 @@ export const BookmarkButton = ({
                     message: `Added to list "${listName}"`,
                     buttonKey: "Change",
                     buttonClicked: () => {
-                        console.log("TODO")
+                        console.log("TODO");
                     },
                     severity: "Success",
                 });
@@ -91,5 +91,5 @@ export const BookmarkButton = ({
         >
             <Icon fill={fill} />
         </Box>
-    )
-}
+    );
+};

@@ -80,7 +80,7 @@ export const VersionInput = ({
                 sx={{
                     "& .MuiInputBase-root": {
                         borderRadius: "5px 0 0 5px",
-                    }
+                    },
                 }}
             />
             <Tooltip placement="top" title="Major bump (increment the first number)">
@@ -122,5 +122,5 @@ export const VersionInput = ({
                 </ColorIconButton>
             </Tooltip>
         </Stack>
-    )
-}
+    );
+};

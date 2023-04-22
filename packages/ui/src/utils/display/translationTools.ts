@@ -465,7 +465,7 @@ export const loadLocale = async (locale: string): Promise<Locale> => {
 export const getTranslation = <
     Translation extends { language: string },
 >(obj: { translations?: Translation[] | null | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
-    if (!obj || !obj.translations) return {}
+    if (!obj || !obj.translations) return {};
     // Loop through translations
     for (const translation of obj.translations) {
         // If this translation is one of the languages we're looking for
@@ -476,7 +476,7 @@ export const getTranslation = <
     if (showAny && obj.translations.length > 0) return obj.translations[0];
     // If we didn't find a translation, return an empty object
     return {};
-}
+};
 
 /**
  * Update a translation's key/value pairs for a specific language.
@@ -491,13 +491,13 @@ export const updateTranslationFields = <
 >(
     obj: Obj | null | undefined,
     language: string,
-    changes: { [key in string]?: string | null | undefined }
+    changes: { [key in string]?: string | null | undefined },
 ): Translation[] => {
     let translationFound = false;
     // Initialize new translations array
-    let translations: Translation[] = []
+    const translations: Translation[] = [];
     // Loop through translations
-    for (let translation of obj?.translations ?? []) {
+    for (const translation of obj?.translations ?? []) {
         // If language matches, update every field in changes. 
         // If an existing field is not in changes, keep it unchanged.
         // If a new field is not in the existing translation, add it.
@@ -505,8 +505,8 @@ export const updateTranslationFields = <
             translationFound = true;
             translations.push({
                 ...translation,
-                ...changes
-            })
+                ...changes,
+            });
         }
         // Otherwise, keep the translation unchanged
         else {
@@ -518,11 +518,11 @@ export const updateTranslationFields = <
         translations.push({
             id: uuid(),
             ...changes,
-            language
+            language,
         } as Translation);
     }
     return translations;
-}
+};
 
 /**
  * Update an entire translation object for a specific language.
@@ -536,8 +536,8 @@ export const updateTranslation = <
 >(objectWithTranslation: Obj, translation: Translation): Translation[] => {
     if (!objectWithTranslation.translations) return [];
     let translationFound = false;
-    let translations: Translation[] = []
-    for (let existingTranslation of objectWithTranslation.translations) {
+    const translations: Translation[] = [];
+    for (const existingTranslation of objectWithTranslation.translations) {
         if (existingTranslation.language === translation.language) {
             translations.push({ ...translation });
             translationFound = true;
@@ -549,7 +549,7 @@ export const updateTranslation = <
         translations.push(translation);
     }
     return translations;
-}
+};
 
 /**
  * Strips a language IETF code down to the subtag (e.g. en-US becomes en)
@@ -560,7 +560,7 @@ export const getLanguageSubtag = (language: string): string => {
     if (!language) return "";
     const parts = language.split("-");
     return parts[0];
-}
+};
 
 /**
  * Returns a list of user-preferred languages.
@@ -577,7 +577,7 @@ export const getUserLanguages = (session: Session | null | undefined, useDefault
     // First check session data for preferred languages
     const { languages } = getCurrentUser(session);
     if (languages && languages.length > 0) {
-        return (languages.filter(Boolean) as string[]).map(getLanguageSubtag)
+        return (languages.filter(Boolean) as string[]).map(getLanguageSubtag);
     }
     // If no languages are in session data, check browser
     if (navigator.language) {
@@ -585,7 +585,7 @@ export const getUserLanguages = (session: Session | null | undefined, useDefault
     }
     // Default to English if specified
     return useDefault ? ["en"] : [];
-}
+};
 
 /**
  * Returns the best locale for the user based on their preferred languages.
@@ -598,7 +598,7 @@ export const getUserLocale = (session: Session | null | undefined): string => {
     const findMatchingLocale = (languages: string[]): string | undefined => {
         for (const language of languages) {
             const matchingLocales = Object.keys(localeLoaders).filter(
-                (locale) => locale.split("-")[0] === language.split("-")[0]
+                (locale) => locale.split("-")[0] === language.split("-")[0],
             );
             if (matchingLocales.length > 0) {
                 const exactMatch = matchingLocales.find((locale) => locale === language);
@@ -609,7 +609,7 @@ export const getUserLocale = (session: Session | null | undefined): string => {
     };
 
     const navLanguagesInUserLanguages = navigatorLanguages.filter((language) =>
-        userLanguages.includes(language.split("-")[0])
+        userLanguages.includes(language.split("-")[0]),
     );
 
     return (
@@ -634,7 +634,7 @@ export const getPreferredLanguage = (availableLanguages: string[], userLanguages
     }
     // If we didn't find a language, return the first available language
     return availableLanguages[0];
-}
+};
 
 /**
  * Finds the error, touched, and value for a translation field in a formik object
@@ -658,7 +658,7 @@ export const getTranslationData = <
     const touched = meta.touched?.[index];
     const error = meta.error?.[index] as any;
     return { error, index, touched, value };
-}
+};
 
 /**
  * Handles onBlurs for translation fields in a formik object
@@ -667,7 +667,7 @@ export const handleTranslationBlur = (
     field: FieldInputProps<{}>,
     meta: FieldMetaProps<{}>,
     event: { target: { name: string } },
-    language: string
+    language: string,
 ) => {
     // Get field name from event
     const { name: blurredField } = event.target;
@@ -687,7 +687,7 @@ export const handleTranslationChange = (
     meta: FieldMetaProps<any>,
     helpers: FieldHelperProps<any>,
     event: { target: { name: string, value: string } },
-    language: string
+    language: string,
 ) => {
     // Get field name and value from event
     const { name: changedField } = event.target;
@@ -696,13 +696,13 @@ export const handleTranslationChange = (
     // Update the value of the translation object
     const newValue = {
         ...currentValue,
-        [changedField]: event.target.value
+        [changedField]: event.target.value,
     };
     // Update the array with the new translation object
     const newTranslations = field.value.map((translation, idx) => idx === index ? newValue : translation);
     // Set the updated translations array
     helpers.setValue(newTranslations);
-}
+};
 
 /**
  * Converts a formik error object into an error object which can be passed to GridSubmitButtons
@@ -711,7 +711,7 @@ export const handleTranslationChange = (
 export const getFormikErrorsWithTranslations = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
-    validationSchema: ObjectSchema<any>
+    validationSchema: ObjectSchema<any>,
 ): { [key: string]: string | string[] } => {
     // Initialize errors object
     const errors: { [key: string]: string | string[] } = {};
@@ -738,7 +738,7 @@ export const getFormikErrorsWithTranslations = (
     }
     // Return errors object
     return errors;
-}
+};
 
 /**
  * Combines normal errors object with translation errors object. 
@@ -749,7 +749,7 @@ export const getFormikErrorsWithTranslations = (
  */
 export const combineErrorsWithTranslations = (
     errors: { [key: string]: any },
-    translationErrors: { [key: string]: any }
+    translationErrors: { [key: string]: any },
 ): { [key: string]: any } => {
     // Combine errors objects
     const combinedErrors = { ...errors, ...translationErrors };
@@ -757,7 +757,7 @@ export const combineErrorsWithTranslations = (
     const filteredErrors = Object.fromEntries(Object.entries(combinedErrors).filter(([key]) => !key.startsWith("translations")));
     // Return filtered errors
     return filteredErrors;
-}
+};
 
 /**
  * Adds a new, empty translation object (all fields '') to a formik translation field
@@ -766,7 +766,7 @@ export const addEmptyTranslation = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
     helpers: FieldHelperProps<{}>,
-    language: string
+    language: string,
 ) => {
     // Get copy of current translations
     const translations = [...(field.value as any)];
@@ -788,7 +788,7 @@ export const addEmptyTranslation = (
     translations.push(newTranslation);
     // Set new translations
     helpers.setValue(translations);
-}
+};
 
 /**
  * Removes a translation object from a formik translation field
@@ -797,7 +797,7 @@ export const removeTranslation = (
     field: FieldInputProps<any>,
     meta: FieldMetaProps<any>,
     helpers: FieldHelperProps<{}>,
-    language: string
+    language: string,
 ) => {
     // Get copy of current translations
     const translations = [...(field.value as any)];
@@ -807,7 +807,7 @@ export const removeTranslation = (
     translations.splice(index, 1);
     // Set new translations
     helpers.setValue(translations);
-}
+};
 
 /**
  * Converts a snack message code into a snack message and details. 
@@ -847,4 +847,4 @@ export const getTranslatedTitleAndHelp = (data: OptionalTranslation | null | und
         if (help === "") help = undefined;
     }
     return { title, help };
-}
+};

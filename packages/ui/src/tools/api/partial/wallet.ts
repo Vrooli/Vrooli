@@ -16,4 +16,4 @@ export const wallet: GqlPartial<Wallet> = {
     },
     full: {},
     list: {},
-}
+};

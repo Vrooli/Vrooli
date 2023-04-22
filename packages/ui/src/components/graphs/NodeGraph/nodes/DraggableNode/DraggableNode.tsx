@@ -61,7 +61,7 @@ export const DraggableNode = ({
             dragDistanceRef.current = { x: 0, y: 0 };
             return;
         }
-        return false
+        return false;
     }, [canDrag]);
 
     const handleDrag = useCallback((_e: any, data: any) => {
@@ -87,13 +87,13 @@ export const DraggableNode = ({
         };
         // Add drag distance to current position
         const { x: startX, y: startY } = dragRefs.current.nodeStartPosition as any;
-        const dropX = startX + x - graphScrollDistance.x
+        const dropX = startX + x - graphScrollDistance.x;
         const dropY = startY + y - graphScrollDistance.y;
         // Reset drag distance and start position
         dragRefs.current = {
             graphStartScroll: null,
             nodeStartPosition: null,
-        }
+        };
         // Send drop event to parent
         if (isDragPublished.current) {
             PubSub.get().publishNodeDrop({ nodeId, position: { x: dropX, y: dropY } });
@@ -135,5 +135,5 @@ export const DraggableNode = ({
                 {children}
             </Box>
         </Draggable>
-    )
-}
+    );
+};

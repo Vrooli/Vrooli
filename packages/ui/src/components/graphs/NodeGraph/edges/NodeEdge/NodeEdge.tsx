@@ -58,7 +58,7 @@ export const NodeEdge = ({
                         id="insert-node-on-edge-button"
                         background={palette.secondary.main}
                         size="small"
-                        onClick={() => { handleAdd(link) }}
+                        onClick={() => { handleAdd(link); }}
                         aria-label='Insert node on edge'
                     >
                         <AddIcon id="insert-node-on-edge-button-icon" fill={"white"} />
@@ -70,7 +70,7 @@ export const NodeEdge = ({
                         id="insert-branch-on-edge-button"
                         background="#248791"
                         size="small"
-                        onClick={() => { handleBranch(link) }}
+                        onClick={() => { handleBranch(link); }}
                         aria-label='Insert branch on edge'
                     >
                         <BranchIcon id="insert-branch-on-edge-button-icon" fill='white' />
@@ -94,7 +94,7 @@ export const NodeEdge = ({
                         id="delete-link-on-edge-button"
                         background={palette.error.main}
                         size="small"
-                        onClick={() => { handleDelete(link) }}
+                        onClick={() => { handleDelete(link); }}
                         aria-label='Delete link button'
                     >
                         <DeleteIcon id="delete-link-on-edge-button-icon" fill='white' />
@@ -113,5 +113,5 @@ export const NodeEdge = ({
         thiccness={thiccness}
         timeBetweenDraws={fastUpdate ? 15 : 1000}
         toId={`node-${link.to.id}`}
-    />
-}
+    />;
+};

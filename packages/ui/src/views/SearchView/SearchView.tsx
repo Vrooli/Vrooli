@@ -133,7 +133,7 @@ export const SearchView = ({
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // On tab change, update BaseParams, document title, where, and URL
@@ -144,7 +144,7 @@ export const SearchView = ({
     }, [currTab.index, currTab.label, t]);
 
     const onAddClick = useCallback((ev: any) => {
-        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
             PubSub.get().publishSnack({ messageKey: "MustBeLoggedIn", severity: "Error" });
@@ -161,7 +161,7 @@ export const SearchView = ({
         }
         // Otherwise, navigate to add page
         else {
-            setLocation(addUrl)
+            setLocation(addUrl);
         }
     }, [searchType, session, setLocation]);
 
@@ -171,9 +171,9 @@ export const SearchView = ({
         } else {
             onAddClick(ev);
         }
-    }, [currTab.value, onAddClick])
+    }, [currTab.value, onAddClick]);
 
-    const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
+    const handleScrolledFar = useCallback(() => { setPopupButton(true); }, []);
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
             <Tooltip title={t(popupTooltipKey)}>
@@ -197,7 +197,7 @@ export const SearchView = ({
         </Box>
     ), [onPopupButtonClick, popupButton, popupTitleKey, popupTooltipKey, t]);
 
-    console.log("search typeeee", searchType, currTab)
+    console.log("search typeeee", searchType, currTab);
 
     return (
         <>
@@ -245,5 +245,5 @@ export const SearchView = ({
             />}
             {popupButtonContainer}
         </>
-    )
-}
+    );
+};

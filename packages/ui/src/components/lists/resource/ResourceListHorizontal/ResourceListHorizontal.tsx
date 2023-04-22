@@ -75,7 +75,7 @@ export const ResourceListHorizontal = ({
                         });
                     }
                 },
-            })
+            });
         }
         else if (handleUpdate) {
             handleUpdate({
@@ -103,11 +103,11 @@ export const ResourceListHorizontal = ({
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
+    const openDialog = useCallback(() => { setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
-        setIsDialogOpen(true)
+        setIsDialogOpen(true);
     }, []);
 
     const dialog = useMemo(() => (
@@ -243,5 +243,5 @@ export const ResourceListHorizontal = ({
                 </Droppable>
             </DragDropContext>
         </>
-    )
-}
+    );
+};

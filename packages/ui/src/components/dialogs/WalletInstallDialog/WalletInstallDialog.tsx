@@ -6,7 +6,7 @@ import { WalletInstallDialogProps } from "../types";
 
 const installExtension = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
-}
+};
 
 const titleId = "wallet-install-dialog-title";
 
@@ -36,5 +36,5 @@ export const WalletInstallDialog = ({
                 ))}
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

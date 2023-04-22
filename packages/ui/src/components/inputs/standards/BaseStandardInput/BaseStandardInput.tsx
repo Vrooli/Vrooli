@@ -42,7 +42,7 @@ export const BaseStandardInput = ({
                 console.error("Failed to parse stored standard input from local storage", error);
             }
         }
-        console.log("storedProps", typeKey, storedProps)
+        console.log("storedProps", typeKey, storedProps);
         switch (inputType) {
             case InputType.TextField:
                 return {
@@ -53,8 +53,8 @@ export const BaseStandardInput = ({
                         ...storedProps,
                     },
                     SchemaInput: TextFieldStandardInput,
-                    validationSchema: textFieldStandardInputForm
-                }
+                    validationSchema: textFieldStandardInputForm,
+                };
             case InputType.JSON:
                 return {
                     defaultValues: {
@@ -64,8 +64,8 @@ export const BaseStandardInput = ({
                         ...storedProps,
                     },
                     SchemaInput: JsonStandardInput,
-                    validationSchema: jsonStandardInputForm
-                }
+                    validationSchema: jsonStandardInputForm,
+                };
             case InputType.IntegerInput:
                 defaultValues = {
                     defaultValue: 0,
@@ -86,8 +86,8 @@ export const BaseStandardInput = ({
                         ...storedProps,
                     },
                     SchemaInput: RadioStandardInput,
-                    validationSchema: radioStandardInputForm
-                }
+                    validationSchema: radioStandardInputForm,
+                };
             case InputType.Checkbox:
                 return {
                     defaultValues: {
@@ -97,8 +97,8 @@ export const BaseStandardInput = ({
                         ...storedProps,
                     },
                     SchemaInput: CheckboxStandardInput,
-                    validationSchema: checkboxStandardInputForm
-                }
+                    validationSchema: checkboxStandardInputForm,
+                };
             case InputType.Switch:
                 return {
                     defaultValues: {
@@ -106,16 +106,16 @@ export const BaseStandardInput = ({
                         ...storedProps,
                     },
                     SchemaInput: SwitchStandardInput,
-                    validationSchema: switchStandardInputForm
-                }
+                    validationSchema: switchStandardInputForm,
+                };
             case InputType.Dropzone:
                 return {
                     defaultValues: {
                         ...storedProps,
                     },
                     SchemaInput: DropzoneStandardInput,
-                    validationSchema: null
-                }
+                    validationSchema: null,
+                };
             case InputType.Markdown:
                 return {
                     defaultValues: {
@@ -123,13 +123,13 @@ export const BaseStandardInput = ({
                         ...storedProps,
                     },
                     SchemaInput: MarkdownStandardInput,
-                    validationSchema: markdownStandardInputForm
-                }
+                    validationSchema: markdownStandardInputForm,
+                };
             default:
                 return {
                     defaultValues: {},
                     SchemaInput: null,
-                    validationSchema: null
+                    validationSchema: null,
                 };
         }
         return { defaultValues, SchemaInput, validationSchema };
@@ -153,7 +153,7 @@ export const BaseStandardInput = ({
                 ...(field.value?.props ?? {}),
             }}
             onSubmit={(values) => {
-                console.log("onsubmit 1", fieldName, field.value, values)
+                console.log("onsubmit 1", fieldName, field.value, values);
                 if (!fieldName || !isEditing) return;
                 const updatedField = { ...field.value, props: values };
                 console.log("should update schema?", updatedField, field.value, JSON.stringify(updatedField) === JSON.stringify(field.value));
@@ -185,7 +185,7 @@ export const BaseStandardInput = ({
                 }}
                 >
                     <Grid item xs={6}>
-                        <Box onClick={() => { formik.handleSubmit() }}>
+                        <Box onClick={() => { formik.handleSubmit(); }}>
                             <Button
                                 disabled={!formik.isValid || !formik.dirty}
                                 fullWidth
@@ -208,5 +208,5 @@ export const BaseStandardInput = ({
                 </Grid>
             </>}
         </Formik>
-    )
-}
+    );
+};

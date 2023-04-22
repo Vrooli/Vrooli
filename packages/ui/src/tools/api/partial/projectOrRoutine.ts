@@ -12,7 +12,7 @@ export const projectOrRoutine: GqlPartial<ProjectOrRoutine> = {
         __union: {
             Project: 0,
             Routine: 1,
-        }
+        },
     },
     list: {
         __define: {
@@ -22,6 +22,6 @@ export const projectOrRoutine: GqlPartial<ProjectOrRoutine> = {
         __union: {
             Project: 0,
             Routine: 1,
-        }
-    }
-}
+        },
+    },
+};

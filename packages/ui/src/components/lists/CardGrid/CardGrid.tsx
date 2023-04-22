@@ -20,4 +20,4 @@ export const CardGrid = ({
             {children}
         </Box>
     );
-}
+};

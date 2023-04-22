@@ -3,7 +3,7 @@ import {
     Badge,
     BottomNavigationAction,
     Button,
-    IconButton
+    IconButton,
 } from "@mui/material";
 import { LINKS, Session } from "@shared/consts";
 import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon, SvgComponent } from "@shared/icons";
@@ -39,13 +39,13 @@ interface GetUserActionsProps {
 }
 export function getUserActions({ session, exclude = [] }: GetUserActionsProps): Action[] {
     // Check if user is logged in using session
-    let isLoggedIn = checkIfLoggedIn(session);
-    let actions: ActionArray[] = [];
+    const isLoggedIn = checkIfLoggedIn(session);
+    const actions: ActionArray[] = [];
     // Home always available. Page changes based on login status, 
     // but we don't worry about that here.
     actions.push(
         ["Home", ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
-    )
+    );
     // Search always available
     actions.push(
         ["Search", ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
@@ -56,11 +56,11 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
             ["Create", ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
             ["Inbox", ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
             ["MyStuff", ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
-        )
+        );
     }
     // Display about, pricing, and login for logged out users 
     else {
-        actions.push(["About", ACTION_TAGS.About, LINKS.About, HelpIcon, 0])
+        actions.push(["About", ACTION_TAGS.About, LINKS.About, HelpIcon, 0]);
         actions.push(["Pricing", ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
         actions.push(["Log In", ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }
@@ -70,8 +70,8 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
 // Factory for creating action objects
 const createAction = (action: ActionArray): Action => {
     const keys = ["label", "value", "link", "Icon", "numNotifications"];
-    return action.reduce((obj: {}, val: any, i: number) => { obj[keys[i]] = val; return obj }, {}) as Action;
-}
+    return action.reduce((obj: {}, val: any, i: number) => { obj[keys[i]] = val; return obj; }, {}) as Action;
+};
 
 // Factory for creating a list of action objects
 export const createActions = (actions: ActionArray[]): Action[] => actions.map(a => createAction(a));
@@ -89,13 +89,13 @@ export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuPr
             variant="text"
             size="large"
             href={link}
-            onClick={(e) => { e.preventDefault(); openLink(setLocation, link) }}
+            onClick={(e) => { e.preventDefault(); openLink(setLocation, link); }}
             sx={sx}
         >
             {i18next.t(label, { count: 2 })}
         </Button>
     ));
-}
+};
 
 // Display actions in a bottom navigation
 interface ActionsToBottomNavProps {
@@ -122,7 +122,7 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
             sx={{ color: "white" }}
         />
     ));
-}
+};
 
 // Display an action as an icon button
 interface ActionToIconButtonProps {
@@ -136,5 +136,5 @@ export const actionToIconButton = ({ action, setLocation, classes = { root: "" }
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>
-    </IconButton>
-}
+    </IconButton>;
+};

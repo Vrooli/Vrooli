@@ -202,7 +202,7 @@ export const LineGraph = ({
                         }, { point: null, distance: Number.MAX_VALUE } as { point: Point | null, distance: number });
                         if (closest.distance < 25) {
                             // If a data point is close enough to the mouse cursor, display a selectedPoint with its value
-                            setSelectedPoint(closest.point)
+                            setSelectedPoint(closest.point);
                         } else {
                             // Otherwise, hide the selectedPoint
                             setSelectedPoint(null);
@@ -227,7 +227,7 @@ export const LineGraph = ({
                         }, { point: null, distance: Number.MAX_VALUE } as { point: Point | null, distance: number });
                         if (closest.distance < 25) {
                             // If a data point is close enough to the mouse cursor, display a selectedPoint with its value
-                            setSelectedPoint(closest.point)
+                            setSelectedPoint(closest.point);
                         } else {
                             // Otherwise, hide the selectedPoint
                             setSelectedPoint(null);

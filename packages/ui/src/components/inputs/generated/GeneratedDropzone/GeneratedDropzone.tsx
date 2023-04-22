@@ -10,7 +10,7 @@ export const GeneratedDropzone = ({
     index,
     onUpload,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering dropzone');
+    console.log("rendering dropzone");
     const props = useMemo(() => fieldData.props as DropzoneProps, [fieldData.props]);
 
     return (
@@ -24,8 +24,8 @@ export const GeneratedDropzone = ({
                 cancelText={props.cancelText}
                 maxFiles={props.maxFiles}
                 showThumbs={props.showThumbs}
-                onUpload={(files) => { onUpload(fieldData.fieldName, files) }}
+                onUpload={(files) => { onUpload(fieldData.fieldName, files); }}
             />
         </Stack>
     );
-}
+};

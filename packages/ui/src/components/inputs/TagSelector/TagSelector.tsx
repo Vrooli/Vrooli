@@ -24,5 +24,5 @@ export const TagSelector = ({
             placeholder={placeholder}
             tags={field.value ?? []}
         />
-    )
-}
+    );
+};

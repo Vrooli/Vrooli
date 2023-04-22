@@ -14,7 +14,7 @@ export const notification: GqlPartial<Notification> = {
         link: true,
         imgLink: true,
     },
-}
+};
 
 export const notificationSettingsCategory: GqlPartial<NotificationSettingsCategory> = {
     __typename: "NotificationSettingsCategory",
@@ -26,7 +26,7 @@ export const notificationSettingsCategory: GqlPartial<NotificationSettingsCatego
         toSms: true,
         toPush: true,
     },
-}
+};
 
 export const notificationSettings: GqlPartial<NotificationSettings> = {
     __typename: "NotificationSettings",
@@ -46,4 +46,4 @@ export const notificationSettings: GqlPartial<NotificationSettings> = {
         enabled: true,
         categories: () => rel(notificationSettingsCategory, "full"),
     },
-}
+};

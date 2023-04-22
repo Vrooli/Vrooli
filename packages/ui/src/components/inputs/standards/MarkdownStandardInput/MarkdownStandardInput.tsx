@@ -21,4 +21,4 @@ export const MarkdownStandardInput = ({
             </Grid>
         </Grid>
     );
-}
+};

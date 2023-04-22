@@ -22,43 +22,43 @@ import { OwnerShape } from "../../utils/shape/models/types";
 
 export const noteInitialValues = (
     session: Session | undefined,
-    existing?: NoteVersion | null | undefined
+    existing?: NoteVersion | null | undefined,
 ): NoteVersionShape => ({
-    __typename: 'NoteVersion' as const,
+    __typename: "NoteVersion" as const,
     id: DUMMY_ID,
     directoryListings: [],
     isPrivate: true,
     root: {
         id: DUMMY_ID,
         isPrivate: true,
-        owner: { __typename: 'User', id: getCurrentUser(session)!.id! } as OwnerShape,
+        owner: { __typename: "User", id: getCurrentUser(session)!.id! } as OwnerShape,
         parent: null,
         tags: [],
     },
-    versionLabel: existing?.versionLabel ?? '1.0.0',
+    versionLabel: existing?.versionLabel ?? "1.0.0",
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'NoteVersionTranslation' as const,
+        __typename: "NoteVersionTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        description: '',
-        name: '',
-        text: '',
+        description: "",
+        name: "",
+        text: "",
     }]),
 });
 
 export function transformNoteValues(values: NoteVersionShape, existing?: NoteVersionShape) {
     return existing === undefined
         ? shapeNoteVersion.create(values)
-        : shapeNoteVersion.update(existing, values)
+        : shapeNoteVersion.update(existing, values);
 }
 
 export const validateNoteValues = async (values: NoteVersionShape, existing?: NoteVersionShape) => {
     const transformedValues = transformNoteValues(values, existing);
-    const validationSchema = noteVersionValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = noteVersionValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const NoteForm = forwardRef<any, NoteFormProps>(({
     display,
@@ -80,8 +80,8 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['description', 'name', 'text'],
-        validationSchema: noteVersionTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["description", "name", "text"],
+        validationSchema: noteVersionTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
     return (
@@ -90,7 +90,7 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 <EllipsisActionButton>
                     <RelationshipList
                         isEditing={true}
-                        objectType={'Note'}
+                        objectType={"Note"}
                         zIndex={zIndex}
                     />
                 </EllipsisActionButton>
@@ -100,18 +100,18 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(100vw - 16px, 700px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(100vw - 16px, 700px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <TranslatedMarkdownInput
                     language={language}
                     name="text"
-                    placeholder={t(`PleaseBeNice`)}
+                    placeholder={t("PleaseBeNice")}
                     minRows={3}
                     sxs={{
                         bar: {
@@ -120,10 +120,10 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                         },
                         textArea: {
                             borderRadius: 0,
-                            resize: 'none',
-                            minHeight: '100vh',
+                            resize: "none",
+                            minHeight: "100vh",
                             background: palette.background.paper,
-                        }
+                        },
                     }}
                 />
                 <GridSubmitButtons
@@ -137,5 +137,5 @@ export const NoteForm = forwardRef<any, NoteFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

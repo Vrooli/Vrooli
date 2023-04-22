@@ -66,7 +66,7 @@ export function SearchList<DataType extends NavigableObject>({
         keyPrefix: `${searchType}-list-item`,
         loading,
         zIndex,
-    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex])
+    }), [beforeNavigation, searchType, hideUpdateButton, allData, parseData, pageData, loading, zIndex]);
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -87,7 +87,7 @@ export function SearchList<DataType extends NavigableObject>({
         return () => window.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: any) => { setSearchString(newString) }, [setSearchString]);
+    const handleSearch = useCallback((newString: any) => { setSearchString(newString); }, [setSearchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -108,7 +108,7 @@ export function SearchList<DataType extends NavigableObject>({
                     justifyContent: "center",
                     alignItems: "center",
                     marginBottom: 1,
-                    ...(sxs?.search ?? {})
+                    ...(sxs?.search ?? {}),
                 }}
             >
                 <SiteSearchBar
@@ -149,5 +149,5 @@ export function SearchList<DataType extends NavigableObject>({
                 <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>{t("AddNew")}</Button>
             </Box>}
         </>
-    )
+    );
 }

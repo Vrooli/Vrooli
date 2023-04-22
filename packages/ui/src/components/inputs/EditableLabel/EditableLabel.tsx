@@ -57,7 +57,7 @@ export const EditableLabel = ({
 
     const toggleActive = useCallback((event: any) => {
         if (!canUpdate) return;
-        setActive(!active)
+        setActive(!active);
     }, [active, canUpdate]);
 
     const handleCancel = useCallback((_?: unknown, reason?: "backdropClick" | "escapeKeyDown") => {
@@ -126,5 +126,5 @@ export const EditableLabel = ({
                 )}
             </Stack>
         </>
-    )
+    );
 };

@@ -11,6 +11,6 @@ export const walletComplete: GqlPartial<WalletComplete> = {
         },
         firstLogIn: true,
         session: { __use: 0 },
-        wallet: { __use: 1 }
-    }
-}
+        wallet: { __use: 1 },
+    },
+};

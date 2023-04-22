@@ -33,7 +33,7 @@ export const AdvancedSearchDialog = ({
     const [schema, setSchema] = useState<FormSchema | null>(null);
     useEffect(() => {
         async function getSchema() {
-            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType]()).advancedSearchSchema : null)
+            setSchema(searchType in searchTypeToParams ? (await searchTypeToParams[searchType]()).advancedSearchSchema : null);
         }
         getSchema();
     }, [searchType]);
@@ -45,7 +45,7 @@ export const AdvancedSearchDialog = ({
         // Parse search params from URL, and filter out search fields that are not in schema
         const urlValues = schema ? convertSearchForFormik(parseSearchParams(), schema) : {} as { [key: string]: any };
         // Filter out search params that are not in schema
-        let values: { [x: string]: any } = {};
+        const values: { [x: string]: any } = {};
         // Add fieldInputs to values
         fieldInputs.forEach((field) => {
             values[field.fieldName] = field.props.defaultValue;
@@ -56,7 +56,7 @@ export const AdvancedSearchDialog = ({
             if (currValue !== undefined) values[key] = currValue;
         });
         return values;
-    }, [schema])
+    }, [schema]);
 
     // Generate yup validation schema
     const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
@@ -136,5 +136,5 @@ export const AdvancedSearchDialog = ({
                 </>}
             </Formik>
         </LargeDialog>
-    )
-}
+    );
+};

@@ -13,7 +13,7 @@ export const routineVersionTranslation: GqlPartial<RoutineVersionTranslation> = 
     },
     full: {},
     list: {},
-}
+};
 
 export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
     __typename: "RoutineVersionYou",
@@ -31,7 +31,7 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
     full: {
         runs: async () => rel((await import("./runRoutine")).runRoutine, "full", { omit: "routineVersion" }),
     },
-}
+};
 
 export const routineVersion: GqlPartial<RoutineVersion> = {
     __typename: "RoutineVersion",
@@ -103,5 +103,5 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         translations: () => rel(routineVersionTranslation, "list"),
         versionIndex: true,
         versionLabel: true,
-    }
-}
+    },
+};

@@ -24,8 +24,8 @@ export function TextCollapse({
                 marginBottom: 2,
                 opacity: 0.5,
             }} />
-        ))
-    }, [loading, loadingLines])
+        ));
+    }, [loading, loadingLines]);
 
     if ((!text || text.trim().length === 0) && !loading) return null;
     return (
@@ -37,5 +37,5 @@ export function TextCollapse({
         >
             {text ? <Markdown style={{ marginTop: 0 }}>{text}</Markdown> : lines}
         </ContentCollapse>
-    )
+    );
 }

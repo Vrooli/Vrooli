@@ -6,5 +6,5 @@ export type MemberInviteShape = Pick<MemberInvite, "id"> & {
 }
 
 export const shapeMemberInvite: ShapeModel<MemberInviteShape, MemberInviteCreateInput, null> = {
-    create: (d) => ({}) as any
-}
+    create: (d) => ({}) as any,
+};

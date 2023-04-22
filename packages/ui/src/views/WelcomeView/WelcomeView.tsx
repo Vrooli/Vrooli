@@ -23,8 +23,8 @@ const buttonProps = {
     "&:hover": {
         filter: "brightness(120%)",
         border: "1px solid white",
-    }
-}
+    },
+};
 
 export const WelcomeView = ({
     display = "page",
@@ -93,7 +93,7 @@ export const WelcomeView = ({
                             cursor: "pointer",
                             "&:hover": {
                                 brightness: "120%",
-                            }
+                            },
                         }}>
                             <Typography sx={{ marginRight: 2, color: palette.secondary.dark }}>{t("IKnowWhatImDoing")}</Typography>
                         </Link>
@@ -101,5 +101,5 @@ export const WelcomeView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

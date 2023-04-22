@@ -34,7 +34,7 @@ const wave = keyframes`
 `;
 const RotatedBox = styled("div")({
     display: "inline-block",
-    animation: `${wave} 3s infinite ease`
+    animation: `${wave} 3s infinite ease`,
 });
 
 const memberButtonProps = {
@@ -46,7 +46,7 @@ const memberButtonProps = {
         transform: "scale(1.2)",
     },
     transition: "all 0.2s ease",
-}
+};
 
 const teamMembers: MemberData[] = [
     {
@@ -57,9 +57,9 @@ const teamMembers: MemberData[] = [
             website: "https://matthalloran.info",
             twitter: "https://twitter.com/mdhalloran",
             github: "https://github.com/MattHalloran",
-        }
+        },
     },
-]
+];
 
 const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 
@@ -208,5 +208,5 @@ export const AboutView = ({
                 </Stack>
             </Stack>
         </Box>
-    )
-}
+    );
+};

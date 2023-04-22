@@ -34,5 +34,5 @@ export function ThemeSwitch() {
                 OnIcon={DarkModeIcon}
             />
         </Stack>
-    )
+    );
 }

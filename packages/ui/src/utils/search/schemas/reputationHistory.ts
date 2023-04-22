@@ -8,6 +8,6 @@ export const reputationHistorySearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchReputationHistory"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const reputationHistorySearchParams = () => toParams(reputationHistorySearchSchema(), reputationHistoryFindMany, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc)
+export const reputationHistorySearchParams = () => toParams(reputationHistorySearchSchema(), reputationHistoryFindMany, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc);

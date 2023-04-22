@@ -3,7 +3,7 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { ResourceUsedFor } from "@shared/consts";
 import { DeleteIcon, EditIcon } from "@shared/icons";
@@ -49,7 +49,7 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
     }, [data, session, t]);
 
     const Icon = useMemo(() => {
-        return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
+        return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link);
     }, [data]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
@@ -83,7 +83,7 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
         }
     }, [canUpdate]);
 
-    const handleHoverEnd = useCallback(() => { setShowIcons(false) }, []);
+    const handleHoverEnd = useCallback(() => { setShowIcons(false); }, []);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
@@ -174,5 +174,5 @@ export const ResourceCard = forwardRef<any, ResourceCardProps>(({
                 </Stack>
             </Box>
         </Tooltip>
-    )
-})
+    );
+});

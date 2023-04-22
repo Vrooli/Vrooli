@@ -16,19 +16,19 @@ const BUSINESS_DATA = {
     BUSINESS_NAME: "Vrooli",
     EMAIL: {
         Label: "info@vrooli.com",
-        Link: "mailto:info@vrooli.com"
+        Link: "mailto:info@vrooli.com",
     },
     SUPPORT_EMAIL: {
         Label: "support@vrooli.com",
-        Link: "mailto:support@vrooli.com"
+        Link: "mailto:support@vrooli.com",
     },
     SOCIALS: {
         Discord: "https://discord.gg/VyrDFzbmmF",
         GitHub: "https://github.com/MattHalloran/Vrooli",
-        Twitter: "https://twitter.com/VrooliOfficial"
+        Twitter: "https://twitter.com/VrooliOfficial",
     },
     APP_URL: "https://vrooli.com",
-}
+};
 
 enum TabOptions {
     Privacy = "Privacy",
@@ -52,7 +52,7 @@ export const PrivacyPolicyView = ({
         label: t(option as TabOptions),
         value: option as TabOptions,
     })), [t]);
-    const currTab = useMemo(() => tabs[0], [tabs])
+    const currTab = useMemo(() => tabs[0], [tabs]);
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
         setLocation(LINKS[tab.value], { replace: true });

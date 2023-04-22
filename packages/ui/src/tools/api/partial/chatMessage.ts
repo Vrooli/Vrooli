@@ -11,7 +11,7 @@ export const chatMessageTranslation: GqlPartial<ChatMessageTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const chatMessageYou: GqlPartial<ChatMessageYou> = {
     __typename: "ChatMessageYou",
@@ -25,7 +25,7 @@ export const chatMessageYou: GqlPartial<ChatMessageYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const chatMessage: GqlPartial<ChatMessage> = {
     __typename: "ChatMessage",
@@ -44,5 +44,5 @@ export const chatMessage: GqlPartial<ChatMessage> = {
     },
     list: {
         translations: () => rel(chatMessageTranslation, "list"),
-    }
-}
+    },
+};

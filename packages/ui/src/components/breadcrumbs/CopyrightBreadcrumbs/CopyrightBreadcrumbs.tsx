@@ -12,7 +12,7 @@ export const CopyrightBreadcrumbs = ({
         paths: [
             [`© ${new Date().getFullYear()} ${BUSINESS_NAME}`, LINKS.Home],
             [t("Privacy"), LINKS.Privacy],
-            [t("Terms"), LINKS.Terms]
+            [t("Terms"), LINKS.Terms],
         ].map(row => ({ text: row[0], link: row[1] })),
         ariaLabel: "Copyright breadcrumb",
         sx: {
@@ -21,6 +21,6 @@ export const CopyrightBreadcrumbs = ({
             justifyContent: "center",
             alignItems: "center",
         },
-        ...props
-    })
-}
+        ...props,
+    });
+};

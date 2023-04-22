@@ -7,50 +7,50 @@ export const searchFormLayout = (title: CommonKey): FormSchema["formLayout"] => 
     title: i18next.t(title),
     direction: "column",
     spacing: 4,
-})
+});
 
 // Containers
 export const languagesContainer = (): GridContainer => ({
     title: i18next.t("Language", { count: 2 }),
     description: i18next.t("LanguagesHelp"),
-    totalItems: 1
-})
+    totalItems: 1,
+});
 export const languagesVersionContainer = languagesContainer;
 export const bookmarksContainer = (): GridContainer => ({
     title: i18next.t("Bookmark", { count: 2 }),
     description: i18next.t("BookmarksHelp"),
     totalItems: 2,
     spacing: 2,
-})
+});
 export const bookmarksRootContainer = bookmarksContainer;
 export const tagsContainer = (): GridContainer => ({
     title: i18next.t("Tag", { count: 2 }),
     description: i18next.t("TagsHelp"),
     totalItems: 1,
-})
+});
 export const tagsRootContainer = tagsContainer;
 export const votesContainer = (): GridContainer => ({
     title: i18next.t("Vote", { count: 2 }),
     description: i18next.t("VotesHelp"),
     totalItems: 2,
     spacing: 2,
-})
+});
 export const votesRootContainer = votesContainer;
 export const simplicityContainer = (): GridContainer => ({
     title: i18next.t("Simplicity"),
     description: i18next.t("SimplicityHelp"),
     totalItems: 2,
     spacing: 2,
-})
+});
 export const simplicityRootContainer = simplicityContainer;
 export const complexityContainer = (): GridContainer => ({
     title: i18next.t("Complexity"),
     description: i18next.t("ComplexityHelp"),
     totalItems: 2,
     spacing: 2,
-})
+});
 export const complexityRootContainer = complexityContainer;
-export const hasCompleteVersionContainer: GridContainer = { totalItems: 1 }
+export const hasCompleteVersionContainer: GridContainer = { totalItems: 1 };
 export const isCompleteWithRootContainer: GridContainer = hasCompleteVersionContainer;
 export const isLatestContainer: GridContainer = hasCompleteVersionContainer;
 
@@ -64,9 +64,9 @@ export const yesNoDontCare = () => ({
             { label: i18next.t("Yes"), value: "true" },
             { label: i18next.t("No"), value: "false" },
             { label: i18next.t("DontCare"), value: "undefined" },
-        ]
-    }
-})
+        ],
+    },
+});
 
 // Fields
 export const languagesFields = (): FieldData[] => ([
@@ -76,13 +76,13 @@ export const languagesFields = (): FieldData[] => ([
         type: InputType.LanguageInput,
         props: {},
     },
-])
+]);
 export const languagesVersionFields = (): FieldData[] => ([
     {
         ...languagesFields()[0],
         fieldName: "translationLanguagesLatestVersion",
-    }
-])
+    },
+]);
 export const bookmarksFields = (): FieldData[] => ([
     {
         fieldName: "minBookmarks",
@@ -91,7 +91,7 @@ export const bookmarksFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
     {
         fieldName: "maxBookmarks",
@@ -100,9 +100,9 @@ export const bookmarksFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
-])
+]);
 export const bookmarksRootFields = (): FieldData[] => ([
     {
         ...bookmarksFields()[0],
@@ -112,21 +112,21 @@ export const bookmarksRootFields = (): FieldData[] => ([
         ...bookmarksFields()[1],
         fieldName: "maxBookmarksRoot",
     },
-])
+]);
 export const tagsFields = (): FieldData[] => ([
     {
         fieldName: "tags",
         label: i18next.t("Tag", { count: 2 }),
         type: InputType.TagSelector,
-        props: {}
+        props: {},
     },
-])
+]);
 export const tagsRootFields = (): FieldData[] => ([
     {
         ...tagsFields()[0],
         fieldName: "tagsRoot",
     },
-])
+]);
 export const votesFields = (): FieldData[] => ([
     {
         fieldName: "minVotes",
@@ -135,7 +135,7 @@ export const votesFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
     {
         fieldName: "maxVotes",
@@ -144,9 +144,9 @@ export const votesFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
-])
+]);
 export const votesRootFields = (): FieldData[] => ([
     {
         ...votesFields()[0],
@@ -156,7 +156,7 @@ export const votesRootFields = (): FieldData[] => ([
         ...votesFields()[1],
         fieldName: "maxVotesRoot",
     },
-])
+]);
 export const simplicityFields = (): FieldData[] => ([
     {
         fieldName: "minSimplicity",
@@ -165,7 +165,7 @@ export const simplicityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
     {
         fieldName: "maxSimplicity",
@@ -174,9 +174,9 @@ export const simplicityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
-])
+]);
 export const simplicityRootFields = (): FieldData[] => ([
     {
         ...simplicityFields()[0],
@@ -186,7 +186,7 @@ export const simplicityRootFields = (): FieldData[] => ([
         ...simplicityFields()[1],
         fieldName: "maxSimplicityRoot",
     },
-])
+]);
 export const complexityFields = (): FieldData[] => ([
     {
         fieldName: "minComplexity",
@@ -195,7 +195,7 @@ export const complexityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
     {
         fieldName: "maxComplexity",
@@ -204,9 +204,9 @@ export const complexityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
-        }
+        },
     },
-])
+]);
 export const complexityRootFields = (): FieldData[] => ([
     {
         ...complexityFields()[0],
@@ -216,25 +216,25 @@ export const complexityRootFields = (): FieldData[] => ([
         ...complexityFields()[1],
         fieldName: "maxComplexityRoot",
     },
-])
+]);
 export const hasCompleteVersionFields = (): FieldData[] => ([
     {
         fieldName: "hasCompleteVersion",
         label: i18next.t("HasCompleteVersion"),
         ...yesNoDontCare(),
     },
-])
+]);
 export const isCompleteWithRootFields = (): FieldData[] => ([
     {
         fieldName: "isCompleteWithRoot",
         label: i18next.t("VersionAndRootComplete"),
         ...yesNoDontCare(),
     },
-])
+]);
 export const isLatestFields = (): FieldData[] => ([
     {
         fieldName: "isLatest",
         label: i18next.t("IsLatestVersion"),
         ...yesNoDontCare(),
     },
-])
+]);

@@ -58,7 +58,7 @@ export const ResourceListVertical = ({
                         });
                     }
                 },
-            })
+            });
         }
         else if (handleUpdate) {
             handleUpdate({
@@ -86,11 +86,11 @@ export const ResourceListVertical = ({
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { console.log("open dialog"); setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
+    const openDialog = useCallback(() => { console.log("open dialog"); setIsDialogOpen(true); }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1); }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
-        setIsDialogOpen(true)
+        setIsDialogOpen(true);
     }, []);
 
     const dialog = useMemo(() => (
@@ -157,5 +157,5 @@ export const ResourceListVertical = ({
                 <Button fullWidth onClick={openDialog} startIcon={<AddIcon />}>Add Resource</Button>
             </Box>}
         </>
-    )
-}
+    );
+};

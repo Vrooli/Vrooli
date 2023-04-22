@@ -15,7 +15,7 @@ export type NodeLinkWhenShape = Pick<NodeLinkWhen, "id" | "condition"> & {
 export const shapeNodeLinkWhenTranslation: ShapeModel<NodeLinkWhenTranslationShape, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
     update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name"), a),
-}
+};
 
 export const shapeNodeLinkWhen: ShapeModel<NodeLinkWhenShape, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput> = {
     create: (d) => ({
@@ -27,5 +27,5 @@ export const shapeNodeLinkWhen: ShapeModel<NodeLinkWhenShape, NodeLinkWhenCreate
         ...updatePrims(o, u, "id", "condition"),
         ...updateRel(o, u, "link", ["Connect"], "one"),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeNodeLinkWhenTranslation),
-    }, a)
-}
+    }, a),
+};

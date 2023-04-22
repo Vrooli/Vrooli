@@ -53,5 +53,5 @@ export const FindSubroutineDialog = ({
             searchType: "RoutineVersion",
             where,
         }}
-    />
-}
+    />;
+};

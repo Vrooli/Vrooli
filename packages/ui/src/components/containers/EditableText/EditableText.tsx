@@ -29,5 +29,5 @@ export function EditableText<T extends EditTextComponent>({
             {!isEditing && isOfType(component, "Markdown", "TranslatedMarkdown") && <Markdown variant={variant}>{field.value}</Markdown>}
             {!isEditing && isOfType("TextField", "TranslatedTextField") && <Typography variant={variant}>{field.value}</Typography>}
         </>
-    )
+    );
 }

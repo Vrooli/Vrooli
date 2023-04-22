@@ -65,5 +65,5 @@ export const AddBeforeLinkDialog = ({
                 </List>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

@@ -104,8 +104,8 @@ export const OrganizationView = ({
                 if (!organization) return;
                 setOrganization({
                     ...organization,
-                    resourceList: updatedList
-                })
+                    resourceList: updatedList,
+                });
             }}
             loading={isLoading}
             mutate={true}
@@ -166,7 +166,7 @@ export const OrganizationView = ({
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
                 boxShadow: { xs: "none", sm: 12 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" }
+                width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
             <Box
@@ -355,5 +355,5 @@ export const OrganizationView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

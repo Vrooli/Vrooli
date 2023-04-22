@@ -39,7 +39,7 @@ export const NodeEndDialog = ({
                 enableReinitialize={true}
                 initialValues={initialValues}
                 onSubmit={(values) => {
-                    handleClose(values as any)
+                    handleClose(values as any);
                 }}
                 validate={async (values) => await validateNodeEndValues(values, node)}
             >
@@ -56,5 +56,5 @@ export const NodeEndDialog = ({
                 />}
             </Formik>
         </LargeDialog>
-    )
-}
+    );
+};

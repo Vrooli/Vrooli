@@ -95,5 +95,5 @@ export function ReminderListItem({
                 </Tooltip>
             </Stack>
         </ListItem>
-    )
+    );
 }

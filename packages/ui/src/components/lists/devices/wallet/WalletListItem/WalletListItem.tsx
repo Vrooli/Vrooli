@@ -7,7 +7,7 @@ import { WalletListItemProps } from "../types";
 const Status = {
     NotVerified: "#a71c2d", // Red
     Verified: "#19972b", // Green
-}
+};
 
 export function WalletListItem({
     handleDelete,
@@ -91,5 +91,5 @@ export function WalletListItem({
                 </Tooltip>
             </Stack>
         </ListItem>
-    )
+    );
 }

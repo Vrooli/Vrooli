@@ -28,7 +28,7 @@ const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encod
 const buttonProps = (palette: Palette) => ({
     height: "48px",
     width: "48px",
-})
+});
 
 const titleId = "share-site-dialog-title";
 
@@ -45,7 +45,7 @@ export const ShareSiteDialog = ({
     const copyInviteLink = () => {
         navigator.clipboard.writeText(inviteLink);
         PubSub.get().publishSnack({ messageKey: "CopiedToClipboard", severity: "Success" });
-    }
+    };
 
     /**
      * Opens navigator share dialog (if supported)
@@ -55,8 +55,8 @@ export const ShareSiteDialog = ({
             title: postTitle,
             text: postText,
             url: inviteLink,
-        })
-    }
+        });
+    };
 
     /**
     * When QR code is long-pressed in standalone (i.e. app is downloaded), open copy/save photo dialog
@@ -76,7 +76,7 @@ export const ShareSiteDialog = ({
         a.download = "qr-code.png";
         a.click();
         URL.revokeObjectURL(url);
-    }
+    };
 
     const pressEvents = usePress({
         onLongPress: handleQRCodeLongPress,
@@ -168,5 +168,5 @@ export const ShareSiteDialog = ({
                 </Box>
             </Box>
         </LargeDialog>
-    )
-}
+    );
+};

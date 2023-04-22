@@ -34,4 +34,4 @@ export const findSelection = (
         console.warn(`Specified selection type '${selection}' for '${obj.__typename}' does not exist. Using '${result}' instead.`);
     }
     return result;
-}
+};

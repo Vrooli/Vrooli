@@ -35,12 +35,12 @@ export function TitleContainer({
                         "&:hover": {
                             filter: `brightness(onClick ? ${102} : ${100}%)`,
                         },
-                        ...sx
+                        ...sx,
                     }}
                 >
                     {/* Title container */}
                     <Box
-                        onClick={(e) => { onClick && onClick(e) }}
+                        onClick={(e) => { onClick && onClick(e); }}
                         sx={{
                             background: palette.primary.dark,
                             color: palette.primary.contrastText,
@@ -63,7 +63,7 @@ export function TitleContainer({
                                 alignItems: "center",
                             } : {
                                 display: "block",
-                            })
+                            }),
                         }}>
                             {loading ? <CircularProgress color="secondary" /> : children}
                         </Box>
@@ -82,7 +82,7 @@ export function TitleContainer({
                                             marginRight: 2,
                                         }}>
                                             <Typography sx={{
-                                                color: palette.mode === "light" ? palette.secondary.dark : palette.secondary.light
+                                                color: palette.mode === "light" ? palette.secondary.dark : palette.secondary.light,
                                             }}
                                             >{typeof labelData === "string" ? t(labelData) : t(labelData.key, { ...labelData.variables, defaultValue: labelData.key })}</Typography>
                                         </Link>

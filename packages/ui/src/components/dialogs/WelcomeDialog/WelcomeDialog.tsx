@@ -15,5 +15,5 @@ export const WelcomeDialog = ({
         >
             <WelcomeView display="dialog" />
         </LargeDialog>
-    )
-}
+    );
+};

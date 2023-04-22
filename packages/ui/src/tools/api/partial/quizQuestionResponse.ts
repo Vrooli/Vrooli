@@ -10,7 +10,7 @@ export const quizQuestionResponseYou: GqlPartial<QuizQuestionResponseYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const quizQuestionResponse: GqlPartial<QuizQuestionResponse> = {
     __typename: "QuizQuestionResponse",
@@ -25,4 +25,4 @@ export const quizQuestionResponse: GqlPartial<QuizQuestionResponse> = {
     },
     full: {},
     list: {},
-}
+};

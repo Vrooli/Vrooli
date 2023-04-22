@@ -25,5 +25,5 @@ export const schedule: GqlPartial<Schedule> = {
             0: async () => rel((await import("./label")).label, "list"),
         },
         labels: { __use: 0 },
-    }
-}
+    },
+};

@@ -26,7 +26,7 @@ const findConnectedItems = <
         if (!originalItem) connected.push(updatedItem[idField]);
     }
     return connected.length > 0 ? connected : undefined;
-}
+};
 
 /**
  * Finds objects which have been created, and returns an array of the created objects, formatted for
@@ -62,7 +62,7 @@ const findCreatedItems = <
         }
     }
     return createdItems.length > 0 ? createdItems : undefined;
-}
+};
 
 /**
  * Find objects which have been updated, and returns an array of the updated objects, formatted for 
@@ -97,7 +97,7 @@ const findUpdatedItems = <
         }
     }
     return updatedItems.length > 0 ? updatedItems : undefined;
-}
+};
 
 /**
  * Finds items which have been removed from the array.
@@ -121,7 +121,7 @@ const findDeletedItems = <
         if (!updatedItem) removed.push(originalItem[idField as string]);
     }
     return removed.length > 0 ? removed : undefined;
-}
+};
 
 /**
  * Finds items which have been disconnected from the parent.
@@ -145,12 +145,12 @@ const findDisconnectedItems = <
         if (!updatedItem) disconnected.push(originalItem[idField as string]);
     }
     return disconnected.length > 0 ? disconnected : undefined;
-}
+};
 
 const asArray = <T>(value: T | T[]): T[] => {
     if (Array.isArray(value)) return value;
     return [value];
-}
+};
 
 type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
 

@@ -28,5 +28,5 @@ export const ShareButton = ({
                 </IconButton>
             </Tooltip>
         </>
-    )
-}
+    );
+};

@@ -40,7 +40,7 @@ export const notificationSubscription: GqlPartial<NotificationSubscription> = {
                 Routine: 11,
                 SmartContract: 12,
                 Standard: 13,
-            }
-        }
+            },
+        },
     },
-}
+};

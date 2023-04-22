@@ -25,24 +25,24 @@ export const SettingsNotificationForm = ({
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 700px)' },
-                margin: 'auto',
-                display: 'block',
+                width: { xs: "100%", md: "min(100%, 700px)" },
+                margin: "auto",
+                display: "block",
             }}
         >
             <Stack direction="column" spacing={4}>
                 {/* Overall notifications toggle */}
                 <ListContainer>
                     <SettingsToggleListItem
-                        title={t('Notification', { count: 2 })}
-                        description={t('PushNotificationToggleDescription')}
+                        title={t("Notification", { count: 2 })}
+                        description={t("PushNotificationToggleDescription")}
                         name="enabled"
                     />
                 </ListContainer>
                 {/* Daily limit input */}
                 <IntegerInput
                     disabled={!values.enabled}
-                    label={t('DailyLimit')}
+                    label={t("DailyLimit")}
                     min={0}
                     name="dailyLimit"
                 // tooltip={t('DailyLimitNotificationDescription')}
@@ -50,8 +50,8 @@ export const SettingsNotificationForm = ({
                 {/* Push notifications toggle */}
                 <ListContainer>
                     <SettingsToggleListItem
-                        title={t('PushNotification', { count: 2 })}
-                        description={t('PushNotificationToggleDescription')}
+                        title={t("PushNotification", { count: 2 })}
+                        description={t("PushNotificationToggleDescription")}
                         disabled={!values.enabled}
                         name="toPush"
                     />
@@ -59,7 +59,7 @@ export const SettingsNotificationForm = ({
                 {/* Push Device list */}
                 <Subheader
                     Icon={PhoneIcon}
-                    title={t('Device', { count: 2 })} />
+                    title={t("Device", { count: 2 })} />
                 <PushList
                     handleUpdate={() => { }}
                     list={[]}
@@ -67,8 +67,8 @@ export const SettingsNotificationForm = ({
                 {/* Email notifications toggle */}
                 <ListContainer>
                     <SettingsToggleListItem
-                        title={t('EmailNotification', { count: 2 })}
-                        description={t('EmailNotificationToggleDescription')}
+                        title={t("EmailNotification", { count: 2 })}
+                        description={t("EmailNotificationToggleDescription")}
                         disabled={!values.enabled}
                         name="toEmails"
                     />
@@ -76,7 +76,7 @@ export const SettingsNotificationForm = ({
                 {/* Email list */}
                 <Subheader
                     Icon={EmailIcon}
-                    title={t('Email', { count: 2 })} />
+                    title={t("Email", { count: 2 })} />
                 {/* <EmailList
                 handleUpdate={updateEmails}
                 list={profile?.emails ?? []}
@@ -95,5 +95,5 @@ export const SettingsNotificationForm = ({
                 onSubmit={props.handleSubmit}
             />
         </BaseForm>
-    )
-}
+    );
+};

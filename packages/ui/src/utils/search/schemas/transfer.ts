@@ -8,6 +8,6 @@ export const transferSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchTransfer"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const transferSearchParams = () => toParams(transferSearchSchema(), transferFindMany, TransferSortBy, TransferSortBy.DateCreatedDesc);

@@ -11,4 +11,4 @@ export const statsSmartContract: GqlPartial<StatsSmartContract> = {
         calls: true,
         routineVersions: true,
     },
-}
+};

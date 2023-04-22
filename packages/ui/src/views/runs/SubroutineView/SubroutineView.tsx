@@ -40,7 +40,7 @@ const containerProps = (palette: Palette) => ({
     marginTop: 4,
     marginBottom: 4,
     padding: 2,
-})
+});
 
 export const SubroutineView = ({
     display = "page",
@@ -76,7 +76,7 @@ export const SubroutineView = ({
             description,
             instructions,
             name,
-        }
+        };
     }, [internalRoutineVersion, session]);
 
     const confirmLeave = useCallback((callback: () => any) => {
@@ -91,10 +91,10 @@ export const SubroutineView = ({
                         handleSaveProgress();
                         // Trigger callback
                         callback();
-                    }
+                    },
                 },
                 { labelKey: "Cancel" },
-            ]
+            ],
         });
     }, [handleSaveProgress]);
 
@@ -133,11 +133,11 @@ export const SubroutineView = ({
      * Update formik values with the current user inputs, if any
      */
     useEffect(() => {
-        console.log("useeffect1 calculating preview formik values", run)
+        console.log("useeffect1 calculating preview formik values", run);
         if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
-        console.log("useeffect 1calling runInputsToFormik", run.inputs)
+        console.log("useeffect 1calling runInputsToFormik", run.inputs);
         const updatedValues = runInputsToFormik(run.inputs);
-        console.log("useeffect1 updating formik, values", updatedValues)
+        console.log("useeffect1 updating formik, values", updatedValues);
         formik.setValues(updatedValues);
     },
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,7 +182,7 @@ export const SubroutineView = ({
                     />
                 ))}
             </Box>
-        )
+        );
     }, [copyInput, formValueMap, palette.background.textPrimary, internalRoutineVersion?.inputs, zIndex]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
@@ -302,5 +302,5 @@ export const SubroutineView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

@@ -33,5 +33,5 @@ export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineU
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateVersion(o, u, shapeRoutineVersion, (v, i) => ({ ...v, root: { id: i.id } })),
-    }, a)
-}
+    }, a),
+};

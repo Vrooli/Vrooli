@@ -120,7 +120,7 @@ export const UserView = ({
                 setUser({
                     ...user,
                     //resourceList: updatedList TODO
-                })
+                });
             }}
             loading={isLoading}
             mutate={true}
@@ -186,7 +186,7 @@ export const UserView = ({
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
                 boxShadow: { xs: "none", sm: 12 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" }
+                width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
             <Box
@@ -374,5 +374,5 @@ export const UserView = ({
                 </Box>
             </Box>
         </>
-    )
-}
+    );
+};

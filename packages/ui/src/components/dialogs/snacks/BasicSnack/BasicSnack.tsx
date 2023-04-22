@@ -32,7 +32,7 @@ const severityStyle = (severity: SnackSeverity | `${SnackSeverity}` | undefined,
             break;
     }
     return { backgroundColor, color };
-}
+};
 
 /**
  * Basic snack item in the snack stack. 
@@ -69,7 +69,7 @@ export const BasicSnack = ({
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
-        }
+        };
     }, [duration, handleClose]);
 
     useEffect(() => {
@@ -78,7 +78,7 @@ export const BasicSnack = ({
             if (severity === "Error") console.error("Snack data", data);
             else console.info("Snack data", data);
         }
-    }, [data, severity])
+    }, [data, severity]);
 
     const Icon = useMemo<SvgComponent>(() => {
         switch (severity) {
@@ -129,5 +129,5 @@ export const BasicSnack = ({
                 <CloseIcon />
             </IconButton>
         </Box>
-    )
-}
+    );
+};

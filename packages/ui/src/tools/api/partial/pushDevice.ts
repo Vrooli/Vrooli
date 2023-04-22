@@ -8,4 +8,4 @@ export const pushDevice: GqlPartial<PushDevice> = {
         expires: true,
         name: true,
     },
-}
+};

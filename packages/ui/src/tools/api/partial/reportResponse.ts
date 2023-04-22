@@ -10,7 +10,7 @@ export const reportResponseYou: GqlPartial<ReportResponseYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 
 export const reportResponse: GqlPartial<ReportResponse> = {
@@ -27,4 +27,4 @@ export const reportResponse: GqlPartial<ReportResponse> = {
     },
     full: {},
     list: {},
-}
+};

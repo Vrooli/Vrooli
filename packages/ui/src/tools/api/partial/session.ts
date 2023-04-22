@@ -8,5 +8,5 @@ export const session: GqlPartial<Session> = {
         isLoggedIn: true,
         timeZone: true,
         users: async () => rel((await import("./sessionUser")).sessionUser, "full"),
-    }
-}
+    },
+};

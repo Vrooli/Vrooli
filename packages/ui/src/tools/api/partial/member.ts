@@ -20,4 +20,4 @@ export const member: GqlPartial<Member> = {
         organization: async () => rel((await import("./organization")).organization, "list"),
         user: async () => rel((await import("./user")).user, "list"),
     },
-}
+};

@@ -25,7 +25,7 @@ const convertToPixels = (size: string | number, id: string): number => {
         }
     }
     return 0;
-}
+};
 
 /**
  * Calculates the font size that will fit the text in the container
@@ -45,7 +45,7 @@ const calculateFontSize = (id: string, minFontSize: string | number) => {
         }
     }
     return el.style.fontSize;
-}
+};
 
 /**
  * Shrinks text to fit its container. 
@@ -53,7 +53,7 @@ const calculateFontSize = (id: string, minFontSize: string | number) => {
  */
 export const TextShrink = ({
     id,
-    minFontSize = '0.5rem',
+    minFontSize = "0.5rem",
     ...props
 }: TextShrinkProps) => {
     const fontSize = calculateFontSize(id, minFontSize);
@@ -67,8 +67,8 @@ export const TextShrink = ({
                 overflow: "visible",
                 textOverflow: "unset",
                 whiteSpace: "nowrap",
-                fontSize: fontSize,
+                fontSize,
             }}
         />
-    )
-}
+    );
+};

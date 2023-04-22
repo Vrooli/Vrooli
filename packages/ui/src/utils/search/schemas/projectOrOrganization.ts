@@ -24,13 +24,13 @@ export const projectOrOrganizationSearchSchema = (): FormSchema => ({
                     { label: "Project", value: "Project" },
                     { label: "Organization", value: "Organization" },
                     { label: "Don't Care", value: "undefined" },
-                ]
-            }
+                ],
+            },
         },
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
-export const projectOrOrganizationSearchParams = () => toParams(projectOrOrganizationSearchSchema(), projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc)
+export const projectOrOrganizationSearchParams = () => toParams(projectOrOrganizationSearchSchema(), projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.BookmarksDesc);

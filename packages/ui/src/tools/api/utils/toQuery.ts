@@ -19,7 +19,7 @@ export const toQuery = async <
     endpointName: Endpoint,
     inputType: string | null,
     partial?: Partial,
-    selectionType?: Selection | null | undefined
+    selectionType?: Selection | null | undefined,
 ) => {
     return await partialToString({
         endpointType: "query",
@@ -27,6 +27,6 @@ export const toQuery = async <
         inputType,
         indent: 0,
         partial,
-        selectionType
-    })
-}
+        selectionType,
+    });
+};

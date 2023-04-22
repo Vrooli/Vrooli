@@ -17,8 +17,8 @@ export type RoutineVersionInputShape = Pick<RoutineVersionInput, "id" | "index" 
 
 export const shapeRoutineVersionInputTranslation: ShapeModel<RoutineVersionInputTranslationShape, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "helpText"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "helpText"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "helpText"), a),
+};
 
 export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput> = {
     create: (d) => {
@@ -31,7 +31,7 @@ export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, Rout
             standardVersionConnect: shouldConnectToStandard ? d.standardVersion!.id : undefined,
             standardVersionCreate: d.standardVersion && !shouldConnectToStandard ? shapeStandardVersion.create(d.standardVersion) : undefined,
             ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionInputTranslation),
-        }
+        };
     },
     update: (o, u, a) => shapeUpdate(u, () => {
         // Connect to standard if it's marked as external. 
@@ -43,6 +43,6 @@ export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, Rout
             standardVersionConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
             standardVersionCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.create(u.standardVersion!) : undefined,
             ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeRoutineVersionInputTranslation),
-        }
-    }, a)
-}
+        };
+    }, a),
+};

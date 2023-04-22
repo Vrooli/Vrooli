@@ -14,7 +14,7 @@ export const standardVersionTranslation: GqlPartial<StandardVersionTranslation> 
     },
     full: {},
     list: {},
-}
+};
 
 export const standardVersion: GqlPartial<StandardVersion> = {
     __typename: "StandardVersion",
@@ -56,5 +56,5 @@ export const standardVersion: GqlPartial<StandardVersion> = {
         versionLabel: true,
         root: async () => rel((await import("./standard")).standard, "nav"),
         translations: () => rel(standardVersionTranslation, "list"),
-    }
-}
+    },
+};

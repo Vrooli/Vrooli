@@ -40,7 +40,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
     const [standardVersion, setStandardVersion] = useState<StandardVersionShape>(item.standardVersion ?? standardInitialValues(session, item.standardVersion as any));
     useEffect(() => {
         setStandardVersion(item.standardVersion ?? standardInitialValues(session, item.standardVersion as any));
-    }, [item, session])
+    }, [item, session]);
 
     const canUpdateStandardVersion = useMemo(() => isEditing && standardVersion.root.isInternal === true, [isEditing, standardVersion.root.isInternal]);
 
@@ -69,7 +69,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                 language,
                 description: values.description,
                 helpText: values.helpText,
-            })
+            });
             handleUpdate(index, {
                 ...item,
                 name: values.name,
@@ -90,7 +90,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
 
     const onSwitchChange = useCallback((s: StandardVersion | null) => {
         if (s && s.root.isInternal === false) {
-            setStandardVersion(s as any)
+            setStandardVersion(s as any);
         } else {
             setStandardVersion(standardInitialValues(session, item.standardVersion as any));
         }
@@ -223,7 +223,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                         <StandardVersionSelectSwitch
                             disabled={!isEditing}
                             selected={!canUpdateStandardVersion ? {
-                                translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }]
+                                translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }],
                             } as any : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
@@ -250,7 +250,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                                         color='secondary'
                                         checked={formik.values.isRequired}
                                         onChange={formik.handleChange}
-                                        onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
+                                        onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit(); }}
                                     />
                                 }
                             />
@@ -259,5 +259,5 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                 </Grid>
             </Collapse>
         </Box >
-    )
-})
+    );
+});

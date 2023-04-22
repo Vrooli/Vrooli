@@ -41,35 +41,35 @@ export const SettingsProfileForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['bio'],
+        fields: ["bio"],
         validationSchema: userTranslationValidation.update({}),
     });
 
     // Handle handles
-    const [handlesField, , handlesHelpers] = useField('handle');
+    const [handlesField, , handlesHelpers] = useField("handle");
     const [findHandles, { data: handlesData, loading: handlesLoading }] = useCustomLazyQuery<string[], FindHandlesInput>(walletFindHandles);
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         if (numVerifiedWallets > 0) {
             findHandles({ variables: {} }); // Intentionally empty
         } else {
-            PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: 'Error' })
+            PubSub.get().publishSnack({ messageKey: "NoVerifiedWallets", severity: "Error" });
         }
     }, [numVerifiedWallets, findHandles]);
     useEffect(() => {
         if (handlesData) {
             setHandles(handlesData);
         }
-    }, [handlesData])
+    }, [handlesData]);
 
     return (
         <BaseForm
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 700px)' },
-                margin: 'auto',
-                display: 'block',
+                width: { xs: "100%", md: "min(100%, 700px)" },
+                margin: "auto",
+                display: "block",
             }}
         >
             <Grid container spacing={2} sx={{
@@ -96,39 +96,39 @@ export const SettingsProfileForm = ({
                             loading={handlesLoading}
                             options={handles}
                             onOpen={fetchHandles}
-                            onChange={(_, value) => { handlesHelpers.setValue(value) }}
+                            onChange={(_, value) => { handlesHelpers.setValue(value); }}
                             renderInput={(params) => <TextField
                                 {...params}
                                 label="(ADA) Handle"
                                 sx={{
-                                    '& .MuiInputBase-root': {
-                                        borderRadius: '5px 0 0 5px',
-                                    }
+                                    "& .MuiInputBase-root": {
+                                        borderRadius: "5px 0 0 5px",
+                                    },
                                 }}
                             />}
                             value={handlesField.value}
                             sx={{
-                                width: '100%',
+                                width: "100%",
                             }}
                         />
                         <ColorIconButton
                             aria-label='fetch-handles'
                             background={palette.secondary.main}
                             onClick={fetchHandles}
-                            sx={{ borderRadius: '0 5px 5px 0' }}
+                            sx={{ borderRadius: "0 5px 5px 0" }}
                         >
                             <RefreshIcon />
                         </ColorIconButton>
                     </Stack>
                 </Grid>
                 <Grid item xs={12}>
-                    <Field fullWidth name="name" label={t('Name')} as={TextField} />
+                    <Field fullWidth name="name" label={t("Name")} as={TextField} />
                 </Grid>
                 <Grid item xs={12}>
                     <TranslatedTextField
                         fullWidth
                         name="bio"
-                        label={t('Bio')}
+                        label={t("Bio")}
                         language={language}
                         multiline
                         minRows={4}
@@ -146,5 +146,5 @@ export const SettingsProfileForm = ({
                 onSubmit={props.handleSubmit}
             />
         </BaseForm>
-    )
-}
+    );
+};

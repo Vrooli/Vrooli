@@ -59,7 +59,7 @@ const openDialogIfExists = (dialog: (() => void) | null | undefined) => {
         return;
     }
     dialog();
-}
+};
 
 /**
  * Hook for updating state and navigating upon completing an action
@@ -119,7 +119,7 @@ export const useObjectActions = ({
         objectType: objectType as ReactionFor,
         onActionComplete,
     });
-    console.log("objectName", getDisplay(object))
+    console.log("objectName", getDisplay(object));
 
     // Determine which actions are available    
     const hasDeletingSupport = exists(DeleteType[objectType]);
@@ -223,4 +223,4 @@ export const useObjectActions = ({
         openStatsDialog,
         openReportDialog,
     };
-}
+};

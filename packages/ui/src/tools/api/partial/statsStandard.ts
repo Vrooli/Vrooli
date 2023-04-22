@@ -11,4 +11,4 @@ export const statsStandard: GqlPartial<StatsStandard> = {
         linksToInputs: true,
         linksToOutputs: true,
     },
-}
+};

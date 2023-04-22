@@ -6,7 +6,7 @@ import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { WalletSelectDialogProps } from "../types";
 
 const helpText =
-    "All wallet extensions you have enabled should be shown here, as long as they support (CIP-0030)[https://cips.cardano.org/cips/cip30/].\n\nThis log in option only works for browsers that support Chromium extensions (Chrome, Brave, Opera, Vivaldi, etc. on desktop; Kiwi, Yandex, on Android).\n\nIf you need to download a wallet extension, we suggest [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo).\n\n**NOTE:** Working on support for Gero Wallet and Card Wallet."
+    "All wallet extensions you have enabled should be shown here, as long as they support (CIP-0030)[https://cips.cardano.org/cips/cip30/].\n\nThis log in option only works for browsers that support Chromium extensions (Chrome, Brave, Opera, Vivaldi, etc. on desktop; Kiwi, Yandex, on Android).\n\nIf you need to download a wallet extension, we suggest [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo).\n\n**NOTE:** Working on support for Gero Wallet and Card Wallet.";
 
 const titleId = "wallet-select-dialog-title";
 
@@ -22,7 +22,7 @@ export const WalletSelectDialog = ({
 
     const handleClose = () => {
         onClose(null);
-    }
+    };
 
     return (
         <LargeDialog
@@ -74,5 +74,5 @@ export const WalletSelectDialog = ({
                 </Stack>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

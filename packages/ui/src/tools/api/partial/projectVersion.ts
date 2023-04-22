@@ -13,7 +13,7 @@ export const projectVersionTranslation: GqlPartial<ProjectVersionTranslation> = 
     },
     full: {},
     list: {},
-}
+};
 
 export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
     __typename: "ProjectVersionYou",
@@ -29,7 +29,7 @@ export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
     full: {
         runs: async () => rel((await import("./runProject")).runProject, "full", { omit: "projectVersion" }),
     },
-}
+};
 
 export const projectVersion: GqlPartial<ProjectVersion> = {
     __typename: "ProjectVersion",
@@ -66,5 +66,5 @@ export const projectVersion: GqlPartial<ProjectVersion> = {
         versionLabel: true,
         root: async () => rel((await import("./project")).project, "nav"),
         translations: () => rel(projectVersionTranslation, "list"),
-    }
-}
+    },
+};

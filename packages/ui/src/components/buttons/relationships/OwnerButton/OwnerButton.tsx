@@ -30,7 +30,7 @@ const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
     { label: "Self", value: OwnerTypesEnum.Self },
     { label: "Organization", value: OwnerTypesEnum.Organization },
     // { label: 'Another User (Requires Permission)', value: OwnerTypesEnum.AnotherUser },
-]
+];
 
 export function OwnerButton({
     isEditing,
@@ -40,7 +40,7 @@ export function OwnerButton({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const languages = useMemo(() => getUserLanguages(session), [session])
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [versionField, , versionHelpers] = useField("owner");
     const [rootField, , rootHelpers] = useField("root.owner");
@@ -49,10 +49,10 @@ export function OwnerButton({
 
     // Organization/User owner dialogs (displayed after selecting owner dialog)
     const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
-    const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true) }, [setOrganizationDialogOpen]);
+    const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true); }, [setOrganizationDialogOpen]);
     const closeOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(false); }, [setOrganizationDialogOpen]);
     const [isAnotherUserDialogOpen, setAnotherUserDialogOpen] = useState<boolean>(false);
-    const openAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(true) }, [setAnotherUserDialogOpen]);
+    const openAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(true); }, [setAnotherUserDialogOpen]);
     const closeAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(false); }, [setAnotherUserDialogOpen]);
     const handleOwnerSelect = useCallback((owner: OwnerShape) => {
         const ownerId = versionField?.value?.id ?? rootField?.value?.id;
@@ -74,7 +74,7 @@ export function OwnerButton({
             if (owner) openObject(owner, setLocation);
         }
         // Otherwise, open dialog
-        else setOwnerDialogAnchor(ev.currentTarget)
+        else setOwnerDialogAnchor(ev.currentTarget);
     }, [isEditing, isAvailable, versionField?.value, rootField?.value, setLocation]);
     const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
@@ -83,7 +83,7 @@ export function OwnerButton({
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
-            const owner = session ? userFromSession(session) : undefined
+            const owner = session ? userFromSession(session) : undefined;
             exists(versionHelpers) && versionHelpers.setValue(owner);
             exists(rootHelpers) && rootHelpers.setValue(owner);
         }
@@ -102,7 +102,7 @@ export function OwnerButton({
         // If no owner data, marked as anonymous
         if (!owner) return {
             Icon: null,
-            tooltip: `Marked as anonymous${isEditing ? "" : ". Press to set owner"}`
+            tooltip: `Marked as anonymous${isEditing ? "" : ". Press to set owner"}`,
         };
         // If owner is organization, use organization icon
         if (owner.__typename === "Organization") {
@@ -110,7 +110,7 @@ export function OwnerButton({
             const ownerName = firstString(getTranslation(owner as RelationshipItemOrganization, languages, true).name, "organization");
             return {
                 Icon,
-                tooltip: `Owner: ${ownerName}`
+                tooltip: `Owner: ${ownerName}`,
             };
         }
         // If owner is user, use self icon
@@ -119,7 +119,7 @@ export function OwnerButton({
         const ownerName = (owner as RelationshipItemUser).name;
         return {
             Icon,
-            tooltip: `Owner: ${isSelf ? "Self" : ownerName}`
+            tooltip: `Owner: ${isSelf ? "Self" : ownerName}`,
         };
     }, [isEditing, languages, rootField?.value, session, versionField?.value]);
 
@@ -164,5 +164,5 @@ export function OwnerButton({
                 </Tooltip>
             </Stack>
         </>
-    )
+    );
 }

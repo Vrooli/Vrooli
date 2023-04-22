@@ -45,7 +45,7 @@ export const SettingsSearchBar = ({
         if (option && option.label && reason === "keyboard") {
             setHighlightedOption(option);
         }
-    }, [])
+    }, []);
 
     const handleSelect = useCallback((option: SearchItem) => {
         // Trigger onInputChange
@@ -58,7 +58,7 @@ export const SettingsSearchBar = ({
             handleSelect(highlightedOption);
         }
         // Otherwise, don't submit
-    }, [highlightedOption, handleSelect])
+    }, [highlightedOption, handleSelect]);
 
     // On key down, fill search input with highlighted option if right arrow is pressed
     const onKeyDown = useCallback((event: React.KeyboardEvent) => {
@@ -139,7 +139,7 @@ export const SettingsSearchBar = ({
                             </ListItemText>
                         )}
                     </MenuItem>
-                )
+                );
             }}
             renderInput={(params) => (
                 <Paper
@@ -148,7 +148,7 @@ export const SettingsSearchBar = ({
                         p: "2px 4px",
                         display: "flex",
                         alignItems: "center",
-                        borderRadius: "10px"
+                        borderRadius: "10px",
                     }}
                 >
                     <Input
@@ -176,8 +176,8 @@ export const SettingsSearchBar = ({
                                 "& .MuiButtonBase-root": {
                                     width: "48px",
                                     height: "48px",
-                                }
-                            }
+                                },
+                            },
                         }}
                     />
                     <IconButton sx={{
@@ -196,4 +196,4 @@ export const SettingsSearchBar = ({
             }}
         />
     );
-}
+};

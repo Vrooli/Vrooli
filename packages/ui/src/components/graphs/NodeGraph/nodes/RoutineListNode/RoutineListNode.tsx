@@ -6,7 +6,7 @@ import {
     IconButton,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { NodeRoutineListItem } from "@shared/consts";
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from "@shared/icons";
@@ -25,7 +25,7 @@ import { PubSub } from "../../../../../utils/pubsub";
 import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import {
-    routineNodeCheckboxLabel, routineNodeCheckboxOption
+    routineNodeCheckboxLabel, routineNodeCheckboxOption,
 } from "../styles";
 import { RoutineListNodeProps } from "../types";
 
@@ -44,7 +44,7 @@ const shouldCollapse = (id: string | null | undefined): boolean => {
         id.startsWith("toggle-expand-icon-") ||
         id.startsWith("node-")
     ));
-}
+};
 
 export const RoutineListNode = ({
     canDrag,
@@ -78,7 +78,7 @@ export const RoutineListNode = ({
     const fastUpdateRef = useRef<boolean>(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
-        let fastSub = PubSub.get().subscribeFastUpdate(({ on, duration }) => {
+        const fastSub = PubSub.get().subscribeFastUpdate(({ on, duration }) => {
             if (!on) {
                 fastUpdateRef.current = false;
                 if (fastUpdateTimeout.current) clearTimeout(fastUpdateTimeout.current);
@@ -147,7 +147,7 @@ export const RoutineListNode = ({
     const { label } = useMemo(() => {
         return {
             label: getTranslation(node, [language], true).name ?? "",
-        }
+        };
     }, [language, node]);
 
     const minNodeSize = useMemo(() => calculateNodeSize(NodeWidth.RoutineList, scale), [scale]);
@@ -161,9 +161,9 @@ export const RoutineListNode = ({
             buttons: [
                 { labelKey: "Unlink", onClick: handleNodeUnlink },
                 { labelKey: "Remove", onClick: handleNodeDelete },
-            ]
+            ],
         });
-    }, [handleNodeDelete, handleNodeUnlink])
+    }, [handleNodeDelete, handleNodeUnlink]);
 
     const isLabelDialogOpen = useRef<boolean>(false);
     const onLabelDialogOpen = useCallback((isOpen: boolean) => {
@@ -195,13 +195,13 @@ export const RoutineListNode = ({
                     stack: {
                         marginLeft: "auto",
                         marginRight: "auto",
-                    }
+                    },
                 }}
                 text={label}
                 validationSchema={nameValidation.required(reqErr)}
                 zIndex={zIndex}
             />
-        )
+        );
     }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, zIndex, node.id, t]);
 
     const optionsCollapse = useMemo(() => (
@@ -220,8 +220,8 @@ export const RoutineListNode = ({
                             name='isOrderedCheckbox'
                             color='secondary'
                             checked={node.routineList.isOrdered}
-                            onChange={(_e, checked) => { onOrderedChange(checked) }}
-                            onTouchStart={() => { onOrderedChange(!node.routineList.isOrdered) }}
+                            onChange={(_e, checked) => { onOrderedChange(checked); }}
+                            onTouchStart={() => { onOrderedChange(!node.routineList.isOrdered); }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
                     }
@@ -239,8 +239,8 @@ export const RoutineListNode = ({
                             name='isOptionalCheckbox'
                             color='secondary'
                             checked={node.routineList.isOptional}
-                            onChange={(_e, checked) => { onOptionalChange(checked) }}
-                            onTouchStart={() => { onOptionalChange(!node.routineList.isOptional) }}
+                            onChange={(_e, checked) => { onOptionalChange(checked); }}
+                            onTouchStart={() => { onOptionalChange(!node.routineList.isOptional); }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
                     }
@@ -310,7 +310,7 @@ export const RoutineListNode = ({
     const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
         if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current || fastUpdateRef.current) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [canDrag, isEditing, isLinked, isLabelDialogOpen]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const pressEvents = usePress({
@@ -326,7 +326,7 @@ export const RoutineListNode = ({
                 anchorEl={contextAnchor}
                 availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option, node.id) }}
+                handleSelect={(option) => { handleAction(option, node.id); }}
                 zIndex={zIndex + 1}
             />
             <DraggableNode
@@ -338,7 +338,7 @@ export const RoutineListNode = ({
                     zIndex: 5,
                     minWidth: `${minNodeSize}px`,
                     maxWidth: collapseOpen ? `${maxNodeSize}px` : `${minNodeSize}px`,
-                    fontSize: fontSize,
+                    fontSize,
                     position: "relative",
                     display: "block",
                     borderRadius: "12px",
@@ -403,7 +403,7 @@ export const RoutineListNode = ({
                     <Collapse
                         in={collapseOpen}
                         sx={{
-                            padding: collapseOpen ? "0.5em" : "0"
+                            padding: collapseOpen ? "0.5em" : "0",
                         }}
                     >
                         {listItems}
@@ -412,5 +412,5 @@ export const RoutineListNode = ({
                 </>
             </DraggableNode>
         </>
-    )
-}
+    );
+};

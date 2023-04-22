@@ -38,7 +38,7 @@ export const WalletList = ({
             onSuccess: () => {
                 handleUpdate(updateArray(list, index, updatedWallet));
             },
-        })
+        });
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
@@ -62,13 +62,13 @@ export const WalletList = ({
                             mutation: deleteMutation,
                             input: { id: wallet.id, objectType: "Wallet" as any },
                             onSuccess: () => {
-                                handleUpdate([...list.filter(w => w.id !== wallet.id)])
+                                handleUpdate([...list.filter(w => w.id !== wallet.id)]);
                             },
-                        })
-                    }
+                        });
+                    },
                 },
                 { labelKey: "Cancel", onClick: () => { } },
-            ]
+            ],
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedEmails]);
 
@@ -78,14 +78,14 @@ export const WalletList = ({
     const [installOpen, setInstallOpen] = useState(false);
     const openWalletAddDialog = useCallback(() => {
         setSelectedIndex(null);
-        setConnectOpen(true)
+        setConnectOpen(true);
     }, []);
     const openWalletVerifyDialog = useCallback((wallet: Wallet) => {
         const index = list.findIndex(w => w.id === wallet.id);
         setSelectedIndex(index);
-        setConnectOpen(true)
+        setConnectOpen(true);
     }, [list]);
-    const openWalletInstallDialog = useCallback(() => { setInstallOpen(true) }, []);
+    const openWalletInstallDialog = useCallback(() => { setInstallOpen(true); }, []);
 
     /**
      * Add new wallet
@@ -98,7 +98,7 @@ export const WalletList = ({
                 buttons: [
                     { labelKey: "TryAgain", onClick: () => { addWallet(providerKey); } },
                     { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
-                ]
+                ],
             });
             return;
         }
@@ -108,7 +108,7 @@ export const WalletList = ({
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.get().publishSnack({ messageKey: "WalletAlreadyConnected", severity: "Warning" })
+                PubSub.get().publishSnack({ messageKey: "WalletAlreadyConnected", severity: "Warning" });
             }
             else {
                 PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
@@ -130,14 +130,14 @@ export const WalletList = ({
                 buttons: [
                     { labelKey: "TryAgain", onClick: () => { verifyWallet(providerKey); } },
                     { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
-                ]
+                ],
             });
             return;
         }
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult) {
-            PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" })
+            PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],
@@ -159,7 +159,7 @@ export const WalletList = ({
         }
     }, [addWallet, selectedIndex, verifyWallet]);
 
-    const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false) }, []);
+    const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
 
     return (
         <>
@@ -212,5 +212,5 @@ export const WalletList = ({
                 >Add Wallet</Button>
             </Box>
         </>
-    )
-}
+    );
+};

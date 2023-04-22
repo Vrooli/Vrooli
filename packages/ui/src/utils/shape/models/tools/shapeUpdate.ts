@@ -13,7 +13,7 @@ export const shapeUpdate = <
 >(
     updated: Input | null | undefined,
     shape: Output | (() => Output),
-    assertHasUpdate: AssertHasUpdate = false as AssertHasUpdate
+    assertHasUpdate: AssertHasUpdate = false as AssertHasUpdate,
 ): Output | undefined => {
     if (!updated) return undefined;
     let result = typeof shape === "function" ? (shape as () => Output)() : shape;
@@ -24,5 +24,5 @@ export const shapeUpdate = <
         PubSub.get().publishSnack({ messageKey: "NothingToUpdate", severity: "Error" });
         return undefined;
     }
-    return result
-}
+    return result;
+};

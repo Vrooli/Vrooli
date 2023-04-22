@@ -18,7 +18,7 @@ const MAX_NESTING = 20;
  */
 const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineListStep => {
     // Initialize step to be returned
-    let step: RoutineListStep = steps;
+    const step: RoutineListStep = steps;
     // Loop through steps
     for (let i = 0; i < step.steps.length; i++) {
         const currentStep = step.steps[i];
@@ -35,7 +35,7 @@ const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineL
         }
     }
     return step;
-}
+};
 
 /**
  * Find the step array of a given nodeId
@@ -58,7 +58,7 @@ const locationFromNodeId = (nodeId: string, step: RoutineStep | null, location: 
         }
     }
     return null;
-}
+};
 
 /**
  * Find the step array of a given routineId
@@ -85,7 +85,7 @@ const locationFromRoutineId = (routineId: string, step: RoutineStep | null, loca
         }
     }
     return null;
-}
+};
 
 /**
  * Uses a location array to find the step at a given location 
@@ -125,7 +125,7 @@ const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean 
     // If routine has its own subrotines, then it needs querying (since it would be a RoutineList 
     // if it was loaded)
     return routineVersionHasSubroutines(currSubroutine);
-}
+};
 
 /**
  * Calculates the complexity of a step
@@ -154,7 +154,7 @@ const getStepComplexity = (step: RoutineStep): number => {
  */
 const convertRoutineVersionToStep = (
     routineVersion: RoutineVersion | null | undefined,
-    languages: string[]
+    languages: string[],
 ): RoutineListStep | null => {
     // Check for required data to calculate steps
     if (!routineVersion || !routineVersion.nodes || !routineVersion.nodeLinks) {
@@ -173,9 +173,9 @@ const convertRoutineVersionToStep = (
         const aRow = a.rowIndex ?? 0;
         const bRow = b.rowIndex ?? 0;
         return aRow - bRow;
-    })
+    });
     // Create result steps array
-    let resultSteps: RoutineStep[] = [];
+    const resultSteps: RoutineStep[] = [];
     // If multiple links from start node, create decision step
     const startLinks = routineVersion.nodeLinks.filter((link: NodeLink) => link.from.id === startNode?.id);
     if (startLinks.length > 1) {
@@ -197,7 +197,7 @@ const convertRoutineVersionToStep = (
                 routineVersion: item.routineVersion,
                 name: getTranslation(item.routineVersion, languages, true).name ?? "Untitled",
                 description: getTranslation(item.routineVersion, languages, true).description ?? "Description not found matching selected language",
-            }))
+            }));
         // Find decision step
         const links = routineVersion.nodeLinks.filter((link: NodeLink) => link.from.id === node.id);
         const decisionSteps: DecisionStep[] = links.length > 1 ? [{
@@ -212,7 +212,7 @@ const convertRoutineVersionToStep = (
             isOrdered: node.routineList?.isOrdered ?? false,
             name: getTranslation(node, languages, true).name ?? "Untitled",
             description: getTranslation(node, languages, true).description ?? "Description not found matching selected language",
-            steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
+            steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>,
         });
     }
     // Return result steps
@@ -224,7 +224,7 @@ const convertRoutineVersionToStep = (
         description: getTranslation(routineVersion, languages, true).description ?? "Description not found matching selected language",
         steps: resultSteps,
     };
-}
+};
 
 export const RunView = ({
     display = "page",
@@ -907,4 +907,4 @@ export const RunView = ({
     //         </Box>
     //     </Box>
     // )
-}
+};

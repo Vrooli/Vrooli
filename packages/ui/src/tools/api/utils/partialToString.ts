@@ -56,7 +56,7 @@ export const partialToString = async <
     // Calculate the fragments and selection set by combining partials
     let combined: DeepPartialBooleanWithFragments<any> = {};
     if (exists(partial) && exists(selectionType)) {
-        combined = await rel(partial, selectionType)
+        combined = await rel(partial, selectionType);
     }
     // Split fragments from the rest, so we can handle them separately
     const { __define, ...rest } = combined;
@@ -90,15 +90,15 @@ ${" ".repeat(indent)}}`;
     // Ideally we'd fix this problem earlier in the process, but ¯\_(ツ)_/¯
     if (exists(__define) && Object.keys(__define).length > 0) {
         let fragmentsString = "";
-        fragments = await fragmentsToString(__define)
+        fragments = await fragmentsToString(__define);
         // Filter out fragments not found in the tag
         fragments = fragmentsNeeded(fragments, tag); //TODO for morning: commenting this out fixes bookmarklist findMany, but breaks many other things. For example, projectList findOne now adds Api_list fragment (among others), when that's not needed
         // Sort fragments by name, just because it looks nicer
-        fragments.sort(([a], [b]) => a.localeCompare(b))
+        fragments.sort(([a], [b]) => a.localeCompare(b));
         // For every fragment, add reference to it in the tag
         fragments.forEach(([fragmentName]) => {
-            fragmentsString += `${" ".repeat(indent)}\${${fragmentName}}\n`
-        })
+            fragmentsString += `${" ".repeat(indent)}\${${fragmentName}}\n`;
+        });
         // Add the fragments to the beginning of the tag
         tag = fragmentsString + tag;
     }

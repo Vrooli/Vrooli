@@ -7,7 +7,7 @@ import { searchFormLayout } from "./common";
 export const bookmarkListSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchBookmarkList"),
     containers: [],
-    fields: []
-})
+    fields: [],
+});
 
 export const bookmarkListSearchParams = () => toParams(bookmarkListSearchSchema(), bookmarkListFindMany, BookmarkListSortBy, BookmarkListSortBy.LabelAsc);

@@ -15,8 +15,8 @@ export const homeResult: GqlPartial<HomeResult> = {
         reminders: { __use: 2 },
         resources: { __use: 3 },
         schedules: { __use: 4 },
-    }
-}
+    },
+};
 
 export const popularResult: GqlPartial<PopularResult> = {
     __typename: "PopularResult",
@@ -41,5 +41,5 @@ export const popularResult: GqlPartial<PopularResult> = {
         smartContracts: { __use: 6 },
         standards: { __use: 7 },
         users: { __use: 8 },
-    }
-}
+    },
+};

@@ -185,7 +185,7 @@ export const shortcuts: PreSearchItem[] = [
         keywords: viewKeywords,
         value: `${LINKS.Tutorial}`,
     },
-]
+];
 
 /**
  * Action shortcuts that can appear in the main search bar or command palette. 
@@ -207,7 +207,7 @@ export const actions: ActionItem[] = [
         id: "activate-light-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "light",
     },
-]
+];
 
 /**
  * Shape actions to match AutoCompleteListItem format.
@@ -217,7 +217,7 @@ export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label
     canPerform,
     id,
     label,
-}))
+}));
 
 /**
  * Maps action ids to their corresponding action. 
@@ -235,8 +235,8 @@ export const performAction = async (option: ActionOption, session: Session | nul
                     node: userProfileUpdate,
                     input: { theme: "dark" },
                     onSuccess: () => { PubSub.get().publishTheme("dark"); },
-                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); }
-                })
+                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
+                });
             }
             // Otherwise, just publish theme change.
             else PubSub.get().publishTheme("dark");
@@ -248,11 +248,11 @@ export const performAction = async (option: ActionOption, session: Session | nul
                     node: userProfileUpdate,
                     input: { theme: "light" },
                     onSuccess: () => { PubSub.get().publishTheme("light"); },
-                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); }
-                })
+                    onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: "Error", data: error }); },
+                });
             }
             // Otherwise, just publish theme change.
             else PubSub.get().publishTheme("light");
             break;
     }
-}
+};

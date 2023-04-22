@@ -2,7 +2,7 @@ import {
     Box,
     DialogTitle as MuiDialogTitle,
     IconButton,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { CloseIcon } from "@shared/icons";
 import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton";
@@ -58,5 +58,5 @@ export const DialogTitle = forwardRef(({
             </MuiDialogTitle>
             {below}
         </Box>
-    )
-})
+    );
+});

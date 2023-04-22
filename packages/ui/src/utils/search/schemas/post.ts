@@ -8,6 +8,6 @@ export const postSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchPost"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const postSearchParams = () => toParams(postSearchSchema(), postFindMany, PostSortBy, PostSortBy.DateCreatedDesc);

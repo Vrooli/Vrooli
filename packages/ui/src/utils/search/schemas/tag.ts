@@ -8,6 +8,6 @@ export const tagSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchTag"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const tagSearchParams = () => toParams(tagSearchSchema(), tagFindMany, TagSortBy, TagSortBy.BookmarksDesc);

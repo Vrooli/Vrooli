@@ -29,7 +29,7 @@ export const useBookmarker = ({
     const { bookmarkLists } = useMemo(() => getCurrentUser(session), [session]);
 
     const [addBookmark] = useCustomMutation<Bookmark, BookmarkCreateInput>(bookmarkCreate);
-    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne)
+    const [deleteOne] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
     const [getData, { data, loading }] = useCustomLazyQuery<BookmarkSearchResult, BookmarkSearchInput>(bookmarkFindMany, { errorPolicy: "all" });
@@ -50,8 +50,8 @@ export const useBookmarker = ({
                     label: "Favorites",
                 },
             },
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Bookmark, data) },
-        })
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Bookmark, data); },
+        });
     }, [bookmarkLists, addBookmark, objectType, objectId, onActionComplete]);
 
     const handleRemove = useCallback(async () => {
@@ -60,7 +60,7 @@ export const useBookmarker = ({
             variables: {
                 //Lowercase first letter of objectType and add "Id"
                 [`${objectType[0].toLowerCase()}${objectType.slice(1)}Id`]: objectId,
-            }
+            },
         });
     }, [getData, objectId, objectType]);
     useEffect(() => {
@@ -75,13 +75,13 @@ export const useBookmarker = ({
             mutationWrapper<Success, DeleteOneInput>({
                 mutation: deleteOne,
                 input: { id: bookmarks[0].id, objectType: DeleteType.Bookmark },
-                onSuccess: (data) => { onActionComplete(ObjectActionComplete.BookmarkUndo, data) },
+                onSuccess: (data) => { onActionComplete(ObjectActionComplete.BookmarkUndo, data); },
             });
             return;
         }
         // If there is more than one bookmark, open dialog to select which one to delete
         else {
-            console.warn("TODO: Open dialog to select which bookmark to delete")
+            console.warn("TODO: Open dialog to select which bookmark to delete");
             //TODO
         }
     }, [data, loading, deleteOne, onActionComplete]);
@@ -105,4 +105,4 @@ export const useBookmarker = ({
     }, [handleAdd, handleRemove, hasBookmarkingSupport, objectId]);
 
     return { handleBookmark, hasBookmarkingSupport };
-}
+};

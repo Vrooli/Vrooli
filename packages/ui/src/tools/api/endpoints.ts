@@ -8,7 +8,7 @@ export const endpoints = {
             findMany: toQuery("apis", "ApiSearchInput", ...(await toSearch(apiPartial))),
             create: toMutation("apiCreate", "ApiCreateInput", apiPartial, "full"),
             update: toMutation("apiUpdate", "ApiUpdateInput", apiPartial, "full"),
-        }
+        };
     },
     apiKey: async () => {
         const { apiKey: apiKeyPartial } = await import("./partial/apiKey");
@@ -18,7 +18,7 @@ export const endpoints = {
             update: toMutation("apiKeyUpdate", "ApiKeyUpdateInput", apiKeyPartial, "full"),
             deleteOne: toMutation("apiKeyDeleteOne", "ApiKeyDeleteOneInput", successPartial, "full"),
             validate: toMutation("apiKeyValidate", "ApiKeyValidateInput", apiKeyPartial, "full"),
-        }
+        };
     },
     apiVersion: async () => {
         const { apiVersion: apiVersionPartial } = await import("./partial/apiVersion");
@@ -27,7 +27,7 @@ export const endpoints = {
             findMany: toQuery("apiVersions", "ApiVersionSearchInput", ...(await toSearch(apiVersionPartial))),
             create: toMutation("apiVersionCreate", "ApiVersionCreateInput", apiVersionPartial, "full"),
             update: toMutation("apiVersionUpdate", "ApiVersionUpdateInput", apiVersionPartial, "full"),
-        }
+        };
     },
     auth: async () => {
         const { session: sessionPartial } = await import("./partial/session");
@@ -44,13 +44,13 @@ export const endpoints = {
             switchCurrentAccount: toMutation("switchCurrentAccount", "SwitchCurrentAccountInput", sessionPartial, "full"),
             walletInit: toMutation("walletInit", "WalletInitInput"),
             walletComplete: toMutation("walletComplete", "WalletCompleteInput", walletCompletePartial, "full"),
-        }
+        };
     },
     award: async () => {
         const { award: awardPartial } = await import("./partial/award");
         return {
             findMany: toQuery("awards", "AwardSearchInput", ...(await toSearch(awardPartial))),
-        }
+        };
     },
     bookmark: async () => {
         const { bookmark: bookmarkPartial } = await import("./partial/bookmark");
@@ -59,7 +59,7 @@ export const endpoints = {
             findMany: toQuery("bookmarks", "BookmarkSearchInput", ...(await toSearch(bookmarkPartial))),
             create: toMutation("bookmarkCreate", "BookmarkCreateInput", bookmarkPartial, "full"),
             update: toMutation("bookmarkUpdate", "BookmarkUpdateInput", bookmarkPartial, "full"),
-        }
+        };
     },
     bookmarkList: async () => {
         const { bookmarkList: bookmarkListPartial } = await import("./partial/bookmarkList");
@@ -68,7 +68,7 @@ export const endpoints = {
             findMany: toQuery("bookmarkLists", "BookmarkListSearchInput", ...(await toSearch(bookmarkListPartial))),
             create: toMutation("bookmarkListCreate", "BookmarkListCreateInput", bookmarkListPartial, "full"),
             update: toMutation("bookmarkListUpdate", "BookmarkListUpdateInput", bookmarkListPartial, "full"),
-        }
+        };
     },
     chat: async () => {
         const { chat: chatPartial } = await import("./partial/chat");
@@ -77,7 +77,7 @@ export const endpoints = {
             findMany: toQuery("chats", "ChatSearchInput", ...(await toSearch(chatPartial))),
             create: toMutation("chatCreate", "ChatCreateInput", chatPartial, "full"),
             update: toMutation("chatUpdate", "ChatUpdateInput", chatPartial, "full"),
-        }
+        };
     },
     chatInvite: async () => {
         const { chatInvite: chatInvitePartial } = await import("./partial/chatInvite");
@@ -88,7 +88,7 @@ export const endpoints = {
             update: toMutation("chatInviteUpdate", "ChatInviteUpdateInput", chatInvitePartial, "full"),
             accept: toMutation("chatInviteAccept", "FindByIdInput", chatInvitePartial, "full"),
             decline: toMutation("chatInviteDecline", "FindByIdInput", chatInvitePartial, "full"),
-        }
+        };
     },
     chatMessage: async () => {
         const { chatMessage: chatMessagePartial } = await import("./partial/chatMessage");
@@ -97,7 +97,7 @@ export const endpoints = {
             findMany: toQuery("chatMessages", "ChatMessageSearchInput", ...(await toSearch(chatMessagePartial))),
             create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessagePartial, "full"),
             update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessagePartial, "full"),
-        }
+        };
     },
     chatParticipant: async () => {
         const { chatParticipant: chatParticipantPartial } = await import("./partial/chatParticipant");
@@ -105,7 +105,7 @@ export const endpoints = {
             findOne: toQuery("chatParticipant", "FindByIdInput", chatParticipantPartial, "full"),
             findMany: toQuery("chatParticipants", "ChatParticipantSearchInput", ...(await toSearch(chatParticipantPartial))),
             update: toMutation("chatParticipantUpdate", "ChatParticipantUpdateInput", chatParticipantPartial, "full"),
-        }
+        };
     },
     comment: async () => {
         const { comment: commentPartial, commentThread: commentThreadPartial } = await import("./partial/comment");
@@ -114,13 +114,13 @@ export const endpoints = {
             findMany: toQuery("comments", "CommentSearchInput", commentThreadPartial, "full"),
             create: toMutation("commentCreate", "CommentCreateInput", commentPartial, "full"),
             update: toMutation("commentUpdate", "CommentUpdateInput", commentPartial, "full"),
-        }
+        };
     },
     copy: async () => {
         const { copyResult: copyResultPartial } = await import("./partial/copyResult");
         return {
             copy: toMutation("copy", "CopyInput", copyResultPartial, "full"),
-        }
+        };
     },
     deleteOneOrMany: async () => {
         const { success: successPartial } = await import("./partial/success");
@@ -128,7 +128,7 @@ export const endpoints = {
         return {
             deleteOne: toMutation("deleteOne", "DeleteOneInput", successPartial, "full"),
             deleteMany: toMutation("deleteMany", "DeleteManyInput", countPartial, "full"),
-        }
+        };
     },
     email: async () => {
         const { email: emailPartial } = await import("./partial/email");
@@ -136,14 +136,14 @@ export const endpoints = {
         return {
             create: toMutation("emailCreate", "EmailCreateInput", emailPartial, "full"),
             verify: toMutation("sendVerificationEmail", "SendVerificationEmailInput", successPartial, "full"),
-        }
+        };
     },
     feed: async () => {
         const { homeResult: homeResultPartial, popularResult: popularResultPartial } = await import("./partial/feed");
         return {
             home: toQuery("home", "HomeInput", homeResultPartial, "list"),
             popular: toQuery("popular", "PopularInput", popularResultPartial, "list"),
-        }
+        };
     },
     issue: async () => {
         const { issue: issuePartial } = await import("./partial/issue");
@@ -153,7 +153,7 @@ export const endpoints = {
             create: toMutation("issueCreate", "IssueCreateInput", issuePartial, "full"),
             update: toMutation("issueUpdate", "IssueUpdateInput", issuePartial, "full"),
             close: toMutation("issueClose", "IssueCloseInput", issuePartial, "full"),
-        }
+        };
     },
     focusMode: async () => {
         const { activeFocusMode: activeFocusModePartial } = await import("./partial/activeFocusMode");
@@ -164,7 +164,7 @@ export const endpoints = {
             create: toMutation("focusModeCreate", "FocusModeCreateInput", focusModePartial, "full"),
             update: toMutation("focusModeUpdate", "FocusModeUpdateInput", focusModePartial, "full"),
             setActive: toMutation("setActiveFocusMode", "SetActiveFocusModeInput", activeFocusModePartial, "full"),
-        }
+        };
     },
     label: async () => {
         const { label: labelPartial } = await import("./partial/label");
@@ -173,7 +173,7 @@ export const endpoints = {
             findMany: toQuery("labels", "LabelSearchInput", ...(await toSearch(labelPartial))),
             create: toMutation("labelCreate", "LabelCreateInput", labelPartial, "full"),
             update: toMutation("labelUpdate", "LabelUpdateInput", labelPartial, "full"),
-        }
+        };
     },
     meeting: async () => {
         const { meeting: meetingPartial } = await import("./partial/meeting");
@@ -182,7 +182,7 @@ export const endpoints = {
             findMany: toQuery("meetings", "MeetingSearchInput", ...(await toSearch(meetingPartial))),
             create: toMutation("meetingCreate", "MeetingCreateInput", meetingPartial, "full"),
             update: toMutation("meetingUpdate", "MeetingUpdateInput", meetingPartial, "full"),
-        }
+        };
     },
     meetingInvite: async () => {
         const { meetingInvite: meetingInvitePartial } = await import("./partial/meetingInvite");
@@ -193,7 +193,7 @@ export const endpoints = {
             update: toMutation("meetingInviteUpdate", "MeetingInviteUpdateInput", meetingInvitePartial, "full"),
             accept: toMutation("meetingInviteAccept", "FindByIdInput", meetingInvitePartial, "full"),
             decline: toMutation("meetingInviteDecline", "FindByIdInput", meetingInvitePartial, "full"),
-        }
+        };
     },
     member: async () => {
         const { member: memberPartial } = await import("./partial/member");
@@ -201,7 +201,7 @@ export const endpoints = {
             findOne: toQuery("member", "FindByIdInput", memberPartial, "full"),
             findMany: toQuery("members", "MemberSearchInput", ...(await toSearch(memberPartial))),
             update: toMutation("memberUpdate", "MemberUpdateInput", memberPartial, "full"),
-        }
+        };
     },
     memberInvite: async () => {
         const { memberInvite: memberInvitePartial } = await import("./partial/memberInvite");
@@ -212,14 +212,14 @@ export const endpoints = {
             update: toMutation("memberInviteUpdate", "MemberInviteUpdateInput", memberInvitePartial, "full"),
             accept: toMutation("memberInviteAccept", "FindByIdInput", memberInvitePartial, "full"),
             decline: toMutation("memberInviteDecline", "FindByIdInput", memberInvitePartial, "full"),
-        }
+        };
     },
     node: async () => {
         const { node: nodePartial } = await import("./partial/node");
         return {
             create: toMutation("nodeCreate", "NodeCreateInput", nodePartial, "full"),
             update: toMutation("nodeUpdate", "NodeUpdateInput", nodePartial, "full"),
-        }
+        };
     },
     note: async () => {
         const { note: notePartial } = await import("./partial/note");
@@ -228,7 +228,7 @@ export const endpoints = {
             findMany: toQuery("notes", "NoteSearchInput", ...(await toSearch(notePartial))),
             create: toMutation("noteCreate", "NoteCreateInput", notePartial, "full"),
             update: toMutation("noteUpdate", "NoteUpdateInput", notePartial, "full"),
-        }
+        };
     },
     noteVersion: async () => {
         const { noteVersion: noteVersionPartial } = await import("./partial/noteVersion");
@@ -237,7 +237,7 @@ export const endpoints = {
             findMany: toQuery("noteVersions", "NoteVersionSearchInput", ...(await toSearch(noteVersionPartial))),
             create: toMutation("noteVersionCreate", "NoteVersionCreateInput", noteVersionPartial, "full"),
             update: toMutation("noteVersionUpdate", "NoteVersionUpdateInput", noteVersionPartial, "full"),
-        }
+        };
     },
     notification: async () => {
         const { notification: notificationPartial, notificationSettings: notificationSettingsPartial } = await import("./partial/notification");
@@ -250,7 +250,7 @@ export const endpoints = {
             markAsRead: toMutation("notificationMarkAsRead", "FindByIdInput", successPartial, "full"),
             update: toMutation("notificationMarkAllAsRead", null, countPartial, "full"),
             settingsUpdate: toMutation("notificationSettingsUpdate", "NotificationSettingsUpdateInput", notificationSettingsPartial, "full"),
-        }
+        };
     },
     notificationSubscription: async () => {
         const { notificationSubscription: notificationSubscriptionPartial } = await import("./partial/notificationSubscription");
@@ -259,7 +259,7 @@ export const endpoints = {
             findMany: toQuery("notificationSubscriptions", "NotificationSubscriptionSearchInput", ...(await toSearch(notificationSubscriptionPartial))),
             create: toMutation("notificationSubscriptionCreate", "NotificationSubscriptionCreateInput", notificationSubscriptionPartial, "full"),
             update: toMutation("notificationSubscriptionUpdate", "NotificationSubscriptionUpdateInput", notificationSubscriptionPartial, "full"),
-        }
+        };
     },
     organization: async () => {
         const { organization: organizationPartial } = await import("./partial/organization");
@@ -268,7 +268,7 @@ export const endpoints = {
             findMany: toQuery("organizations", "OrganizationSearchInput", ...(await toSearch(organizationPartial))),
             create: toMutation("organizationCreate", "OrganizationCreateInput", organizationPartial, "full"),
             update: toMutation("organizationUpdate", "OrganizationUpdateInput", organizationPartial, "full"),
-        }
+        };
     },
     phone: async () => {
         const { phone: phonePartial } = await import("./partial/phone");
@@ -276,7 +276,7 @@ export const endpoints = {
         return {
             create: toMutation("phoneCreate", "PhoneCreateInput", phonePartial, "full"),
             update: toMutation("sendVerificationText", "SendVerificationTextInput", successPartial, "full"),
-        }
+        };
     },
     post: async () => {
         const { post: postPartial } = await import("./partial/post");
@@ -285,7 +285,7 @@ export const endpoints = {
             findMany: toQuery("posts", "PostSearchInput", ...(await toSearch(postPartial))),
             create: toMutation("postCreate", "PostCreateInput", postPartial, "full"),
             update: toMutation("postUpdate", "PostUpdateInput", postPartial, "full"),
-        }
+        };
     },
     project: async () => {
         const { project: projectPartial } = await import("./partial/project");
@@ -294,19 +294,19 @@ export const endpoints = {
             findMany: toQuery("projects", "ProjectSearchInput", ...(await toSearch(projectPartial))),
             create: toMutation("projectCreate", "ProjectCreateInput", projectPartial, "full"),
             update: toMutation("projectUpdate", "ProjectUpdateInput", projectPartial, "full"),
-        }
+        };
     },
     projectOrOrganization: async () => {
         const { projectOrOrganization: projectOrOrganizationPartial } = await import("./partial/projectOrOrganization");
         return {
             findMany: toQuery("projectOrOrganizations", "ProjectOrOrganizationSearchInput", ...(await toSearch(projectOrOrganizationPartial))),
-        }
+        };
     },
     projectOrRoutine: async () => {
         const { projectOrRoutine: projectOrRoutinePartial } = await import("./partial/projectOrRoutine");
         return {
             findMany: toQuery("projectOrRoutines", "ProjectOrRoutineSearchInput", ...(await toSearch(projectOrRoutinePartial))),
-        }
+        };
     },
     projectVersion: async () => {
         const { projectVersion: projectVersionPartial } = await import("./partial/projectVersion");
@@ -315,7 +315,7 @@ export const endpoints = {
             findMany: toQuery("projectVersions", "ProjectVersionSearchInput", ...(await toSearch(projectVersionPartial))),
             create: toMutation("projectVersionCreate", "ProjectVersionCreateInput", projectVersionPartial, "full"),
             update: toMutation("projectVersionUpdate", "ProjectVersionUpdateInput", projectVersionPartial, "full"),
-        }
+        };
     },
     pullRequest: async () => {
         const { pullRequest: pullRequestPartial } = await import("./partial/pullRequest");
@@ -326,7 +326,7 @@ export const endpoints = {
             update: toMutation("pullRequestUpdate", "PullRequestUpdateInput", pullRequestPartial, "full"),
             accept: toMutation("pullRequestAcdept", "FindByIdInput", pullRequestPartial, "full"),
             reject: toMutation("pullRequestReject", "FindByIdInput", pullRequestPartial, "full"),
-        }
+        };
     },
     pushDevice: async () => {
         const { pushDevice: pushDevicePartial } = await import("./partial/pushDevice");
@@ -334,7 +334,7 @@ export const endpoints = {
             findMany: toQuery("pushDevices", "PushDeviceSearchInput", ...(await toSearch(pushDevicePartial))),
             create: toMutation("pushDeviceCreate", "PushDeviceCreateInput", pushDevicePartial, "full"),
             update: toMutation("pushDeviceUpdate", "PushDeviceUpdateInput", pushDevicePartial, "full"),
-        }
+        };
     },
     question: async () => {
         const { question: questionPartial } = await import("./partial/question");
@@ -343,7 +343,7 @@ export const endpoints = {
             findMany: toQuery("questions", "QuestionSearchInput", ...(await toSearch(questionPartial))),
             create: toMutation("questionCreate", "QuestionCreateInput", questionPartial, "full"),
             update: toMutation("questionUpdate", "QuestionUpdateInput", questionPartial, "full"),
-        }
+        };
     },
     questionAnswer: async () => {
         const { questionAnswer: questionAnswerPartial } = await import("./partial/questionAnswer");
@@ -353,7 +353,7 @@ export const endpoints = {
             create: toMutation("questionAnswerCreate", "QuestionAnswerCreateInput", questionAnswerPartial, "full"),
             update: toMutation("questionAnswerUpdate", "QuestionAnswerUpdateInput", questionAnswerPartial, "full"),
             accept: toMutation("questionAnswerMarkAsAccepted", "FindByIdInput", questionAnswerPartial, "full"),
-        }
+        };
     },
     quiz: async () => {
         const { quiz: quizPartial } = await import("./partial/quiz");
@@ -362,7 +362,7 @@ export const endpoints = {
             findMany: toQuery("quizzes", "QuizSearchInput", ...(await toSearch(quizPartial))),
             create: toMutation("quizCreate", "QuizCreateInput", quizPartial, "full"),
             update: toMutation("quizUpdate", "QuizUpdateInput", quizPartial, "full"),
-        }
+        };
     },
     quizAttempt: async () => {
         const { quizAttempt: quizAttemptPartial } = await import("./partial/quizAttempt");
@@ -371,14 +371,14 @@ export const endpoints = {
             findMany: toQuery("quizAttempts", "QuizAttemptSearchInput", ...(await toSearch(quizAttemptPartial))),
             create: toMutation("quizAttemptCreate", "QuizAttemptCreateInput", quizAttemptPartial, "full"),
             update: toMutation("quizAttemptUpdate", "QuizAttemptUpdateInput", quizAttemptPartial, "full"),
-        }
+        };
     },
     quizQuestion: async () => {
         const { quizQuestion: quizQuestionPartial } = await import("./partial/quizQuestion");
         return {
             findOne: toQuery("quizQuestion", "FindByIdInput", quizQuestionPartial, "full"),
             findMany: toQuery("quizQuestions", "QuizQuestionSearchInput", ...(await toSearch(quizQuestionPartial))),
-        }
+        };
     },
     quizQuestionResponse: async () => {
         const { quizQuestionResponse: quizQuestionResponsePartial } = await import("./partial/quizQuestionResponse");
@@ -387,7 +387,7 @@ export const endpoints = {
             findMany: toQuery("quizQuestionResponses", "QuizQuestionResponseSearchInput", ...(await toSearch(quizQuestionResponsePartial))),
             create: toMutation("quizQuestionResponseCreate", "QuizQuestionResponseCreateInput", quizQuestionResponsePartial, "full"),
             update: toMutation("quizQuestionResponseUpdate", "QuizQuestionResponseUpdateInput", quizQuestionResponsePartial, "full"),
-        }
+        };
     },
     reaction: async () => {
         const { reaction: reactionPartial } = await import("./partial/reaction");
@@ -395,7 +395,7 @@ export const endpoints = {
         return {
             findMany: toQuery("reactions", "ReactionSearchInput", ...(await toSearch(reactionPartial))),
             react: toMutation("react", "ReactInput", successPartial, "full"),
-        }
+        };
     },
     reminder: async () => {
         const { reminder: reminderPartial } = await import("./partial/reminder");
@@ -404,7 +404,7 @@ export const endpoints = {
             findMany: toQuery("reminders", "ReminderSearchInput", ...(await toSearch(reminderPartial))),
             create: toMutation("reminderCreate", "ReminderCreateInput", reminderPartial, "full"),
             update: toMutation("reminderUpdate", "ReminderUpdateInput", reminderPartial, "full"),
-        }
+        };
     },
     reminderList: async () => {
         const { reminderList: reminderListPartial } = await import("./partial/reminderList");
@@ -413,7 +413,7 @@ export const endpoints = {
             findMany: toQuery("reminderLists", "ReminderListSearchInput", ...(await toSearch(reminderListPartial))),
             create: toMutation("reminderListCreate", "ReminderListCreateInput", reminderListPartial, "full"),
             update: toMutation("reminderListUpdate", "ReminderListUpdateInput", reminderListPartial, "full"),
-        }
+        };
     },
     report: async () => {
         const { report: reportPartial } = await import("./partial/report");
@@ -422,7 +422,7 @@ export const endpoints = {
             findMany: toQuery("reports", "ReportSearchInput", ...(await toSearch(reportPartial))),
             create: toMutation("reportCreate", "ReportCreateInput", reportPartial, "full"),
             update: toMutation("reportUpdate", "ReportUpdateInput", reportPartial, "full"),
-        }
+        };
     },
     reportResponse: async () => {
         const { reportResponse: reportResponsePartial } = await import("./partial/reportResponse");
@@ -431,14 +431,14 @@ export const endpoints = {
             findMany: toQuery("reportResponses", "ReportResponseSearchInput", ...(await toSearch(reportResponsePartial))),
             create: toMutation("reportResponseCreate", "ReportResponseCreateInput", reportResponsePartial, "full"),
             update: toMutation("reportResponseUpdate", "ReportResponseUpdateInput", reportResponsePartial, "full"),
-        }
+        };
     },
     reputationHistory: async () => {
         const { reputationHistory: reputationHistoryPartial } = await import("./partial/reputationHistory");
         return {
             findOne: toQuery("reputationHistory", "FindByIdInput", reputationHistoryPartial, "full"),
             findMany: toQuery("reputationHistories", "ReputationHistorySearchInput", ...(await toSearch(reputationHistoryPartial))),
-        }
+        };
     },
     resource: async () => {
         const { resource: resourcePartial } = await import("./partial/resource");
@@ -447,7 +447,7 @@ export const endpoints = {
             findMany: toQuery("resources", "ResourceSearchInput", ...(await toSearch(resourcePartial))),
             create: toMutation("resourceCreate", "ResourceCreateInput", resourcePartial, "full"),
             update: toMutation("resourceUpdate", "ResourceUpdateInput", resourcePartial, "full"),
-        }
+        };
     },
     resourceList: async () => {
         const { resourceList: resourceListPartial } = await import("./partial/resourceList");
@@ -456,7 +456,7 @@ export const endpoints = {
             findMany: toQuery("resourceLists", "ResourceListSearchInput", ...(await toSearch(resourceListPartial))),
             create: toMutation("resourceListCreate", "ResourceListCreateInput", resourceListPartial, "full"),
             update: toMutation("resourceListUpdate", "ResourceListUpdateInput", resourceListPartial, "full"),
-        }
+        };
     },
     role: async () => {
         const { role: rolePartial } = await import("./partial/role");
@@ -465,7 +465,7 @@ export const endpoints = {
             findMany: toQuery("roles", "RoleSearchInput", ...(await toSearch(rolePartial))),
             create: toMutation("roleCreate", "RoleCreateInput", rolePartial, "full"),
             update: toMutation("roleUpdate", "RoleUpdateInput", rolePartial, "full"),
-        }
+        };
     },
     routine: async () => {
         const { routine: routinePartial } = await import("./partial/routine");
@@ -474,7 +474,7 @@ export const endpoints = {
             findMany: toQuery("routines", "RoutineSearchInput", ...(await toSearch(routinePartial))),
             create: toMutation("routineCreate", "RoutineCreateInput", routinePartial, "full"),
             update: toMutation("routineUpdate", "RoutineUpdateInput", routinePartial, "full"),
-        }
+        };
     },
     routineVersion: async () => {
         const { routineVersion: routineVersionPartial } = await import("./partial/routineVersion");
@@ -483,7 +483,7 @@ export const endpoints = {
             findMany: toQuery("routineVersions", "RoutineVersionSearchInput", ...(await toSearch(routineVersionPartial))),
             create: toMutation("routineVersionCreate", "RoutineVersionCreateInput", routineVersionPartial, "full"),
             update: toMutation("routineVersionUpdate", "RoutineVersionUpdateInput", routineVersionPartial, "full"),
-        }
+        };
     },
     runProject: async () => {
         const { runProject: runProjectPartial } = await import("./partial/runProject");
@@ -496,13 +496,13 @@ export const endpoints = {
             deleteAll: toMutation("runProjectDeleteAll", null, countPartial, "full"),
             complete: toMutation("runProjectComplete", "RunProjectCompleteInput", runProjectPartial, "full"),
             cancel: toMutation("runProjectCancel", "RunProjectCancelInput", runProjectPartial, "full"),
-        }
+        };
     },
     runProjectOrRunRoutine: async () => {
         const { runProjectOrRunRoutine: runProjectOrRunRoutinePartial } = await import("./partial/runProjectOrRunRoutine");
         return {
             findMany: toQuery("runProjectOrRunRoutines", "RunProjectOrRunRoutineSearchInput", ...(await toSearch(runProjectOrRunRoutinePartial))),
-        }
+        };
     },
     runRoutine: async () => {
         const { runRoutine: runRoutinePartial } = await import("./partial/runRoutine");
@@ -515,13 +515,13 @@ export const endpoints = {
             deleteAll: toMutation("runRoutineDeleteAll", null, countPartial, "full"),
             complete: toMutation("runRoutineComplete", "RunRoutineCompleteInput", runRoutinePartial, "full"),
             cancel: toMutation("runRoutineCancel", "RunRoutineCancelInput", runRoutinePartial, "full"),
-        }
+        };
     },
     runRoutineInput: async () => {
         const { runRoutineInput: runRoutineInputPartial } = await import("./partial/runRoutineInput");
         return {
             findMany: toQuery("runRoutineInputs", "RunRoutineInputSearchInput", ...(await toSearch(runRoutineInputPartial))),
-        }
+        };
     },
     schedule: async () => {
         const { schedule: schedulePartial } = await import("./partial/schedule");
@@ -530,7 +530,7 @@ export const endpoints = {
             findMany: toQuery("schedules", "ScheduleSearchInput", ...(await toSearch(schedulePartial))),
             create: toMutation("scheduleCreate", "ScheduleCreateInput", schedulePartial, "full"),
             update: toMutation("scheduleUpdate", "ScheduleUpdateInput", schedulePartial, "full"),
-        }
+        };
     },
     scheduleException: async () => {
         const { scheduleException: scheduleExceptionPartial } = await import("./partial/scheduleException");
@@ -539,7 +539,7 @@ export const endpoints = {
             findMany: toQuery("scheduleExceptions", "ScheduleExceptionSearchInput", ...(await toSearch(scheduleExceptionPartial))),
             create: toMutation("scheduleExceptionCreate", "ScheduleExceptionCreateInput", scheduleExceptionPartial, "full"),
             update: toMutation("scheduleExceptionUpdate", "ScheduleExceptionUpdateInput", scheduleExceptionPartial, "full"),
-        }
+        };
     },
     scheduleRecurrence: async () => {
         const { scheduleRecurrence: scheduleRecurrencePartial } = await import("./partial/scheduleRecurrence");
@@ -548,7 +548,7 @@ export const endpoints = {
             findMany: toQuery("scheduleRecurrences", "ScheduleRecurrenceSearchInput", ...(await toSearch(scheduleRecurrencePartial))),
             create: toMutation("scheduleRecurrenceCreate", "ScheduleRecurrenceCreateInput", scheduleRecurrencePartial, "full"),
             update: toMutation("scheduleRecurrenceUpdate", "ScheduleRecurrenceUpdateInput", scheduleRecurrencePartial, "full"),
-        }
+        };
     },
     smartContract: async () => {
         const { smartContract: smartContractPartial } = await import("./partial/smartContract");
@@ -557,7 +557,7 @@ export const endpoints = {
             findMany: toQuery("smartContracts", "SmartContractSearchInput", ...(await toSearch(smartContractPartial))),
             create: toMutation("smartContractCreate", "SmartContractCreateInput", smartContractPartial, "full"),
             update: toMutation("smartContractUpdate", "SmartContractUpdateInput", smartContractPartial, "full"),
-        }
+        };
     },
     smartContractVersion: async () => {
         const { smartContractVersion: smartContractVersionPartial } = await import("./partial/smartContractVersion");
@@ -566,7 +566,7 @@ export const endpoints = {
             findMany: toQuery("smartContractVersions", "SmartContractVersionSearchInput", ...(await toSearch(smartContractVersionPartial))),
             create: toMutation("smartContractVersionCreate", "SmartContractVersionCreateInput", smartContractVersionPartial, "full"),
             update: toMutation("smartContractVersionUpdate", "SmartContractVersionUpdateInput", smartContractVersionPartial, "full"),
-        }
+        };
     },
     standard: async () => {
         const { standard: standardPartial } = await import("./partial/standard");
@@ -575,7 +575,7 @@ export const endpoints = {
             findMany: toQuery("standards", "StandardSearchInput", ...(await toSearch(standardPartial))),
             create: toMutation("standardCreate", "StandardCreateInput", standardPartial, "full"),
             update: toMutation("standardUpdate", "StandardUpdateInput", standardPartial, "full"),
-        }
+        };
     },
     standardVersion: async () => {
         const { standardVersion: standardVersionPartial } = await import("./partial/standardVersion");
@@ -584,61 +584,61 @@ export const endpoints = {
             findMany: toQuery("standardVersions", "StandardVersionSearchInput", ...(await toSearch(standardVersionPartial))),
             create: toMutation("standardVersionCreate", "StandardVersionCreateInput", standardVersionPartial, "full"),
             update: toMutation("standardVersionUpdate", "StandardVersionUpdateInput", standardVersionPartial, "full"),
-        }
+        };
     },
     statsApi: async () => {
         const { statsApi: statsApiPartial } = await import("./partial/statsApi");
         return {
             findMany: toQuery("statsApi", "StatsApiSearchInput", ...(await toSearch(statsApiPartial))),
-        }
+        };
     },
     statsOrganization: async () => {
         const { statsOrganization: statsOrganizationPartial } = await import("./partial/statsOrganization");
         return {
             findMany: toQuery("statsOrganization", "StatsOrganizationSearchInput", ...(await toSearch(statsOrganizationPartial))),
-        }
+        };
     },
     statsProject: async () => {
         const { statsProject: statsProjectPartial } = await import("./partial/statsProject");
         return {
             findMany: toQuery("statsProject", "StatsProjectSearchInput", ...(await toSearch(statsProjectPartial))),
-        }
+        };
     },
     statsQuiz: async () => {
         const { statsQuiz: statsQuizPartial } = await import("./partial/statsQuiz");
         return {
             findMany: toQuery("statsQuiz", "StatsQuizSearchInput", ...(await toSearch(statsQuizPartial))),
-        }
+        };
     },
     statsRoutine: async () => {
         const { statsRoutine: statsRoutinePartial } = await import("./partial/statsRoutine");
         return {
             findMany: toQuery("statsRoutine", "StatsRoutineSearchInput", ...(await toSearch(statsRoutinePartial))),
-        }
+        };
     },
     statsSite: async () => {
         const { statsSite: statsSitePartial } = await import("./partial/statsSite");
         return {
             findMany: toQuery("statsSite", "StatsSiteSearchInput", ...(await toSearch(statsSitePartial))),
-        }
+        };
     },
     statsSmartContract: async () => {
         const { statsSmartContract: statsSmartContractPartial } = await import("./partial/statsSmartContract");
         return {
             findMany: toQuery("statsSmartContract", "StatsSmartContractSearchInput", ...(await toSearch(statsSmartContractPartial))),
-        }
+        };
     },
     statsStandard: async () => {
         const { statsStandard: statsStandardPartial } = await import("./partial/statsStandard");
         return {
             findMany: toQuery("statsStandard", "StatsStandardSearchInput", ...(await toSearch(statsStandardPartial))),
-        }
+        };
     },
     statsUser: async () => {
         const { statsUser: statsUserPartial } = await import("./partial/statsUser");
         return {
             findMany: toQuery("statsUser", "StatsUserSearchInput", ...(await toSearch(statsUserPartial))),
-        }
+        };
     },
     tag: async () => {
         const { tag: tagPartial } = await import("./partial/tag");
@@ -647,7 +647,7 @@ export const endpoints = {
             findMany: toQuery("tags", "TagSearchInput", ...(await toSearch(tagPartial))),
             create: toMutation("tagCreate", "TagCreateInput", tagPartial, "full"),
             update: toMutation("tagUpdate", "TagUpdateInput", tagPartial, "full"),
-        }
+        };
     },
     transfer: async () => {
         const { transfer: transferPartial } = await import("./partial/transfer");
@@ -660,13 +660,13 @@ export const endpoints = {
             transferCancel: toMutation("transferCancel", "FindByIdInput", transferPartial, "full"),
             transferAccept: toMutation("transferAccept", "FindByIdInput", transferPartial, "full"),
             transferDeny: toMutation("transferDeny", "TransferDenyInput", transferPartial, "full"),
-        }
+        };
     },
     translate: async () => {
         const { translate: translatePartial } = await import("./partial/translate");
         return {
             translate: toQuery("translate", "FindByIdInput", translatePartial, "full"),
-        }
+        };
     },
     user: async () => {
         const { user: userPartial, profile: profilePartial } = await import("./partial/user");
@@ -679,19 +679,19 @@ export const endpoints = {
             profileEmailUpdate: toMutation("profileEmailUpdate", "ProfileEmailUpdateInput", profilePartial, "full"),
             deleteOne: toMutation("userDeleteOne", "UserDeleteInput", successPartial, "full"),
             exportData: toMutation("exportData", null),
-        }
+        };
     },
     view: async () => {
         const { view: viewPartial } = await import("./partial/view");
         return {
             findMany: toQuery("views", "ViewSearchInput", ...(await toSearch(viewPartial))),
-        }
+        };
     },
     wallet: async () => {
         const { wallet: walletPartial } = await import("./partial/wallet");
         return {
             findHandles: toQuery("findHandles", "FindHandlesInput"),
             update: toMutation("walletUpdate", "WalletUpdateInput", walletPartial, "full"),
-        }
-    }
-}
+        };
+    },
+};

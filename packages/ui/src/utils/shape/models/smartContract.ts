@@ -32,5 +32,5 @@ export const shapeSmartContract: ShapeModel<SmartContractShape, SmartContractCre
         ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
         ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
         ...updateVersion(o, u, shapeSmartContractVersion, (v, i) => ({ ...v, root: { id: i.id } })),
-    }, a)
-}
+    }, a),
+};

@@ -48,4 +48,4 @@ export const IntegerStandardInput = ({
             </Grid>
         </Grid>
     );
-}
+};

@@ -26,7 +26,7 @@ export const PopoverWithArrow = ({
                 timeoutRef.current = null;
                 setCanTouch(false);
             }
-        }
+        };
         if (isOpen) {
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
@@ -34,7 +34,7 @@ export const PopoverWithArrow = ({
             }, 250);
         }
         else { stopTimeout(); }
-        return () => { stopTimeout(); }
+        return () => { stopTimeout(); };
     }, [isOpen]);
 
     const onClose = useCallback(() => {
@@ -49,47 +49,47 @@ export const PopoverWithArrow = ({
             anchorEl={anchorEl}
             onClose={onClose}
             anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'center',
+                vertical: "top",
+                horizontal: "center",
             }}
             transformOrigin={{
-                vertical: 'bottom',
-                horizontal: 'center',
+                vertical: "bottom",
+                horizontal: "center",
             }}
             sx={{
                 ...(sxs?.root ?? {}),
-                '& .MuiPopover-paper': {
-                    ...(sxs?.root?.['& .MuiPopover-paper'] ?? {}),
+                "& .MuiPopover-paper": {
+                    ...(sxs?.root?.["& .MuiPopover-paper"] ?? {}),
                     padding: 1,
-                    overflow: 'unset',
-                    minWidth: '50px',
-                    minHeight: '25px',
+                    overflow: "unset",
+                    minWidth: "50px",
+                    minHeight: "25px",
                     background: palette.background.paper,
                     color: palette.background.textPrimary,
                     boxShadow: 12,
-                }
+                },
             }}
         >
             <Box sx={{
                 ...(sxs?.content ?? {}),
-                overflow: 'auto',
+                overflow: "auto",
                 // Disable touch while timeout is active
-                pointerEvents: canTouch ? 'auto' : 'none',
+                pointerEvents: canTouch ? "auto" : "none",
             }}>
                 {children}
             </Box>
             {/* Triangle placed below popper */}
             <Box sx={{
-                width: '0',
-                height: '0',
-                borderLeft: '10px solid transparent',
-                borderRight: '10px solid transparent',
+                width: "0",
+                height: "0",
+                borderLeft: "10px solid transparent",
+                borderRight: "10px solid transparent",
                 borderTop: `10px solid ${palette.background.paper}`,
-                position: 'absolute',
-                bottom: '-10px',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                position: "absolute",
+                bottom: "-10px",
+                left: "50%",
+                transform: "translateX(-50%)",
             }} />
         </Popover>
-    )
-}
+    );
+};

@@ -1,7 +1,7 @@
 import {
     Button,
     Grid,
-    Link, TextField, Typography
+    Link, TextField, Typography,
 } from "@mui/material";
 import { EmailLogInInput, LINKS, Session } from "@shared/consts";
 import { emailLogInFormValidation } from "@shared/validation";
@@ -23,7 +23,7 @@ import { LogInFormProps } from "../../types";
 
 export const LogInForm = ({
     onClose,
-    onFormChange = () => { }
+    onFormChange = () => { },
 }: LogInFormProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -33,7 +33,7 @@ export const LogInForm = ({
         return {
             redirect: typeof params.redirect === "string" ? params.redirect : undefined,
             verificationCode: typeof params.code === "string" ? params.code : undefined,
-        }
+        };
     }, []);
 
     const [emailLogIn, { loading }] = useCustomMutation<Session, EmailLogInInput>(authEmailLogIn);
@@ -53,7 +53,7 @@ export const LogInForm = ({
             <Formik
                 initialValues={{
                     email: "",
-                    password: ""
+                    password: "",
                 }}
                 onSubmit={(values, helpers) => {
                     mutationWrapper<Session, EmailLogInInput>({
@@ -72,8 +72,8 @@ export const LogInForm = ({
                                 PubSub.get().publishAlertDialog({
                                     messageKey: "ChangePasswordBeforeLogin",
                                     buttons: [
-                                        { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home) } },
-                                    ]
+                                        { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
+                                    ],
                                 });
                             }
                             // Custom snack for invalid email, that has sign up link
@@ -82,14 +82,14 @@ export const LogInForm = ({
                                     messageKey: "EmailNotFound",
                                     severity: "Error",
                                     buttonKey: "SignUp",
-                                    buttonClicked: () => { toSignUp() }
+                                    buttonClicked: () => { toSignUp(); },
                                 });
                             } else {
                                 PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: "Error", data: response });
                             }
                             helpers.setSubmitting(false);
-                        }
-                    })
+                        },
+                    });
                 }}
                 validationSchema={emailLogInFormValidation}
             >
@@ -159,4 +159,4 @@ export const LogInForm = ({
             </Formik>
         </>
     );
-}
+};

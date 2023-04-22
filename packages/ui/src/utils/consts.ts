@@ -7,7 +7,7 @@ export const Forms = {
     Profile: "profile",
     ResetPassword: "reset-password",
     SignUp: "signUp",
-}
+};
 export type Forms = ValueOf<typeof Forms>;
 
 /**
@@ -85,7 +85,7 @@ export const InputTypeOptions: InputTypeOption[] = [
     },
     {
         label: "Integer",
-        value: InputType.IntegerInput
+        value: InputType.IntegerInput,
     },
     {
         label: "Radio (Select One)",
@@ -105,6 +105,6 @@ export const InputTypeOptions: InputTypeOption[] = [
     // },
     {
         label: "Markdown",
-        value: InputType.Markdown
+        value: InputType.Markdown,
     },
-]
+];

@@ -37,7 +37,7 @@ export const calculateGridItemSize = (numItems: number): { [key: string]: GridSp
         default:
             return { xs: 12, sm: 6, md: 4, lg: 3 };
     }
-}
+};
 
 export const GeneratedGrid = ({
     childContainers,
@@ -47,9 +47,9 @@ export const GeneratedGrid = ({
     theme,
     zIndex,
 }: GeneratedGridProps) => {
-    console.log('rendering grid', fields, childContainers);
+    console.log("rendering grid", fields, childContainers);
     const { containers, splitFields } = useMemo(() => {
-        console.log('rendering grid.containers, grid.splitfields')
+        console.log("rendering grid.containers, grid.splitfields");
         // Split fields into which containers they belong to.
         // Represented by 2D array, where each sub-array represents a container.
         let splitFields: FieldData[][] = [];
@@ -62,7 +62,7 @@ export const GeneratedGrid = ({
                 description: undefined,
                 totalItems: fields.length,
                 showBorder: false,
-            }]
+            }];
         }
         else {
             let lastField = 0;
@@ -77,10 +77,10 @@ export const GeneratedGrid = ({
     }, [childContainers, fields, layout]);
 
     const grids = useMemo(() => {
-        console.log('generating grid.grids')
+        console.log("generating grid.grids");
         // Generate grid for each container
-        let grids: React.ReactElement[] = [];
-        console.log('split fields', splitFields);
+        const grids: React.ReactElement[] = [];
+        console.log("split fields", splitFields);
         for (let i = 0; i < splitFields.length; i++) {
             const currFields: FieldData[] = splitFields[i];
             const currLayout: GridContainer = containers[i];
@@ -91,27 +91,27 @@ export const GeneratedGrid = ({
                     index={index}
                     onUpload={onUpload}
                     zIndex={zIndex}
-                />
+                />;
                 return inputComponent ? generateGridItem(inputComponent, index) : null;
             });
             const itemsContainer = <Grid
                 container
-                direction={currLayout?.direction ?? 'row'}
+                direction={currLayout?.direction ?? "row"}
                 key={`form-container-${i}`}
                 spacing={currLayout?.spacing ?? calculateGridItemSize(currFields.length)}
                 columnSpacing={currLayout?.columnSpacing}
                 rowSpacing={currLayout?.rowSpacing}
             >
                 {gridItems}
-            </Grid>
+            </Grid>;
             // Each container is represented as a fieldset
-            console.log('generatedGrid: item ifo:', currLayout)
+            console.log("generatedGrid: item ifo:", currLayout);
             grids.push(
                 <fieldset
                     key={`grid-container-${i}`}
                     style={{
-                        borderRadius: '8px',
-                        border: currLayout?.showBorder ? `1px solid ${theme.palette.background.textPrimary}` : 'none',
+                        borderRadius: "8px",
+                        border: currLayout?.showBorder ? `1px solid ${theme.palette.background.textPrimary}` : "none",
                     }}
                 >
                     {/* If a title is provided, the items are wrapped in a collapsible container */}
@@ -122,19 +122,19 @@ export const GeneratedGrid = ({
                     >
                         {itemsContainer}
                     </ContentCollapse> : itemsContainer}
-                </fieldset>
-            )
+                </fieldset>,
+            );
         }
         return grids;
     }, [containers, onUpload, splitFields, theme.palette.background.textPrimary, zIndex]);
 
     return (
         <Stack
-            direction={layout?.direction ?? 'row'}
-            key={`form-container`}
+            direction={layout?.direction ?? "row"}
+            key={"form-container"}
             spacing={layout?.spacing}
         >
             {grids}
         </Stack>
-    )
-}
+    );
+};

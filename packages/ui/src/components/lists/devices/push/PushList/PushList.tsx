@@ -58,7 +58,7 @@ export const PushList = ({
                     formik.resetForm();
                 },
                 onError: () => { formik.setSubmitting(false); },
-            })
+            });
         },
     });
 
@@ -74,7 +74,7 @@ export const PushList = ({
             onSuccess: () => {
                 handleUpdate(updateArray(list, index, updatedDevice));
             },
-        })
+        });
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useCustomMutation<Success, DeleteOneInput>(deleteOneOrManyDeleteOne);
@@ -84,9 +84,9 @@ export const PushList = ({
             mutation: deleteMutation,
             input: { id: device.id, objectType: DeleteType.Email },
             onSuccess: () => {
-                handleUpdate([...list.filter(w => w.id !== device.id)])
+                handleUpdate([...list.filter(w => w.id !== device.id)]);
             },
-        })
+        });
     }, [deleteMutation, handleUpdate, list, loadingDelete]);
 
     return (
@@ -122,5 +122,5 @@ export const PushList = ({
                 >{t("AddThisDevice")}</Button>
             </Stack>
         </form>
-    )
-}
+    );
+};

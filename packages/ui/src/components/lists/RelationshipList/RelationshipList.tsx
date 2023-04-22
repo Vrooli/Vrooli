@@ -16,7 +16,7 @@ export const userFromSession = (session: Session): Exclude<OwnerShape, null> => 
     id: getCurrentUser(session).id as string,
     handle: null,
     name: "Self",
-})
+});
 
 /**
  * Horizontal button list for assigning owner, project, and parent 
@@ -47,5 +47,5 @@ export function RelationshipList(props: RelationshipListProps) {
             <IsPrivateButton {...props} />
             <IsCompleteButton {...props} />
         </Stack>
-    )
+    );
 }

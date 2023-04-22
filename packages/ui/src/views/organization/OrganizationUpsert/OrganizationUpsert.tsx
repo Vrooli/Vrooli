@@ -27,7 +27,7 @@ export const OrganizationUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Organization, FindByIdInput>(organizationFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => organizationInitialValues(session, existing), [existing, session]);
@@ -56,9 +56,9 @@ export const OrganizationUpsert = ({
                     mutationWrapper<Organization, OrganizationCreateInput | OrganizationUpdateInput>({
                         mutation,
                         input: transformOrganizationValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateOrganizationValues(values, existing)}
             >
@@ -74,5 +74,5 @@ export const OrganizationUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

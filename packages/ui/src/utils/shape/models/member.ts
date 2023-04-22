@@ -7,5 +7,5 @@ export type MemberShape = Pick<Member, "id"> & {
 }
 
 export const shapeMember: ShapeModel<MemberShape, null, MemberUpdateInput> = {
-    update: (o, u, a) => shapeUpdate(u, {}, a) as any
-}
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any,
+};

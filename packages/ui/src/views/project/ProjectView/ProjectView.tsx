@@ -94,7 +94,7 @@ export const ProjectView = ({
             sx={{
                 borderRadius: { xs: "0", sm: 2 },
                 boxShadow: { xs: "none", sm: 12 },
-                width: { xs: "100%", sm: "min(500px, 100vw)" }
+                width: { xs: "100%", sm: "min(500px, 100vw)" },
             }}
         >
             <Tooltip title="See all options">
@@ -254,5 +254,5 @@ export const ProjectView = ({
                 /> */}
             </Box>
         </>
-    )
-}
+    );
+};

@@ -21,8 +21,8 @@ export function IsCompleteButton({
         const isComplete = field?.value;
         return {
             Icon: isComplete ? CompleteIcon : null,
-            tooltip: isComplete ? `This is complete${isEditing ? "" : ". Press to mark incomplete"}` : `This is incomplete${isEditing ? "" : ". Press to mark complete"}`
-        }
+            tooltip: isComplete ? `This is complete${isEditing ? "" : ". Press to mark incomplete"}` : `This is incomplete${isEditing ? "" : ". Press to mark complete"}`,
+        };
     }, [field?.value, isEditing]);
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -46,5 +46,5 @@ export function IsCompleteButton({
                 </ColorIconButton>
             </Tooltip>
         </Stack>
-    )
+    );
 }

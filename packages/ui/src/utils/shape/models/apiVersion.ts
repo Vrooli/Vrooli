@@ -18,8 +18,8 @@ export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentatio
 
 export const shapeApiVersionTranslation: ShapeModel<ApiVersionTranslationShape, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "details", "name", "summary"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "details", "summary"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "details", "summary"), a),
+};
 
 export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput, ApiVersionUpdateInput> = {
     create: (d) => ({
@@ -35,5 +35,5 @@ export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput,
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList),
         ...updateRel(o, u, "root", ["Update"], "one", shapeApi),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeApiVersionTranslation),
-    }, a)
-}
+    }, a),
+};

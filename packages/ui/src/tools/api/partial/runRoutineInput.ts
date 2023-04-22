@@ -18,4 +18,4 @@ export const runRoutineInput: GqlPartial<RunRoutineInput> = {
     },
     full: {},
     list: {},
-}
+};

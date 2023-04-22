@@ -8,6 +8,6 @@ export const scheduleSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchSchedule"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), scheduleFindMany, ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc)
+export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), scheduleFindMany, ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc);

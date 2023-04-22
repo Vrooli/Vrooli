@@ -8,6 +8,6 @@ export const statsSmartContractSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchStatsSmartContract"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const statsSmartContractSearchParams = () => toParams(statsSmartContractSearchSchema(), statsSmartContractFindMany, StatsSmartContractSortBy, StatsSmartContractSortBy.PeriodStartAsc);

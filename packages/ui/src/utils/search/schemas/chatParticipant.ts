@@ -8,6 +8,6 @@ export const chatParticipantSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchChatParticipant"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), chatParticipantFindMany, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc)
+export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), chatParticipantFindMany, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc);

@@ -24,7 +24,7 @@ export const useDimensions = (): UseDimensionsReturn => {
         const width = ref.current?.clientWidth ?? 0;
         const height = ref.current?.clientHeight ?? 0;
         setDimensions({ width, height });
-    }, [setDimensions])
+    }, [setDimensions]);
 
     // Calculate the dimensions when the component mounts or the element changes
     useEffect(() => {
@@ -50,4 +50,4 @@ export const useDimensions = (): UseDimensionsReturn => {
     }, [refreshDimensions]);
 
     return { dimensions, ref, refreshDimensions };
-}
+};

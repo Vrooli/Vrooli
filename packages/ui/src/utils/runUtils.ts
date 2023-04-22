@@ -21,7 +21,7 @@ export const getRunPercentComplete = (
     if (!completedComplexity || !totalComplexity || totalComplexity === 0) return 0;
     const percentage = Math.round(completedComplexity as number / totalComplexity * 100);
     return Math.min(percentage, 100);
-}
+};
 
 /**
  * Determines if two location arrays match, where a location array is an array of step indices
@@ -35,7 +35,7 @@ export const locationArraysMatch = (locationA: number[], locationB: number[]): b
         if (locationA[i] !== locationB[i]) return false;
     }
     return true;
-}
+};
 
 /**
  * Determines if a routine version has subroutines. This may be simple, depending on 
@@ -49,7 +49,7 @@ export const routineVersionHasSubroutines = (routineVersion: Partial<RoutineVers
     if (routineVersion.nodeLinks && routineVersion.nodeLinks.length > 0) return true;
     if ((routineVersion as any).nodesCount && (routineVersion as any).nodesCount > 0) return true;
     return false;
-}
+};
 
 /**
  * Converts formik into object with run input data
@@ -65,11 +65,11 @@ export const formikToRunInputs = (values: { [x: string]: string }): { [x: string
         value.length > 0);
     // Input keys are in the form of inputs-<inputId>. We need the inputId
     for (const [key, value] of inputValues) {
-        const inputId = key.substring(key.indexOf("-") + 1)
+        const inputId = key.substring(key.indexOf("-") + 1);
         result[inputId] = JSON.stringify(value);
     }
     return result;
-}
+};
 
 /**
  * Updates formik values with run input data
@@ -82,7 +82,7 @@ export const runInputsToFormik = (runInputs: { input: { id: string }, data: stri
         result[`inputs-${runInput.input.id}`] = JSON.parse(runInput.data);
     }
     return result;
-}
+};
 
 /**
  * Converts a run inputs object to a run input create object
@@ -95,10 +95,10 @@ export const runInputsCreate = (runInputs: { [x: string]: string }, runRoutineId
             id: uuid(),
             data,
             inputConnect: inputId,
-            runRoutineConnect: runRoutineId
-        }))
-    }
-}
+            runRoutineConnect: runRoutineId,
+        })),
+    };
+};
 
 /**
  * Converts a run inputs object to a run input update object
@@ -118,8 +118,8 @@ export const runInputsUpdate = (
     const updatedInputs = Object.entries(updated).map(([inputId, data]) => ({
         id: uuid(),
         data,
-        input: { id: inputId }
-    }))
+        input: { id: inputId },
+    }));
     // Loop through original run inputs. Where input id is in updated inputs, update id
     for (const currOriginal of original) {
         const currUpdated = updatedInputs.findIndex((input) => input.input.id === currOriginal.input.id);
@@ -128,7 +128,7 @@ export const runInputsUpdate = (
         }
     }
     return updateRel({ inputs: original }, { inputs: updatedInputs }, "inputs", ["Create", "Update", "Delete"], "many", shapeRunRoutineInput);
-}
+};
 
 type GetRoutineVersionStatusResult = {
     status: Status;
@@ -220,7 +220,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     } else {
         return { status: Status.Valid, messages: ["Routine is fully connected"], nodesById, nodesOffGraph, nodesOnGraph };
     }
-}
+};
 
 type GetProjectVersionStatusResult = {
     status: Status;
@@ -234,7 +234,7 @@ type GetProjectVersionStatusResult = {
  */
 export const getProjectVersionStatus = (projectVersion?: Partial<ProjectVersion> | null): GetProjectVersionStatusResult => {
     return {} as any;//TODO
-}
+};
 
 /**
  * Multi-step routine initial data, if creating from scratch
@@ -286,7 +286,7 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         whens: [],
         operation: null,
         routineVersion: { id: routineVersionId },
-    }
+    };
     const link2: NodeLinkShape = {
         id: uuid(),
         from: routineListNode,
@@ -294,9 +294,9 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         whens: [],
         operation: null,
         routineVersion: { id: routineVersionId },
-    }
+    };
     return {
         nodes: [startNode, routineListNode, endNode],
         nodeLinks: [link1, link2],
     };
-}
+};

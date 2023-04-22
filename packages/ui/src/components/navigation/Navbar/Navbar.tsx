@@ -126,4 +126,4 @@ export const Navbar = forwardRef(({
             {!isMobile && below}
         </Box>
     );
-})
+});

@@ -24,5 +24,5 @@ export const shapeNodeLink: ShapeModel<NodeLinkShape, NodeLinkCreateInput, NodeL
         ...updateRel(o, u, "from", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "to", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "whens", ["Create", "Update", "Delete"], "many", shapeNodeLinkWhen),
-    }, a)
-}
+    }, a),
+};

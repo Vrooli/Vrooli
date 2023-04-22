@@ -59,5 +59,5 @@ export const NavbarLogo = ({
                 }}
             >{BUSINESS_NAME}</Typography>}
         </Box>
-    )
-}
+    );
+};

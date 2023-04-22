@@ -11,7 +11,7 @@ export const runProjectYou: GqlPartial<RunProjectYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const runProject: GqlPartial<RunProject> = {
     __typename: "RunProject",
@@ -40,4 +40,4 @@ export const runProject: GqlPartial<RunProject> = {
         steps: async () => rel((await import("./runProjectStep")).runProjectStep, "full", { omit: "run" }),
     },
     list: {},
-}
+};

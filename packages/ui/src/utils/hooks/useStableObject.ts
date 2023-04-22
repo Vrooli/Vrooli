@@ -11,7 +11,7 @@ function deepEqual(a: any, b: any): boolean {
 
     if (keysA.length !== keysB.length) return false;
 
-    for (let key of keysA) {
+    for (const key of keysA) {
         if (!keysB.includes(key)) return false;
         if (!deepEqual(a[key], b[key])) return false;
     }
@@ -33,4 +33,4 @@ export const useStableObject = <T extends object | null | undefined>(obj: T): T 
     }, [obj]);
 
     return useMemo(() => prevObjRef.current, [prevObjRef]);
-}
+};

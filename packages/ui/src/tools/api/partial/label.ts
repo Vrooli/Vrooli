@@ -8,7 +8,7 @@ export const labelYou: GqlPartial<LabelYou> = {
         canDelete: true,
         canUpdate: true,
     },
-}
+};
 
 export const label: GqlPartial<Label> = {
     __typename: "Label",
@@ -26,7 +26,7 @@ export const label: GqlPartial<Label> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         you: () => rel(labelYou, "full"),
     },
@@ -43,4 +43,4 @@ export const label: GqlPartial<Label> = {
         standardsCount: true,
     },
     list: {},
-}
+};

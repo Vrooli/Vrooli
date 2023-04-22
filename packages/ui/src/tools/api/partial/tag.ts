@@ -11,7 +11,7 @@ export const tagTranslation: GqlPartial<TagTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const tagYou: GqlPartial<TagYou> = {
     __typename: "TagYou",
@@ -21,7 +21,7 @@ export const tagYou: GqlPartial<TagYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const tag: GqlPartial<Tag> = {
     __typename: "Tag",
@@ -35,4 +35,4 @@ export const tag: GqlPartial<Tag> = {
     },
     full: {},
     list: {},
-}
+};

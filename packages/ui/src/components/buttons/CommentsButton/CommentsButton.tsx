@@ -50,5 +50,5 @@ export const CommentsButton = ({
                 sx={{ ...multiLineEllipsis(1), pointerEvents: "none" }}
             />
         </Stack>
-    )
-}
+    );
+};

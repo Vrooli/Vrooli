@@ -17,7 +17,7 @@ export const noteSearchSchema = (): FormSchema => ({
         ...bookmarksFields(),
         ...languagesVersionFields(),
         ...tagsFields(),
-    ]
-})
+    ],
+});
 
 export const noteSearchParams = () => toParams(noteSearchSchema(), noteFindMany, NoteSortBy, NoteSortBy.ScoreDesc);

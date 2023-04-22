@@ -15,5 +15,5 @@ export const shapeScheduleRecurrence: ShapeModel<ScheduleRecurrenceShape, Schedu
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "recurrenceType", "interval", "dayOfMonth", "dayOfWeek", "month", "endDate"),
-    }, a)
-}
+    }, a),
+};

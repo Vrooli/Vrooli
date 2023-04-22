@@ -29,7 +29,7 @@ export const uuidToBase36 = (uuid: string): string => {
         PubSub.get().publishSnack({ messageKey: "CouldNotConvertId", severity: "Error", data: { uuid } });
         return "";
     }
-}
+};
 
 /**
  * Converts a base 36 string without dashes into a UUID.
@@ -47,7 +47,7 @@ export const base36ToUuid = (base36: string, showError = true): string => {
         if (showError) PubSub.get().publishSnack({ messageKey: "InvalidUrlId", severity: "Error", data: { base36 } });
         return "";
     }
-}
+};
 
 export type SingleItemUrl = {
     handleRoot?: string,
@@ -91,7 +91,7 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
         LINKS.Project,
         LINKS.Routine,
         LINKS.SmartContract,
-        LINKS.Standard
+        LINKS.Standard,
     ].map(link => link.split("/").pop());
     const allUrlParts = window.location.pathname.split("/");
     const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));
@@ -106,4 +106,4 @@ export const parseSingleItemUrl = (): SingleItemUrl => {
     console.log("parseSingleItemUrl RESULT", returnObject);
     // Return the object
     return returnObject;
-}
+};

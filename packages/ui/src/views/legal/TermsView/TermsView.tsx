@@ -29,7 +29,7 @@ export const TermsView = ({
         label: t(option as TabOptions),
         value: option as TabOptions,
     })), [t]);
-    const currTab = useMemo(() => tabs[1], [tabs])
+    const currTab = useMemo(() => tabs[1], [tabs]);
     const handleTabChange = useCallback((e: any, tab: PageTab<TabOptions>) => {
         e.preventDefault();
         setLocation(LINKS[tab.value], { replace: true });

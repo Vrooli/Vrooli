@@ -11,4 +11,4 @@ export const nodeLink: GqlPartial<NodeLink> = {
     },
     full: {},
     list: {},
-}
+};

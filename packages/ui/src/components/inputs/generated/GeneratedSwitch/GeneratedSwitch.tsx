@@ -8,7 +8,7 @@ export const GeneratedSwitch = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering switch');
+    console.log("rendering switch");
     const [field] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as SwitchProps, [fieldData.props]);
 
@@ -25,9 +25,9 @@ export const GeneratedSwitch = ({
                     onBlur={field.onBlur}
                     onChange={field.onChange}
                     name={fieldData.fieldName}
-                    inputProps={{ 'aria-label': fieldData.fieldName }}
+                    inputProps={{ "aria-label": fieldData.fieldName }}
                 />
             )} label={fieldData.fieldName} />
         </FormGroup>
     );
-}
+};

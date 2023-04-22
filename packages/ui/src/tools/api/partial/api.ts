@@ -15,7 +15,7 @@ export const apiYou: GqlPartial<ApiYou> = {
         isViewed: true,
         reaction: true,
     },
-}
+};
 
 export const api: GqlPartial<Api> = {
     __typename: "Api",
@@ -36,7 +36,7 @@ export const api: GqlPartial<Api> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         permissions: true,
         questionsCount: true,
@@ -58,5 +58,5 @@ export const api: GqlPartial<Api> = {
     nav: {
         id: true,
         isPrivate: true,
-    }
-}
+    },
+};

@@ -22,12 +22,12 @@ export const BaseGeneratedForm = ({
 
     // Parse default values from fieldInputs, to use in formik
     const initialValues = useMemo(() => {
-        let values: { [x: string]: any } = {};
+        const values: { [x: string]: any } = {};
         fieldInputs.forEach((field) => {
             values[field.fieldName] = field.props.defaultValue;
         });
         return values;
-    }, [fieldInputs])
+    }, [fieldInputs]);
 
     // Generate yup schema from overall schema
     const validationSchema = useMemo(() => generateYupSchema(schema), [schema]);
@@ -68,4 +68,4 @@ export const BaseGeneratedForm = ({
             />}
         </form>
     );
-}
+};

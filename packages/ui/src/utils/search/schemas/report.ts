@@ -8,6 +8,6 @@ export const reportSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchReport"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
 export const reportSearchParams = () => toParams(reportSearchSchema(), reportFindMany, ReportSortBy, ReportSortBy.DateCreatedDesc);

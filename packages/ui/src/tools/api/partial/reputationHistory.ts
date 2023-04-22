@@ -12,4 +12,4 @@ export const reputationHistory: GqlPartial<ReputationHistory> = {
         objectId1: true,
         objectId2: true,
     },
-}
+};

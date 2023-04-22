@@ -19,7 +19,7 @@ export const noteVersionSearchSchema = (): FormSchema => ({
         ...bookmarksRootFields(),
         ...languagesFields(),
         ...tagsRootFields(),
-    ]
-})
+    ],
+});
 
 export const noteVersionSearchParams = () => toParams(noteVersionSearchSchema(), noteVersionFindMany, NoteVersionSortBy, NoteVersionSortBy.DateCreatedDesc);

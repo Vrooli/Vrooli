@@ -20,5 +20,5 @@ export const ViewsDisplay = ({
                 {views ?? 1}
             </Typography>
         </Box>
-    )
-}
+    );
+};

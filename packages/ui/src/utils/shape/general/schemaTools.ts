@@ -25,10 +25,10 @@ export const standardVersionToFieldData = ({
     standardType,
     yup,
 }: StandardVersionToFieldDataProps): FieldData | null => {
-    console.log("standardversiontofielddata", fieldName, description, helpText)
+    console.log("standardversiontofielddata", fieldName, description, helpText);
     // Props are stored as JSON, so they must be parsed
     let parsedProps: any;
-    let parsedYup: any | undefined = undefined;
+    const parsedYup: any | undefined = undefined;
     try {
         parsedProps = JSON.parse(props);
         if (yup) yup = JSON.parse(yup);
@@ -44,5 +44,5 @@ export const standardVersionToFieldData = ({
         type: standardType as any,
         props: parsedProps,
         yup: parsedYup,
-    }
-}
+    };
+};

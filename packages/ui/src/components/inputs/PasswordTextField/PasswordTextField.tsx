@@ -55,5 +55,5 @@ export const PasswordTextField = ({
             />
             <FormHelperText id="adornment-password-error-text" sx={{ color: palette.error.main }}>{meta.touched && meta.error}</FormHelperText>
         </FormControl>
-    )
-}
+    );
+};

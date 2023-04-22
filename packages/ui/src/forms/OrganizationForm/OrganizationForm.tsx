@@ -22,35 +22,35 @@ import { OrganizationShape, shapeOrganization } from "../../utils/shape/models/o
 
 export const organizationInitialValues = (
     session: Session | undefined,
-    existing?: Organization | null | undefined
+    existing?: Organization | null | undefined,
 ): OrganizationShape => ({
-    __typename: 'Organization' as const,
+    __typename: "Organization" as const,
     id: DUMMY_ID,
     isOpenToNewMembers: false,
     isPrivate: false,
     tags: [],
     ...existing,
     translations: orDefault(existing?.translations, [{
-        __typename: 'OrganizationTranslation' as const,
+        __typename: "OrganizationTranslation" as const,
         id: DUMMY_ID,
         language: getUserLanguages(session)[0],
-        name: '',
-        bio: '',
+        name: "",
+        bio: "",
     }]),
 });
 
 export const transformOrganizationValues = (values: OrganizationShape, existing?: OrganizationShape) => {
     return existing === undefined
         ? shapeOrganization.create(values)
-        : shapeOrganization.update(existing, values)
-}
+        : shapeOrganization.update(existing, values);
+};
 
 export const validateOrganizationValues = async (values: OrganizationShape, existing?: OrganizationShape) => {
     const transformedValues = transformOrganizationValues(values, existing);
-    const validationSchema = organizationValidation[existing === undefined ? 'create' : 'update']({});
+    const validationSchema = organizationValidation[existing === undefined ? "create" : "update"]({});
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-}
+};
 
 export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
     display,
@@ -76,11 +76,11 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ['bio', 'name'],
-        validationSchema: organizationTranslationValidation[isCreate ? 'create' : 'update']({}),
+        fields: ["bio", "name"],
+        validationSchema: organizationTranslationValidation[isCreate ? "create" : "update"]({}),
     });
 
-    const [fieldIsOpen] = useField('isOpenToNewMembers');
+    const [fieldIsOpen] = useField("isOpenToNewMembers");
 
     return (
         <>
@@ -89,12 +89,12 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                 isLoading={isLoading}
                 ref={ref}
                 style={{
-                    display: 'block',
-                    width: 'min(700px, 100vw - 16px)',
-                    margin: 'auto',
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+                    display: "block",
+                    width: "min(700px, 100vw - 16px)",
+                    margin: "auto",
+                    paddingLeft: "env(safe-area-inset-left)",
+                    paddingRight: "env(safe-area-inset-right)",
+                    paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
                 }}
             >
                 <Stack direction="column" spacing={4} sx={{
@@ -103,7 +103,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                 }}>
                     <RelationshipList
                         isEditing={true}
-                        objectType={'Organization'}
+                        objectType={"Organization"}
                         zIndex={zIndex}
                     />
                     <ResourceListHorizontalInput
@@ -121,7 +121,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         />
                         <TranslatedTextField
                             fullWidth
-                            label={t('Name')}
+                            label={t("Name")}
                             language={language}
                             name="name"
                         />
@@ -136,7 +136,7 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                         />
                     </Stack>
                     <TagSelector name="tags" />
-                    <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
+                    <Tooltip placement={"top"} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
                         <FormControlLabel
                             label='Open to new members?'
                             control={
@@ -163,5 +163,5 @@ export const OrganizationForm = forwardRef<any, OrganizationFormProps>(({
                 />
             </BaseForm>
         </>
-    )
-})
+    );
+});

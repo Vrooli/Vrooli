@@ -8,7 +8,7 @@ export const chatInviteYou: GqlPartial<ChatInviteYou> = {
         canDelete: true,
         canUpdate: true,
     },
-}
+};
 
 export const chatInvite: GqlPartial<ChatInvite> = {
     __typename: "ChatInvite",
@@ -25,5 +25,5 @@ export const chatInvite: GqlPartial<ChatInvite> = {
     },
     list: {
         chat: async () => rel((await import("./chat")).chat, "list", { omit: "invites" }),
-    }
-}
+    },
+};

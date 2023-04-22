@@ -33,7 +33,7 @@ const getSearchHistory = (searchBarId: string, userId: string): { [label: string
         existingHistory = {};
     }
     return existingHistory;
-}
+};
 
 /**
  * For a list of options, checks if they are stored in local storage and need their bookmarks/isBookmarked updated. If so, updates them.
@@ -61,7 +61,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
             existingHistory = {};
         }
         // Find options that are in history, and update if bookmarks or isBookmarked are different
-        let updatedHistory = options.map(option => {
+        const updatedHistory = options.map(option => {
             // bookmarks and isBookmarked are not in shortcuts or actions
             if (option.__typename === "Shortcut" || option.__typename === "Action") return null;
             const historyItem = existingHistory[option.label];
@@ -74,7 +74,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
                             ...option,
                             bookmarks,
                             isBookmarked,
-                        }
+                        },
                     };
                 }
             }
@@ -88,7 +88,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
             localStorage.setItem(key, JSON.stringify(existingHistory));
         }
     });
-}
+};
 
 const IconMap = {
     Action: ActionIcon,
@@ -105,15 +105,15 @@ const IconMap = {
     Standard: StandardIcon,
     User: UserIcon,
     View: VisibleIcon,
-}
+};
 
 /**
  * Maps object types to icons
  */
 const typeToIcon = (type: string, fill: string): JSX.Element | null => {
-    let Icon: SvgComponent | undefined = IconMap[type];
+    const Icon: SvgComponent | undefined = IconMap[type];
     return Icon ? <Icon fill={fill} /> : null;
-}
+};
 
 const FullWidthPopper = function (props) {
     return <Popper {...props} style={{
@@ -173,7 +173,7 @@ export function SiteSearchBar({
         // Filter out history keys that don't contain internal value
         let filteredHistory = Object.entries(searchHistory).filter(([key]) => key.toLowerCase().includes(internalValue.toLowerCase()));
         // Order remaining history keys by most recent. Value is stored as { timestamp: string, value: AutocompleteOption }
-        filteredHistory = filteredHistory.sort((a, b) => { return b[1].timestamp - a[1].timestamp });
+        filteredHistory = filteredHistory.sort((a, b) => { return b[1].timestamp - a[1].timestamp; });
         // Convert history keys to options
         let historyOptions: AutocompleteOption[] = filteredHistory.map(([, value]) => ({ ...value.option, isFromHistory: true }));
         // Limit to 5 options
@@ -217,7 +217,7 @@ export function SiteSearchBar({
                     />
                     {t("Loading")}
                 </>
-            )
+            );
         }
         return t("NoResults", { ns: "error" });
     }, [loading, internalValue, value, t]);
@@ -226,7 +226,7 @@ export function SiteSearchBar({
         if (option && option.label && reason === "keyboard") {
             setHighlightedOption(option);
         }
-    }, [])
+    }, []);
 
     const handleSelect = useCallback((option: AutocompleteOption) => {
         // Add to search history
@@ -263,7 +263,7 @@ export function SiteSearchBar({
             handleSelect(highlightedOption);
         }
         // Otherwise, don't submit
-    }, [highlightedOption, handleSelect])
+    }, [highlightedOption, handleSelect]);
 
     const optionColor = useCallback((isFromHistory: boolean | undefined, isSecondary: boolean): string => {
         if (isFromHistory) return palette.mode === "dark" ? "hotpink" : "purple";
@@ -363,7 +363,7 @@ export function SiteSearchBar({
                             </IconButton>
                         </Tooltip>}
                     </MenuItem>
-                )
+                );
             }}
             renderInput={(params) => (
                 <Paper
@@ -373,7 +373,7 @@ export function SiteSearchBar({
                         p: "2px 4px",
                         display: "flex",
                         alignItems: "center",
-                        borderRadius: "10px"
+                        borderRadius: "10px",
                     }}
                 >
                     <Input
@@ -401,7 +401,7 @@ export function SiteSearchBar({
                                 // The drop down should be below the search bar
                                 "& .MuiPaper-root": {
                                     marginTop: "0",
-                                }
+                                },
                             },
                             // // Drop down/up icon
                             // '& .MuiAutocomplete-endAdornment': {

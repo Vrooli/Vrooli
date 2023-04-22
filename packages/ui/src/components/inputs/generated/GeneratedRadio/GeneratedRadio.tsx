@@ -9,7 +9,7 @@ export const GeneratedRadio = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering radio');
+    console.log("rendering radio");
     const [field] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as RadioProps, [fieldData.props]);
 
@@ -46,4 +46,4 @@ export const GeneratedRadio = ({
         </FormControl>
 
     );
-}
+};

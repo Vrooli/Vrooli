@@ -11,4 +11,4 @@ export const statsApi: GqlPartial<StatsApi> = {
         calls: true,
         routineVersions: true,
     },
-}
+};

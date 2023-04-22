@@ -11,4 +11,4 @@ export const reminderList: GqlPartial<ReminderList> = {
         focusMode: async () => rel((await import("./focusMode")).focusMode, "list", { omit: "reminderList" }),
         reminders: async () => rel((await import("./reminder")).reminder, "full", { omit: "reminderList" }),
     },
-}
+};

@@ -12,7 +12,7 @@ export const TagList = ({
 
     const [chips, numTagsCutOff] = useMemo(() => {
         let charactersBeforeCutoff = maxCharacters;
-        let chipResult: JSX.Element[] = [];
+        const chipResult: JSX.Element[] = [];
         for (let i = 0; i < tags.length; i++) {
             const tag = tags[i];
             if (tag?.tag && tag.tag.length < charactersBeforeCutoff) {
@@ -26,7 +26,7 @@ export const TagList = ({
                             backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
                             color: "white",
                             width: "fit-content",
-                        }} />
+                        }} />,
                 );
             }
         }
@@ -59,5 +59,5 @@ export const TagList = ({
                 {numTagsCutOff > 0 && <Typography variant="body1">+{numTagsCutOff}</Typography>}
             </Stack>
         </Tooltip>
-    )
-}
+    );
+};

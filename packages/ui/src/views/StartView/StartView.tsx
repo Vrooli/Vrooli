@@ -8,7 +8,7 @@ import {
     Box,
     Button, Stack,
     SxProps,
-    Typography
+    Typography,
 } from "@mui/material";
 import { EmailLogInInput, LINKS, Session } from "@shared/consts";
 import { EmailIcon, WalletIcon } from "@shared/icons";
@@ -34,11 +34,11 @@ import { SessionContext } from "../../utils/SessionContext";
 import { StartViewProps } from "../types";
 
 const helpText =
-    "Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later."
+    "Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.";
 
 const buttonProps: SxProps = {
     height: "4em",
-}
+};
 
 const emailTitleId = "email-login-dialog-title";
 
@@ -74,7 +74,7 @@ export const StartView = ({
             default:
                 return LogInForm;
         }
-    }, [popupForm])
+    }, [popupForm]);
 
     /**
      * If verification code supplied
@@ -89,19 +89,19 @@ export const StartView = ({
                     onSuccess: (data) => {
                         PubSub.get().publishSnack({ messageKey: "EmailVerified", severity: "Success" });
                         PubSub.get().publishSession(data);
-                        setLocation(redirect ?? LINKS.Home)
+                        setLocation(redirect ?? LINKS.Home);
                     },
                     onError: (response) => {
                         if (hasErrorCode(response, "MustResetPassword")) {
                             PubSub.get().publishAlertDialog({
                                 messageKey: "ChangePasswordBeforeLogin",
                                 buttons: [
-                                    { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home) } },
-                                ]
+                                    { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
+                                ],
                             });
                         }
-                    }
-                })
+                    },
+                });
             }
             // Otherwise, open log in form
             else {
@@ -109,20 +109,20 @@ export const StartView = ({
                 setPopupForm(Forms.LogIn);
             }
         }
-    }, [emailLogIn, verificationCode, redirect, setLocation, userId])
+    }, [emailLogIn, verificationCode, redirect, setLocation, userId]);
 
     // Wallet provider popups
     const [connectOpen, setConnectOpen] = useState(false);
     const [installOpen, setInstallOpen] = useState(false);
-    const openWalletConnectDialog = useCallback(() => { setConnectOpen(true) }, []);
-    const openWalletInstallDialog = useCallback(() => { setInstallOpen(true) }, []);
+    const openWalletConnectDialog = useCallback(() => { setConnectOpen(true); }, []);
+    const openWalletInstallDialog = useCallback(() => { setInstallOpen(true); }, []);
 
     const toEmailLogIn = useCallback(() => {
         setPopupForm(Forms.LogIn);
         setEmailPopupOpen(true);
-    }, [])
+    }, []);
 
-    const closeEmailPopup = useCallback(() => setEmailPopupOpen(false), [])
+    const closeEmailPopup = useCallback(() => setEmailPopupOpen(false), []);
 
     // Performs handshake to establish trust between site backend and user's wallet.
     // 1. Whitelist website on wallet
@@ -140,21 +140,21 @@ export const StartView = ({
                     { labelKey: "TryAgain", onClick: openWalletConnectDialog },
                     { labelKey: "InstallWallet", onClick: openWalletInstallDialog },
                     { labelKey: "EmailLogin", onClick: toEmailLogIn },
-                ]
+                ],
             });
             return;
         }
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
-            PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" })
-            PubSub.get().publishSession(walletCompleteResult.session)
+            PubSub.get().publishSnack({ messageKey: "WalletVerified", severity: "Success" });
+            PubSub.get().publishSession(walletCompleteResult.session);
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? LINKS.Welcome : (redirect ?? LINKS.Home));
             // Set up push notifications
             setupPush();
         }
-    }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect])
+    }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect]);
 
     const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
         setConnectOpen(false);
@@ -163,7 +163,7 @@ export const StartView = ({
         }
     }, [walletLogin]);
 
-    const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false) }, []);
+    const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false); }, []);
 
     return (
         <>
@@ -249,4 +249,4 @@ export const StartView = ({
             </Box>
         </>
     );
-}
+};

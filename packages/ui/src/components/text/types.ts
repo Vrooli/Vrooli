@@ -24,7 +24,7 @@ export interface OwnerLabelProps {
     confirmOpen?: (callback: () => void) => void;
     language?: string
     objectType: ObjectType;
-    owner: Routine['owner'] | null | undefined
+    owner: Routine["owner"] | null | undefined
     sxs?: {
         label?: { [x: string]: any };
     }

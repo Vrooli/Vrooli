@@ -36,7 +36,7 @@ export function useTranslatedFields({
         if (languages.length === 0 && field.value.length > 0) {
             setLanguage(field.value[0].language);
         }
-    }, [field.value, languages.length, setLanguage])
+    }, [field.value, languages.length, setLanguage]);
 
     // Functions for adding, removing, blurring, etc.
     const handleAddLanguage = useCallback((newLanguage: string) => {
@@ -44,7 +44,7 @@ export function useTranslatedFields({
         addEmptyTranslation(field, meta, helpers, newLanguage);
     }, [field, helpers, meta]);
     const handleDeleteLanguage = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
+        const newLanguages = [...languages.filter(l => l !== language)];
         if (newLanguages.length === 0) return;
         setLanguage(newLanguages[0]);
         removeTranslation(field, meta, helpers, language);
@@ -57,5 +57,5 @@ export function useTranslatedFields({
         languages,
         setLanguage,
         translationErrors,
-    }
+    };
 }

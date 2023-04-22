@@ -10,7 +10,7 @@ export const quizAttemptYou: GqlPartial<QuizAttemptYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const quizAttempt: GqlPartial<QuizAttempt> = {
     __typename: "QuizAttempt",
@@ -31,4 +31,4 @@ export const quizAttempt: GqlPartial<QuizAttempt> = {
         responses: async () => rel((await import("./quizQuestionResponse")).quizQuestionResponse, "full"),
     },
     list: {},
-}
+};

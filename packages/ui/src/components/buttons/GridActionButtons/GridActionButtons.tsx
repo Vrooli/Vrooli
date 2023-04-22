@@ -32,5 +32,5 @@ export const GridActionButtons = ({
         >
             {children}
         </Grid>
-    )
-}
+    );
+};

@@ -1,6 +1,6 @@
 import {
     Breadcrumbs,
-    Link
+    Link,
 } from "@mui/material";
 import { useMemo } from "react";
 import { noSelect } from "../../../styles";
@@ -22,12 +22,12 @@ export const BreadcrumbsBase = ({
                 key={p.text}
                 color={textColor}
                 href={p.link}
-                onClick={(e) => { e.preventDefault(); openLink(setLocation, p.link) }}
+                onClick={(e) => { e.preventDefault(); openLink(setLocation, p.link); }}
             >
                 {window.location.pathname === p.link ? <b>{p.text}</b> : p.text}
             </Link>
         ))
-    ), [setLocation, paths, textColor])
+    ), [setLocation, paths, textColor]);
 
     return (
         <Breadcrumbs
@@ -41,7 +41,7 @@ export const BreadcrumbsBase = ({
                     alignItems: "center",
                     cursor: "pointer",
                     ...noSelect,
-                }
+                },
             }}
             separator={separator}
             aria-label={ariaLabel}
@@ -49,4 +49,4 @@ export const BreadcrumbsBase = ({
             {pathLinks}
         </Breadcrumbs>
     );
-}
+};

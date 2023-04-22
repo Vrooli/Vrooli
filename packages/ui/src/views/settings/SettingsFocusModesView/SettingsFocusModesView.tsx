@@ -59,11 +59,11 @@ export const SettingsFocusModesView = ({
                             onSuccess: () => {
                                 setFocusModes((prevFocusModes) => prevFocusModes.filter((prevFocusMode) => prevFocusMode.id !== focusMode.id));
                             },
-                        })
-                    }
+                        });
+                    },
                 },
                 { labelKey: "Cancel" },
-            ]
+            ],
         });
     }, [deleteMutation, focusModes.length]);
 
@@ -127,8 +127,8 @@ export const SettingsFocusModesView = ({
             __typename: "ActiveFocusMode" as const,
             mode: newFocusMode,
             stopCondition: FocusModeStopCondition.NextBegins,
-        })
-    }
+        });
+    };
 
     return (
         <>
@@ -245,5 +245,5 @@ export const SettingsFocusModesView = ({
                 </Stack>
             </Stack>
         </>
-    )
-}
+    );
+};

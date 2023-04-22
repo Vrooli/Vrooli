@@ -15,7 +15,7 @@ export const GeneratedInputComponentWithLabel = ({
     textPrimary,
     zIndex,
 }: GeneratedInputComponentWithLabelProps) => {
-    console.log('rendering input component with label');
+    console.log("rendering input component with label");
     const { t } = useTranslation();
 
     const inputComponent = useMemo(() => {
@@ -25,8 +25,8 @@ export const GeneratedInputComponentWithLabel = ({
             index={index}
             onUpload={() => { }}
             zIndex={zIndex}
-        />
-    }, [fieldData, index, zIndex])
+        />;
+    }, [fieldData, index, zIndex]);
 
     return (
         <Box key={index} sx={{
@@ -36,17 +36,17 @@ export const GeneratedInputComponentWithLabel = ({
         }}>
             <>
                 {/* Label, help button, and copy iput icon */}
-                <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
-                    <Tooltip title={t(`CopyToClipboard`)}>
+                <Stack direction="row" spacing={0} sx={{ alignItems: "center" }}>
+                    <Tooltip title={t("CopyToClipboard")}>
                         <IconButton onClick={() => copyInput && copyInput(fieldData.fieldName)}>
                             <CopyIcon fill={textPrimary} />
                         </IconButton>
                     </Tooltip>
-                    <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? t(`Input`)}</Typography>
+                    <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? t("Input")}</Typography>
                     {fieldData.helpText && <HelpButton markdown={fieldData.helpText} />}
                 </Stack>
                 {inputComponent}
             </>
         </Box>
-    )
-}
+    );
+};

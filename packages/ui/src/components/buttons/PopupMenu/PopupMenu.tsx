@@ -44,11 +44,11 @@ export function PopupMenu({
                     "& .MuiPopover-paper": {
                         background: palette.primary.light,
                         borderRadius: "24px",
-                    }
+                    },
                 }}
             >
                 {children}
             </Popover>
         </>
-    )
+    );
 }

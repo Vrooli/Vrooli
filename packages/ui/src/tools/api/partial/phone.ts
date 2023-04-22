@@ -8,4 +8,4 @@ export const phone: GqlPartial<Phone> = {
         phoneNumber: true,
         verified: true,
     },
-}
+};

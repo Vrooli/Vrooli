@@ -53,7 +53,7 @@ const inputTypeToSearch: { [key in InputType]: (value: any) => any } = {
     [InputType.Switch]: (value) => value, //TODO 
     [InputType.TagSelector]: (value: Tag[]) => arrayConvert(value, ({ tag }) => tag),
     [InputType.TextField]: (value: string) => typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined,
-}
+};
 
 /**
  * Map for converting search URL values to input type values
@@ -72,7 +72,7 @@ const searchToInputType: { [key in InputType]: (value: any) => any } = {
     [InputType.Switch]: (value) => value, //TODO
     [InputType.TagSelector]: (value: string[]) => arrayConvert(value, (tag) => ({ tag })),
     [InputType.TextField]: (value: string) => value,
-}
+};
 
 /**
  * Converts formik values to search URL values 
@@ -93,7 +93,7 @@ export const convertFormikForSearch = (values: { [x: string]: any }, schema: For
     }
     // Return result
     return result;
-}
+};
 
 /**
  * Converts search URL values to formik values
@@ -116,4 +116,4 @@ export const convertSearchForFormik = (values: { [x: string]: any }, schema: For
     }
     // Return result
     return result;
-}
+};

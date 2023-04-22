@@ -41,8 +41,8 @@ const searchItems: PreSearchItem[] = [
         label: "Schedule",
         keywords: [],
         value: "Schedule",
-    }
-]
+    },
+];
 
 /**
  * Generates an app bar for both pages and dialogs
@@ -56,7 +56,7 @@ export const SettingsTopBar = ({
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>("");
 
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
     const onInputSelect = useCallback((newValue: any) => {
         if (!newValue) return;
         setLocation(newValue);
@@ -86,5 +86,5 @@ export const SettingsTopBar = ({
                 />
             </Box>}
         />
-    )
+    );
 };

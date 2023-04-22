@@ -10,7 +10,7 @@ import { CookiesSnackProps } from "../types";
  * "This site uses cookies" consent dialog
  */
 export const CookiesSnack = ({
-    handleClose
+    handleClose,
 }: CookiesSnackProps) => {
     const { palette } = useTheme();
     const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -21,13 +21,13 @@ export const CookiesSnack = ({
             performance: true,
             functional: true,
             targeting: true,
-        }
+        };
         // Set preference in local storage
         setCookiePreferences(preferences);
         // Close dialog
         setIsCustomizeOpen(false);
         handleClose();
-    }
+    };
 
     const handleCustomizeCookies = (preferences?: CookiePreferences) => {
         if (preferences) {
@@ -37,7 +37,7 @@ export const CookiesSnack = ({
         // Close dialog
         setIsCustomizeOpen(false);
         handleClose();
-    }
+    };
 
     return (
         <>
@@ -92,4 +92,4 @@ export const CookiesSnack = ({
             </Box>
         </>
     );
-}
+};

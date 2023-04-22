@@ -17,7 +17,7 @@ export const projectYou: GqlPartial<ProjectYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const project: GqlPartial<Project> = {
     __typename: "Project",
@@ -38,7 +38,7 @@ export const project: GqlPartial<Project> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         permissions: true,
         questionsCount: true,
@@ -60,5 +60,5 @@ export const project: GqlPartial<Project> = {
     nav: {
         id: true,
         isPrivate: true,
-    }
-}
+    },
+};

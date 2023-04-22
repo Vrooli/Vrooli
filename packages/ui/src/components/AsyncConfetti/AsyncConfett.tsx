@@ -27,7 +27,7 @@ export const AsyncConfetti = () => {
                 x: 0,
                 y: 40,
                 w: window.innerWidth,
-                h: 0
+                h: 0,
             }}
         />
     );

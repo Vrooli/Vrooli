@@ -14,7 +14,7 @@ export const apiVersionTranslation: GqlPartial<ApiVersionTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const apiVersion: GqlPartial<ApiVersion> = {
     __typename: "ApiVersion",
@@ -51,5 +51,5 @@ export const apiVersion: GqlPartial<ApiVersion> = {
         versionLabel: true,
         root: async () => rel((await import("./api")).api, "nav"),
         translations: () => rel(apiVersionTranslation, "list"),
-    }
-}
+    },
+};

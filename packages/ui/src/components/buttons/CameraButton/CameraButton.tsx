@@ -49,5 +49,5 @@ export const CameraButton = ({
     //         </Tooltip>
     //     </Box>
     // )
-    return {} as any
-}
+    return {} as any;
+};

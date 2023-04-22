@@ -17,7 +17,7 @@ export const standardYou: GqlPartial<StandardYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const standard: GqlPartial<Standard> = {
     __typename: "Standard",
@@ -38,7 +38,7 @@ export const standard: GqlPartial<Standard> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         permissions: true,
         questionsCount: true,
@@ -60,5 +60,5 @@ export const standard: GqlPartial<Standard> = {
     nav: {
         id: true,
         isPrivate: true,
-    }
-}
+    },
+};

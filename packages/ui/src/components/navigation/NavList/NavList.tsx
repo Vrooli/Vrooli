@@ -20,7 +20,7 @@ const navItemStyle = (palette: Palette) => ({
     "&:hover": {
         color: palette.secondary.light,
     },
-})
+});
 
 export const NavList = () => {
     const session = useContext(SessionContext);
@@ -36,11 +36,11 @@ export const NavList = () => {
     const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
     const openAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
         ev.stopPropagation();
-        setAccountMenuAnchor(ev.currentTarget)
+        setAccountMenuAnchor(ev.currentTarget);
     }, [setAccountMenuAnchor]);
     const closeAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
         ev.stopPropagation();
-        setAccountMenuAnchor(null)
+        setAccountMenuAnchor(null);
     }, []);
 
     return (
@@ -75,7 +75,7 @@ export const NavList = () => {
             {!checkIfLoggedIn(session) && (
                 <Button
                     href={LINKS.Start}
-                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start) }}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, LINKS.Start); }}
                     startIcon={<LogInIcon />}
                     sx={{
                         background: "#387e30",
@@ -104,4 +104,4 @@ export const NavList = () => {
             )}
         </Container>
     );
-}
+};

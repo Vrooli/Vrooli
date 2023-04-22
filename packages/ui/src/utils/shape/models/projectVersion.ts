@@ -20,8 +20,8 @@ export type ProjectVersionShape = Pick<ProjectVersion, "id" | "isComplete" | "is
 
 export const shapeProjectVersionTranslation: ShapeModel<ProjectVersionTranslationShape, ProjectVersionTranslationCreateInput, ProjectVersionTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description", "name"), a),
+};
 
 export const shapeProjectVersion: ShapeModel<ProjectVersionShape, ProjectVersionCreateInput, ProjectVersionUpdateInput> = {
     create: (d) => ({
@@ -36,6 +36,6 @@ export const shapeProjectVersion: ShapeModel<ProjectVersionShape, ProjectVersion
         ...updateRel(o, u, "directories", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),
         ...updateRel(o, u, "root", ["Update"], "one", shapeProject),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeProjectVersionTranslation),
-        ...updateRel(o, u, "suggestedNextByProject", ["Connect", "Disconnect"], "many")
-    }, a)
-}
+        ...updateRel(o, u, "suggestedNextByProject", ["Connect", "Disconnect"], "many"),
+    }, a),
+};

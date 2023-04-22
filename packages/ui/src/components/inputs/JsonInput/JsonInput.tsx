@@ -33,7 +33,7 @@ export const JsonInput = ({
         if (disabled) return;
         if ((field.value ?? "").length > 0 || !format) return;
         // Initialize with stringified format
-        let changedFormat: string = JSON.stringify(format);
+        const changedFormat: string = JSON.stringify(format);
         // If variables not set, return stringified format
         if (!variables) {
             helpers.setValue(changedFormat);
@@ -145,4 +145,4 @@ export const JsonInput = ({
             {meta.touched && !!meta.error && <Typography variant="body1" sx={{ color: "red" }}>{meta.error}</Typography>}
         </Stack>
     );
-}
+};

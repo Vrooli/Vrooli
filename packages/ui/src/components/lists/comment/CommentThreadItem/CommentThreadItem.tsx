@@ -65,11 +65,11 @@ export function CommentThreadItem({
                                 handleCommentRemove(data);
                             },
                             errorMessage: () => ({ key: "DeleteCommentFailed" }),
-                        })
-                    }
+                        });
+                    },
                 },
                 { labelKey: "Cancel" },
-            ]
+            ],
         });
     }, [data, deleteMutation, handleCommentRemove]);
 
@@ -77,11 +77,11 @@ export function CommentThreadItem({
     const [commentToUpdate, setCommentToUpdate] = useState<Comment | undefined>(undefined);
     const handleUpsertCommentOpen = useCallback((comment?: Comment) => {
         comment && setCommentToUpdate(comment);
-        setIsUpsertCommentOpen(true)
+        setIsUpsertCommentOpen(true);
     }, []);
     const handleUpsertCommentClose = useCallback(() => {
         setCommentToUpdate(undefined);
-        setIsUpsertCommentOpen(false)
+        setIsUpsertCommentOpen(false);
     }, []);
 
     return (
@@ -117,7 +117,7 @@ export function CommentThreadItem({
                                         label: {
                                             color: palette.background.textPrimary,
                                             fontWeight: "bold",
-                                        }
+                                        },
                                     }} />}
                                 {canUpdate && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
                                     primary={"(Can Edit)"}
@@ -169,7 +169,7 @@ export function CommentThreadItem({
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
-                                onClick={() => { handleUpsertCommentOpen() }}
+                                onClick={() => { handleUpsertCommentOpen(); }}
                             >
                                 <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
@@ -205,5 +205,5 @@ export function CommentThreadItem({
                 </Stack>
             </ListItem>
         </>
-    )
+    );
 }

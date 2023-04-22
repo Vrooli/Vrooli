@@ -12,4 +12,4 @@ export const chatParticipant: GqlPartial<ChatParticipant> = {
     list: {
         user: async () => rel((await import("./user")).user, "nav"),
     },
-}
+};

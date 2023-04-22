@@ -69,5 +69,5 @@ export function TextSizeButtons() {
                 </Tooltip>
             </Stack>
         </Stack>
-    )
+    );
 }

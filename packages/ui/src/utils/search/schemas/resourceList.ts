@@ -8,6 +8,6 @@ export const resourceListSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchResourceList"),
     containers: [], //TODO
     fields: [], //TODO
-})
+});
 
-export const resourceListSearchParams = () => toParams(resourceListSearchSchema(), resourceListFindMany, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc)
+export const resourceListSearchParams = () => toParams(resourceListSearchSchema(), resourceListFindMany, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc);

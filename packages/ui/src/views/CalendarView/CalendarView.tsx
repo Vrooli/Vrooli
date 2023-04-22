@@ -202,7 +202,7 @@ export const CalendarView = ({
     useEffect(() => {
         const localeLoader = async () => {
             try {
-                const localeModule = await loadLocale(locale as any)
+                const localeModule = await loadLocale(locale as any);
 
                 const newLocalizer = dateFnsLocalizer({
                     format,
@@ -257,7 +257,7 @@ export const CalendarView = ({
         // Update search params
         addSearchParams(setLocation, { type: tab.value });
         // Update curr tab
-        setCurrTab(tab)
+        setCurrTab(tab);
     }, [setLocation]);
 
     // Find schedules
@@ -324,12 +324,12 @@ export const CalendarView = ({
     // Handle scheduling
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-    const handleAddSchedule = () => { setIsScheduleDialogOpen(true) };
+    const handleAddSchedule = () => { setIsScheduleDialogOpen(true); };
     const handleUpdateSchedule = (schedule: Schedule) => {
         setEditingSchedule(schedule);
         setIsScheduleDialogOpen(true);
     };
-    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false) };
+    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
     const handleScheduleCreated = (created: Schedule) => {
         //TODO
         setIsScheduleDialogOpen(false);
@@ -342,7 +342,7 @@ export const CalendarView = ({
         //TODO
     };
 
-    if (!localizer) return <FullPageSpinner />
+    if (!localizer) return <FullPageSpinner />;
     return (
         <>
             {/* Dialog for creating/updating schedules */}
@@ -401,5 +401,5 @@ export const CalendarView = ({
                 }}
             />
         </>
-    )
-}
+    );
+};

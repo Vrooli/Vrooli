@@ -21,7 +21,7 @@ export const standardVersionSearchSchema = (): FormSchema => ({
         ...bookmarksRootFields(),
         ...languagesFields(),
         ...tagsRootFields(),
-    ]
-})
+    ],
+});
 
 export const standardVersionSearchParams = () => toParams(standardVersionSearchSchema(), standardVersionFindMany, StandardVersionSortBy, StandardVersionSortBy.DateCreatedDesc);

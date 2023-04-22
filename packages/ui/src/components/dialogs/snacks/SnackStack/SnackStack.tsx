@@ -30,7 +30,7 @@ export const SnackStack = () => {
     // Subscribe to snack events
     useEffect(() => {
         // Subscribe to basic snacks
-        let snackSub = PubSub.get().subscribeSnack((o) => {
+        const snackSub = PubSub.get().subscribeSnack((o) => {
             // Add the snack to the queue
             setSnacks((snacks) => {
                 // event can define an id, or we generate one
@@ -56,18 +56,18 @@ export const SnackStack = () => {
             });
         });
         // Subscribe to special snack events
-        let cookiesSub = PubSub.get().subscribeCookies(() => {
+        const cookiesSub = PubSub.get().subscribeCookies(() => {
             // Ignore if in standalone mode
             if (getDeviceInfo().isStandalone) return;
             setIsCookieSnackOpen(true);
         });
         return () => {
-            PubSub.get().unsubscribe(snackSub)
-            PubSub.get().unsubscribe(cookiesSub)
+            PubSub.get().unsubscribe(snackSub);
+            PubSub.get().unsubscribe(cookiesSub);
         };
-    }, [t])
+    }, [t]);
 
-    let visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
+    const visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
 
     return (
         // Snacks displayed in bottom left corner
@@ -92,4 +92,4 @@ export const SnackStack = () => {
             {isCookieSnackOpen && <CookiesSnack handleClose={() => setIsCookieSnackOpen(false)} />}
         </Stack>
     );
-}
+};

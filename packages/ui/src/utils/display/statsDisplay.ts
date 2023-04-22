@@ -1,7 +1,7 @@
 /**
  * Aggregate stats object
  */
-export type StatsAggregate<T extends { [key: string]: any; }> = Omit<T, '__typename' | 'id' | 'periodStart' | 'periodEnd' | 'periodType'>;
+export type StatsAggregate<T extends { [key: string]: any; }> = Omit<T, "__typename" | "id" | "periodStart" | "periodEnd" | "periodType">;
 
 /**
  * Stats object shaped for generating line graphs. 
@@ -28,12 +28,12 @@ export const statsDisplay = <Stat extends { [key: string]: any; }>(stats: Stat[]
         // Loop through fields in stat
         for (const key of Object.keys(stat)) {
             // Ignore id, periodStart, periodEnd, and periodType
-            if (['__typename', 'id', 'periodStart', 'periodEnd', 'periodType'].includes(key)) continue;
+            if (["__typename", "id", "periodStart", "periodEnd", "periodType"].includes(key)) continue;
             // Ignore if not a number (should all be numbers at this point, but you never know)
-            if (typeof stat[key] !== 'number') continue;
+            if (typeof stat[key] !== "number") continue;
             // If field starts with 'active' (e.g. 'activeUsers'), set aggregate value if it is greater than the current value
             // This will give us the highest occurrence (max) of the field
-            if (key.startsWith('active')) {
+            if (key.startsWith("active")) {
                 if (aggregate[key] === undefined || stat[key] > aggregate[key]) {
                     (aggregate as any)[key] = stat[key];
                 }
@@ -50,10 +50,10 @@ export const statsDisplay = <Stat extends { [key: string]: any; }>(stats: Stat[]
     // Loop through result fields
     for (const key of Object.keys(aggregate)) {
         // If field ends with 'Average', divide by number of stats
-        if (key.endsWith('Average')) {
+        if (key.endsWith("Average")) {
             (aggregate as any)[key] = (aggregate as any)[key] / stats.length;
         }
     }
     // Return result
     return { aggregate, visual };
-}
+};

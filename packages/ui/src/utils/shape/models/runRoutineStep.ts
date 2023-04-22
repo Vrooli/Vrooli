@@ -8,5 +8,5 @@ export type RunRoutineStepShape = Pick<RunRoutineStep, "id"> & {
 
 export const shapeRunRoutineStep: ShapeModel<RunRoutineStepShape, RunRoutineStepCreateInput, RunRoutineStepUpdateInput> = {
     create: (d) => ({}) as any,
-    update: (o, u, a) => shapeUpdate(u, {}, a) as any
-}
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any,
+};

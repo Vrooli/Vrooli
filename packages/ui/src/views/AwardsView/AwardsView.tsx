@@ -23,7 +23,7 @@ const categoryList = Object.values(AwardCategory);
 //TODO store title and description for category (i.e. no tier) in awards.json
 
 export const AwardsView = ({
-    display = 'page',
+    display = "page",
 }: AwardsViewProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -33,14 +33,14 @@ export const AwardsView = ({
     const [awards, setAwards] = useState<AwardDisplay[]>(() => {
         // 0-progress awards may not be initialized in the backend, so we need to initialize them here
         const noProgressAwards = Object.values(AwardCategory).map((category) => ({
-            category: category,
-            title: t(`${category}UnearnedTitle` as AwardKey, { ns: 'award' }),
-            description: t(`${category}UnearnedBody` as AwardKey, { ns: 'award' }),
+            category,
+            title: t(`${category}UnearnedTitle` as AwardKey, { ns: "award" }),
+            description: t(`${category}UnearnedBody` as AwardKey, { ns: "award" }),
             progress: 0,
         })) as Award[];
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
-    const { data, refetch, loading, error } = useQuery<Wrap<AwardSearchResult, 'awards'>, Wrap<AwardSearchInput, 'input'>>(awardFindMany, { variables: { input: {} }, errorPolicy: 'all' });
+    const { data, refetch, loading, error } = useQuery<Wrap<AwardSearchResult, "awards">, Wrap<AwardSearchInput, "input">>(awardFindMany, { variables: { input: {} }, errorPolicy: "all" });
     useDisplayApolloError(error);
     useEffect(() => {
         if (!data) return;
@@ -56,7 +56,7 @@ export const AwardsView = ({
                 display={display}
                 onClose={() => { }}
                 titleData={{
-                    titleKey: 'Award',
+                    titleKey: "Award",
                     titleVariables: { count: 2 },
                 }}
             />
@@ -93,5 +93,5 @@ export const AwardsView = ({
                 </ContentCollapse>
             </Stack>
         </>
-    )
-}
+    );
+};

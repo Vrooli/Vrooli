@@ -12,7 +12,7 @@ export const questionTranslation: GqlPartial<QuestionTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const questionYou: GqlPartial<QuestionYou> = {
     __typename: "QuestionYou",
@@ -21,7 +21,7 @@ export const questionYou: GqlPartial<QuestionYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const question: GqlPartial<Question> = {
     __typename: "Question",
@@ -56,7 +56,7 @@ export const question: GqlPartial<Question> = {
                 Routine: 4,
                 SmartContract: 5,
                 Standard: 6,
-            }
+            },
         },
         tags: { __use: 7 },
         you: () => rel(questionYou, "full"),
@@ -67,5 +67,5 @@ export const question: GqlPartial<Question> = {
     },
     list: {
         translations: () => rel(questionTranslation, "list"),
-    }
-}
+    },
+};

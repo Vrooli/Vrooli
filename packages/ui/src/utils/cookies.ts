@@ -15,7 +15,7 @@ export const Cookies = {
     IsLeftHanded: "isLeftHanded",
     FocusModeActive: "focusModeActive",
     FocusModeAll: "focusModeAll",
-}
+};
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export type Cookies = ValueOf<typeof Cookies>;
 
@@ -41,11 +41,11 @@ export const getCookie = <T>(name: Cookies, typeCheck: (value: any) => value is 
         console.warn(`Failed to parse cookie ${name}`, cookie);
     }
     return undefined;
-}
+};
 
 export const setCookie = (name: Cookies, value: any) => {
     localStorage.setItem(name, JSON.stringify(value));
-}
+};
 
 /**
  * Gets a cookie if it exists, otherwise sets it to the default value. 
@@ -56,7 +56,7 @@ export const getOrSetCookie = <T>(name: Cookies, typeCheck: (value: any) => valu
     if (exists(cookie)) return cookie;
     if (exists(defaultValue)) setCookie(name, defaultValue);
     return defaultValue;
-}
+};
 
 /**
  * Finds the user's cookie preferences.
@@ -70,7 +70,7 @@ export const getCookiePreferences = (): CookiePreferences | null => {
             performance: true,
             functional: true,
             targeting: true,
-        }
+        };
     }
     const cookie = getCookie(Cookies.Preferences, (value: any): value is CookiePreferences => typeof value === "object");
     if (!cookie) return null;
@@ -79,8 +79,8 @@ export const getCookiePreferences = (): CookiePreferences | null => {
         performance: cookie.performance || false,
         functional: cookie.functional || false,
         targeting: cookie.targeting || false,
-    }
-}
+    };
+};
 
 /**
  * Sets the user's cookie preferences.
@@ -90,7 +90,7 @@ export const setCookiePreferences = (preferences: CookiePreferences) => {
     // Standalone apps don't set preferences
     if (getDeviceInfo().isStandalone) return;
     setCookie(Cookies.Preferences, preferences);
-}
+};
 
 /**
  * Sets a cookie only if the user has permitted the cookie's type. 
@@ -107,7 +107,7 @@ export const onlyIfCookieAllowed = (cookieType: keyof CookiePreferences, callbac
     else {
         console.warn(`Not allowed to get/set cookie ${cookieType}`);
     }
-}
+};
 
 type ThemeType = "light" | "dark";
 export const getCookieTheme = <T extends ThemeType | undefined>(fallback?: T): T =>
@@ -115,17 +115,17 @@ export const getCookieTheme = <T extends ThemeType | undefined>(fallback?: T): T
         getOrSetCookie(Cookies.Theme, (value: any): value is ThemeType => value === "light" || value === "dark", fallback));
 
 export const setCookieTheme = (theme: ThemeType) =>
-    onlyIfCookieAllowed("functional", () => setCookie(Cookies.Theme, theme))
+    onlyIfCookieAllowed("functional", () => setCookie(Cookies.Theme, theme));
 
 export const getCookieFontSize = <T extends number | undefined>(fallback?: T): T =>
     onlyIfCookieAllowed("functional", () => {
         const size = getOrSetCookie(Cookies.FontSize, (value: any): value is number => typeof value === "number", fallback);
         // Ensure font size is not too small or too large. This would make the UI unusable.
         return size ? Math.max(8, Math.min(24, size)) : undefined;
-    })
+    });
 
 export const setCookieFontSize = (fontSize: number) =>
-    onlyIfCookieAllowed("functional", () => setCookie(Cookies.FontSize, fontSize))
+    onlyIfCookieAllowed("functional", () => setCookie(Cookies.FontSize, fontSize));
 
 export const getCookieLanguage = <T extends string | undefined>(fallback?: T): T =>
     onlyIfCookieAllowed("functional", () => getOrSetCookie(Cookies.Language, (value: any): value is string => typeof value === "string", fallback));

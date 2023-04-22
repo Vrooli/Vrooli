@@ -13,9 +13,9 @@ export function EllipsisActionButton({
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
 
     const Icon = useMemo(() => {
-        if (isOpen) return CloseIcon
-        return EllipsisIcon
-    }, [isOpen])
+        if (isOpen) return CloseIcon;
+        return EllipsisIcon;
+    }, [isOpen]);
 
     return (
         <>
@@ -48,5 +48,5 @@ export function EllipsisActionButton({
                 </ColorIconButton>
             </Tooltip>
         </>
-    )
+    );
 }

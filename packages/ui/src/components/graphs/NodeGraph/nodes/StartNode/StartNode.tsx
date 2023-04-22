@@ -36,7 +36,7 @@ export const StartNode = ({
             sx={{
                 ...noSelect,
                 ...nodeLabel,
-                fontSize: `min(${nodeSize / 5}px, 2em)`
+                fontSize: `min(${nodeSize / 5}px, 2em)`,
             } as CSSProperties}
         >
             {label}
@@ -49,7 +49,7 @@ export const StartNode = ({
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((target: EventTarget) => {
         if (!isEditing) return;
-        setContextAnchor(target)
+        setContextAnchor(target);
     }, [isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const pressEvents = usePress({
@@ -65,7 +65,7 @@ export const StartNode = ({
                 anchorEl={contextAnchor}
                 availableActions={[BuildAction.AddOutgoingLink]}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option as BuildAction.AddOutgoingLink, node.id) }}
+                handleSelect={(option) => { handleAction(option as BuildAction.AddOutgoingLink, node.id); }}
                 zIndex={zIndex + 1}
             />
             <Tooltip placement={"top"} title={label ?? ""}>
@@ -92,5 +92,5 @@ export const StartNode = ({
                 </Box>
             </Tooltip>
         </>
-    )
-}
+    );
+};

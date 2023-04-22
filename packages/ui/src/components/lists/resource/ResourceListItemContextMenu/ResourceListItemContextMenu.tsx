@@ -23,12 +23,12 @@ const listOptionsMap: { [key in ResourceContextMenuOption]: [string, SvgComponen
     [ResourceContextMenuOption.Delete]: ["Delete", DeleteIcon],
     [ResourceContextMenuOption.Move]: ["Move", MoveLeftRightIcon],
     [ResourceContextMenuOption.Share]: ["Share", ShareIcon],
-}
+};
 
 const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(listOptionsMap).map((o) => ({
     label: listOptionsMap[o][0],
     value: o as ResourceContextMenuOption,
-    Icon: listOptionsMap[o][1]
+    Icon: listOptionsMap[o][1],
 }));
 
 // Custom context menu for nodes
@@ -75,12 +75,12 @@ export const ResourceListItemContextMenu = ({
                 navigator.share({
                     title: name ?? undefined,
                     text: description ?? undefined,
-                    url: resource?.link
+                    url: resource?.link,
                 });
                 break;
         }
         onClose();
-    }
+    };
 
     const listOptionsFiltered = canUpdate ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
 
@@ -93,5 +93,5 @@ export const ResourceListItemContextMenu = ({
             onClose={onClose}
             zIndex={zIndex}
         />
-    )
-}
+    );
+};

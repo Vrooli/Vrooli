@@ -11,7 +11,7 @@ export const commentTranslation: GqlPartial<CommentTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const commentYou: GqlPartial<CommentYou> = {
     __typename: "CommentYou",
@@ -27,7 +27,7 @@ export const commentYou: GqlPartial<CommentYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const comment: GqlPartial<Comment> = {
     __typename: "Comment",
@@ -43,7 +43,7 @@ export const comment: GqlPartial<Comment> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         score: true,
         bookmarks: true,
@@ -79,14 +79,14 @@ export const comment: GqlPartial<Comment> = {
                 RoutineVersion: 8,
                 SmartContractVersion: 9,
                 StandardVersion: 10,
-            }
+            },
         },
         translations: () => rel(commentTranslation, "full"),
     },
     list: {
         translations: () => rel(commentTranslation, "list"),
-    }
-}
+    },
+};
 
 export const commentThread: GqlPartial<CommentThread> = {
     __typename: "CommentThread",
@@ -105,4 +105,4 @@ export const commentThread: GqlPartial<CommentThread> = {
         endCursor: true,
         totalInThread: true,
     },
-}
+};

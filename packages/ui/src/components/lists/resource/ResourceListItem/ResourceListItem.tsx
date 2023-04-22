@@ -28,7 +28,7 @@ const getResourceType = (link: string): ResourceType | null => {
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
     if (adaHandleRegex.test(link)) return ResourceType.Handle;
     return null;
-}
+};
 
 export function ResourceListItem({
     canUpdate,
@@ -69,9 +69,9 @@ export function ResourceListItem({
     }, [handleDelete, index]);
 
     const pressEvents = usePress({
-        onLongPress: (target) => { handleContextMenu(target, index) },
+        onLongPress: (target) => { handleContextMenu(target, index); },
         onClick: handleClick,
-        onRightClick: (target) => { handleContextMenu(target, index) },
+        onRightClick: (target) => { handleContextMenu(target, index); },
     });
 
     return (
@@ -124,5 +124,5 @@ export function ResourceListItem({
                 </IconButton>
             </ListItem>
         </Tooltip>
-    )
+    );
 }

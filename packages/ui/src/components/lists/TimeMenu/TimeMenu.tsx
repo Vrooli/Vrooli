@@ -10,13 +10,13 @@ import { TimeMenuProps } from "../types";
  * Map time selections to time length in milliseconds
  */
 const timeOptions = {
-    'All Time': undefined,
-    'Past Year': 31536000000,
-    'Past Month': 2592000000,
-    'Past Week': 604800000,
-    'Past 24 Hours': 86400000,
-    'Past Hour': 3600000,
-}
+    "All Time": undefined,
+    "Past Year": 31536000000,
+    "Past Month": 2592000000,
+    "Past Week": 604800000,
+    "Past 24 Hours": 86400000,
+    "Past Hour": 3600000,
+};
 
 export function TimeMenu({
     anchorEl,
@@ -29,7 +29,7 @@ export function TimeMenu({
     const [customRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
     const handleTimeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
     const handleTimeClose = () => {
-        setCustomRangeAnchorEl(null)
+        setCustomRangeAnchorEl(null);
     };
 
     const menuItems = useMemo(() => Object.keys(timeOptions).map((label: string) => (
@@ -37,13 +37,13 @@ export function TimeMenu({
             key={label}
             value={timeOptions[label]}
             onClick={() => {
-                if (!timeOptions[label]) onClose(label)
-                else onClose(label.replace('Past ', ''), { after: new Date(Date.now() - timeOptions[label]) })
+                if (!timeOptions[label]) onClose(label);
+                else onClose(label.replace("Past ", ""), { after: new Date(Date.now() - timeOptions[label]) });
             }}
         >
             {label}
         </MenuItem>
-    )), [onClose])
+    )), [onClose]);
 
     return (
         <Menu
@@ -52,7 +52,7 @@ export function TimeMenu({
             disableScrollLock={true}
             open={open}
             onClose={() => onClose()}
-            MenuListProps={{ 'aria-labelledby': 'results-time-menu-list' }}
+            MenuListProps={{ "aria-labelledby": "results-time-menu-list" }}
         >
             {menuItems}
             <MenuItem
@@ -60,13 +60,13 @@ export function TimeMenu({
                 value='custom'
                 onClick={handleTimeOpen}
             >
-                {t('CustomRange')}
+                {t("CustomRange")}
             </MenuItem>
             <DateRangeMenu
                 anchorEl={customRangeAnchorEl}
                 onClose={handleTimeClose}
-                onSubmit={(after, before) => onClose('Custom', { after, before })}
+                onSubmit={(after, before) => onClose("Custom", { after, before })}
             />
         </Menu>
-    )
+    );
 }

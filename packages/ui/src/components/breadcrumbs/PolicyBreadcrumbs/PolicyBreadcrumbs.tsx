@@ -10,9 +10,9 @@ export const PolicyBreadcrumbs = ({
     return BreadcrumbsBase({
         paths: [
             [t("Privacy"), LINKS.Privacy],
-            [t("Terms"), LINKS.Terms]
+            [t("Terms"), LINKS.Terms],
         ].map(row => ({ text: row[0], link: row[1] })),
         ariaLabel: "Policies breadcrumb",
-        ...props
-    })
-}
+        ...props,
+    });
+};

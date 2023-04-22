@@ -4,7 +4,7 @@ import {
     Box,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { LINKS, SOCIALS } from "@shared/consts";
 import { ArticleIcon, DiscordIcon, GitHubIcon, InfoIcon, StatsIcon, SvgComponent, TwitterIcon } from "@shared/icons";
@@ -38,13 +38,13 @@ export const ContactInfo = ({
                 [t("ContactHelpDiscord"), "Discord", SOCIALS.Discord, DiscordIcon],
                 [t("ContactHelpCode"), "Code", SOCIALS.GitHub, GitHubIcon],
             ] as NavActionListData[],
-        }
+        };
     }, [t]);
 
     const handleLink = (e: React.MouseEvent<any>, link: string) => {
         e.preventDefault();
         openLink(setLocation, link);
-    }
+    };
 
     return (
         <Box sx={{
@@ -52,7 +52,7 @@ export const ContactInfo = ({
             height: "fit-content",
             background: palette.background.default,
             padding: 1,
-            ...(sx ?? {})
+            ...(sx ?? {}),
         }} {...props}>
             <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t("FindUsOn")}</Typography>
             <BottomNavigation
@@ -68,7 +68,7 @@ export const ContactInfo = ({
                     <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
                             href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >
@@ -97,7 +97,7 @@ export const ContactInfo = ({
                     <Tooltip key={`additional-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
                             href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >
@@ -116,4 +116,4 @@ export const ContactInfo = ({
             <CopyrightBreadcrumbs sx={{ color: palette.background.textPrimary }} />
         </Box>
     );
-}
+};

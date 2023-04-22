@@ -11,7 +11,7 @@ export const roleTranslation: GqlPartial<RoleTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const role: GqlPartial<Role> = {
     __typename: "Role",
@@ -29,4 +29,4 @@ export const role: GqlPartial<Role> = {
         members: async () => rel((await import("./member")).member, "nav", { omit: "reminder" }),
     },
     list: {},
-}
+};

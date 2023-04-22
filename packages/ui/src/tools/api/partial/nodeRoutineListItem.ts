@@ -12,7 +12,7 @@ export const nodeRoutineListItemTranslation: GqlPartial<NodeRoutineListItemTrans
     },
     full: {},
     list: {},
-}
+};
 
 export const nodeRoutineListItem: GqlPartial<NodeRoutineListItem> = {
     __typename: "NodeRoutineListItem",
@@ -24,4 +24,4 @@ export const nodeRoutineListItem: GqlPartial<NodeRoutineListItem> = {
     },
     full: {},
     list: {},
-}
+};

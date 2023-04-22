@@ -78,5 +78,5 @@ export const LanguageInput = ({
                 )
             }
         </Stack>
-    )
-}
+    );
+};

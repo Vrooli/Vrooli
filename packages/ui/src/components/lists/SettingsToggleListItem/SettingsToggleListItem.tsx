@@ -17,15 +17,15 @@ export const SettingsToggleListItem = ({
             disablePadding
             component="a"
             sx={{
-                display: 'flex',
+                display: "flex",
                 background: palette.background.paper,
-                padding: '8px 16px',
-                cursor: 'pointer',
+                padding: "8px 16px",
+                cursor: "pointer",
                 borderBottom: `1px solid ${palette.divider}`,
             }}
         >
             <Stack direction="column" spacing={0} sx={{
-                width: '100%',
+                width: "100%",
                 color: disabled ? palette.text.disabled : palette.text.primary,
             }}>
                 <Typography variant="h6" component="div">
@@ -42,5 +42,5 @@ export const SettingsToggleListItem = ({
                 onChange={field.onChange}
             />
         </ListItem>
-    )
-}
+    );
+};

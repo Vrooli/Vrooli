@@ -18,7 +18,7 @@ type UseVoterProps = {
 export const useVoter = ({
     objectId,
     objectType,
-    onActionComplete
+    onActionComplete,
 }: UseVoterProps) => {
     const [mutation] = useCustomMutation<Success, ReactInput>(reactionReact);
 
@@ -39,11 +39,11 @@ export const useVoter = ({
             input: {
                 emoji,
                 forConnect: objectId,
-                reactionFor: ReactionFor[objectType]
+                reactionFor: ReactionFor[objectType],
             },
-            onSuccess: (data) => { onActionComplete(getReactionScore(emoji) > 0 ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
-        })
+            onSuccess: (data) => { onActionComplete(getReactionScore(emoji) > 0 ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data); },
+        });
     }, [hasVotingSupport, mutation, objectId, objectType, onActionComplete]);
 
     return { handleVote, hasVotingSupport };
-}
+};

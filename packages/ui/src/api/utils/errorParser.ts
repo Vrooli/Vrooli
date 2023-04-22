@@ -17,7 +17,7 @@ export const errorToCode = (error: ApolloError): ErrorKey => {
         }
     }
     // If code not found, return default
-    return 'ErrorUnknown';
+    return "ErrorUnknown";
 };
 
 /**
@@ -47,6 +47,6 @@ export const errorToMessage = (error: ApolloError): string => {
  */
 export const hasErrorCode = (error: ApolloError, code: ErrorKey): boolean => {
     return Array.isArray(error.graphQLErrors) && error.graphQLErrors.some(e =>
-        e.extensions?.code === code
+        e.extensions?.code === code,
     );
-}
+};

@@ -17,7 +17,7 @@ export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
     [ResourceUsedFor.Researching]: ResearchIcon,
     [ResourceUsedFor.Scheduling]: ScheduleIcon,
     [ResourceUsedFor.Tutorial]: HelpIcon,
-}
+};
 
 export const ResourceSocialIconMap: { [key: string]: SvgComponent } = {
     "default": DefaultSocialIcon,
@@ -29,7 +29,7 @@ export const ResourceSocialIconMap: { [key: string]: SvgComponent } = {
     "vimeo": SocialVideoIcon,
     "youtube": YouTubeIcon,
     "reddit": RedditIcon,
-}
+};
 
 /**
  * Maps resource type to icon
@@ -56,4 +56,4 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string): any =>
     }
     if (usedFor in ResourceIconMap) return ResourceIconMap[usedFor];
     return LinkIcon;
-}
+};

@@ -40,7 +40,7 @@ export const ScheduleDialog = ({
     const transformValues = useCallback((values: ScheduleShape) => {
         return isCreate
             ? shapeSchedule.create(values)
-            : shapeSchedule.update(partialData as any, values)
+            : shapeSchedule.update(partialData as any, values);
 
     }, [isCreate, partialData]);
 
@@ -53,7 +53,7 @@ export const ScheduleDialog = ({
             const result = await validateAndGetYupErrors(validationSchema, transformedValues);
             return result;
         },
-        [isCreate, transformValues]
+        [isCreate, transformValues],
     );
 
     return (
@@ -92,7 +92,7 @@ export const ScheduleDialog = ({
                                 isCreate ? onCreated(data) : onUpdated(data);
                                 helpers.resetForm();
                                 onClose();
-                            }
+                            };
                             console.log("yeeeet", values, shapeSchedule.create(values));
                             if (!isCreate && (!partialData || !partialData.id)) {
                                 PubSub.get().publishSnack({ messageKey: "ScheduleNotFound", severity: "Error" });
@@ -104,8 +104,8 @@ export const ScheduleDialog = ({
                                 successMessage: () => ({ key: isCreate ? "ScheduleCreated" : "ScheduleUpdated" }),
                                 successCondition: (data) => data !== null,
                                 onSuccess,
-                                onError: () => { helpers.setSubmitting(false) },
-                            })
+                                onError: () => { helpers.setSubmitting(false); },
+                            });
                         } else {
                             onCreated({
                                 ...values,
@@ -131,5 +131,5 @@ export const ScheduleDialog = ({
                 </Formik>
             </LargeDialog>
         </>
-    )
-}
+    );
+};

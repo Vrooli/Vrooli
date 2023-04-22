@@ -29,7 +29,7 @@ export const toSearch = async <
             pageInfo: {
                 endCursor: true,
                 hasNextPage: true,
-            }
-        }
-    }, "list"]
-}
+            },
+        },
+    }, "list"];
+};

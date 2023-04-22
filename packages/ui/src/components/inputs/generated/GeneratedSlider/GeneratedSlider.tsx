@@ -8,7 +8,7 @@ export const GeneratedSlider = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering slider');
+    console.log("rendering slider");
     const [field] = useField(fieldData.fieldName);
     const props = useMemo(() => fieldData.props as SliderProps, [fieldData.props]);
 
@@ -28,4 +28,4 @@ export const GeneratedSlider = ({
             tabIndex={index}
         />
     );
-}
+};

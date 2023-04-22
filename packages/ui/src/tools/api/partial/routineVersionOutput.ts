@@ -12,7 +12,7 @@ export const routineVersionOutputTranslation: GqlPartial<RoutineVersionOutputTra
     },
     full: {},
     list: {},
-}
+};
 
 export const routineVersionOutput: GqlPartial<RoutineVersionOutput> = {
     __typename: "RoutineVersionOutput",
@@ -25,4 +25,4 @@ export const routineVersionOutput: GqlPartial<RoutineVersionOutput> = {
     },
     full: {},
     list: {},
-}
+};

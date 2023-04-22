@@ -17,23 +17,23 @@ export const SettingsPrivacyForm = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [isPrivateField] = useField<boolean>('isPrivate');
+    const [isPrivateField] = useField<boolean>("isPrivate");
 
     return (
         <BaseForm
             dirty={dirty}
             isLoading={isLoading}
             style={{
-                width: { xs: '100%', md: 'min(100%, 700px)' },
-                margin: 'auto',
-                display: 'block',
+                width: { xs: "100%", md: "min(100%, 700px)" },
+                margin: "auto",
+                display: "block",
             }}
         >
             {/* Overall notifications toggle */}
             <ListContainer>
                 <SettingsToggleListItem
-                    title={t('PrivateAccount')}
-                    description={t('PushNotificationToggleDescription')}
+                    title={t("PrivateAccount")}
+                    description={t("PushNotificationToggleDescription")}
                     name="isPrivate"
                 />
             </ListContainer>
@@ -50,35 +50,35 @@ export const SettingsPrivacyForm = ({
             <ListContainer>
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateApis')}
+                    title={t("PrivateApis")}
                     name="isPrivateApis"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateBookmarks')}
+                    title={t("PrivateBookmarks")}
                     name="isPrivateBookmarks"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateProjects')}
+                    title={t("PrivateProjects")}
                     name="isPrivateProjects"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateRoutines')}
+                    title={t("PrivateRoutines")}
                     name="isPrivateRoutines"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateSmartContracts')}
+                    title={t("PrivateSmartContracts")}
                     name="isPrivateSmartContracts"
                 />
                 <SettingsToggleListItem
                     disabled={isPrivateField.value}
-                    title={t('PrivateStandards')}
+                    title={t("PrivateStandards")}
                     name="isPrivateStandards"
                 />
             </ListContainer>
         </BaseForm>
-    )
-}
+    );
+};

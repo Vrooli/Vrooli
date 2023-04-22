@@ -7,7 +7,7 @@ import { PushListItemProps } from "../types";
 const Status = {
     NotVerified: "#a71c2d", // Red
     Verified: "#19972b", // Green
-}
+};
 
 //  TODO copied from emaillistitem. need to rewrite
 export function PushListItem({
@@ -63,5 +63,5 @@ export function PushListItem({
                 </Tooltip>
             </Stack>
         </ListItem>
-    )
+    );
 }

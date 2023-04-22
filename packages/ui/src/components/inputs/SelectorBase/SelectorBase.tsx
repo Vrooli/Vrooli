@@ -95,7 +95,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 label={label}
                 labelId={inputAriaLabel}
                 name={name}
-                onChange={(e) => { onChange(findOption(e.target.value as string) as T) }}
+                onChange={(e) => { onChange(findOption(e.target.value as string) as T); }}
                 onBlur={onBlur}
                 required={required}
                 value={exists(value) ? getOptionLabel(value) : ""}
@@ -108,7 +108,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                         paddingBottom: "12px",
                         display: "flex",
                         alignItems: "center",
-                    }
+                    },
                 }}
                 tabIndex={tabIndex}
             >

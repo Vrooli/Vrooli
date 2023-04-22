@@ -10,7 +10,7 @@ export const useProfileQuery = () => {
     const [getData, { data, loading: isProfileLoading }] = useCustomLazyQuery<User, undefined>(userProfile, { errorPolicy: "all" });
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
-    }, [getData, session])
+    }, [getData, session]);
     const [profile, setProfile] = useState<User | undefined>(undefined);
     useEffect(() => {
         if (data) setProfile(data);
@@ -22,6 +22,6 @@ export const useProfileQuery = () => {
     return {
         onProfileUpdate,
         isProfileLoading,
-        profile
-    }
-}
+        profile,
+    };
+};

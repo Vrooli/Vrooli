@@ -13,5 +13,5 @@ export function labelledSortOptions<SortBy>(sortValues: { [x in keyof CommonKey]
     return Object.keys(sortValues).map((key) => ({
         label: (i18next.t(key as CommonKey, key)) as unknown as string,
         value: key as unknown as SortBy,
-    }))
+    }));
 }

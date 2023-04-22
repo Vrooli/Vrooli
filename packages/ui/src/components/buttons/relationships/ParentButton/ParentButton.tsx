@@ -28,7 +28,7 @@ export function ParentButton({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const languages = useMemo(() => getUserLanguages(session), [session])
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [versionField, , versionHelpers] = useField("parent");
     const [rootField, , rootHelpers] = useField("root.parent");
@@ -59,7 +59,7 @@ export function ParentButton({
                         buttons: [
                             { labelKey: "Yes", onClick: () => { setParentDialogOpen(true); } },
                             { labelKey: "No", onClick: () => { } },
-                        ]
+                        ],
                     });
                 }
                 // Otherwise, open parent select dialog
@@ -86,7 +86,7 @@ export function ParentButton({
         const parent = versionField?.value ?? rootField?.value;
         if (!parent) return {
             Icon: null,
-            tooltip: isEditing ? "" : "Press to copy from a parent (will override entered data)"
+            tooltip: isEditing ? "" : "Press to copy from a parent (will override entered data)",
         };
         // If parent is project, use project icon
         if (parent.__typename === "ProjectVersion") {
@@ -94,7 +94,7 @@ export function ParentButton({
             const parentName = firstString(getTranslation(parent as RelationshipItemProjectVersion, languages, true).name, "project");
             return {
                 Icon,
-                tooltip: `${t("Parent")}: ${parentName}`
+                tooltip: `${t("Parent")}: ${parentName}`,
             };
         }
         // If parent is routine, use routine icon
@@ -102,7 +102,7 @@ export function ParentButton({
         const parentName = firstString(getTranslation(parent as RelationshipItemRoutineVersion, languages, true).name, "routine");
         return {
             Icon,
-            tooltip: `${t("Parent")}: ${parentName}`
+            tooltip: `${t("Parent")}: ${parentName}`,
         };
     }, [isEditing, languages, rootField?.value, t, versionField?.value]);
 
@@ -137,5 +137,5 @@ export function ParentButton({
                 </Tooltip>
             </Stack>
         </>
-    )
+    );
 }

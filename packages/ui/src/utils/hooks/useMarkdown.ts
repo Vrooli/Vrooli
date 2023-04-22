@@ -16,4 +16,4 @@ export const useMarkdown = (importedFile: string, shapingFunction?: (markdown: s
     }, [importedFile, shapingFunction]);
 
     return markdown;
-}
+};

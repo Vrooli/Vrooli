@@ -12,7 +12,7 @@ export const issueTranslation: GqlPartial<IssueTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const issueYou: GqlPartial<IssueYou> = {
     __typename: "IssueYou",
@@ -29,7 +29,7 @@ export const issueYou: GqlPartial<IssueYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const issue: GqlPartial<Issue> = {
     __typename: "Issue",
@@ -59,7 +59,7 @@ export const issue: GqlPartial<Issue> = {
                 Routine: 4,
                 SmartContract: 5,
                 Standard: 6,
-            }
+            },
         },
         commentsCount: true,
         reportsCount: true,
@@ -80,5 +80,5 @@ export const issue: GqlPartial<Issue> = {
     nav: {
         id: true,
         translations: () => rel(issueTranslation, "list"),
-    }
-}
+    },
+};

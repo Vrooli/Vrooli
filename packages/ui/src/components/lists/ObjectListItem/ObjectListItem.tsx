@@ -58,7 +58,7 @@ export function ObjectListItem<T extends ListObjectType>({
     const id = useMemo(() => data?.id ?? uuid(), [data]);
 
     const [object, setObject] = useState<T | null | undefined>(data);
-    useEffect(() => { setObject(data) }, [data]);
+    useEffect(() => { setObject(data); }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
     const { canComment, canUpdate, canReact, canBookmark, isBookmarked, reaction } = useMemo(() => getYou(data), [data]);
@@ -68,7 +68,7 @@ export function ObjectListItem<T extends ListObjectType>({
     // Context menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const handleContextMenu = useCallback((target: EventTarget) => {
-        setAnchorEl(target as HTMLElement)
+        setAnchorEl(target as HTMLElement);
     }, []);
     const closeContextMenu = useCallback(() => setAnchorEl(null), []);
 
@@ -140,7 +140,7 @@ export function ObjectListItem<T extends ListObjectType>({
                             height={isMobile ? "25px" : "35px"}
                         />
                     </Box>
-                )
+                );
             case "Project":
             case "Routine":
             case "Standard":
@@ -153,7 +153,7 @@ export function ObjectListItem<T extends ListObjectType>({
                         score={score}
                         onChange={(newEmoji: string | null, newScore: number) => { }}
                     />
-                )
+                );
             default:
                 return null;
         }
@@ -241,7 +241,7 @@ export function ObjectListItem<T extends ListObjectType>({
                     object={object}
                 />}
             </Stack>
-        )
+        );
     }, [object, isMobile, hideUpdateButton, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
     /**
@@ -254,13 +254,13 @@ export function ObjectListItem<T extends ListObjectType>({
         const percentComplete = (object as any as RunProject | RunRoutine).status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
-                0
+                0;
         return (<CompletionBar
             color="secondary"
             variant={loading ? "indeterminate" : "determinate"}
             value={percentComplete}
             sx={{ height: "15px" }}
-        />)
+        />);
     }, [loading, object]);
 
     const actionData = useObjectActions({
@@ -290,7 +290,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 component="a"
                 href={link}
                 {...pressEvents}
-                onClick={(e) => { e.preventDefault() }}
+                onClick={(e) => { e.preventDefault(); }}
                 sx={{
                     display: "flex",
                     background: palette.background.paper,
@@ -381,5 +381,5 @@ export function ObjectListItem<T extends ListObjectType>({
                 {!isMobile && actionButtons}
             </ListItem>
         </>
-    )
+    );
 }

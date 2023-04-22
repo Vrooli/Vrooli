@@ -17,7 +17,7 @@ export const smartContractYou: GqlPartial<SmartContractYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const smartContract: GqlPartial<SmartContract> = {
     __typename: "SmartContract",
@@ -38,7 +38,7 @@ export const smartContract: GqlPartial<SmartContract> = {
             __union: {
                 Organization: 0,
                 User: 1,
-            }
+            },
         },
         permissions: true,
         questionsCount: true,
@@ -60,5 +60,5 @@ export const smartContract: GqlPartial<SmartContract> = {
     nav: {
         id: true,
         isPrivate: true,
-    }
-}
+    },
+};

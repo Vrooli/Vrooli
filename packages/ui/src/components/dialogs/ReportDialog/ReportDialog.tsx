@@ -34,9 +34,9 @@ export const ReportDialog = ({
     const { t } = useTranslation();
 
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
+    useEffect(() => { setLanguage(getUserLanguages(session)[0]); }, [session]);
     const formRef = useRef<BaseFormRef>();
-    const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session])
+    const initialValues = useMemo(() => reportInitialValues(session, reportFor, forId), [forId, reportFor, session]);
     const { handleCancel } = useUpsertActions<Report>("dialog", true, onClose, onClose);
     const [mutation, { loading: isLoading }] = useCustomMutation<Report, ReportCreateInput>(reportCreate);
 
@@ -90,10 +90,10 @@ export const ReportDialog = ({
                             successMessage: () => ({ key: "ReportSubmitted" }),
                             onSuccess: () => {
                                 helpers.resetForm();
-                                onClose()
+                                onClose();
                             },
-                            onError: () => { helpers.setSubmitting(false) },
-                        })
+                            onError: () => { helpers.setSubmitting(false); },
+                        });
                     }}
                     validationSchema={reportCreateForm}
                 >
@@ -110,5 +110,5 @@ export const ReportDialog = ({
                 </Formik>
             </DialogContent>
         </LargeDialog>
-    )
-}
+    );
+};

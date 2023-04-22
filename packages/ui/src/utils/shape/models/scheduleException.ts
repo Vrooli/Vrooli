@@ -15,5 +15,5 @@ export const shapeScheduleException: ShapeModel<ScheduleExceptionShape, Schedule
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "originalStartTime", "newStartTime", "newEndTime"),
-    }, a)
-}
+    }, a),
+};

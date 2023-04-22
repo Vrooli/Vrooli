@@ -9,7 +9,7 @@ import {
     ListItemText,
     SwipeableDrawer,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { Stack } from "@mui/system";
 import { LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from "@shared/consts";
@@ -60,13 +60,13 @@ export const AccountMenu = ({
 
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
-    const toggleDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(!isDisplaySettingsOpen) }, [isDisplaySettingsOpen]);
-    const closeDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(false) }, []);
+    const toggleDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(!isDisplaySettingsOpen); }, [isDisplaySettingsOpen]);
+    const closeDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(false); }, []);
 
     // Additional resources collapse
     const [isAdditionalResourcesOpen, setIsAdditionalResourcesOpen] = useState(false);
-    const toggleAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(!isAdditionalResourcesOpen) }, [isAdditionalResourcesOpen]);
-    const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false) }, []);
+    const toggleAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(!isAdditionalResourcesOpen); }, [isAdditionalResourcesOpen]);
+    const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false); }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
     const [mutation] = useCustomMutation<User, ProfileUpdateInput>(userProfileUpdate);
@@ -88,7 +88,7 @@ export const AccountMenu = ({
             }, {
                 id: userId,
                 theme: values.theme,
-            })
+            });
             // If no changes, don't update
             if (!input || Object.keys(input).length === 0) {
                 formik.setSubmitting(false);
@@ -97,9 +97,9 @@ export const AccountMenu = ({
             mutationWrapper<User, ProfileUpdateInput>({
                 mutation,
                 input,
-                onSuccess: () => { formik.setSubmitting(false) },
-                onError: () => { formik.setSubmitting(false) },
-            })
+                onSuccess: () => { formik.setSubmitting(false); },
+                onError: () => { formik.setSubmitting(false); },
+            });
         },
     });
 
@@ -124,8 +124,8 @@ export const AccountMenu = ({
                 mutation: switchCurrentAccount,
                 input: { id: user.id },
                 successMessage: () => ({ key: "LoggedInAs", variables: { name: user.name ?? user.handle ?? "" } }),
-                onSuccess: (data) => { PubSub.get().publishSession(data) },
-            })
+                onSuccess: (data) => { PubSub.get().publishSession(data); },
+            });
         }
     }, [handleClose, userId, setLocation, switchCurrentAccount]);
 
@@ -142,10 +142,10 @@ export const AccountMenu = ({
             mutation: logOut,
             input: { id: user.id },
             successMessage: () => ({ key: "LoggedOutOf", variables: { name: user.name ?? user.handle ?? "" } }),
-            onSuccess: (data) => { PubSub.get().publishSession(data) },
+            onSuccess: (data) => { PubSub.get().publishSession(data); },
             // If error, log out anyway
-            onError: () => { PubSub.get().publishSession(guestSession) },
-        })
+            onError: () => { PubSub.get().publishSession(guestSession); },
+        });
         setLocation(LINKS.Home);
     }, [handleClose, session, logOut, setLocation]);
 
@@ -198,7 +198,7 @@ export const AccountMenu = ({
                 "& .MuiDrawer-paper": {
                     background: palette.background.default,
                     overflowY: "auto",
-                }
+                },
             }}
         >
             {/* Menu title with close icon */}
@@ -340,5 +340,5 @@ export const AccountMenu = ({
                 <ContactInfo />
             </Collapse>
         </SwipeableDrawer>
-    )
-}
+    );
+};

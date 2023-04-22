@@ -46,5 +46,5 @@ export const shapeProjectVersionDirectory: ShapeModel<ProjectVersionDirectorySha
         ...updateRel(o, u, "childStandardVersions", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "parentDirectory", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "projectVersion", ["Connect", "Disconnect"], "one"),
-    }, a)
-}
+    }, a),
+};

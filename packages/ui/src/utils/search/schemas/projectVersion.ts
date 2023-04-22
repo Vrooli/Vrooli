@@ -21,7 +21,7 @@ export const projectVersionSearchSchema = (): FormSchema => ({
         ...bookmarksRootFields(),
         ...languagesFields(),
         ...tagsRootFields(),
-    ]
-})
+    ],
+});
 
-export const projectVersionSearchParams = () => toParams(projectVersionSearchSchema(), projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc)
+export const projectVersionSearchParams = () => toParams(projectVersionSearchSchema(), projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc);

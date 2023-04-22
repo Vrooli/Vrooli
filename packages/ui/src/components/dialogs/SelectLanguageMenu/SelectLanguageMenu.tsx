@@ -74,7 +74,7 @@ export const SelectLanguageMenu = ({
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);
         if (!sourceTranslation) {
-            PubSub.get().publishSnack({ messageKey: "CouldNotFindTranslation", severity: "Error" })
+            PubSub.get().publishSnack({ messageKey: "CouldNotFindTranslation", severity: "Error" });
             return;
         }
         queryWrapper<Translate, TranslateInput>({
@@ -83,13 +83,13 @@ export const SelectLanguageMenu = ({
             onSuccess: (data) => {
                 // Try parse
                 if (data) {
-                    console.log("TODO")
+                    console.log("TODO");
                 } else {
                     PubSub.get().publishSnack({ messageKey: "FailedToTranslate", severity: "Error" });
                 }
             },
             errorMessage: () => ({ key: "FailedToTranslate" }),
-        })
+        });
     }, [getAutoTranslation, languages]);
 
     // Menu for selecting language to auto-translate from
@@ -111,12 +111,12 @@ export const SelectLanguageMenu = ({
         // Otherwise, open menu to select source language
         else {
             console.log("openTranslateSource", targetLanguage);
-            setTranslateSourceAnchor(ev.currentTarget)
+            setTranslateSourceAnchor(ev.currentTarget);
         }
     }, [autoTranslate, translateSourceOptions]);
     const closeTranslateSource = useCallback(() => setTranslateSourceAnchor(null), []);
     const handleTranslateSourceSelect = useCallback((path: string) => {
-        console.log("TODO")
+        console.log("TODO");
     }, []);
 
     const languageOptions = useMemo<Array<[string, string]>>(() => {
@@ -165,7 +165,7 @@ export const SelectLanguageMenu = ({
     const onClose = useCallback(() => {
         // Chear text field
         setSearchString("");
-        setAnchorEl(null)
+        setAnchorEl(null);
     }, []);
 
     const onDelete = useCallback((e: MouseEvent<HTMLButtonElement>, language: string) => {
@@ -198,7 +198,7 @@ export const SelectLanguageMenu = ({
                         background: "transparent",
                         border: "none",
                         paddingBottom: 1,
-                    }
+                    },
                 }}
                 anchorOrigin={{
                     vertical: "bottom",
@@ -353,5 +353,5 @@ export const SelectLanguageMenu = ({
                 </Stack>
             </Tooltip>
         </>
-    )
-}
+    );
+};

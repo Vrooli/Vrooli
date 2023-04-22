@@ -34,7 +34,7 @@ export const ReminderUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<Reminder, FindByIdInput>(reminderFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => reminderInitialValues(session, listId, { ...existing, ...partialData } as Reminder), [existing, listId, partialData, session]);
@@ -74,9 +74,9 @@ export const ReminderUpsert = ({
                     mutationWrapper<Reminder, ReminderCreateInput | ReminderUpdateInput>({
                         mutation,
                         input: transformReminderValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateReminderValues(values, existing)}
             >
@@ -92,5 +92,5 @@ export const ReminderUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

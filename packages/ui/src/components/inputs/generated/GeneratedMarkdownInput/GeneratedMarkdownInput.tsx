@@ -8,7 +8,7 @@ export const GeneratedMarkdownInput = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering markdown input');
+    console.log("rendering markdown input");
     const props = useMemo(() => fieldData.props as MarkdownProps, [fieldData.props]);
 
     return (
@@ -18,5 +18,5 @@ export const GeneratedMarkdownInput = ({
             placeholder={props.placeholder ?? fieldData.label}
             minRows={props.minRows}
         />
-    )
-}
+    );
+};

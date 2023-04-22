@@ -22,7 +22,7 @@ interface ErrorBoundaryState {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false, error: null, mailToUrl: 'mailto:official@vrooli.com' };
+        this.state = { hasError: false, error: null, mailToUrl: "mailto:official@vrooli.com" };
     }
 
     static getDerivedStateFromError(error: Error) {
@@ -53,8 +53,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         bottom: 0,
                         paddingLeft: "16px",
                         paddingRight: "16px",
-                        backgroundColor: 'white',
-                        color: 'black',
+                        backgroundColor: "white",
+                        color: "black",
                     }}
                 >
                     <Stack direction="column" spacing={2} style={{ textAlign: "center" }}>

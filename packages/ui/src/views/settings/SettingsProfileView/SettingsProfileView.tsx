@@ -59,8 +59,8 @@ export const SettingsProfileView = ({
                                 ...values,
                             }),
                             successMessage: () => ({ key: "SettingsUpdated" }),
-                            onError: () => { helpers.setSubmitting(false) },
-                        })
+                            onError: () => { helpers.setSubmitting(false); },
+                        });
                     }}
                     validationSchema={userValidation.update({})}
                 >
@@ -74,5 +74,5 @@ export const SettingsProfileView = ({
                 </Formik>
             </Stack>
         </>
-    )
-}
+    );
+};

@@ -8,7 +8,7 @@ export const meetingInviteYou: GqlPartial<MeetingInviteYou> = {
         canDelete: true,
         canUpdate: true,
     },
-}
+};
 
 export const meetingInvite: GqlPartial<MeetingInvite> = {
     __typename: "MeetingInvite",
@@ -25,5 +25,5 @@ export const meetingInvite: GqlPartial<MeetingInvite> = {
     },
     list: {
         meeting: async () => rel((await import("./meeting")).meeting, "list", { omit: "invites" }),
-    }
-}
+    },
+};

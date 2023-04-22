@@ -20,7 +20,7 @@ export const useCopier = ({
     objectId,
     objectName,
     objectType,
-    onActionComplete
+    onActionComplete,
 }: UseCopierProps) => {
     const [copy] = useCustomMutation<CopyResult, CopyInput>(copyCopy);
 
@@ -40,9 +40,9 @@ export const useCopier = ({
             mutation: copy,
             input: { id: objectId, intendToPullRequest: true, objectType: CopyType[objectType] },
             successMessage: () => ({ key: "CopySuccess", variables: { objectName: objectName ?? "" } }),
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
-        })
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data); },
+        });
     }, [copy, hasCopyingSupport, objectId, objectName, objectType, onActionComplete]);
 
     return { handleCopy, hasCopyingSupport };
-}
+};

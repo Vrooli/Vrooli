@@ -8,4 +8,4 @@ export const email: GqlPartial<Email> = {
         emailAddress: true,
         verified: true,
     },
-}
+};

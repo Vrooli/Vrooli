@@ -46,7 +46,7 @@ export const SettingsDisplayView = ({
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
-                            theme: palette.mode === "dark" ? "dark" : "light"
+                            theme: palette.mode === "dark" ? "dark" : "light",
                         } as ProfileUpdateInput}
                         onSubmit={(values, helpers) => {
                             if (!profile) {
@@ -59,9 +59,9 @@ export const SettingsDisplayView = ({
                                     ...values,
                                     languages: [getSiteLanguage(session)],
                                 },
-                                onSuccess: (data) => { onProfileUpdate(data) },
-                                onError: () => { helpers.setSubmitting(false) },
-                            })
+                                onSuccess: (data) => { onProfileUpdate(data); },
+                                onError: () => { helpers.setSubmitting(false); },
+                            });
                         }}
                         validationSchema={userValidation.update({})}
                     >
@@ -73,7 +73,7 @@ export const SettingsDisplayView = ({
                         />}
                     </Formik>
                     <Box sx={{ marginTop: 5, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session) }} sx={{
+                        <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { session && clearSearchHistory(session); }} sx={{
                             marginLeft: "auto",
                             marginRight: "auto",
                         }}>{t("ClearSearchHistory")}</Button>
@@ -81,5 +81,5 @@ export const SettingsDisplayView = ({
                 </Stack>
             </Stack>
         </>
-    )
-}
+    );
+};

@@ -27,7 +27,7 @@ export function StandardVersionSelectSwitch({
 
     // Create dialog
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
-    const openCreateDialog = useCallback(() => { setIsCreateDialogOpen(true) }, [setIsCreateDialogOpen]);
+    const openCreateDialog = useCallback(() => { setIsCreateDialogOpen(true); }, [setIsCreateDialogOpen]);
     const closeCreateDialog = useCallback(() => { setIsCreateDialogOpen(false); }, [setIsCreateDialogOpen]);
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -111,5 +111,5 @@ export function StandardVersionSelectSwitch({
                 <Typography variant="h6" sx={{ ...noSelect }}>{selected ? getTranslation(selected, getUserLanguages(session)).name : t("Custom")}</Typography>
             </Stack>
         </>
-    )
+    );
 }

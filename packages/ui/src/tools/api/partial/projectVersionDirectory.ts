@@ -12,7 +12,7 @@ export const projectVersionDirectoryTranslation: GqlPartial<ProjectVersionDirect
     },
     full: {},
     list: {},
-}
+};
 
 export const projectVersionDirectory: GqlPartial<ProjectVersionDirectory> = {
     __typename: "ProjectVersionDirectory",
@@ -38,5 +38,5 @@ export const projectVersionDirectory: GqlPartial<ProjectVersionDirectory> = {
     },
     list: {
         translations: () => rel(projectVersionDirectoryTranslation, "list"),
-    }
-}
+    },
+};

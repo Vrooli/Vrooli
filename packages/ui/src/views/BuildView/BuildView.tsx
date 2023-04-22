@@ -28,7 +28,7 @@ import { NodeRoutineListItemShape } from "../../utils/shape/models/nodeRoutineLi
 import { BuildViewProps } from "../types";
 
 const helpText =
-    "## What am I looking at?\nThis is the **Build** page. Here you can create and edit multi-step routines.\n\n## What is a routine?\nA *routine* is simply a process for completing a task, which takes inputs, performs some action, and outputs some results. By connecting multiple routines together, you can perform arbitrarily complex tasks.\n\nAll valid multi-step routines have a *start* node and at least one *end* node. Each node inbetween stores a list of subroutines, which can be optional or required.\n\nWhen a user runs the routine, they traverse the routine graph from left to right. Each subroutine is rendered as a page, with components such as TextFields for each input. Where the graph splits, users are given a choice of which subroutine to go to next.\n\n## How do I build a multi-step routine?\nIf you are starting from scratch, you will see a *start* node, a *routine list* node, and an *end* node.\n\nYou can press the routine list node to toggle it open/closed. The *open* stats allows you to select existing subroutines from Vrooli, or create a new one.\n\nEach link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.\n\nYou also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information."
+    "## What am I looking at?\nThis is the **Build** page. Here you can create and edit multi-step routines.\n\n## What is a routine?\nA *routine* is simply a process for completing a task, which takes inputs, performs some action, and outputs some results. By connecting multiple routines together, you can perform arbitrarily complex tasks.\n\nAll valid multi-step routines have a *start* node and at least one *end* node. Each node inbetween stores a list of subroutines, which can be optional or required.\n\nWhen a user runs the routine, they traverse the routine graph from left to right. Each subroutine is rendered as a page, with components such as TextFields for each input. Where the graph splits, users are given a choice of which subroutine to go to next.\n\n## How do I build a multi-step routine?\nIf you are starting from scratch, you will see a *start* node, a *routine list* node, and an *end* node.\n\nYou can press the routine list node to toggle it open/closed. The *open* stats allows you to select existing subroutines from Vrooli, or create a new one.\n\nEach link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.\n\nYou also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.";
 
 /**
  * Generates a new link object, but doesn't add it to the routine
@@ -42,7 +42,7 @@ const generateNewLink = (fromId: string, toId: string, routineVersionId: string)
     from: { id: fromId },
     to: { id: toId },
     routineVersion: { id: routineVersionId },
-})
+});
 
 // RoutineVersion with fields required for the build view
 type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
@@ -73,7 +73,7 @@ export const BuildView = ({
         setChangeStack(routineVersion ? [routineVersion] : []);
         setChangeStackIndex(routineVersion ? 0 : -1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        console.log("clearing change stack")
+        console.log("clearing change stack");
         setChangedRoutineVersion(routineVersion);
     }, [routineVersion]);
     /**
@@ -83,7 +83,7 @@ export const BuildView = ({
         if (changeStackIndex > 0) {
             setChangeStackIndex(changeStackIndex - 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("undoing")
+            console.log("undoing");
             setChangedRoutineVersion(changeStack[changeStackIndex - 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -95,7 +95,7 @@ export const BuildView = ({
         if (changeStackIndex < changeStack.length - 1) {
             setChangeStackIndex(changeStackIndex + 1);
             PubSub.get().publishFastUpdate({ duration: 1000 });
-            console.log("redoing")
+            console.log("redoing");
             setChangedRoutineVersion(changeStack[changeStackIndex + 1]);
         }
     }, [changeStackIndex, changeStack, setChangedRoutineVersion]);
@@ -110,7 +110,7 @@ export const BuildView = ({
         setChangeStack(newChangeStack);
         setChangeStackIndex(newChangeStack.length - 1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        console.log("adding to change stack", changedRoutine)
+        console.log("adding to change stack", changedRoutine);
         setChangedRoutineVersion(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutineVersion]);
 
@@ -118,14 +118,14 @@ export const BuildView = ({
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // CTRL + Y or CTRL + SHIFT + Z = redo
-            if (e.ctrlKey && (e.key === "y" || e.key === "Z")) { redo() }
+            if (e.ctrlKey && (e.key === "y" || e.key === "Z")) { redo(); }
             // CTRL + Z = undo
-            else if (e.ctrlKey && e.key === "z") { undo() }
+            else if (e.ctrlKey && e.key === "z") { undo(); }
         };
         // Attach the event listener
         document.addEventListener("keydown", handleKeyDown);
         // Remove the event listener
-        return () => { document.removeEventListener("keydown", handleKeyDown) };
+        return () => { document.removeEventListener("keydown", handleKeyDown); };
     }, [redo, undo]);
 
     useEffect(() => {
@@ -150,12 +150,12 @@ export const BuildView = ({
         }
         if (messages.includes("Ran into error determining node positions")) {
             // Remove all node positions and links
-            console.log("calculate memo setting changed routine 1")
+            console.log("calculate memo setting changed routine 1");
             setChangedRoutineVersion({
                 ...changedRoutineVersion,
                 nodes: changedRoutineVersion.nodes.map(n => ({ ...n, columnIndex: null, rowIndex: null })),
                 nodeLinks: [],
-            })
+            });
             return { columns: [], nodesOffGraph: changedRoutineVersion.nodes, nodesById: {} };
         }
         // Update status
@@ -163,16 +163,16 @@ export const BuildView = ({
         // Remove any links which reference unlinked nodes
         const goodLinks = changedRoutineVersion.nodeLinks.filter(link => !nodesOffGraph.some(node => node.id === link.from.id || node.id === link.to.id));
         // If routineVersion was mutated, update the routineVersion
-        const finalNodes = [...nodesOnGraph, ...nodesOffGraph]
+        const finalNodes = [...nodesOnGraph, ...nodesOffGraph];
         const haveNodesChanged = !isEqual(finalNodes, changedRoutineVersion.nodes);
         const haveLinksChanged = !isEqual(goodLinks, changedRoutineVersion.nodeLinks);
         if (haveNodesChanged || haveLinksChanged) {
-            console.log("calculate memo setting changed routine 2")
+            console.log("calculate memo setting changed routine 2");
             setChangedRoutineVersion({
                 ...changedRoutineVersion,
                 nodes: finalNodes,
                 nodeLinks: goodLinks,
-            })
+            });
         }
         // Create 2D node data array, ordered by column. Each column is ordered by row index
         const columns: Node[][] = [];
@@ -261,7 +261,7 @@ export const BuildView = ({
             }
             // If adding new routineVersion, go back
             else window.history.back();
-        }
+        };
         // Confirm if changes have been made
         if (changeStack.length > 1) {
             PubSub.get().publishAlertDialog({
@@ -269,12 +269,12 @@ export const BuildView = ({
                 buttons: [
                     { labelKey: "Yes", onClick: () => { revert(); } },
                     { labelKey: "No" },
-                ]
+                ],
             });
         } else {
             revert();
         }
-    }, [changeStack.length, clearChangeStack, handleCancel, id])
+    }, [changeStack.length, clearChangeStack, handleCancel, id]);
 
     /**
      * If closing with unsaved changes, prompt user to save
@@ -305,15 +305,15 @@ export const BuildView = ({
         const toNodeIds = deletingLinks.map(l => l.to.id).filter(id => id !== nodeId);
         // If there is only one "from" node, create a link between it and every "to" node
         if (fromNodeIds.length === 1) {
-            toNodeIds.forEach(toId => { newLinks.push(generateNewLink(fromNodeIds[0], toId, changedRoutineVersion.id)) });
+            toNodeIds.forEach(toId => { newLinks.push(generateNewLink(fromNodeIds[0], toId, changedRoutineVersion.id)); });
         }
         // If there is only one "to" node, create a link between it and every "from" node
         else if (toNodeIds.length === 1) {
-            fromNodeIds.forEach(fromId => { newLinks.push(generateNewLink(fromId, toNodeIds[0], changedRoutineVersion.id)) });
+            fromNodeIds.forEach(fromId => { newLinks.push(generateNewLink(fromId, toNodeIds[0], changedRoutineVersion.id)); });
         }
         // NOTE: Every other case is ambiguous, so we can't auto-create create links
         // Delete old links
-        let keptLinks = changedRoutineVersion.nodeLinks.filter(l => !deletingLinks.includes(l));
+        const keptLinks = changedRoutineVersion.nodeLinks.filter(l => !deletingLinks.includes(l));
         // Return new links combined with kept links
         return [...keptLinks, ...newLinks as any[]];
     }, [changedRoutineVersion]);
@@ -326,7 +326,7 @@ export const BuildView = ({
      */
     const closestOpenPosition = useCallback((
         column: number | null | undefined,
-        row: number | null | undefined
+        row: number | null | undefined,
     ): { columnIndex: number, rowIndex: number } => {
         if (column === null || column === undefined || row === null || row === undefined) return { columnIndex: -1, rowIndex: -1 };
         const columnNodes = changedRoutineVersion.nodes?.filter(n => n.columnIndex === column) ?? [];
@@ -366,7 +366,7 @@ export const BuildView = ({
                 name: `Node ${(changedRoutineVersion.nodes?.length ?? 0) - 1}`,
                 description: "",
             }],
-        }
+        };
         return newNode;
     }, [closestOpenPosition, translationData.language, changedRoutineVersion.nodes?.length]);
 
@@ -389,8 +389,8 @@ export const BuildView = ({
                 suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
-            translations: []
-        }
+            translations: [],
+        };
         return newNode;
     }, [closestOpenPosition]);
 
@@ -401,7 +401,7 @@ export const BuildView = ({
     const handleLinkCreate = useCallback((link: NodeLink) => {
         addToChangeStack({
             ...changedRoutineVersion,
-            nodeLinks: [...changedRoutineVersion.nodeLinks, link]
+            nodeLinks: [...changedRoutineVersion.nodeLinks, link],
         });
     }, [addToChangeStack, changedRoutineVersion]);
 
@@ -488,7 +488,7 @@ export const BuildView = ({
                 return {
                     ...n,
                     columnIndex: (n.columnIndex ?? 0) + 1,
-                }
+                };
             });
             // Update dropped node
             updatedNodes = updateArray(updatedNodes, nodeIndex, {
@@ -503,7 +503,7 @@ export const BuildView = ({
             const nodesAbove = changedRoutineVersion.nodes.filter(n =>
                 n.columnIndex === columnIndex &&
                 exists(n.rowIndex) &&
-                n.rowIndex <= rowIndex
+                n.rowIndex <= rowIndex,
             ).sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
             // If no nodes above, then shift everything in the column down by 1
             if (nodesAbove.length === 0) {
@@ -512,7 +512,7 @@ export const BuildView = ({
                     return {
                         ...n,
                         rowIndex: (n.rowIndex ?? 0) + 1,
-                    }
+                    };
                 });
             }
             // Otherwise, swap with the last node in the above list
@@ -522,11 +522,11 @@ export const BuildView = ({
                     if (n.id === nodeId) return {
                         ...n,
                         rowIndex: nodesAbove[nodesAbove.length - 1].rowIndex,
-                    }
+                    };
                     if (n.rowIndex === nodesAbove[nodesAbove.length - 1].rowIndex) return {
                         ...n,
                         rowIndex: changedRoutineVersion.nodes[nodeIndex].rowIndex,
-                    }
+                    };
                     return n;
                 });
             }
@@ -537,7 +537,7 @@ export const BuildView = ({
             if (changedRoutineVersion.nodes.some(n => n.columnIndex === columnIndex)) {
                 updatedNodes = updatedNodes.map(n => {
                     if (n.columnIndex === columnIndex && exists(n.rowIndex) && n.rowIndex >= rowIndex) {
-                        return { ...n, rowIndex: n.rowIndex + 1 }
+                        return { ...n, rowIndex: n.rowIndex + 1 };
                     }
                     return n;
                 });
@@ -548,7 +548,7 @@ export const BuildView = ({
             if (isRemovingColumn) {
                 updatedNodes = updatedNodes.map(n => {
                     if (exists(n.columnIndex) && n.columnIndex > originalColumnIndex) {
-                        return { ...n, columnIndex: n.columnIndex - 1 }
+                        return { ...n, columnIndex: n.columnIndex - 1 };
                     }
                     return n;
                 });
@@ -559,7 +559,7 @@ export const BuildView = ({
                     columnIndex - 1 :
                     columnIndex,
                 rowIndex,
-            })
+            });
         }
         // Update the routineVersion
         addToChangeStack({
@@ -662,18 +662,18 @@ export const BuildView = ({
     const handleSubroutineAdd = useCallback((nodeId: string, routineVersion: RoutineVersion) => {
         // Find the node with changes
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
-        console.log("handleSubroutineAdd", nodeId, routineVersion, nodeIndex, changedRoutineVersion.nodes)
+        console.log("handleSubroutineAdd", nodeId, routineVersion, nodeIndex, changedRoutineVersion.nodes);
         if (nodeIndex === -1) return;
         // Find the subroutine info in the node
         const routineList: NodeRoutineList = changedRoutineVersion.nodes[nodeIndex].routineList!;
         // Create a routine list item, which wraps the added routine version with some extra info
-        let routineItem: NodeRoutineListItem = {
+        const routineItem: NodeRoutineListItem = {
             id: uuid(),
             index: routineList.items.length,
             isOptional: true,
             routineVersion,
         } as NodeRoutineListItem;
-        if (routineList.isOrdered) routineItem.index = routineList.items.length
+        if (routineList.isOrdered) routineItem.index = routineList.items.length;
         // Add the new data to the change stack
         addToChangeStack({
             ...changedRoutineVersion,
@@ -682,7 +682,7 @@ export const BuildView = ({
                 routineList: {
                     ...routineList,
                     items: [...routineList.items, routineItem],
-                }
+                },
             }),
         });
     }, [addToChangeStack, changedRoutineVersion]);
@@ -715,8 +715,8 @@ export const BuildView = ({
                 routineList: {
                     ...routineList,
                     __typename: "NodeRoutineList",
-                    items: items,
-                } as NodeRoutineList
+                    items,
+                } as NodeRoutineList,
             }),
         });
     }, [addToChangeStack, changedRoutineVersion]);
@@ -831,7 +831,7 @@ export const BuildView = ({
                                         routineVersion: {
                                             ...r.routineVersion,
                                             ...updatedSubroutine.routineVersion,
-                                        }
+                                        },
                                     };
                                 }
                                 return r;
@@ -960,7 +960,7 @@ export const BuildView = ({
                             wasSuccessful: false,
                         },
                         translations: [],
-                    }
+                    };
                     // Add link and end node to resultRoutine
                     resultRoutine.nodeLinks.push(newLink as any);
                     resultRoutine.nodes.push(newEndNode as any);
@@ -987,7 +987,7 @@ export const BuildView = ({
                 languages={translationData.languages}
                 zIndex={zIndex}
             />
-        )
+        );
         return (
             <SelectLanguageMenu
                 currentLanguage={translationData.language}
@@ -995,7 +995,7 @@ export const BuildView = ({
                 languages={translationData.languages}
                 zIndex={zIndex}
             />
-        )
+        );
     }, [translationData, isEditing, zIndex]);
 
     return (
@@ -1155,11 +1155,11 @@ export const BuildView = ({
                     "unchanged": isEqual(routineVersion, changedRoutineVersion) ? "No changes made" : null,
                 }}
                 handleCancel={revertChanges}
-                handleSubmit={() => { handleSubmit(changedRoutineVersion) }}
+                handleSubmit={() => { handleSubmit(changedRoutineVersion); }}
                 isAdding={!uuidValidate(id)}
                 isEditing={isEditing}
                 loading={loading}
             />
         </Box>
-    )
+    );
 };

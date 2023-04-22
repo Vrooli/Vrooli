@@ -3,7 +3,7 @@ import {
     CardContent,
     LinearProgress,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { useMemo } from "react";
 import { AwardCardProps } from "../types";
@@ -19,14 +19,14 @@ export const AwardCard = ({
     const { title, description, level } = useMemo(() => {
         // If not earned, display next tier
         if (!isEarned) {
-            if (award.nextTier) return award.nextTier
+            if (award.nextTier) return award.nextTier;
             // Default to earned tier if no next tier
-            if (award.earnedTier) return award.earnedTier
+            if (award.earnedTier) return award.earnedTier;
         }
         // If earned, display earned tier
-        else if (award.earnedTier) return award.earnedTier
+        else if (award.earnedTier) return award.earnedTier;
         // If here, award invalid
-        return { title: "", description: "", level: 0 }
+        return { title: "", description: "", level: 0 };
     }, [award.earnedTier, award.nextTier, isEarned]);
 
     // Calculate percentage complete
@@ -86,4 +86,4 @@ export const AwardCard = ({
             </CardContent>
         </Card>
     );
-}
+};

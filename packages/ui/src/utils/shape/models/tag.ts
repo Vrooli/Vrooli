@@ -14,8 +14,8 @@ export type TagShape = Pick<Tag, "tag"> & {
 
 export const shapeTagTranslation: ShapeModel<TagTranslationShape, TagTranslationCreateInput, TagTranslationUpdateInput> = {
     create: (d) => createPrims(d, "id", "language", "description"),
-    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description"), a)
-}
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, "id", "description"), a),
+};
 
 export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {
     idField: "tag",
@@ -28,5 +28,5 @@ export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {
         // anonymous: TODO
         tag: o.tag,
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeTagTranslation),
-    }, a)
-}
+    }, a),
+};

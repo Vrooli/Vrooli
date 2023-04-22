@@ -8,7 +8,7 @@ export const GeneratedJsonInput = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering json input');
+    console.log("rendering json input");
     const props = useMemo(() => fieldData.props as JsonProps, [fieldData.props]);
 
     return (
@@ -20,5 +20,5 @@ export const GeneratedJsonInput = ({
             minRows={props.minRows}
             name={fieldData.fieldName}
         />
-    )
-}
+    );
+};

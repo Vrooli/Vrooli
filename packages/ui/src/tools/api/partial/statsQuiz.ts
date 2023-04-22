@@ -14,4 +14,4 @@ export const statsQuiz: GqlPartial<StatsQuiz> = {
         scoreAverage: true,
         completionTimeAverage: true,
     },
-}
+};

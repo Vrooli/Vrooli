@@ -10,7 +10,7 @@ export const BottomNav = () => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
 
-    let actions = actionsToBottomNav({
+    const actions = actionsToBottomNav({
         actions: getUserActions({ session }),
         setLocation,
     });
@@ -41,4 +41,4 @@ export const BottomNav = () => {
             {actions}
         </BottomNavigation>
     );
-}
+};

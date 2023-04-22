@@ -33,4 +33,4 @@ export const statsUser: GqlPartial<StatsUser> = {
         standardsCompleted: true,
         standardCompletionTimeAverage: true,
     },
-}
+};

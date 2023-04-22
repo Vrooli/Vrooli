@@ -33,5 +33,5 @@ export const focusMode: GqlPartial<FocusMode> = {
             label: true,
         },
         schedule: { __use: 0 },
-    }
-}
+    },
+};

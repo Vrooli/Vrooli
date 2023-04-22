@@ -26,7 +26,7 @@ export function ToggleSwitch({
         if (disabled) return;
         const customEvent = {
             target: {
-                name: name,
+                name,
                 value: !checked,
                 type: "checkbox",
             },
@@ -99,5 +99,5 @@ export function ToggleSwitch({
                 </Box>
             </Stack>
         </Tooltip>
-    )
+    );
 }

@@ -15,4 +15,4 @@ export const NodeWidth = {
     [NodeType.Redirect]: 100,
     [NodeType.RoutineList]: 350,
     [NodeType.Start]: 100,
-}
+};

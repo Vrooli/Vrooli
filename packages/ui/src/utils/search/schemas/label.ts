@@ -11,7 +11,7 @@ export const labelSearchSchema = (): FormSchema => ({
     ],
     fields: [
         ...languagesFields(),
-    ]
-})
+    ],
+});
 
 export const labelSearchParams = () => toParams(labelSearchSchema(), labelFindMany, LabelSortBy, LabelSortBy.DateCreatedDesc);

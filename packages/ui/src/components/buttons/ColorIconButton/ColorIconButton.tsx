@@ -11,7 +11,7 @@ const buttonSx = (background: string, disabled: boolean | undefined) => ({
         background,
         filter: disabled ? "grayscale(1) opacity(0.5)" : "brightness(1.2)",
     },
-})
+});
 
 /**
  * IconButton with a custom color
@@ -38,7 +38,7 @@ export const ColorIconButton = forwardRef<HTMLButtonElement | HTMLAnchorElement,
         >
             {children}
         </IconButton>
-    )
+    );
     // Otherwise, treat as a normal button
     return (
         <IconButton
@@ -51,5 +51,5 @@ export const ColorIconButton = forwardRef<HTMLButtonElement | HTMLAnchorElement,
         >
             {children}
         </IconButton>
-    )
-})
+    );
+});

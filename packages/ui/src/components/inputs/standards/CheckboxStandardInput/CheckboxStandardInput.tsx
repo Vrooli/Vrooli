@@ -157,4 +157,4 @@ export const CheckboxStandardInput = ({
             )}
         </Stack>
     );
-}
+};

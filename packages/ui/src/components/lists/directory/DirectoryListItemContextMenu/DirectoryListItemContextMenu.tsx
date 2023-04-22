@@ -19,12 +19,12 @@ const listOptionsMap: { [key in DirectoryContextMenuOption]: [string, SvgCompone
     [DirectoryContextMenuOption.Copy]: ["Copy link", CopyIcon],
     [DirectoryContextMenuOption.Delete]: ["Delete", DeleteIcon],
     [DirectoryContextMenuOption.Share]: ["Share", ShareIcon],
-}
+};
 
 const listOptions: ListMenuItemData<DirectoryContextMenuOption>[] = Object.keys(listOptionsMap).map((o) => ({
     label: listOptionsMap[o][0],
     value: o as DirectoryContextMenuOption,
-    Icon: listOptionsMap[o][1]
+    Icon: listOptionsMap[o][1],
 }));
 
 // Custom context menu for nodes
@@ -61,7 +61,7 @@ export const DirectoryListItemContextMenu = ({
                 break;
         }
         onClose();
-    }
+    };
 
     const listOptionsFiltered = canUpdate ? listOptions : listOptions.filter(o => o.value === DirectoryContextMenuOption.Share);
 
@@ -74,5 +74,5 @@ export const DirectoryListItemContextMenu = ({
             onClose={onClose}
             zIndex={zIndex}
         />
-    )
-}
+    );
+};

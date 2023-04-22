@@ -17,20 +17,20 @@ export const ObjectTitle = ({
     // Display title or loading bar
     const titleComponent = loading ? <LinearProgress color="inherit" sx={{
         borderRadius: 1,
-        width: '50vw',
+        width: "50vw",
         height: 8,
-        marginTop: '12px !important',
-        marginBottom: '12px !important',
-        maxWidth: '300px',
+        marginTop: "12px !important",
+        marginBottom: "12px !important",
+        maxWidth: "300px",
     }} /> : <Typography
         component="h1"
         variant="h3"
         sx={{
-            textAlign: 'center',
+            textAlign: "center",
             sx: { marginTop: 2, marginBottom: 2 },
-            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
         }}
-    >{title}</Typography>
+    >{title}</Typography>;
 
     return (
         <Stack
@@ -41,9 +41,9 @@ export const ObjectTitle = ({
             sx={{
                 marginTop: 2,
                 marginBottom: 2,
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                maxWidth: '700px',
+                marginLeft: "auto",
+                marginRight: "auto",
+                maxWidth: "700px",
             }}
         >
             {titleComponent}
@@ -54,5 +54,5 @@ export const ObjectTitle = ({
                 zIndex={zIndex}
             />
         </Stack>
-    )
-}
+    );
+};

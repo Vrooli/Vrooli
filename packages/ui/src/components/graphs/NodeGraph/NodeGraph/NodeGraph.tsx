@@ -49,14 +49,14 @@ export const NodeGraph = ({
     }, []);
 
     // Stores edges
-    const [edges, setEdges] = useState<JSX.Element[]>([])
+    const [edges, setEdges] = useState<JSX.Element[]>([]);
     // Dragging a node
     const [dragId, setDragId] = useState<string | null>(null);
     const dragRefs = useRef<DragRefs>({
         currPosition: null,
         speed: 0,
         timeout: null,
-    })
+    });
     // Determines if links should be re-rendered quickly or slowly
     const [fastUpdate, setFastUpdate] = useState(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -72,11 +72,11 @@ export const NodeGraph = ({
     // Add context menu event listener
     useEffect(() => {
         // Disable context menu for whole page
-        const handleContextMenu = (ev: any) => { ev.preventDefault(); }
+        const handleContextMenu = (ev: any) => { ev.preventDefault(); };
         document.addEventListener("contextmenu", handleContextMenu);
         return () => {
             document.removeEventListener("contextmenu", handleContextMenu);
-        }
+        };
     }, []);
 
     // /**
@@ -112,11 +112,11 @@ export const NodeGraph = ({
             const minSpeed = 5;
             const percent = 1 - (distToEdge) / (sideLength * 0.15);
             dragRefs.current.speed = (maxSpeed - minSpeed) * percent + minSpeed;
-        }
-        const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0) }
-        const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0) };
-        const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed) };
-        const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed) };
+        };
+        const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0); };
+        const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0); };
+        const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed); };
+        const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed); };
 
         // If near the left edge, move the grid left. If near the right edge, move the grid right.
         let horizontalMove: boolean | null = null; // Store left right move, or no horizontal move
@@ -134,12 +134,12 @@ export const NodeGraph = ({
         if (verticalMove === false) scrollUp();
         else if (verticalMove === true) scrollDown();
         dragRefs.current.timeout = setTimeout(nodeScroll, 50);
-    }, [])
+    }, []);
 
     const clearScroll = () => {
         if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
-        dragRefs.current = { currPosition: null, speed: 0, timeout: null }
-    }
+        dragRefs.current = { currPosition: null, speed: 0, timeout: null };
+    };
 
     /**
      * Checks if a point is inside a rectangle
@@ -156,14 +156,14 @@ export const NodeGraph = ({
             yStart: rectangle.y - padding,
             xEnd: rectangle.x + rectangle.width + padding * 2,
             yEnd: rectangle.y + rectangle.height + padding * 2,
-        }
+        };
         return Boolean(
             point.x >= zone.xStart &&
             point.x <= zone.xEnd &&
             point.y >= zone.yStart &&
-            point.y <= zone.yEnd
+            point.y <= zone.yEnd,
         );
-    }
+    };
 
     /**
      * Makes sure drop is valid, then updates order of nodes
@@ -197,7 +197,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" })
+            PubSub.get().publishSnack({ messageKey: "CannotDropNodeHere", severity: "Error" });
             return;
         }
         // Get the drop row
@@ -208,7 +208,7 @@ export const NodeGraph = ({
         // Check if the drop is above each node
         for (let i = 0; i < centerYs.length; i++) {
             if (y < centerYs[i]) {
-                rowIndex = i
+                rowIndex = i;
                 break;
             }
         }
@@ -234,7 +234,7 @@ export const NodeGraph = ({
                 // Otherwise, set dragRef
                 else dragRefs.current.currPosition = { x, y };
             }
-        }
+        };
         const handleMove = (x: number, y: number) => {
             // I the grid is being dragged, move the grid
             if (touchedGrid && dragRefs.current.currPosition) {
@@ -246,11 +246,11 @@ export const NodeGraph = ({
             }
             // drag
             dragRefs.current.currPosition = { x, y };
-        }
+        };
         const handleEnd = () => {
             touchedGrid = false;
             clearScroll();
-        }
+        };
         const onMouseDown = (ev: MouseEvent) => handleStart(ev.clientX, ev.clientY, (ev as any)?.target.id);
         const onTouchStart = (ev: TouchEvent<any> | any) => handleStart(ev.touches[0].clientX, ev.touches[0].clientY, (ev as any)?.target.id);
         const onMouseUp = handleEnd;
@@ -266,17 +266,17 @@ export const NodeGraph = ({
         window.addEventListener("touchend", onTouchEnd); // Stops dragging and pinching
         // window.addEventListener('wheel', onMouseWheel); // Detects mouse scroll for zoom
         // Add PubSub subscribers
-        let dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
+        const dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
-            setDragId(data.nodeId)
+            setDragId(data.nodeId);
         });
-        let dragDropSub = PubSub.get().subscribeNodeDrop((data) => {
+        const dragDropSub = PubSub.get().subscribeNodeDrop((data) => {
             clearScroll();
             handleDragStop(data.nodeId, data.position);
         });
-        let fastUpdateSub = PubSub.get().subscribeFastUpdate((data) => {
+        const fastUpdateSub = PubSub.get().subscribeFastUpdate((data) => {
             setFastUpdate(data.on);
-            fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false) }, data.duration);
+            fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false); }, data.duration);
         });
         return () => {
             // Remove event listeners
@@ -290,7 +290,7 @@ export const NodeGraph = ({
             PubSub.get().unsubscribe(dragStartSub);
             PubSub.get().unsubscribe(dragDropSub);
             PubSub.get().unsubscribe(fastUpdateSub);
-        }
+        };
     }, [handleDragStop, nodeScroll]);
 
     /**
@@ -317,7 +317,7 @@ export const NodeGraph = ({
                 handleBranch={handleBranchInsert}
                 handleDelete={handleLinkDelete}
                 handleEdit={() => { }}
-            />
+            />;
         }).filter(edge => edge) as JSX.Element[];
     }, [fastUpdate, handleBranchInsert, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
 
@@ -342,7 +342,7 @@ export const NodeGraph = ({
             nodes={col}
             scale={scale}
             zIndex={zIndex}
-        />)
+        />);
     }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
     // Positive modulo function
@@ -399,5 +399,5 @@ export const NodeGraph = ({
                 {nodeColumns}
             </Stack>
         </Box>
-    )
+    );
 };

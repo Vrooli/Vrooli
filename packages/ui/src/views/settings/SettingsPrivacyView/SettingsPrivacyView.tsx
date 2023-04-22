@@ -49,9 +49,9 @@ export const SettingsPrivacyView = ({
                         mutationWrapper<User, ProfileUpdateInput>({
                             mutation,
                             input: values,
-                            onSuccess: (data) => { onProfileUpdate(data) },
-                            onError: () => { helpers.setSubmitting(false) },
-                        })
+                            onSuccess: (data) => { onProfileUpdate(data); },
+                            onError: () => { helpers.setSubmitting(false); },
+                        });
                     }}
                     validationSchema={userValidation.update({})}
                 >
@@ -64,5 +64,5 @@ export const SettingsPrivacyView = ({
                 </Formik>
             </Stack>
         </>
-    )
-}
+    );
+};

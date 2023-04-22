@@ -90,10 +90,10 @@ export const NoteView = ({
                             resize: "none",
                             minHeight: "100vh",
                             background: palette.background.paper,
-                        }
+                        },
                     }}
                 />
             </>
         </>
-    )
-}
+    );
+};

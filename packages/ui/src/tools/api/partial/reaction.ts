@@ -36,7 +36,7 @@ export const reaction: GqlPartial<Reaction> = {
                 Routine: 10,
                 SmartContract: 11,
                 Standard: 12,
-            }
-        }
-    }
-}
+            },
+        },
+    },
+};

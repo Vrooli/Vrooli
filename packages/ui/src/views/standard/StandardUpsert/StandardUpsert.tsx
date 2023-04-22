@@ -27,7 +27,7 @@ export const StandardUpsert = ({
     // Fetch existing data
     const { id } = useMemo(() => isCreate ? { id: undefined } : parseSingleItemUrl(), [isCreate]);
     const [getData, { data: existing, loading: isReadLoading }] = useCustomLazyQuery<StandardVersion, FindVersionInput>(standardVersionFindOne);
-    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }); }, [getData, id]);
 
     const formRef = useRef<BaseFormRef>();
     const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
@@ -56,9 +56,9 @@ export const StandardUpsert = ({
                     mutationWrapper<StandardVersion, StandardVersionUpdateInput>({
                         mutation,
                         input: transformStandardValues(values, existing),
-                        onSuccess: (data) => { handleCompleted(data) },
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onSuccess: (data) => { handleCompleted(data); },
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validate={async (values) => await validateStandardValues(values, existing)}
             >
@@ -75,5 +75,5 @@ export const StandardUpsert = ({
                 />}
             </Formik>
         </>
-    )
-}
+    );
+};

@@ -13,7 +13,7 @@ export const meetingTranslation: GqlPartial<MeetingTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const meetingYou: GqlPartial<MeetingYou> = {
     __typename: "MeetingYou",
@@ -24,7 +24,7 @@ export const meetingYou: GqlPartial<MeetingYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const meeting: GqlPartial<Meeting> = {
     __typename: "Meeting",
@@ -57,5 +57,5 @@ export const meeting: GqlPartial<Meeting> = {
         labels: { __use: 0 },
         schedule: { __use: 1 },
         translations: () => rel(meetingTranslation, "list"),
-    }
-}
+    },
+};

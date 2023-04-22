@@ -12,7 +12,7 @@ export const chatTranslation: GqlPartial<ChatTranslation> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const chatYou: GqlPartial<ChatYou> = {
     __typename: "ChatYou",
@@ -23,7 +23,7 @@ export const chatYou: GqlPartial<ChatYou> = {
     },
     full: {},
     list: {},
-}
+};
 
 export const chat: GqlPartial<Chat> = {
     __typename: "Chat",
@@ -52,5 +52,5 @@ export const chat: GqlPartial<Chat> = {
         },
         labels: { __use: 0 },
         translations: () => rel(chatTranslation, "list"),
-    }
-}
+    },
+};

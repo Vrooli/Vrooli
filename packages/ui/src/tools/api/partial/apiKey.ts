@@ -11,4 +11,4 @@ export const apiKey: GqlPartial<ApiKey> = {
         absoluteMax: true,
         resetsAt: true,
     },
-}
+};

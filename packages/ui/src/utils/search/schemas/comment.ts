@@ -15,7 +15,7 @@ export const commentSearchSchema = (): FormSchema => ({
         ...votesFields(),
         ...bookmarksFields(),
         ...languagesFields(),
-    ]
-})
+    ],
+});
 
 export const commentSearchParams = () => toParams(commentSearchSchema(), commentFindMany, CommentSortBy, CommentSortBy.ScoreDesc);

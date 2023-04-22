@@ -48,7 +48,7 @@ export const EmailList = ({
                     formik.resetForm();
                 },
                 onError: () => { formik.setSubmitting(false); },
-            })
+            });
         },
     });
 
@@ -73,13 +73,13 @@ export const EmailList = ({
                             mutation: deleteMutation,
                             input: { id: email.id, objectType: DeleteType.Email },
                             onSuccess: () => {
-                                handleUpdate([...list.filter(w => w.id !== email.id)])
+                                handleUpdate([...list.filter(w => w.id !== email.id)]);
                             },
-                        })
-                    }
+                        });
+                    },
                 },
                 { labelKey: "Cancel", onClick: () => { } },
-            ]
+            ],
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
@@ -92,7 +92,7 @@ export const EmailList = ({
             onSuccess: () => {
                 PubSub.get().publishSnack({ messageKey: "CompleteVerificationInEmail", severity: "Info" });
             },
-        })
+        });
     }, [loadingVerifyEmail, verifyMutation]);
 
     return (
@@ -136,7 +136,7 @@ export const EmailList = ({
                         maxWidth: "400px",
                         "& .MuiInputBase-root": {
                             borderRadius: "5px 0 0 5px",
-                        }
+                        },
                     }}
                 />
                 <ColorIconButton
@@ -151,5 +151,5 @@ export const EmailList = ({
                 </ColorIconButton>
             </Stack>
         </form>
-    )
-}
+    );
+};

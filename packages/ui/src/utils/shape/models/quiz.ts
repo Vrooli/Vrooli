@@ -8,5 +8,5 @@ export type QuizShape = Pick<Quiz, "id"> & {
 
 export const shapeQuiz: ShapeModel<QuizShape, QuizCreateInput, QuizUpdateInput> = {
     create: (d) => ({}) as any,
-    update: (o, u, a) => shapeUpdate(u, {}, a) as any
-}
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any,
+};

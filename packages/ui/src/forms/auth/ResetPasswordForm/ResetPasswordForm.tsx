@@ -1,6 +1,6 @@
 import {
     Button,
-    Grid
+    Grid,
 } from "@mui/material";
 import { EmailResetPasswordInput, LINKS, Session } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
@@ -60,11 +60,11 @@ export const ResetPasswordForm = ({
                         input: { id: userId, code, newPassword: values.newPassword },
                         onSuccess: (data) => {
                             PubSub.get().publishSession(data);
-                            setLocation(LINKS.Home)
+                            setLocation(LINKS.Home);
                         },
                         successMessage: () => ({ key: "PasswordReset" }),
-                        onError: () => { helpers.setSubmitting(false) },
-                    })
+                        onError: () => { helpers.setSubmitting(false); },
+                    });
                 }}
                 validationSchema={emailResetPasswordSchema}
             >
@@ -108,4 +108,4 @@ export const ResetPasswordForm = ({
             </Formik>
         </>
     );
-}
+};
