@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { MaxObjects, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from '@shared/consts';
+import { MaxObjects, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from "@shared/consts";
 import { reminderItemValidation } from "@shared/validation";
 import { noNull, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
@@ -8,7 +8,7 @@ import { defaultPermissions } from "../utils";
 import { ReminderModel } from "./reminder";
 import { ModelLogic } from "./types";
 
-const __typename = 'ReminderItem' as const;
+const __typename = "ReminderItem" as const;
 const suppFields = [] as const;
 export const ReminderItemModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +19,8 @@ export const ReminderItemModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.reminder_itemUpsertArgs['create'],
-    PrismaUpdate: Prisma.reminder_itemUpsertArgs['update'],
+    PrismaCreate: Prisma.reminder_itemUpsertArgs["create"],
+    PrismaUpdate: Prisma.reminder_itemUpsertArgs["update"],
     PrismaModel: Prisma.reminder_itemGetPayload<SelectWrap<Prisma.reminder_itemSelect>>,
     PrismaSelect: Prisma.reminder_itemSelect,
     PrismaWhere: Prisma.reminder_itemWhereInput,
@@ -29,16 +29,16 @@ export const ReminderItemModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.reminder_item,
     display: {
         select: () => ({ id: true, name: true }),
-        label: (select) => select.name
+        label: (select) => select.name,
     },
     format: {
         gqlRelMap: {
             __typename,
-            reminder: 'Reminder',
+            reminder: "Reminder",
         },
         prismaRelMap: {
             __typename,
-            reminder: 'Reminder',
+            reminder: "Reminder",
         },
         countFields: {},
     },
@@ -50,7 +50,7 @@ export const ReminderItemModel: ModelLogic<{
                 dueDate: noNull(data.dueDate),
                 index: data.index,
                 name: data.name,
-                ...(await shapeHelper({ relation: 'reminder', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Reminder', parentRelationshipName: 'reminderItems', data, ...rest })),
+                ...(await shapeHelper({ relation: "reminder", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "Reminder", parentRelationshipName: "reminderItems", data, ...rest })),
             }),
             update: async ({ data }) => ({
                 description: noNull(data.description),
@@ -71,14 +71,14 @@ export const ReminderItemModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            reminder: 'Reminder',
+            reminder: "Reminder",
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
                 reminder: ReminderModel.validate!.visibility.owner(userId),
-            })
-        }
+            }),
+        },
     },
-})
+});

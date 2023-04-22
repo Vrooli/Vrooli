@@ -17,4 +17,4 @@ export const findFirstRel = (obj: Record<string, any>, fieldsToCheck: string[]):
     }
     // If no non-null field is found, return undefined
     return [undefined, undefined];
-}
+};

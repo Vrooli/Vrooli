@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input ReminderItemCreateInput {
@@ -29,8 +29,8 @@ export const typeDef = gql`
         reminder: Reminder!
     }
 
-`
+`;
 
 export const resolvers: {
 } = {
-}
+};

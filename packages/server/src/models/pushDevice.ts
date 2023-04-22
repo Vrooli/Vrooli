@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
+import { MaxObjects, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from "@shared/consts";
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { defaultPermissions } from "../utils";
 import { pushDeviceValidation } from "@shared/validation";
 import { noNull } from "../builders";
 
-const __typename = 'PushDevice' as const;
+const __typename = "PushDevice" as const;
 const suppFields = [] as const;
 export const PushDeviceModel: ModelLogic<{
     IsTransferable: false,
@@ -18,8 +18,8 @@ export const PushDeviceModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
-    PrismaCreate: Prisma.push_deviceUpsertArgs['create'],
-    PrismaUpdate: Prisma.push_deviceUpsertArgs['update'],
+    PrismaCreate: Prisma.push_deviceUpsertArgs["create"],
+    PrismaUpdate: Prisma.push_deviceUpsertArgs["update"],
     PrismaModel: Prisma.push_deviceGetPayload<SelectWrap<Prisma.push_deviceSelect>>,
     PrismaSelect: Prisma.push_deviceSelect,
     PrismaWhere: Prisma.push_deviceWhereInput,
@@ -30,10 +30,10 @@ export const PushDeviceModel: ModelLogic<{
         select: () => ({ id: true, name: true, p256dh: true }),
         label: (select) => {
             // Return name if it exists
-            if (select.name) return select.name
+            if (select.name) return select.name;
             // Otherwise, return last 4 digits of p256dh
-            return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`
-        }
+            return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`;
+        },
     },
     format: {
         gqlRelMap: {
@@ -41,7 +41,7 @@ export const PushDeviceModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            user: 'User',
+            user: "User",
         },
         countFields: {},
     },
@@ -72,14 +72,14 @@ export const PushDeviceModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            user: 'User',
+            user: "User",
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                user: { id: userId }
+                user: { id: userId },
             }),
         },
     },
-})
+});

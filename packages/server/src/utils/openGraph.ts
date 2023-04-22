@@ -11,6 +11,6 @@ const openGraphRegex = /facebookexternalhit|twitterbot|linkedinbot|embedly|quora
  * @returns True if the user agent is a bot, false otherwise
  */
 export function isBot(userAgent: string): boolean {
-    console.log('checking user agent', userAgent);
+    console.log("checking user agent", userAgent);
     return openGraphRegex.test(userAgent);
 }

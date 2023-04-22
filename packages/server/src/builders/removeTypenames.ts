@@ -4,5 +4,5 @@
  * @return obj without type fields
  */
 export const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
-    return JSON.parse(JSON.stringify(obj, (k, v) => (k === '__typename') ? undefined : v))
-}
+    return JSON.parse(JSON.stringify(obj, (k, v) => (k === "__typename") ? undefined : v));
+};

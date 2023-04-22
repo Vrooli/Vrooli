@@ -15,7 +15,7 @@ import { ModelLogic } from "./types";
 //     }
 // }
 
-const __typename = 'RunRoutineStep' as const;
+const __typename = "RunRoutineStep" as const;
 const suppFields = [] as const;
 export const RunRoutineStepModel: ModelLogic<{
     IsTransferable: false,
@@ -26,8 +26,8 @@ export const RunRoutineStepModel: ModelLogic<{
     GqlPermission: {},
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
-    PrismaCreate: Prisma.run_routine_stepUpsertArgs['create'],
-    PrismaUpdate: Prisma.run_routine_stepUpsertArgs['update'],
+    PrismaCreate: Prisma.run_routine_stepUpsertArgs["create"],
+    PrismaUpdate: Prisma.run_routine_stepUpsertArgs["update"],
     PrismaModel: Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>,
     PrismaSelect: Prisma.run_routine_stepSelect,
     PrismaWhere: Prisma.run_routine_stepWhereInput,
@@ -41,15 +41,15 @@ export const RunRoutineStepModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            run: 'RunRoutine',
-            node: 'Node',
-            subroutine: 'Routine',
+            run: "RunRoutine",
+            node: "Node",
+            subroutine: "Routine",
         },
         prismaRelMap: {
             __typename,
-            node: 'Node',
-            runRoutine: 'RunRoutine',
-            subroutine: 'RoutineVersion',
+            node: "Node",
+            runRoutine: "RunRoutine",
+            subroutine: "RoutineVersion",
         },
         countFields: {},
     },
@@ -70,8 +70,8 @@ export const RunRoutineStepModel: ModelLogic<{
                 return {
                     // ...shapeBase(data),
                     // status: data.status ?? undefined,
-                } as any
-            }
+                } as any;
+            },
         },
         yup: runRoutineStepValidation,
     },
@@ -80,10 +80,10 @@ export const RunRoutineStepModel: ModelLogic<{
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            runRoutine: 'RunRoutine',
+            runRoutine: "RunRoutine",
         }),
         permissionResolvers: defaultPermissions,
-        profanityFields: ['name'],
+        profanityFields: ["name"],
         owner: (data, userId) => RunRoutineModel.validate!.owner(data.runRoutine as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => RunRoutineModel.validate!.isPublic(data.runRoutine as any, languages),
@@ -93,4 +93,4 @@ export const RunRoutineStepModel: ModelLogic<{
             owner: (userId) => ({ runRoutine: RunRoutineModel.validate!.visibility.owner(userId) }),
         },
     },
-})
+});

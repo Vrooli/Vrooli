@@ -1,4 +1,4 @@
-import { FieldNode, FragmentDefinitionNode, FragmentSpreadNode, GraphQLResolveInfo, InlineFragmentNode, SelectionNode } from 'graphql';
+import { FieldNode, FragmentDefinitionNode, FragmentSpreadNode, GraphQLResolveInfo, InlineFragmentNode, SelectionNode } from "graphql";
 
 /**
  * Parses a GraphQL FieldNode type
@@ -13,7 +13,7 @@ export function parseFieldNode(node: FieldNode, fragments: { [x: string]: Fragme
         // Call parseSelectionNode for each item in selection set
         let results: { [x: string]: any } = {};
         node.selectionSet.selections.forEach((selection: SelectionNode) => {
-            results = parseSelectionNode(results, selection, fragments)
+            results = parseSelectionNode(results, selection, fragments);
         });
         return results;
     }
@@ -71,12 +71,12 @@ export function parseInlineFragmentNode(node: InlineFragmentNode, fragments: { [
  * @returns Select object with fields as keys and "true" as values
  */
 export function parseSelectionNode(parsed: { [x: string]: any }, node: SelectionNode, fragments: { [x: string]: FragmentDefinitionNode }): { [key: string]: any } {
-    let result = parsed;
+    const result = parsed;
     // Determine which helper function to use
     switch (node.kind) {
-        case 'Field':
+        case "Field":
             // If selections are all InlineFragments (except for __typename), then the field is a union type
-            const inlineFragments: InlineFragmentNode[] | undefined = node.selectionSet?.selections.filter((selection: SelectionNode) => selection.kind === 'InlineFragment') as InlineFragmentNode[] | undefined;
+            const inlineFragments: InlineFragmentNode[] | undefined = node.selectionSet?.selections.filter((selection: SelectionNode) => selection.kind === "InlineFragment") as InlineFragmentNode[] | undefined;
             const isUnion = inlineFragments?.length !== undefined ? inlineFragments.length === node.selectionSet!.selections.length - 1 : false;
             if (isUnion) {
                 const union: { [x: string]: any } = {};
@@ -89,18 +89,18 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
                 result[node.name.value] = parseFieldNode(node, fragments);
             }
             break;
-        case 'FragmentSpread':
+        case "FragmentSpread":
             const spread = parseFragmentSpreadNode(node, fragments);
             for (const key in spread) {
                 result[key] = spread[key];
             }
             break;
-        case 'InlineFragment':
+        case "InlineFragment":
             result[`${node.typeCondition?.name.value}`] = parseInlineFragmentNode(node, fragments);
             break;
     }
     // Return result
-    return result
+    return result;
 }
 
 /**
@@ -121,4 +121,4 @@ export const resolveGraphQLInfo = (info: GraphQLResolveInfo): { [x: string]: any
         result = parseSelectionNode(result, selectionNode, info.fragments);
     });
     return result;
-}
+};

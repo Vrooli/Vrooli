@@ -7,8 +7,8 @@ import { defaultPermissions, translationShapeHelper } from "../utils";
 import { BookmarkModel } from "./bookmark";
 import { ModelLogic } from "./types";
 
-const __typename = 'Tag' as const;
-const suppFields = ['you'] as const;
+const __typename = "Tag" as const;
+const suppFields = ["you"] as const;
 export const TagModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -18,8 +18,8 @@ export const TagModel: ModelLogic<{
     GqlSearch: TagSearchInput,
     GqlSort: TagSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.tagUpsertArgs['create'],
-    PrismaUpdate: Prisma.tagUpsertArgs['update'],
+    PrismaCreate: Prisma.tagUpsertArgs["create"],
+    PrismaUpdate: Prisma.tagUpsertArgs["update"],
     PrismaModel: Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
     PrismaSelect: Prisma.tagSelect,
     PrismaWhere: Prisma.tagWhereInput,
@@ -33,48 +33,48 @@ export const TagModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            apis: 'Api',
-            notes: 'Note',
-            organizations: 'Organization',
-            posts: 'Post',
-            projects: 'Project',
-            reports: 'Report',
-            routines: 'Routine',
-            smartContracts: 'SmartContract',
-            standards: 'Standard',
-            bookmarkedBy: 'User',
+            apis: "Api",
+            notes: "Note",
+            organizations: "Organization",
+            posts: "Post",
+            projects: "Project",
+            reports: "Report",
+            routines: "Routine",
+            smartContracts: "SmartContract",
+            standards: "Standard",
+            bookmarkedBy: "User",
         },
         prismaRelMap: {
             __typename,
-            createdBy: 'User',
-            apis: 'Api',
-            notes: 'Note',
-            organizations: 'Organization',
-            posts: 'Post',
-            projects: 'Project',
-            reports: 'Report',
-            routines: 'Routine',
-            smartContracts: 'SmartContract',
-            standards: 'Standard',
-            bookmarkedBy: 'User',
-            focusModeFilters: 'FocusModeFilter',
+            createdBy: "User",
+            apis: "Api",
+            notes: "Note",
+            organizations: "Organization",
+            posts: "Post",
+            projects: "Project",
+            reports: "Report",
+            routines: "Routine",
+            smartContracts: "SmartContract",
+            standards: "Standard",
+            bookmarkedBy: "User",
+            focusModeFilters: "FocusModeFilter",
         },
         joinMap: {
-            apis: 'tagged',
-            notes: 'tagged',
-            organizations: 'tagged',
-            posts: 'tagged',
-            projects: 'tagged',
-            reports: 'tagged',
-            routines: 'tagged',
-            smartContracts: 'tagged',
-            standards: 'tagged',
-            bookmarkedBy: 'user'
+            apis: "tagged",
+            notes: "tagged",
+            organizations: "tagged",
+            posts: "tagged",
+            projects: "tagged",
+            reports: "tagged",
+            routines: "tagged",
+            smartContracts: "tagged",
+            standards: "tagged",
+            bookmarkedBy: "user",
         },
         countFields: {},
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['createdById', 'id'],
+            dbFields: ["createdById", "id"],
             toGraphQL: async ({ ids, objects, prisma, userData }) => ({
                 you: {
                     isBookmarked: await BookmarkModel.query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
@@ -88,12 +88,12 @@ export const TagModel: ModelLogic<{
             create: async ({ data, ...rest }) => ({
                 tag: data.tag,
                 createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
-                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, ...rest })),
+                ...(await translationShapeHelper({ relTypes: ["Create"], isRequired: false, data, ...rest })),
             }),
             update: async ({ data, ...rest }) => ({
                 ...(data.anonymous ? { createdBy: { disconnect: true } } : {}),
-                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, ...rest })),
-            })
+                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], isRequired: false, data, ...rest })),
+            }),
         },
         yup: tagValidation,
     },
@@ -111,9 +111,9 @@ export const TagModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transDescriptionWrapped',
-                'tagWrapped',
-            ]
+                "transDescriptionWrapped",
+                "tagWrapped",
+            ],
         }),
     },
     validate: {
@@ -124,11 +124,11 @@ export const TagModel: ModelLogic<{
         owner: () => ({}),
         isDeleted: () => false,
         isPublic: () => true,
-        profanityFields: ['tag'],
+        profanityFields: ["tag"],
         visibility: {
             private: {},
             public: {},
             owner: () => ({}),
         },
     },
-})
+});

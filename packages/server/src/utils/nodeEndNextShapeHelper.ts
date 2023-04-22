@@ -3,9 +3,9 @@ import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } fr
 import { RelationshipType } from "../builders/types";
 
 type NodeEndNextShapeHelperProps<
-    Input extends ShapeHelperInput<false, false, Types[number], 'suggestedNextRoutineVersions'>,
+    Input extends ShapeHelperInput<false, false, Types[number], "suggestedNextRoutineVersions">,
     Types extends readonly RelationshipType[],
-> = Omit<ShapeHelperProps<Input, false, false, Types, 'suggestedNextRoutineVersions', 'id', false>, 'isRequired' | 'isOneToOne' | 'joinData' | 'objectType' | 'parentRelationshipName' | 'primaryKey' | 'relation' | 'softDelete'>;
+> = Omit<ShapeHelperProps<Input, false, false, Types, "suggestedNextRoutineVersions", "id", false>, "isRequired" | "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
 
 /**
 * Connects and disconnects suggested next routine versions from end nodes, 
@@ -13,7 +13,7 @@ type NodeEndNextShapeHelperProps<
 */
 export const nodeEndNextShapeHelper = async <
     Types extends readonly RelationshipType[],
-    Input extends ShapeHelperInput<false, false, Types[number], 'suggestedNextRoutineVersions'>,
+    Input extends ShapeHelperInput<false, false, Types[number], "suggestedNextRoutineVersions">,
 >({
     data,
     preMap,
@@ -21,25 +21,25 @@ export const nodeEndNextShapeHelper = async <
     relTypes,
     userData,
 }: NodeEndNextShapeHelperProps<Input, Types>):
-    Promise<ShapeHelperOutput<false, false, Types[number], 'suggestedNextRoutineVersions', 'id'>> => {
+    Promise<ShapeHelperOutput<false, false, Types[number], "suggestedNextRoutineVersions", "id">> => {
     return shapeHelper({
         data,
         isOneToOne: false,
         isRequired: false,
         joinData: {
-            fieldName: 'toRoutineVersion',
-            uniqueFieldName: 'fromEndId_toRoutineVersionId',
-            childIdFieldName: 'toRoutineVersionId',
-            parentIdFieldName: 'fromEndId',
+            fieldName: "toRoutineVersion",
+            uniqueFieldName: "fromEndId_toRoutineVersionId",
+            childIdFieldName: "toRoutineVersionId",
+            parentIdFieldName: "fromEndId",
             parentId: (data as any).id ?? null,
         },
-        objectType: 'RoutineVersion' as GqlModelType,
-        parentRelationshipName: 'suggestedNextByNode',
+        objectType: "RoutineVersion" as GqlModelType,
+        parentRelationshipName: "suggestedNextByNode",
         preMap,
-        primaryKey: 'id',
+        primaryKey: "id",
         prisma,
-        relation: 'suggestedNextRoutineVersions',
+        relation: "suggestedNextRoutineVersions",
         relTypes,
         userData,
-    })
-}
+    });
+};

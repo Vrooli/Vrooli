@@ -1,7 +1,7 @@
 const Order = {
-    Asc: 'asc',
-    Desc: 'desc',
-} as const
+    Asc: "asc",
+    Desc: "desc",
+} as const;
 
 /**
  * Maps any object's sortBy enum to a partial Prisma query. 
@@ -123,4 +123,4 @@ export const SortMap = {
     WindowEndDesc: { windowEnd: Order.Desc },
     WindowStartAsc: { windowStart: Order.Asc },
     WindowStartDesc: { windowStart: Order.Desc },
-}
+};

@@ -13,7 +13,7 @@ export const convertPlaceholders = async ({
     idsByAction,
     idsByType,
     prisma,
-    languages
+    languages,
 }: {
     idsByAction: IdsByAction,
     idsByType: IdsByType,
@@ -41,7 +41,7 @@ export const convertPlaceholders = async ({
                 const [rootId, ...relations] = path.split(".");
 
                 // Query the database to find the actual ID
-                const { delegate } = getLogic(['delegate'], objectType as GqlModelType, languages, 'convertPlaceholders');
+                const { delegate } = getLogic(["delegate"], objectType as GqlModelType, languages, "convertPlaceholders");
                 const queryResult = await delegate(prisma).findUnique({
                     where: { id: rootId },
                     select: relations.reduce((selectObj, relation) => {

@@ -8,7 +8,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { StandardModel } from "./standard";
 import { ModelLogic } from "./types";
 
-const __typename = 'StatsStandard' as const;
+const __typename = "StatsStandard" as const;
 const suppFields = [] as const;
 export const StatsStandardModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +19,8 @@ export const StatsStandardModel: ModelLogic<{
     GqlSearch: StatsStandardSearchInput,
     GqlSort: StatsStandardSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.stats_standardUpsertArgs['create'],
-    PrismaUpdate: Prisma.stats_standardUpsertArgs['update'],
+    PrismaCreate: Prisma.stats_standardUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_standardUpsertArgs["update"],
     PrismaModel: Prisma.stats_standardGetPayload<SelectWrap<Prisma.stats_standardSelect>>,
     PrismaSelect: Prisma.stats_standardSelect,
     PrismaWhere: Prisma.stats_standardWhereInput,
@@ -29,8 +29,8 @@ export const StatsStandardModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_standard,
     display: {
         select: () => ({ id: true, standard: selPad(StandardModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
-            lng: languages.length > 0 ? languages[0] : 'en',
+        label: (select, languages) => i18next.t("common:ObjectStats", {
+            lng: languages.length > 0 ? languages[0] : "en",
             objectName: StandardModel.display.label(select.standard as any, languages),
         }),
     },
@@ -40,7 +40,7 @@ export const StatsStandardModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            standard: 'Standard',
+            standard: "Standard",
         },
         countFields: {},
     },
@@ -58,18 +58,18 @@ export const StatsStandardModel: ModelLogic<{
         maxObjects: 0,
         permissionsSelect: () => ({
             id: true,
-            standard: 'Standard',
+            standard: "Standard",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => StandardModel.validate!.owner(data.standard as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_standardSelect>(data, [
-            ['standard', 'Standard'],
+            ["standard", "Standard"],
         ], languages),
         visibility: {
             private: { standard: StandardModel.validate!.visibility.private },
             public: { standard: StandardModel.validate!.visibility.public },
             owner: (userId) => ({ standard: StandardModel.validate!.visibility.owner(userId) }),
-        }
+        },
     },
-})
+});

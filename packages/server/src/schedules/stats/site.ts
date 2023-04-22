@@ -1,5 +1,6 @@
-import pkg, { PeriodType, Prisma, QuizAttemptStatus } from '@prisma/client';
-import { logger } from '../../events';
+import pkg, { PeriodType, Prisma, QuizAttemptStatus } from "@prisma/client";
+import { logger } from "../../events";
+
 const { PrismaClient } = pkg;
 
 /**
@@ -51,7 +52,7 @@ export const logSiteStats = async (
         standardCompletionTimeAverage: 0,
         verifiedEmailsCreated: 0,
         verifiedWalletsCreated: 0,
-    }
+    };
     try {
         // Find all users active in the past 90 days
         data.activeUsers = await prisma.user.count({
@@ -286,11 +287,11 @@ export const logSiteStats = async (
             },
         });
         // Store in database
-        await prisma.stats_site.create({ data })
+        await prisma.stats_site.create({ data });
     } catch (error) {
-        logger.error('Caught error logging site statistics', { trace: '0423', data });
+        logger.error("Caught error logging site statistics", { trace: "0423", data });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

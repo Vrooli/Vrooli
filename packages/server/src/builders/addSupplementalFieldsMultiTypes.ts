@@ -43,4 +43,4 @@ export const addSupplementalFieldsMultiTypes = async <
         start = end;
     }
     return formatted;
-}
+};

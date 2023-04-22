@@ -15,15 +15,15 @@ export const injectTypenames = <
     PrismaObject extends { [x: string]: any }
 >(select: { [x: string]: any }, parentRelationshipMap: GqlRelMap<GQLObject, PrismaObject>): PartialGraphQLInfo => {
     // Create result object
-    let result: any = {};
+    const result: any = {};
     // Iterate over select object
     for (const [selectKey, selectValue] of Object.entries(select)) {
         // Skip type
-        if (['type', '__typename'].includes(selectKey)) continue;
+        if (["type", "__typename"].includes(selectKey)) continue;
         // Find the corresponding relationship map. An array represents a union
         const nestedValue = parentRelationshipMap[selectKey];
         // If value is not an object, just add to result
-        if (typeof selectValue !== 'object') {
+        if (typeof selectValue !== "object") {
             result[selectKey] = selectValue;
             continue;
         }
@@ -35,7 +35,7 @@ export const injectTypenames = <
         }
         // If value is an object, recurse
         // If not union, add the single type to the result
-        if (typeof nestedValue === 'string') {
+        if (typeof nestedValue === "string") {
             if (selectValue && ObjectMap[nestedValue!]) {
                 result[selectKey] = injectTypenames(selectValue, ObjectMap[nestedValue!]!.format.gqlRelMap);
             }
@@ -55,4 +55,4 @@ export const injectTypenames = <
     // Add type field, assuming it exists (if won't exist when recursing the '{} as any')
     if (parentRelationshipMap.__typename) result.__typename = parentRelationshipMap.__typename;
     return result;
-}
+};

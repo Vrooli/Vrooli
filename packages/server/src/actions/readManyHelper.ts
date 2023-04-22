@@ -29,15 +29,15 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req);
     const model = ObjectMap[objectType];
-    if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
+    if (!model) throw new CustomError("0349", "InternalError", req.languages, { objectType });
     // Partially convert info type
-    let partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
+    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
     // Check take limit
     if (Number.isInteger(input.take) && input.take > MAX_TAKE) {
-        throw new CustomError('0389', 'InternalError', req.languages, { objectType, take: input.take });
+        throw new CustomError("0389", "InternalError", req.languages, { objectType, take: input.take });
     }
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
@@ -69,13 +69,13 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             take: Number.isInteger(input.take) ? input.take : 25,
             skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
             cursor: input.after ? {
-                id: input.after
+                id: input.after,
             } : undefined,
-            ...select
+            ...select,
         });
     } catch (error) {
-        logger.error('readManyHelper: Failed to find searchResults', { trace: '0383', error, objectType, ...select, where, orderBy });
-        throw new CustomError('0383', 'InternalError', req.languages, { objectType });
+        logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, ...select, where, orderBy });
+        throw new CustomError("0383", "InternalError", req.languages, { objectType });
     }
     // If there are results
     let paginatedResults: PaginatedSearchResult;
@@ -86,13 +86,13 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         const hasNextPage = await (model.delegate(prisma) as any).findMany({
             take: 1,
             cursor: {
-                id: cursor
-            }
+                id: cursor,
+            },
         });
         paginatedResults = {
             __typename: `${model.__typename}SearchResult` as const,
             pageInfo: {
-                __typename: 'PageInfo' as const,
+                __typename: "PageInfo" as const,
                 hasNextPage: hasNextPage.length > 0,
                 endCursor: cursor,
             },
@@ -100,20 +100,20 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
                 __typename: `${model.__typename}Edge` as const,
                 cursor: result.id,
                 node: result,
-            }))
-        }
+            })),
+        };
     }
     // If there are no results
     else {
         paginatedResults = {
             __typename: `${model.__typename}SearchResult` as const,
             pageInfo: {
-                __typename: 'PageInfo' as const,
+                __typename: "PageInfo" as const,
                 endCursor: null,
                 hasNextPage: false,
             },
-            edges: []
-        }
+            edges: [],
+        };
     }
     //TODO validate that the user has permission to read all of the results, including relationships
     // If not adding supplemental fields, return the paginated results
@@ -125,6 +125,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     return {
         ...paginatedResults,
         pageInfo: paginatedResults.pageInfo,
-        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest }))
+        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })),
     };
 }

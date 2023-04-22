@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input ProjectVersionDirectoryCreateInput {
@@ -79,9 +79,9 @@ export const typeDef = gql`
         description: String
         name: String
     }
-`
+`;
 
-const objectType = 'ProjectVersionDirectory';
+const objectType = "ProjectVersionDirectory";
 export const resolvers: {
 } = {
-}
+};

@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { MaxObjects, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from '@shared/consts';
+import { MaxObjects, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from "@shared/consts";
 import { quizQuestionResponseValidation } from "@shared/validation";
 import i18next from "i18next";
 import { noNull, selPad, shapeHelper } from "../builders";
@@ -11,9 +11,9 @@ import { QuizAttemptModel } from "./quizAttempt";
 import { QuizQuestionModel } from "./quizQuestion";
 import { ModelLogic } from "./types";
 
-const __typename = 'QuizQuestionResponse' as const;
-type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canUpdate'>;
-const suppFields = ['you'] as const;
+const __typename = "QuizQuestionResponse" as const;
+type Permissions = Pick<QuizQuestionResponseYou, "canDelete" | "canUpdate">;
+const suppFields = ["you"] as const;
 export const QuizQuestionResponseModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -23,8 +23,8 @@ export const QuizQuestionResponseModel: ModelLogic<{
     GqlSearch: QuizQuestionResponseSearchInput,
     GqlSort: QuizQuestionResponseSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.quiz_question_responseUpsertArgs['create'],
-    PrismaUpdate: Prisma.quiz_question_responseUpsertArgs['update'],
+    PrismaCreate: Prisma.quiz_question_responseUpsertArgs["create"],
+    PrismaUpdate: Prisma.quiz_question_responseUpsertArgs["update"],
     PrismaModel: Prisma.quiz_question_responseGetPayload<SelectWrap<Prisma.quiz_question_responseSelect>>,
     PrismaSelect: Prisma.quiz_question_responseSelect,
     PrismaWhere: Prisma.quiz_question_responseWhereInput,
@@ -33,21 +33,21 @@ export const QuizQuestionResponseModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
     display: {
         select: () => ({ id: true, quizQuestion: selPad(QuizQuestionModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:QuizQuestionResponseLabel`, {
-            lng: languages.length > 0 ? languages[0] : 'en',
+        label: (select, languages) => i18next.t("common:QuizQuestionResponseLabel", {
+            lng: languages.length > 0 ? languages[0] : "en",
             questionLabel: QuizQuestionModel.display.label(select.quizQuestion as any, languages),
         }),
     },
     format: {
         gqlRelMap: {
             __typename,
-            quizAttempt: 'QuizAttempt',
-            quizQuestion: 'QuizQuestion',
+            quizAttempt: "QuizAttempt",
+            quizQuestion: "QuizQuestion",
         },
         prismaRelMap: {
             __typename,
-            quizAttempt: 'QuizAttempt',
-            quizQuestion: 'QuizQuestion',
+            quizAttempt: "QuizAttempt",
+            quizQuestion: "QuizQuestion",
         },
         countFields: {},
         supplemental: {
@@ -56,8 +56,8 @@ export const QuizQuestionResponseModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -66,8 +66,8 @@ export const QuizQuestionResponseModel: ModelLogic<{
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 response: data.response,
-                ...(await shapeHelper({ relation: 'quizAttempt', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'QuizAttempt', parentRelationshipName: 'responses', data, ...rest })),
-                ...(await shapeHelper({ relation: 'quizQuestion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'QuizQuestion', parentRelationshipName: 'responses', data, ...rest })),
+                ...(await shapeHelper({ relation: "quizAttempt", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "QuizAttempt", parentRelationshipName: "responses", data, ...rest })),
+                ...(await shapeHelper({ relation: "quizQuestion", relTypes: ["Connect"], isOneToOne: true, isRequired: true, objectType: "QuizQuestion", parentRelationshipName: "responses", data, ...rest })),
             }),
             update: async ({ data }) => ({
                 response: noNull(data.response),
@@ -87,8 +87,8 @@ export const QuizQuestionResponseModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'transResponseWrapped',
-            ]
+                "transResponseWrapped",
+            ],
         }),
     },
     validate: {
@@ -100,14 +100,14 @@ export const QuizQuestionResponseModel: ModelLogic<{
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            quizAttempt: 'QuizAttempt',
+            quizAttempt: "QuizAttempt",
         }),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
                 quizAttempt: QuizAttemptModel.validate!.visibility.owner(userId),
-            })
-        }
+            }),
+        },
     },
-})
+});

@@ -9,7 +9,7 @@ import { exists } from "@shared/utils";
 export const removeCountFields = (obj: any, countFields: { [x: string]: true } | undefined): any => {
     if (!obj || !countFields) return obj;
     // Create result object
-    let result: any = {};
+    const result: any = {};
     // If no counts, no reason to continue
     if (!obj._count) return obj;
     // Iterate over count map
@@ -24,6 +24,6 @@ export const removeCountFields = (obj: any, countFields: { [x: string]: true } |
     delete obj._count;
     return {
         ...obj,
-        ...result
-    }
-}
+        ...result,
+    };
+};

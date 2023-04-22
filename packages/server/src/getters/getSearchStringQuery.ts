@@ -11,7 +11,7 @@ import { SearchStringMap } from "../utils";
  */
 const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
     queryParams: SearchStringQueryParams,
-    query: SearchStringQuery<Where>
+    query: SearchStringQuery<Where>,
 ): Where => {
     // Loop through [key, value] pairs in query
     const where: Where = {} as Where;
@@ -19,9 +19,9 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
         // If value is an array, recursively convert each element
         if (Array.isArray(value)) {
             where[key as keyof Where] = value.map((v) => {
-                if (typeof v === 'string' && SearchStringMap[v]) {
+                if (typeof v === "string" && SearchStringMap[v]) {
                     return SearchStringMap[v](queryParams);
-                } else if (typeof v === 'object') {
+                } else if (typeof v === "object") {
                     return getSearchStringQueryHelper(queryParams, v);
                 } else {
                     return v;
@@ -37,7 +37,7 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
             where[key as keyof Where] = getSearchStringQueryHelper(queryParams, value);
         }
         // If value is a string, convert it to a Prisma query
-        else if (typeof value === 'string' && SearchStringMap[value]) {
+        else if (typeof value === "string" && SearchStringMap[value]) {
             (where as any)[key as keyof Where] = SearchStringMap[value](queryParams);
         }
         // Otherwise, just copy the value
@@ -46,7 +46,7 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
         }
     }
     return where;
-}
+};
 
 /**
  * Converts a searchStringQuery object into a Prisma search query. 
@@ -65,7 +65,7 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
 }): Where {
     if (searchString.length === 0) return {} as Where;
     // Get searcher
-    const { search } = getLogic(['search'], objectType, languages ?? ['en'], 'getSearchStringQuery')
-    const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' as const });
+    const { search } = getLogic(["search"], objectType, languages ?? ["en"], "getSearchStringQuery");
+    const insensitive = ({ contains: searchString.trim(), mode: "insensitive" as const });
     return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
 }

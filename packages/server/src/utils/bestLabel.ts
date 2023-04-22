@@ -15,8 +15,8 @@ export const bestLabel = <
 ): string => {
     for (const language of languages) {
         const translation = translations.find(({ language: lang }) => lang === language);
-        if (translation) return translation[labelField] ?? '';
+        if (translation) return translation[labelField] ?? "";
     }
-    if (translations.length > 0) return translations[0][labelField] ?? '';
-    return '';
-}
+    if (translations.length > 0) return translations[0][labelField] ?? "";
+    return "";
+};

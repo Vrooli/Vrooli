@@ -19,7 +19,7 @@ export async function checkRateLimit(client: any, key: string, max: number, wind
     const count = await client.incr(key);
     // If limit reached, throw error.
     if (count > max) {
-        throw new CustomError('0017', 'RateLimitExceeded', languages);
+        throw new CustomError("0017", "RateLimitExceeded", languages);
     }
     // If key is new, set expiration.
     if (count === 1) {
@@ -77,7 +77,7 @@ export async function rateLimit({
         }
         // If API token is not supplied, make sure request is from the official Vrooli app/website
         else if (req.fromSafeOrigin === false) {
-            throw new CustomError('0271', 'MustUseApiToken', req.languages);
+            throw new CustomError("0271", "MustUseApiToken", req.languages);
         }
         // Apply rate limit to IP address
         const key = `${keyBase}:ip:${req.ip}`;
@@ -90,6 +90,6 @@ export async function rateLimit({
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
-        logger.error('Error occured while connecting or accessing redis server', { trace: '0168', error });
+        logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
     }
 }

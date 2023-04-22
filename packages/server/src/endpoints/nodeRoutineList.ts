@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input NodeRoutineListCreateInput {
@@ -23,7 +23,7 @@ export const typeDef = gql`
         items: [NodeRoutineListItem!]!
         node: Node!
     }
-`
+`;
 export const resolvers: {
 } = {
-}
+};

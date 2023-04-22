@@ -14,11 +14,11 @@ export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
     for (let i = 0; i < list.length; i++) {
         const [field, type] = list[i];
         // Get the validator for this type
-        const { validate } = getLogic(['validate'], type, languages, 'oneIsPublic');
+        const { validate } = getLogic(["validate"], type, languages, "oneIsPublic");
         // Use validator to determine if this field is public
         if (permissionsData[field] && validate.isPublic(permissionsData[field], languages)) {
             return true;
         }
     }
     return false;
-}
+};

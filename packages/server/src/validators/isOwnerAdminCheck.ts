@@ -20,4 +20,4 @@ export const isOwnerAdminCheck = (
     }
     // If the owner is neither a user nor an organization, return false
     return false;
-}
+};

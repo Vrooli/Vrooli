@@ -11,13 +11,13 @@ export function combineQueries(queries: ({ [x: string]: any } | null | undefined
         for (const [key, value] of Object.entries(query)) {
             let currValue = value;
             // If key is AND, OR, or NOT, combine
-            if (['AND', 'OR', 'NOT'].includes(key)) {
+            if (["AND", "OR", "NOT"].includes(key)) {
                 // Value should be an array
                 if (!Array.isArray(value)) {
                     currValue = [value];
                 }
                 // For AND, combine arrays
-                if (key === 'AND') {
+                if (key === "AND") {
                     combined[key] = key in combined ? [...combined[key], ...currValue] : currValue;
                 }
                 // For OR and NOT, set as value if none exists

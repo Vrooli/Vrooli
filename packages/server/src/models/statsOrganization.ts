@@ -8,7 +8,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
 
-const __typename = 'StatsOrganization' as const;
+const __typename = "StatsOrganization" as const;
 const suppFields = [] as const;
 export const StatsOrganizationModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +19,8 @@ export const StatsOrganizationModel: ModelLogic<{
     GqlSearch: StatsOrganizationSearchInput,
     GqlSort: StatsOrganizationSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.stats_organizationUpsertArgs['create'],
-    PrismaUpdate: Prisma.stats_organizationUpsertArgs['update'],
+    PrismaCreate: Prisma.stats_organizationUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_organizationUpsertArgs["update"],
     PrismaModel: Prisma.stats_organizationGetPayload<SelectWrap<Prisma.stats_organizationSelect>>,
     PrismaSelect: Prisma.stats_organizationSelect,
     PrismaWhere: Prisma.stats_organizationWhereInput,
@@ -29,8 +29,8 @@ export const StatsOrganizationModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_organization,
     display: {
         select: () => ({ id: true, organization: selPad(OrganizationModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
-            lng: languages.length > 0 ? languages[0] : 'en',
+        label: (select, languages) => i18next.t("common:ObjectStats", {
+            lng: languages.length > 0 ? languages[0] : "en",
             objectName: OrganizationModel.display.label(select.organization as any, languages),
         }),
     },
@@ -40,7 +40,7 @@ export const StatsOrganizationModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            organization: 'Organization',
+            organization: "Organization",
         },
         countFields: {},
     },
@@ -58,18 +58,18 @@ export const StatsOrganizationModel: ModelLogic<{
         maxObjects: 0,
         permissionsSelect: () => ({
             id: true,
-            organization: 'Organization',
+            organization: "Organization",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => OrganizationModel.validate!.owner(data.organization as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_organizationSelect>(data, [
-            ['organization', 'Organization'],
+            ["organization", "Organization"],
         ], languages),
         visibility: {
             private: { organization: OrganizationModel.validate!.visibility.private },
             public: { organization: OrganizationModel.validate!.visibility.public },
             owner: (userId) => ({ organization: OrganizationModel.validate!.visibility.owner(userId) }),
-        }
+        },
     },
-})
+});

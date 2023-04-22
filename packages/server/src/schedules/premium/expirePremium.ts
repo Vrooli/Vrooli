@@ -19,12 +19,12 @@ const checkOrganizations = async (
                 premium: {
                     update: {
                         isActive: false,
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
     }));
-}
+};
 
 const checkUsers = async (
     prisma: PrismaType,
@@ -43,12 +43,12 @@ const checkUsers = async (
                 premium: {
                     update: {
                         isActive: false,
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
     }));
-}
+};
 
 /**
  * Expires premium status for users and organizations
@@ -71,8 +71,8 @@ export const expirePremium = async () => {
                             id: true,
                             expiresAt: true,
                             isActive: true,
-                        }
-                    }
+                        },
+                    },
                 },
                 skip,
                 take: batchSize,
@@ -97,8 +97,8 @@ export const expirePremium = async () => {
                             id: true,
                             expiresAt: true,
                             isActive: true,
-                        }
-                    }
+                        },
+                    },
                 },
                 skip,
                 take: batchSize,
@@ -111,9 +111,9 @@ export const expirePremium = async () => {
             await checkUsers(prisma, batch);
         } while (currentBatchSize === batchSize);
     } catch (error) {
-        logger.error('Caught error removing premium', { trace: '0442' });
+        logger.error("Caught error removing premium", { trace: "0442" });
     } finally {
         // Close the Prisma client
         await prisma.$disconnect();
     }
-}
+};

@@ -8,7 +8,7 @@ import { defaultPermissions, oneIsPublic } from "../utils";
 import { RoutineModel } from "./routine";
 import { ModelLogic } from "./types";
 
-const __typename = 'StatsRoutine' as const;
+const __typename = "StatsRoutine" as const;
 const suppFields = [] as const;
 export const StatsRoutineModel: ModelLogic<{
     IsTransferable: false,
@@ -19,8 +19,8 @@ export const StatsRoutineModel: ModelLogic<{
     GqlSearch: StatsRoutineSearchInput,
     GqlSort: StatsRoutineSortBy,
     GqlPermission: {},
-    PrismaCreate: Prisma.stats_routineUpsertArgs['create'],
-    PrismaUpdate: Prisma.stats_routineUpsertArgs['update'],
+    PrismaCreate: Prisma.stats_routineUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_routineUpsertArgs["update"],
     PrismaModel: Prisma.stats_routineGetPayload<SelectWrap<Prisma.stats_routineSelect>>,
     PrismaSelect: Prisma.stats_routineSelect,
     PrismaWhere: Prisma.stats_routineWhereInput,
@@ -29,8 +29,8 @@ export const StatsRoutineModel: ModelLogic<{
     delegate: (prisma: PrismaType) => prisma.stats_routine,
     display: {
         select: () => ({ id: true, routine: selPad(RoutineModel.display.select) }),
-        label: (select, languages) => i18next.t(`common:ObjectStats`, {
-            lng: languages.length > 0 ? languages[0] : 'en',
+        label: (select, languages) => i18next.t("common:ObjectStats", {
+            lng: languages.length > 0 ? languages[0] : "en",
             objectName: RoutineModel.display.label(select.routine as any, languages),
         }),
     },
@@ -40,7 +40,7 @@ export const StatsRoutineModel: ModelLogic<{
         },
         prismaRelMap: {
             __typename,
-            routine: 'Routine',
+            routine: "Routine",
         },
         countFields: {},
     },
@@ -58,18 +58,18 @@ export const StatsRoutineModel: ModelLogic<{
         maxObjects: 0,
         permissionsSelect: () => ({
             id: true,
-            routine: 'Routine',
+            routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => RoutineModel.validate!.owner(data.routine as any, userId),
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.stats_routineSelect>(data, [
-            ['routine', 'Routine'],
+            ["routine", "Routine"],
         ], languages),
         visibility: {
             private: { routine: RoutineModel.validate!.visibility.private },
             public: { routine: RoutineModel.validate!.visibility.public },
             owner: (userId) => ({ routine: RoutineModel.validate!.visibility.owner(userId) }),
-        }
+        },
     },
-})
+});

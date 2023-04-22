@@ -2,22 +2,22 @@ import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } fr
 import { RelationshipType } from "../builders/types";
 
 // Types of objects which have tags
-type TaggedObjectType = 'Api' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard';
+type TaggedObjectType = "Api" | "Note" | "Organization" | "Post" | "Project" | "Question" | "Routine" | "SmartContract" | "Standard";
 
 /**
  * Maps type of a tag's parent with the unique field
  */
 const parentMapper: { [key in TaggedObjectType]: string } = {
-    'Api': 'api_tags_taggedid_tagTag_unique',
-    'Note': 'note_tags_taggedid_tagTag_unique',
-    'Organization': 'organization_tags_taggedid_tagTag_unique',
-    'Post': 'post_tags_taggedid_tagTag_unique',
-    'Project': 'project_tags_taggedid_tagTag_unique',
-    'Question': 'question_tags_taggedid_tagTag_unique',
-    'Routine': 'routine_tags_taggedid_tagTag_unique',
-    'SmartContract': 'smart_contract_tags_taggedid_tagTag_unique',
-    'Standard': 'standard_tags_taggedid_tagTag_unique',
-}
+    "Api": "api_tags_taggedid_tagTag_unique",
+    "Note": "note_tags_taggedid_tagTag_unique",
+    "Organization": "organization_tags_taggedid_tagTag_unique",
+    "Post": "post_tags_taggedid_tagTag_unique",
+    "Project": "project_tags_taggedid_tagTag_unique",
+    "Question": "question_tags_taggedid_tagTag_unique",
+    "Routine": "routine_tags_taggedid_tagTag_unique",
+    "SmartContract": "smart_contract_tags_taggedid_tagTag_unique",
+    "Standard": "standard_tags_taggedid_tagTag_unique",
+};
 
 type TagShapeHelperProps<
     Input extends ShapeHelperInput<false, false, Types[number], FieldName>,
@@ -26,7 +26,7 @@ type TagShapeHelperProps<
 > = {
     parentType: TaggedObjectType;
     relation: FieldName;
-} & Omit<ShapeHelperProps<Input, false, false, Types, FieldName, 'tag', false>, 'isRequired' | 'isOneToOne' | 'joinData' | 'objectType' | 'parentRelationshipName' | 'primaryKey' | 'relation' | 'softDelete'>;
+} & Omit<ShapeHelperProps<Input, false, false, Types, FieldName, "tag", false>, "isRequired" | "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
 
 /**
 * Add, update, or remove tag data for an object.
@@ -42,53 +42,53 @@ export const tagShapeHelper = async <
     relation,
     ...rest
 }: TagShapeHelperProps<Input, Types, FieldName>):
-    Promise<ShapeHelperOutput<false, false, Types[number], any, 'tag'>> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
+    Promise<ShapeHelperOutput<false, false, Types[number], any, "tag">> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
     // Tags get special logic because they are treated as strings in GraphQL, 
     // instead of a normal relationship object
     // If any tag creates/connects, make sure they exist/not exist
     const initialCreate = Array.isArray(data[`${relation}Create` as string]) ?
         data[`${relation}Create` as string].map((c: any) => c.tag) :
-        typeof data[`${relation}Create` as string] === 'object' ? [data[`${relation}Create` as string].tag] :
+        typeof data[`${relation}Create` as string] === "object" ? [data[`${relation}Create` as string].tag] :
             [];
     const initialConnect = Array.isArray(data[`${relation}Connect` as string]) ?
         data[`${relation}Connect` as string] :
-        typeof data[`${relation}Connect` as string] === 'object' ? [data[`${relation}Connect` as string]] :
+        typeof data[`${relation}Connect` as string] === "object" ? [data[`${relation}Connect` as string]] :
             [];
     const initialCombined = [...initialCreate, ...initialConnect];
     if (initialCombined.length > 0) {
         // Query for all of the tags, to determine which ones exist
         const existing = await prisma.tag.findMany({
             where: { tag: { in: initialCombined } },
-            select: { tag: true }
+            select: { tag: true },
         });
         // All existing tags are the new connects
         data[`${relation}Connect` as string] = existing.map((t) => ({ tag: t.tag }));
         // All new tags are the new creates
-        data[`${relation}Create` as string] = initialCombined.filter((t) => !existing.some((et) => et.tag === t)).map((t) => typeof t === 'string' ? ({ tag: t }) : t);
+        data[`${relation}Create` as string] = initialCombined.filter((t) => !existing.some((et) => et.tag === t)).map((t) => typeof t === "string" ? ({ tag: t }) : t);
     }
     // Shape disconnects and deletes
     if (Array.isArray(data[`${relation}Disconnect` as string])) {
-        data[`${relation}Disconnect` as string] = data[`${relation}Disconnect` as string].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        data[`${relation}Disconnect` as string] = data[`${relation}Disconnect` as string].map((t: any) => typeof t === "string" ? ({ tag: t }) : t);
     }
     if (Array.isArray(data[`${relation}Delete` as string])) {
-        data[`${relation}Delete` as string] = data[`${relation}Delete` as string].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        data[`${relation}Delete` as string] = data[`${relation}Delete` as string].map((t: any) => typeof t === "string" ? ({ tag: t }) : t);
     }
     return shapeHelper({
         data,
         isOneToOne: false,
         isRequired: false,
         joinData: {
-            fieldName: 'tag',
+            fieldName: "tag",
             uniqueFieldName: parentMapper[parentType],
-            childIdFieldName: 'tagTag',
-            parentIdFieldName: 'taggedId',
+            childIdFieldName: "tagTag",
+            parentIdFieldName: "taggedId",
             parentId: (data as any).id ?? null,
         },
-        objectType: 'Tag',
-        parentRelationshipName: '',
-        primaryKey: 'tag',
+        objectType: "Tag",
+        parentRelationshipName: "",
+        primaryKey: "tag",
         prisma,
         relation,
-        ...rest
-    })
-}
+        ...rest,
+    });
+};

@@ -17,4 +17,4 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
     // Pad every relationship with "select"
     modified = selPad(modified);
     return modified as PrismaSelect;
-}
+};

@@ -13,7 +13,7 @@ export const deconstructUnions = <
     PrismaObject extends { [x: string]: any }
 >(data: { [x: string]: any }, gqlRelMap: GqlRelMap<GQLObject, PrismaObject>): { [x: string]: any } => {
     // Create result object
-    let result: { [x: string]: any } = data;
+    const result: { [x: string]: any } = data;
     // Any value in the gqlRelMap which is an object is a union. 
     // All other values can be ignored.
     const unionFields: [string, { [x: string]: GqlModelType }][] = Object.entries(gqlRelMap).filter(([_, value]) => isRelationshipObject(value)) as any[];
@@ -22,7 +22,7 @@ export const deconstructUnions = <
         // If it's not in data, continue
         if (!data[key]) continue;
         // Store data from the union field
-        let unionData = data[key];
+        const unionData = data[key];
         // Remove the union field from the result
         delete result[key];
         // If not an object, skip
@@ -37,4 +37,4 @@ export const deconstructUnions = <
         }
     }
     return result;
-}
+};

@@ -63,7 +63,7 @@ export const parseSubscriptionContext = (contextJson: string | null): Subscripti
         const settings = contextJson ? JSON.parse(contextJson) : {};
         return settings;
     } catch (error) {
-        logger.error(`Failed to parse notification subscription context`, { trace: '0431' });
-        return {}
+        logger.error("Failed to parse notification subscription context", { trace: "0431" });
+        return {};
     }
-}
+};

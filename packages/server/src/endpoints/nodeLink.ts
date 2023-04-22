@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input NodeLinkCreateInput {
@@ -28,7 +28,7 @@ export const typeDef = gql`
         to: Node!
         routineVersion: RoutineVersion!
     }
-`
+`;
 export const resolvers: {
 } = {
-}
+};

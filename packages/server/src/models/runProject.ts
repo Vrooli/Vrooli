@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
+import { MaxObjects, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from "@shared/consts";
 import { runProjectValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
@@ -8,9 +8,9 @@ import { getSingleTypePermissions } from "../validators";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
 
-const __typename = 'RunProject' as const;
-type Permissions = Pick<RunProjectYou, 'canDelete' | 'canUpdate' | 'canRead'>;
-const suppFields = ['you'] as const;
+const __typename = "RunProject" as const;
+type Permissions = Pick<RunProjectYou, "canDelete" | "canUpdate" | "canRead">;
+const suppFields = ["you"] as const;
 export const RunProjectModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -20,8 +20,8 @@ export const RunProjectModel: ModelLogic<{
     GqlSearch: RunProjectSearchInput,
     GqlSort: RunProjectSortBy,
     GqlPermission: Permissions,
-    PrismaCreate: Prisma.run_projectUpsertArgs['create'],
-    PrismaUpdate: Prisma.run_projectUpsertArgs['update'],
+    PrismaCreate: Prisma.run_projectUpsertArgs["create"],
+    PrismaUpdate: Prisma.run_projectUpsertArgs["update"],
     PrismaModel: Prisma.run_projectGetPayload<SelectWrap<Prisma.run_projectSelect>>,
     PrismaSelect: Prisma.run_projectSelect,
     PrismaWhere: Prisma.run_projectWhereInput,
@@ -35,19 +35,19 @@ export const RunProjectModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            projectVersion: 'ProjectVersion',
-            schedule: 'Schedule',
-            steps: 'RunProjectStep',
-            user: 'User',
-            organization: 'Organization',
+            projectVersion: "ProjectVersion",
+            schedule: "Schedule",
+            steps: "RunProjectStep",
+            user: "User",
+            organization: "Organization",
         },
         prismaRelMap: {
             __typename,
-            projectVersion: 'ProjectVersion',
-            schedule: 'Schedule',
-            steps: 'RunProjectStep',
-            user: 'User',
-            organization: 'Organization',
+            projectVersion: "ProjectVersion",
+            schedule: "Schedule",
+            steps: "RunProjectStep",
+            user: "User",
+            organization: "Organization",
         },
         countFields: {
             stepsCount: true,
@@ -58,8 +58,8 @@ export const RunProjectModel: ModelLogic<{
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                    }
-                }
+                    },
+                };
             },
         },
     },
@@ -78,7 +78,7 @@ export const RunProjectModel: ModelLogic<{
             update: async ({ data, ...rest }) => ({
                 id: data.id,
                 //TODO
-            } as any)
+            } as any),
         },
         yup: runProjectValidation,
     },
@@ -97,10 +97,10 @@ export const RunProjectModel: ModelLogic<{
         },
         searchStringQuery: () => ({
             OR: [
-                'nameWrapped',
+                "nameWrapped",
                 { projectVersion: RunProjectModel.search!.searchStringQuery() },
-            ]
-        })
+            ],
+        }),
     },
     validate: {
         isTransferable: false,
@@ -108,9 +108,9 @@ export const RunProjectModel: ModelLogic<{
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            organization: 'Organization',
-            projectVersion: 'Routine',
-            user: 'User',
+            organization: "Organization",
+            projectVersion: "Routine",
+            user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
@@ -118,11 +118,11 @@ export const RunProjectModel: ModelLogic<{
             User: data.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, languages,) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
-            ['organization', 'Organization'],
-            ['user', 'User'],
+        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.run_projectSelect>(data, [
+            ["organization", "Organization"],
+            ["user", "User"],
         ], languages),
-        profanityFields: ['name'],
+        profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
@@ -130,8 +130,8 @@ export const RunProjectModel: ModelLogic<{
                 OR: [
                     { user: { id: userId } },
                     { organization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
+                ],
             }),
         },
     },
-})
+});

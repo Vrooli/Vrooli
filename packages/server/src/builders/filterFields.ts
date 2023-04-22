@@ -5,7 +5,7 @@
  */
 export const filterFields = (data: { [x: string]: any }, excludes: string[]): { [x: string]: any } => {
     // Create result object
-    let converted: { [x: string]: any } = {};
+    const converted: { [x: string]: any } = {};
     // Loop through object's keys
     Object.keys(data).forEach((key) => {
         // If key is not in excludes, add to result
@@ -14,4 +14,4 @@ export const filterFields = (data: { [x: string]: any }, excludes: string[]): { 
         }
     });
     return converted;
-}
+};

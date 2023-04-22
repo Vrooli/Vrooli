@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export const typeDef = gql`
     input NodeEndCreateInput {
@@ -19,7 +19,7 @@ export const typeDef = gql`
         wasSuccessful: Boolean!
         suggestedNextRoutineVersions: [RoutineVersion!]
     }
-`
+`;
 export const resolvers: {
 } = {
-}
+};

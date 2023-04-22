@@ -9,7 +9,7 @@ import { isRelationshipObject } from "./isRelationshipObject";
  * dot values. For example, if the array is ['a', 'b.c', 'd.e.f'], the result
  * will be ['c', 'e.f']
  */
-const removeFirstDotLayer = (arr: string[]): string[] => arr.map(x => x.split('.').slice(1).join('.')).filter(x => x !== '')
+const removeFirstDotLayer = (arr: string[]): string[] => arr.map(x => x.split(".").slice(1).join(".")).filter(x => x !== "");
 
 /**
  * Recursively converts a PermissionsMap object into a real Prisma select query
@@ -29,9 +29,9 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
 ): Select => {
     // If recursion depth is too high, throw an error
     if (recursionDepth > 100) {
-        throw new CustomError('0386', 'InternalError', languages ?? ['en'], { userId, recursionDepth });
+        throw new CustomError("0386", "InternalError", languages ?? ["en"], { userId, recursionDepth });
     }
-    const map = typeof mapResolver === 'function' ? mapResolver(userId, languages) : mapResolver;
+    const map = typeof mapResolver === "function" ? mapResolver(userId, languages) : mapResolver;
     // Initialize result
     const result: { [x: string]: any } = {};
     // For every key in the PermissionsMap object
@@ -46,9 +46,9 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
         if (Array.isArray(value)) {
             // If array is of length 2, where the first element is a GqlModelType and the second is a string array, 
             // attempt to recurse using substitution
-            if (value.length === 2 && typeof value[0] === 'string' && value[0] in GqlModelType && Array.isArray(value[1])) {
+            if (value.length === 2 && typeof value[0] === "string" && value[0] in GqlModelType && Array.isArray(value[1])) {
                 // Check if the validator exists. If not, assume this is not a substitution and add it to the result
-                const { validate } = getLogic(['validate'], value[0] as GqlModelType, languages, 'permissionsSelectHelper');
+                const { validate } = getLogic(["validate"], value[0] as GqlModelType, languages, "permissionsSelectHelper");
                 if (!validate) {
                     result[key] = value;
                 }
@@ -77,9 +77,9 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
             result[key] = permissionsSelectHelper(value, userId, languages, recursionDepth + 1, childOmitFields);
         }
         // If the value is a GqlModelType, attempt to recurse using substitution
-        else if (typeof value === 'string' && value in GqlModelType) {
+        else if (typeof value === "string" && value in GqlModelType) {
             // Check if the validator exists. If not, assume this is some other string and add it to the result
-            const { validate } = getLogic(['validate'], value as GqlModelType, languages, 'permissionsSelectHelper');
+            const { validate } = getLogic(["validate"], value as GqlModelType, languages, "permissionsSelectHelper");
             if (!validate) {
                 result[key] = value;
             }
@@ -101,4 +101,4 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
     }
     // Return the result
     return result as Select;
-}
+};
