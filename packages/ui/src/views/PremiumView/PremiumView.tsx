@@ -2,16 +2,16 @@ import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableContainer,
 import { LINKS } from "@shared/consts";
 import { CompleteIcon } from "@shared/icons";
 import { loadStripe } from "@stripe/stripe-js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { PubSub } from "../../utils/pubsub";
 import { parseSearchParams, stringifySearchParams, useLocation } from "../../utils/route";
 import { SessionContext } from "../../utils/SessionContext";
 import { PremiumViewProps } from "../types";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Features comparison table data
 function createData(feature, nonPremium, premium) {
@@ -92,13 +92,13 @@ export const PremiumView = ({
         // If running locally
         const endpoint = "create-checkout-session";
         if (window.location.host.includes("localhost") || window.location.host.includes("192.168.0.")) {
-            uri = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/${endpoint}`;
+            uri = `http://${window.location.hostname}:${process.env.VITE_PORT_SERVER ?? "5329"}/api/${endpoint}`;
         }
         // If running on server
         else {
-            uri = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0 ?
-                `${import.meta.env.VITE_SERVER_URL}/v2` :
-                `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/${endpoint}`;
+            uri = process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0 ?
+                `${process.env.VITE_SERVER_URL}/v2` :
+                `http://${process.env.VITE_SITE_IP}:${process.env.VITE_PORT_SERVER ?? "5329"}/api/${endpoint}`;
         }
         // Create checkout session
         try {

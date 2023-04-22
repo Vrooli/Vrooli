@@ -8,6 +8,7 @@ import express from "express";
 import fs from "fs";
 import { graphqlUploadExpress } from "graphql-upload";
 import i18next from "i18next";
+import path from "path";
 import Stripe from "stripe";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
@@ -382,6 +383,7 @@ const main = async () => {
 
     // Set static folders
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
+    app.use("/assets", express.static(path.join(__dirname, "../../ui/src/assets")));
 
     // Set up image uploading
     app.use("/api/v2", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));

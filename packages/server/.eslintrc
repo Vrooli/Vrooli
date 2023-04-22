@@ -1,7 +1,8 @@
 {
     "ignorePatterns": [
         "dist/",
-        "src/auth/message_signing/"
+        "src/auth/message_signing/",
+        "vite.config.ts"
     ],
     "extends": [
         "eslint:recommended",

@@ -1,9 +1,4 @@
-import {
-    ApolloClient,
-    ApolloLink,
-    InMemoryCache,
-    NormalizedCacheObject,
-} from "@apollo/client";
+import { ApolloClient, ApolloLink, InMemoryCache, NormalizedCacheObject } from "@apollo/client";
 import { onError } from "@apollo/client/link/error";
 import { createUploadLink } from "apollo-upload-client";
 import { useMemo } from "react";
@@ -15,7 +10,7 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     // Define link for error handling
     const errorLink = onError(({ graphQLErrors, networkError }) => {
         // Only developers should see these error messages
-        if (import.meta.env.PROD) return;
+        if (process.env.NODE_ENV === "production") return;
         if (graphQLErrors) {
             graphQLErrors.forEach(({ message, locations, path }) => {
                 console.error("GraphQL error occurred");
@@ -32,13 +27,13 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     let uri: string;
     // If running locally
     if (window.location.host.includes("localhost") || window.location.host.includes("192.168.0.")) {
-        uri = `http://${window.location.hostname}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
+        uri = `http://${window.location.hostname}:${process.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
     }
     // If running on server
     else {
-        uri = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0 ?
-            `${import.meta.env.VITE_SERVER_URL}/v2` :
-            `http://${import.meta.env.VITE_SITE_IP}:${import.meta.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
+        uri = process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0 ?
+            `${process.env.VITE_SERVER_URL}/v2` :
+            `http://${process.env.VITE_SITE_IP}:${process.env.VITE_PORT_SERVER ?? "5329"}/api/v2`;
     }
     // Define link for handling file uploads
     const uploadLink = createUploadLink({

@@ -1,13 +1,13 @@
 import { DialogContent, useTheme } from "@mui/material";
 import { LINKS, PopularInput, PopularResult } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { feedPopular } from "../../../api/generated/endpoints/feed_popular";
 import { useCustomLazyQuery } from "../../../api/hooks";
 import { DialogTitle } from "../../../components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "../../../components/inputs/search";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { AutocompleteOption, ShortcutOption } from "../../../types";
 import { listToAutocomplete } from "../../../utils/display/listTools";
 import { getUserLanguages } from "../../../utils/display/translationTools";
@@ -64,7 +64,7 @@ export const CommandPalette = () => {
     }, []);
 
     const [refetch, { data, loading, error }] = useCustomLazyQuery<PopularResult, PopularInput>(feedPopular, {
-        variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
+        variables: { searchString: searchString.replace(/![^\s]{1,}/g, "") },
         errorPolicy: "all",
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);

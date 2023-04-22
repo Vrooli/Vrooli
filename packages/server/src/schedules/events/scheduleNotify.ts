@@ -133,7 +133,7 @@ export const scheduleNotify = async () => {
         // Set up batch parameters
         const batchSize = 100;
         const skip = 0;
-        const currentBatchSize = 0;
+        let currentBatchSize = 0;
         // While there are still schedules to process
         do {
             // Find all schedules data that occurs within the window
@@ -169,6 +169,7 @@ export const scheduleNotify = async () => {
                 skip,
                 take: batchSize,
             });
+            currentBatchSize = schedules.length;
             // For each schedule
             for (const schedule of schedules) {
                 // Find all occurrences of the schedule within the next 25 hours
