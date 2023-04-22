@@ -1,5 +1,5 @@
 import { Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type CommentTranslationShape = Pick<CommentTranslation, "id" | "language" | "text"> & {

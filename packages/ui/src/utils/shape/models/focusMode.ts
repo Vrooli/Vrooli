@@ -1,5 +1,5 @@
 import { FocusMode, FocusModeCreateInput, FocusModeUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { FocusModeFilterShape, shapeFocusModeFilter } from "./focusModeFilter";
 import { LabelShape, shapeLabel } from "./label";
 import { ReminderListShape, shapeReminderList } from "./reminderList";

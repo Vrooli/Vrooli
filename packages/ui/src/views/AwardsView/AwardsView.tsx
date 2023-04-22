@@ -9,7 +9,7 @@ import { CardGrid } from "../../components/lists/CardGrid/CardGrid";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AwardDisplay, Wrap } from "types";
+import { AwardDisplay, Wrap } from "../../types";
 import { awardToDisplay } from "../../utils/display/awardsDisplay";
 import { getUserLanguages } from "../../utils/display/translationTools";
 import { useDisplayApolloError } from "../../utils/hooks/useDisplayApolloError";

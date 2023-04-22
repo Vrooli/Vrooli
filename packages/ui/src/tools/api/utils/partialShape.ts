@@ -1,5 +1,5 @@
 import { exists } from "@shared/utils";
-import { MaybeLazyAsync, NonMaybe } from "types";
+import { MaybeLazyAsync, NonMaybe } from "../../../types";
 import { DeepPartialBooleanWithFragments } from "../types";
 import { uniqueFragmentName } from "./uniqueFragmentName";
 import { unlazy, unlazyDeep } from "./unlazy";

@@ -1,7 +1,7 @@
 import { TimeFrame } from "@shared/consts";
 import { exists } from "@shared/utils";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AutocompleteOption } from "types";
+import { AutocompleteOption } from "../../types";
 import { useCustomLazyQuery } from "../../api";
 import { SearchQueryVariablesInput } from "../../components/lists/types";
 import { listToAutocomplete } from "../display/listTools";

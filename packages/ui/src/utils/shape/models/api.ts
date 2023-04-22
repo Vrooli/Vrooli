@@ -1,5 +1,5 @@
 import { Api, ApiCreateInput, ApiUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { ApiVersionShape, shapeApiVersion } from "./apiVersion";
 import { LabelShape, shapeLabel } from "./label";
 import { shapeTag, TagShape } from "./tag";

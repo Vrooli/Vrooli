@@ -4,7 +4,7 @@ import { SvgComponent } from "@shared/icons";
 import { HelpButtonProps } from "../../components/buttons/types";
 import { StatsCompactPropsObject } from "../../components/text/types";
 import { BaseObjectFormProps } from "../../forms/types";
-import { NavigableObject, RoutineStep } from "types";
+import { NavigableObject, RoutineStep } from "../../types";
 import { ObjectAction } from "../../utils/actions/objectActions";
 import { CookiePreferences } from "../../utils/cookies";
 import { ListObjectType } from "../../utils/display/listTools";

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Directories to match for relative import conversion
-dirs=("api" "assets" "components" "forms" "tools" "utils" "views" "styles")
+dirs=("api" "assets" "components" "forms" "tools" "utils" "views" "styles" "types")
 
 # Loop through all TypeScript and JavaScript files in the src folder
 find src -type f \( -iname "*.ts" -o -iname "*.tsx" -o -iname "*.js" -o -iname "*.jsx" \) |

@@ -1,13 +1,13 @@
 import { Box } from "@mui/material";
 import { LINKS } from "@shared/consts";
-import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
-import { NavbarProps } from "components/navigation/types";
-import { ScrollToTop } from "components/ScrollToTop";
-import { ForgotPasswordForm, ResetPasswordForm } from "forms/auth";
 import { lazily } from "react-lazily";
-import { PageProps } from "views/wrapper/types";
+import { FullPageSpinner } from "./components/FullPageSpinner/FullPageSpinner";
+import { NavbarProps } from "./components/navigation/types";
 import { Page } from "./components/Page/Page";
+import { ScrollToTop } from "./components/ScrollToTop";
+import { ForgotPasswordForm, ResetPasswordForm } from "./forms/auth";
 import { Route, RouteProps, Switch } from "./utils/route";
+import { PageProps } from "./views/wrapper/types";
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
@@ -41,17 +41,17 @@ const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
 const { StartView } = lazily(() => import("./views/StartView/StartView"));
 const { StatsView } = lazily(() => import("./views/StatsView/StatsView"));
-const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
-const { BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
-const { NoteUpsert, NoteView } = lazily(() => import("./views/objects/note"));
-const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
-const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
-const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
-const { ReminderUpsert, ReminderView } = lazily(() => import("./views/objects/reminder"));
-const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
-const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
-const { StandardUpsert, StandardView } = lazily(() => import("./views/objects/standard"));
-const { UserView } = lazily(() => import("./views/objects/user"));
+const { ApiUpsert, ApiView } = lazily(() => import("./views/api"));
+const { BookmarkListView } = lazily(() => import("./views/bookmarkList"));
+const { NoteUpsert, NoteView } = lazily(() => import("./views/note"));
+const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/organization"));
+const { ProjectUpsert, ProjectView } = lazily(() => import("./views/project"));
+const { QuestionUpsert, QuestionView } = lazily(() => import("./views/question"));
+const { ReminderUpsert, ReminderView } = lazily(() => import("./views/reminder"));
+const { RoutineUpsert, RoutineView } = lazily(() => import("./views/routine"));
+const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/smartContract"));
+const { StandardUpsert, StandardView } = lazily(() => import("./views/standard"));
+const { UserView } = lazily(() => import("./views/user"));
 
 /**
  * Fallback displayed while route is being loaded.

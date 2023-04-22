@@ -1,4 +1,4 @@
-import { OptionalTranslation } from "types";
+import { OptionalTranslation } from "../../types";
 import { ViewDisplayType } from "../../views/types";
 
 export interface ContactInfoProps {

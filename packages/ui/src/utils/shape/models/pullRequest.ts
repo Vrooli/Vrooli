@@ -1,5 +1,5 @@
 import { PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { createPrims, shapeUpdate, updatePrims } from "./tools";
 
 export type PullRequestTranslationShape = Pick<PullRequestTranslation, "id" | "language" | "text"> & {

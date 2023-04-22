@@ -1,5 +1,5 @@
 import { Node, NodeLink, NodeRoutineListItem, NodeType, RoutineVersion } from "@shared/consts";
-import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
+import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "../../../types";
 import { RoutineStepType } from "../../../utils/consts";
 import { getTranslation } from "../../../utils/display/translationTools";
 import { routineVersionHasSubroutines } from "../../../utils/runUtils";

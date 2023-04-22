@@ -1,5 +1,5 @@
 import { QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 
 export type QuizQuestionResponseShape = Pick<QuizQuestionResponse, "id"> & {

@@ -1,5 +1,5 @@
 import { LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
-import { ActionOption } from "types";
+import { ActionOption } from "../../types";
 import { userProfileUpdate } from "../../api/generated/endpoints/user_profileUpdate";
 import { documentNodeWrapper, errorToCode } from "../../api/utils";
 import { getCurrentUser } from "../authentication/session";

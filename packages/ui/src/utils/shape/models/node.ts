@@ -1,5 +1,5 @@
 import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { NodeEndShape, shapeNodeEnd } from "./nodeEnd";
 import { NodeRoutineListShape, shapeNodeRoutineList } from "./nodeRoutineList";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

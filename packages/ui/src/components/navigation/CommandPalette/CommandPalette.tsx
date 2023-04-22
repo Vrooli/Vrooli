@@ -8,7 +8,7 @@ import { LargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog
 import { SiteSearchBar } from "../../../components/inputs/search";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AutocompleteOption, ShortcutOption } from "types";
+import { AutocompleteOption, ShortcutOption } from "../../../types";
 import { listToAutocomplete } from "../../../utils/display/listTools";
 import { getUserLanguages } from "../../../utils/display/translationTools";
 import { useDisplayApolloError } from "../../../utils/hooks/useDisplayApolloError";

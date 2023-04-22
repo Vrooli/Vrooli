@@ -2,7 +2,7 @@ import { ApiVersion, GqlModelType, NoteVersion, Organization, Project, ProjectVe
 import { SvgComponent } from "@shared/icons";
 import { CommonKey } from "@shared/translations";
 import { LineGraphProps } from "../../components/graphs/types";
-import { AwardDisplay, NavigableObject } from "types";
+import { AwardDisplay, NavigableObject } from "../../types";
 import { ObjectAction } from "../../utils/actions/objectActions";
 import { ListObjectType } from "../../utils/display/listTools";
 import { UseObjectActionsReturn } from "../../utils/hooks/useObjectActions";

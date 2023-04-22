@@ -1,5 +1,5 @@
 import { Member, MemberUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 
 export type MemberShape = Pick<Member, "id"> & {

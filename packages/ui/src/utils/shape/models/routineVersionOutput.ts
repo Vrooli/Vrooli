@@ -1,5 +1,5 @@
 import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputTranslation, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput, RoutineVersionOutputUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { hasObjectChanged } from "../general";
 import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

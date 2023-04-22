@@ -1,5 +1,5 @@
 import { Post, PostCreateInput, PostUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 
 export type PostShape = Pick<Post, "id"> & {

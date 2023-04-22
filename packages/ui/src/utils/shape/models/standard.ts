@@ -1,5 +1,5 @@
 import { Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { shapeStandardVersion, StandardVersionShape } from "./standardVersion";
 import { shapeTag, TagShape } from "./tag";

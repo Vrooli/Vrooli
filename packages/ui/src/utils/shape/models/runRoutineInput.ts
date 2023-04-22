@@ -1,5 +1,5 @@
 import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type RunRoutineInputShape = Pick<RunRoutineInput, "id" | "data"> & {

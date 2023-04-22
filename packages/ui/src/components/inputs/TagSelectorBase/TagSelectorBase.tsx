@@ -5,7 +5,7 @@ import { tagFindMany } from "../../../api/generated/endpoints/tag_findMany";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton/BookmarkButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Wrap } from "types";
+import { Wrap } from "../../../types";
 import { PubSub } from "../../../utils/pubsub";
 import { TagShape } from "../../../utils/shape/models/tag";
 import { TagSelectorBaseProps } from "../types";

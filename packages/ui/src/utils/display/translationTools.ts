@@ -3,7 +3,7 @@ import { CommonKey, ErrorKey } from "@shared/translations";
 import { uuid } from "@shared/uuid";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
-import { OptionalTranslation } from "types";
+import { OptionalTranslation } from "../../types";
 import { ObjectSchema, ValidationError } from "yup";
 import { getCurrentUser } from "../authentication/session";
 

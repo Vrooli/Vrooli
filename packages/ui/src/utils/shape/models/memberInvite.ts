@@ -1,5 +1,5 @@
 import { MemberInvite, MemberInviteCreateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 
 export type MemberInviteShape = Pick<MemberInvite, "id"> & {
     __typename?: "MemberInvite";

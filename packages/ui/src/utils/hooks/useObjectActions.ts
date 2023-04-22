@@ -1,7 +1,7 @@
 import { BookmarkFor, CopyType, DeleteType, GqlModelType, ReactionFor, ReportFor } from "@shared/consts";
 import { exists, setDotNotationValue } from "@shared/utils";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
-import { NavigableObject } from "types";
+import { NavigableObject } from "../../types";
 import { getAvailableActions, ObjectAction, ObjectActionComplete } from "../actions/objectActions";
 import { getDisplay, getYou, getYouDot, ListObjectType } from "../display/listTools";
 import { openObject, openObjectEdit } from "../navigation/openObject";

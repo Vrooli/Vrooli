@@ -1,5 +1,5 @@
 import { Note, NoteCreateInput, NoteUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { NoteVersionShape, shapeNoteVersion } from "./noteVersion";
 import { shapeTag, TagShape } from "./tag";

@@ -1,5 +1,5 @@
 import { Schedule, ScheduleCreateInput, ScheduleUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { ScheduleExceptionShape, shapeScheduleException } from "./scheduleException";
 import { ScheduleRecurrenceShape, shapeScheduleRecurrence } from "./scheduleRecurrence";

@@ -3,7 +3,7 @@ import { Box, List, ListItem, Typography, useTheme } from "@mui/material";
 import { Notification, NotificationSearchInput, NotificationSearchResult } from "@shared/consts";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Wrap } from "types";
+import { Wrap } from "../../../types";
 import { notificationFindMany } from "../../../api/generated/endpoints/notification_findMany";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar";
 import { useDisplayApolloError } from "../../../utils/hooks/useDisplayApolloError";

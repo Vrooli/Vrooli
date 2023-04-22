@@ -1,4 +1,4 @@
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../../types";
 
 type RelationshipType = "Connect" | "Create";
 

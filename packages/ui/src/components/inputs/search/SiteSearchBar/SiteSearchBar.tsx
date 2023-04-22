@@ -5,7 +5,7 @@ import { BookmarkButton } from "../../../../components/buttons/BookmarkButton/Bo
 import { MicrophoneButton } from "../../../../components/buttons/MicrophoneButton/MicrophoneButton";
 import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AutocompleteOption } from "types";
+import { AutocompleteOption } from "../../../../types";
 import { getCurrentUser } from "../../../../utils/authentication/session";
 import { useDebounce } from "../../../../utils/hooks/useDebounce";
 import { getLocalStorageKeys } from "../../../../utils/localStorage";

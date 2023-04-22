@@ -1,5 +1,5 @@
 import { Project, ProjectCreateInput, ProjectUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { ProjectVersionShape, shapeProjectVersion } from "./projectVersion";
 import { shapeTag, TagShape } from "./tag";

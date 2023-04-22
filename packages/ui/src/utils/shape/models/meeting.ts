@@ -1,5 +1,5 @@
 import { Meeting, MeetingCreateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { MeetingInviteShape, shapeMeetingInvite } from "./meetingInvite";
 import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";

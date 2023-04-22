@@ -1,5 +1,5 @@
 import { Wallet, WalletUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { shapeUpdate } from "./tools";
 
 export type WalletShape = Pick<Wallet, "id"> & {

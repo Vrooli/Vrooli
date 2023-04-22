@@ -5,7 +5,7 @@
 import { Bookmark, GqlModelType, LINKS, Reaction, RunProject, RunRoutine, View } from "@shared/consts";
 import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
-import { NavigableObject } from "types";
+import { NavigableObject } from "../../types";
 import { ResourceType } from "../consts";
 import { SetLocation, stringifySearchParams } from "../route";
 import { uuidToBase36 } from "./urlTools";

@@ -3,7 +3,7 @@ import { BookmarkFor, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, Ru
 import { SvgProps } from "@shared/icons";
 import { FormSchema } from "../../forms/types";
 import React from "react";
-import { NavigableObject } from "types";
+import { NavigableObject } from "../../types";
 import { Status } from "../../utils/consts";
 import { SearchType } from "../../utils/search/objectToSearch";
 import { ViewDisplayType } from "../../views/types";

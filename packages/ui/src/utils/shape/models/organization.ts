@@ -1,5 +1,5 @@
 import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { MemberInviteShape, shapeMemberInvite } from "./memberInvite";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoleShape, shapeRole } from "./role";

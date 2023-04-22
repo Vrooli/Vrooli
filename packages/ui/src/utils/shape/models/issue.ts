@@ -1,5 +1,5 @@
 import { Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCreateInput, IssueTranslationUpdateInput, IssueUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

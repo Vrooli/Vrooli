@@ -1,5 +1,5 @@
 import { RoutineVersion, RoutineVersionCreateInput, RoutineVersionTranslation, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput, RoutineVersionUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { NodeShape, shapeNode } from "./node";
 import { NodeLinkShape, shapeNodeLink } from "./nodeLink";
 import { ResourceListShape, shapeResourceList } from "./resourceList";

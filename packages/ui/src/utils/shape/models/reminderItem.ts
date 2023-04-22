@@ -1,5 +1,5 @@
 import { ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 
 export type ReminderItemShape = Pick<ReminderItem, "id" | "name" | "description" | "dueDate" | "index"> & {

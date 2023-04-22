@@ -8,7 +8,7 @@ import { ListContainer } from "../../../components/containers/ListContainer/List
 import { SiteSearchBar } from "../../../components/inputs/search";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { NavigableObject } from "types";
+import { NavigableObject } from "../../../types";
 import { listToListItems } from "../../../utils/display/listTools";
 import { useFindMany } from "../../../utils/hooks/useFindMany";
 import { openObject } from "../../../utils/navigation/openObject";

@@ -1,5 +1,5 @@
 import { ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { ScheduleShape, shapeSchedule } from "./schedule";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 

@@ -1,5 +1,5 @@
 import { StandardVersion, StandardVersionCreateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, StandardVersionUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { ResourceListShape } from "./resourceList";
 import { StandardShape } from "./standard";
 import { createPrims, shapeUpdate, updatePrims } from "./tools";

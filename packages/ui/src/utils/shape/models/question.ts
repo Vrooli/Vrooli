@@ -1,5 +1,5 @@
 import { Question, QuestionCreateInput, QuestionForType, QuestionTranslation, QuestionTranslationCreateInput, QuestionTranslationUpdateInput, QuestionUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { shapeTag, TagShape } from "./tag";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

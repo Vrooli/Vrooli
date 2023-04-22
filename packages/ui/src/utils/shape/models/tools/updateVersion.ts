@@ -1,4 +1,4 @@
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../../types";
 
 /**
  * Shapes versioning relation data for a GraphQL update input

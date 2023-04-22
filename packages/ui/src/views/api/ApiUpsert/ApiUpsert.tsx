@@ -1,22 +1,22 @@
 import { ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput, FindVersionInput } from "@shared/consts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { mutationWrapper } from "../../../../api";
-import { apiVersionCreate } from "../../../../api/generated/endpoints/apiVersion_create";
-import { apiVersionFindOne } from "../../../../api/generated/endpoints/apiVersion_findOne";
-import { apiVersionUpdate } from "../../../../api/generated/endpoints/apiVersion_update";
-import { useCustomLazyQuery, useCustomMutation } from "../../../../api/hooks";
-import { TopBar } from "../../../../components/navigation/TopBar/TopBar";
-import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "../../../../forms/ApiForm/ApiForm";
-import { BaseFormRef } from "../../../../forms/BaseForm/BaseForm";
-import { useUpsertActions } from "../../../../utils/hooks/useUpsertActions";
-import { parseSingleItemUrl } from "../../../../utils/navigation/urlTools";
-import { PubSub } from "../../../../utils/pubsub";
-import { SessionContext } from "../../../../utils/SessionContext";
+import { mutationWrapper } from "../../../api";
+import { apiVersionCreate } from "../../../api/generated/endpoints/apiVersion_create";
+import { apiVersionFindOne } from "../../../api/generated/endpoints/apiVersion_findOne";
+import { apiVersionUpdate } from "../../../api/generated/endpoints/apiVersion_update";
+import { useCustomLazyQuery, useCustomMutation } from "../../../api/hooks";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar";
+import { ApiForm, apiInitialValues, transformApiValues, validateApiValues } from "../../../forms/ApiForm/ApiForm";
+import { BaseFormRef } from "../../../forms/BaseForm/BaseForm";
+import { useUpsertActions } from "../../../utils/hooks/useUpsertActions";
+import { parseSingleItemUrl } from "../../../utils/navigation/urlTools";
+import { PubSub } from "../../../utils/pubsub";
+import { SessionContext } from "../../../utils/SessionContext";
 import { ApiUpsertProps } from "../types";
 
 export const ApiUpsert = ({
-    display = 'page',
+    display = "page",
     isCreate,
     onCancel,
     onCompleted,
@@ -42,7 +42,7 @@ export const ApiUpsert = ({
                 display={display}
                 onClose={handleCancel}
                 titleData={{
-                    titleKey: isCreate ? 'CreateApi' : 'UpdateApi',
+                    titleKey: isCreate ? "CreateApi" : "UpdateApi",
                 }}
             />
             <Formik
@@ -50,7 +50,7 @@ export const ApiUpsert = ({
                 initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!isCreate && !existing) {
-                        PubSub.get().publishSnack({ messageKey: 'CouldNotReadObject', severity: 'Error' });
+                        PubSub.get().publishSnack({ messageKey: "CouldNotReadObject", severity: "Error" });
                         return;
                     }
                     mutationWrapper<ApiVersion, ApiVersionCreateInput | ApiVersionUpdateInput>({

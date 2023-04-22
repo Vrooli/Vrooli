@@ -1,5 +1,5 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { LabelShape, shapeLabel } from "./label";
 import { RoutineVersionShape, shapeRoutineVersion } from "./routineVersion";
 import { shapeTag, TagShape } from "./tag";

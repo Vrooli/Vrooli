@@ -1,5 +1,5 @@
 import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { NodeLinkWhenShape, shapeNodeLinkWhen } from "./nodeLinkWhen";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

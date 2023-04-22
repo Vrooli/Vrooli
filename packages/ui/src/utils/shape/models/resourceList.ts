@@ -1,5 +1,5 @@
 import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { ResourceShape, shapeResource } from "./resource";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 

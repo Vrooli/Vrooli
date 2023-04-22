@@ -5,7 +5,7 @@ import { reportFindMany } from "../../api/generated/endpoints/report_findMany";
 import { TopBar } from "../../components/navigation/TopBar/TopBar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Wrap } from "types";
+import { Wrap } from "../../types";
 import { parseSingleItemUrl } from "../../utils/navigation/urlTools";
 import { getLastUrlPart } from "../../utils/route";
 import { ReportsViewProps } from "../types";

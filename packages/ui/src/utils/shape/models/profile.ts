@@ -1,5 +1,5 @@
 import { ProfileUpdateInput, User, UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { FocusModeShape, shapeFocusMode } from "./focusMode";
 import { createPrims, shapeUpdate, updatePrims, updateRel } from "./tools";
 

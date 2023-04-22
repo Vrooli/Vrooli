@@ -15,7 +15,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, DateLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
-import { CalendarEvent } from "types";
+import { CalendarEvent } from "../../types";
 import { getCurrentUser } from "../../utils/authentication/session";
 import { getDisplay } from "../../utils/display/listTools";
 import { getUserLanguages, getUserLocale, loadLocale } from "../../utils/display/translationTools";

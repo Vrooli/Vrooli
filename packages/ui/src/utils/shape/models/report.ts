@@ -1,5 +1,5 @@
 import { Report, ReportCreateInput, ReportFor, ReportUpdateInput } from "@shared/consts";
-import { ShapeModel } from "types";
+import { ShapeModel } from "../../../types";
 import { createPrims, shapeUpdate, updatePrims } from "./tools";
 
 export type ReportShape = Pick<Report, "id" | "details" | "language" | "reason"> & {

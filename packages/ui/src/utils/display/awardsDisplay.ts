@@ -1,5 +1,5 @@
 import { Award, awardNames } from "@shared/consts";
-import { AwardDisplay } from "types";
+import { AwardDisplay } from "../../types";
 
 /**
  * Converts a queried award object into an AwardDisplay object.
